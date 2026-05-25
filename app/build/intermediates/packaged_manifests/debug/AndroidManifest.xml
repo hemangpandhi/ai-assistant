@@ -8,11 +8,15 @@
         android:minSdkVersion="34"
         android:targetSdkVersion="34" />
 
+    <!-- Permissions required for downloading the model -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <permission
         android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
         android:protectionLevel="signature" />
 
-    <uses-permission android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" /> <!-- Permissions required for AICore / edge AI might be defined here -->
+    <uses-permission android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+
     <application
         android:allowBackup="true"
         android:appComponentFactory="androidx.core.app.CoreComponentFactory"

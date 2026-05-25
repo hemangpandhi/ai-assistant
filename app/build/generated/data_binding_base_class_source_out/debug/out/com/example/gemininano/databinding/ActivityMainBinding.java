@@ -7,6 +7,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -20,6 +21,9 @@ import java.lang.String;
 public final class ActivityMainBinding implements ViewBinding {
   @NonNull
   private final LinearLayout rootView;
+
+  @NonNull
+  public final Button btnDownloadModel;
 
   @NonNull
   public final Button btnUseCase1;
@@ -39,16 +43,22 @@ public final class ActivityMainBinding implements ViewBinding {
   @NonNull
   public final TextView outputText;
 
-  private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull Button btnUseCase1,
-      @NonNull Button btnUseCase2, @NonNull Button btnUseCase3, @NonNull Button generateButton,
-      @NonNull EditText inputText, @NonNull TextView outputText) {
+  @NonNull
+  public final ProgressBar progressBar;
+
+  private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull Button btnDownloadModel,
+      @NonNull Button btnUseCase1, @NonNull Button btnUseCase2, @NonNull Button btnUseCase3,
+      @NonNull Button generateButton, @NonNull EditText inputText, @NonNull TextView outputText,
+      @NonNull ProgressBar progressBar) {
     this.rootView = rootView;
+    this.btnDownloadModel = btnDownloadModel;
     this.btnUseCase1 = btnUseCase1;
     this.btnUseCase2 = btnUseCase2;
     this.btnUseCase3 = btnUseCase3;
     this.generateButton = generateButton;
     this.inputText = inputText;
     this.outputText = outputText;
+    this.progressBar = progressBar;
   }
 
   @Override
@@ -78,6 +88,12 @@ public final class ActivityMainBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.btnDownloadModel;
+      Button btnDownloadModel = ViewBindings.findChildViewById(rootView, id);
+      if (btnDownloadModel == null) {
+        break missingId;
+      }
+
       id = R.id.btnUseCase1;
       Button btnUseCase1 = ViewBindings.findChildViewById(rootView, id);
       if (btnUseCase1 == null) {
@@ -114,8 +130,14 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityMainBinding((LinearLayout) rootView, btnUseCase1, btnUseCase2, btnUseCase3,
-          generateButton, inputText, outputText);
+      id = R.id.progressBar;
+      ProgressBar progressBar = ViewBindings.findChildViewById(rootView, id);
+      if (progressBar == null) {
+        break missingId;
+      }
+
+      return new ActivityMainBinding((LinearLayout) rootView, btnDownloadModel, btnUseCase1,
+          btnUseCase2, btnUseCase3, generateButton, inputText, outputText, progressBar);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

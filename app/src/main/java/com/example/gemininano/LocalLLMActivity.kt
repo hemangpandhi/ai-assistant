@@ -19,11 +19,14 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var btnUseCase1: Button
     private lateinit var btnUseCase2: Button
     private lateinit var btnUseCase3: Button
+    private lateinit var btnDownloadModel: Button
+    private lateinit var progressBar: android.widget.ProgressBar
 
     private var llmInference: LlmInference? = null
     // SELinux blocks apps from reading /data/local/tmp/ directly.
     // The safest location is the app's own internal storage directory.
-    private val MODEL_PATH = "/data/data/com.example.gemininano/files/gemma-2b-it-gpu-int4.bin"
+    private val MODEL_PATH = "/data/data/com.example.gemininano/files/gemma-4-E2B-it.litertlm"
+    private val MODEL_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,14 +38,26 @@ class LocalLLMActivity : AppCompatActivity() {
         btnUseCase1 = findViewById(R.id.btnUseCase1)
         btnUseCase2 = findViewById(R.id.btnUseCase2)
         btnUseCase3 = findViewById(R.id.btnUseCase3)
+        btnDownloadModel = findViewById(R.id.btnDownloadModel)
+        progressBar = findViewById(R.id.progressBar)
 
         supportActionBar?.title = "MediaPipe Local LLM"
 
         setupUseCases()
 
         // Initialize the local model in the background
-        lifecycleScope.launch {
-            initLlm()
+        val modelFile = java.io.File(MODEL_PATH)
+        if (modelFile.exists() && modelFile.length() > 0) {
+            lifecycleScope.launch {
+                initLlm()
+            }
+        } else {
+            outputText.text = "Model not found at \$MODEL_PATH.\nPlease click 'Download Model' to fetch it."
+            generateButton.isEnabled = false
+        }
+
+        btnDownloadModel.setOnClickListener {
+            downloadModel()
         }
 
         generateButton.setOnClickListener {
@@ -111,6 +126,63 @@ class LocalLLMActivity : AppCompatActivity() {
                 withContext(Dispatchers.Main) {
                     outputText.text = "Error during generation: \${e.message}"
                     generateButton.isEnabled = true
+                }
+            }
+        }
+    }
+
+    private fun downloadModel() {
+        btnDownloadModel.isEnabled = false
+        progressBar.visibility = android.view.View.VISIBLE
+        outputText.text = "Starting download (2.5GB)... Please keep the app open."
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val url = java.net.URL(MODEL_URL)
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.connect()
+
+                val fileLength = connection.contentLength
+                val input = java.io.BufferedInputStream(url.openStream())
+                val output = java.io.FileOutputStream(MODEL_PATH)
+
+                val data = ByteArray(1024 * 64)
+                var total: Long = 0
+                var count: Int
+                var lastProgress = 0
+
+                while (input.read(data).also { count = it } != -1) {
+                    total += count.toLong()
+                    if (fileLength > 0) {
+                        val progress = (total * 100 / fileLength).toInt()
+                        if (progress != lastProgress) {
+                            lastProgress = progress
+                            withContext(Dispatchers.Main) {
+                                progressBar.progress = progress
+                                outputText.text = "Downloading... \$progress% (\${total / 1024 / 1024} MB / \${fileLength / 1024 / 1024} MB)"
+                            }
+                        }
+                    }
+                    output.write(data, 0, count)
+                }
+
+                output.flush()
+                output.close()
+                input.close()
+
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = android.view.View.GONE
+                    outputText.text = "Download complete! Initializing model..."
+                }
+
+                initLlm()
+
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    progressBar.visibility = android.view.View.GONE
+                    btnDownloadModel.isEnabled = true
+                    val stackTrace = android.util.Log.getStackTraceString(e)
+                    outputText.text = "Download failed: \${e.message}\n\$stackTrace"
                 }
             }
         }

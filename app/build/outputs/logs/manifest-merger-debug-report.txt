@@ -55,6 +55,10 @@ MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-
 		INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
 	xmlns:android
 		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:11-69
+uses-permission#android.permission.INTERNET
+ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:5:5-67
+	android:name
+		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:5:22-64
 application
 ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:5-28:19
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:5-28:19

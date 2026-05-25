@@ -3172,6 +3172,7 @@ id bounce
 id bounceBoth
 id bounceEnd
 id bounceStart
+id btnDownloadModel
 id btnUseCase1
 id btnUseCase2
 id btnUseCase3
@@ -3433,6 +3434,7 @@ id pin
 id position
 id postLayout
 id pressed
+id progressBar
 id progress_circular
 id progress_horizontal
 id radio
