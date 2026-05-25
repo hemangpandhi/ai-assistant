@@ -1,0 +1,9 @@
+R_DEF: Internal format may change without notice
+local
+id btnUseCase1
+id btnUseCase2
+id btnUseCase3
+id generateButton
+id inputText
+id outputText
+layout activity_main
