@@ -13,15 +13,15 @@ read -p "> " MODEL_PATH
 if [ ! -f "$MODEL_PATH" ]; then
     echo "Error: File not found at $MODEL_PATH"
     exit 1
-fi
+FILENAME=$(basename "$MODEL_PATH")
 
-echo "Pushing $MODEL_PATH to the Android device via ADB..."
+echo "Pushing $FILENAME to the Android device via ADB..."
 adb root
 adb shell mkdir -p /data/data/com.example.gemininano/files/
 # Push to tmp first because adb push directly to data/data can sometimes fail
-adb push "$MODEL_PATH" /data/local/tmp/gemma-4-E2B-it.litertlm
+adb push "$MODEL_PATH" "/data/local/tmp/$FILENAME"
 echo "Moving to secure app storage..."
-adb shell mv /data/local/tmp/gemma-4-E2B-it.litertlm /data/data/com.example.gemininano/files/gemma-4-E2B-it.litertlm
-adb shell chmod 666 /data/data/com.example.gemininano/files/gemma-4-E2B-it.litertlm
+adb shell mv "/data/local/tmp/$FILENAME" "/data/data/com.example.gemininano/files/$FILENAME"
+adb shell chmod 666 "/data/data/com.example.gemininano/files/$FILENAME"
 
 echo "Done! You can now launch the app and it will immediately load the model!"

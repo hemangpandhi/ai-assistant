@@ -24,9 +24,8 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var progressBar: android.widget.ProgressBar
 
     private var llmInference: LlmInference? = null
-    // SELinux blocks apps from reading /data/local/tmp/ directly.
     // The safest location is the app's own internal storage directory.
-    private val MODEL_PATH = "/data/data/com.example.gemininano/files/gemma-4-E2B-it.litertlm"
+    private var MODEL_PATH = ""
     private val MODEL_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm"
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,14 +46,22 @@ class LocalLLMActivity : AppCompatActivity() {
 
         setupUseCases()
 
-        // Check if model exists
-        val modelFile = java.io.File(MODEL_PATH)
-        if (modelFile.exists() && modelFile.length() > 0) {
-            outputText.text = "Model found locally at \$MODEL_PATH.\nClick 'Load Local Model' to initialize."
+        // Check if model exists dynamically
+        val filesDir = applicationContext.filesDir
+        val modelFile = filesDir.listFiles()?.firstOrNull {
+            it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm")
+        }
+
+        if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
+            MODEL_PATH = modelFile.absolutePath
+            outputText.text = "Model found locally:\n\${modelFile.name}\n\nClick 'Load Local Model' to initialize."
             generateButton.isEnabled = false
+            btnLoadModel.isEnabled = true
         } else {
-            outputText.text = "Model not found at \$MODEL_PATH.\nPlease click 'Download' or push it via ADB."
+            MODEL_PATH = java.io.File(filesDir, "gemma-4-E2B-it.litertlm").absolutePath
+            outputText.text = "No model found in internal storage.\nPlease click 'Download' or push a model via ADB to:\n\${filesDir.absolutePath}"
             generateButton.isEnabled = false
+            btnLoadModel.isEnabled = false
         }
 
         btnLoadModel.setOnClickListener {
