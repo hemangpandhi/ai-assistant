@@ -1,9 +1,9 @@
 -- Merging decision tree log ---
 manifest
-ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-31:12
-INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-31:12
-INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-31:12
-INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-31:12
+ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-30:12
+INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-30:12
+INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-30:12
+INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-30:12
 MERGED from [androidx.databinding:viewbinding:8.2.0] /home/hemang/.gradle/caches/transforms-3/fe0d099568da2011229aba6c955bc59c/transformed/viewbinding-8.2.0/AndroidManifest.xml:2:1-7:12
 MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/0911d117310a1c9fc77955e99c292c07/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/c62e9b46e9e4e0bcd13fce991f66fb17/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
@@ -56,8 +56,8 @@ MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-
 	xmlns:android
 		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:11-69
 application
-ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:5-29:19
-INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:5-29:19
+ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:5-28:19
+INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:5-28:19
 MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/0911d117310a1c9fc77955e99c292c07/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/0911d117310a1c9fc77955e99c292c07/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
 MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/c62e9b46e9e4e0bcd13fce991f66fb17/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
@@ -94,22 +94,22 @@ ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManife
 		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:13:13-36
 	android:name
 		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:12:13-41
-intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
-ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:14:13-17:29
-action#android.intent.action.MAIN
-ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:15:17-69
-	android:name
-		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:15:25-66
-category#android.intent.category.LAUNCHER
-ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:16:17-77
-	android:name
-		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:16:27-74
 activity#com.example.gemininano.LocalLLMActivity
-ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:20:9-28:20
+ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:20:9-27:20
 	android:exported
 		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:22:13-36
 	android:name
 		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:21:13-45
+intent-filter#action:name:android.intent.action.MAIN+category:name:android.intent.category.LAUNCHER
+ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:23:13-26:29
+action#android.intent.action.MAIN
+ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:24:17-69
+	android:name
+		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:24:25-66
+category#android.intent.category.LAUNCHER
+ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:25:17-77
+	android:name
+		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:25:27-74
 uses-sdk
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml

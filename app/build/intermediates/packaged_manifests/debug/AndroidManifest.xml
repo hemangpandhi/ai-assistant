@@ -24,23 +24,22 @@
         <activity
             android:name="com.example.gemininano.MainActivity"
             android:exported="true" >
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
 
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name="com.example.gemininano.LocalLLMActivity"
-            android:exported="true" >
-
-            <!-- Uncomment the intent filter below to launch this activity instead -->
             <!--
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             -->
+        </activity>
+        <activity
+            android:name="com.example.gemininano.LocalLLMActivity"
+            android:exported="true" >
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
 
         <provider
