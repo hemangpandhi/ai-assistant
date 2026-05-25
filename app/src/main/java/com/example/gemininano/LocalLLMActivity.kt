@@ -21,8 +21,9 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var btnUseCase3: Button
 
     private var llmInference: LlmInference? = null
-    // Assuming the user will push the model via ADB to this location.
-    private val MODEL_PATH = "/data/local/tmp/gemma-2b-it-gpu-int4.bin"
+    // SELinux blocks apps from reading /data/local/tmp/ directly.
+    // The safest location is the app's own internal storage directory.
+    private val MODEL_PATH = "/data/data/com.example.gemininano/files/gemma-2b-it-gpu-int4.bin"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
