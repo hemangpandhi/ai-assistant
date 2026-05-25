@@ -86,8 +86,9 @@ class LocalLLMActivity : AppCompatActivity() {
             }
         } catch (e: Exception) {
             Log.e("LocalLLM", "Error initializing model", e)
+            val stackTrace = android.util.Log.getStackTraceString(e)
             withContext(Dispatchers.Main) {
-                outputText.text = "Failed to load model from \$MODEL_PATH.\\nError: \${e.message}\\n\\nPlease ensure you have pushed the model via ADB to /data/local/tmp/"
+                outputText.text = "Failed to load model from \$MODEL_PATH.\n\nException: \${e.javaClass.simpleName}\nMessage: \${e.message}\n\nStack Trace:\n\$stackTrace"
             }
         }
     }
