@@ -142,7 +142,8 @@ class LocalLLMActivity : AppCompatActivity() {
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.connect()
 
-                val fileLength = connection.contentLength
+                // Use contentLengthLong because 2.5GB exceeds the 32-bit Integer limit
+                val fileLength = connection.contentLengthLong
                 val input = java.io.BufferedInputStream(url.openStream())
                 val output = java.io.FileOutputStream(MODEL_PATH)
 
