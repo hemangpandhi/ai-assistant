@@ -1,14 +1,13 @@
 #!/bin/bash
 
 echo "===================================================="
-echo "   Android Automotive LLM - MediaPipe Setup Script  "
+echo "   Android Automotive LLM - Local Push Script  "
 echo "===================================================="
 echo ""
-echo "This script assumes you have downloaded the Gemma-2B-IT model."
-echo "You can download it from Kaggle (requires login & consent):"
-echo "URL: https://www.kaggle.com/models/google/gemma/tfLite/gemma-2b-it-gpu-int4"
+echo "This script pushes the local Gemma 4 model directly to the app's internal"
+echo "storage, bypassing Android 14 SELinux restrictions and skipping the download."
 echo ""
-echo "Please specify the local path to your downloaded .bin file:"
+echo "Please specify the local path to your downloaded .litertlm file:"
 read -p "> " MODEL_PATH
 
 if [ ! -f "$MODEL_PATH" ]; then
@@ -18,7 +17,11 @@ fi
 
 echo "Pushing $MODEL_PATH to the Android device via ADB..."
 adb root
-adb push "$MODEL_PATH" /data/local/tmp/gemma-2b-it-gpu-int4.bin
-adb shell chmod 666 /data/local/tmp/gemma-2b-it-gpu-int4.bin
+adb shell mkdir -p /data/data/com.example.gemininano/files/
+# Push to tmp first because adb push directly to data/data can sometimes fail
+adb push "$MODEL_PATH" /data/local/tmp/gemma-4-E2B-it.litertlm
+echo "Moving to secure app storage..."
+adb shell mv /data/local/tmp/gemma-4-E2B-it.litertlm /data/data/com.example.gemininano/files/gemma-4-E2B-it.litertlm
+adb shell chmod 666 /data/data/com.example.gemininano/files/gemma-4-E2B-it.litertlm
 
-echo "Done! The model is now ready for the Android Automotive Sample App."
+echo "Done! You can now launch the app and it will immediately load the model!"
