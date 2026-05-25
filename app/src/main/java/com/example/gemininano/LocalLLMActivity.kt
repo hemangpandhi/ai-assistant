@@ -138,13 +138,32 @@ class LocalLLMActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val url = java.net.URL(MODEL_URL)
-                val connection = url.openConnection() as java.net.HttpURLConnection
-                connection.connect()
+                var finalUrl = MODEL_URL
+                var connection: java.net.HttpURLConnection
+                var redirects = 0
+                
+                while (true) {
+                    val url = java.net.URL(finalUrl)
+                    connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.instanceFollowRedirects = false
+                    connection.connect()
+                    
+                    val status = connection.responseCode
+                    if (status == java.net.HttpURLConnection.HTTP_MOVED_TEMP ||
+                        status == java.net.HttpURLConnection.HTTP_MOVED_PERM ||
+                        status == java.net.HttpURLConnection.HTTP_SEE_OTHER ||
+                        status == 307 || status == 308) {
+                        finalUrl = connection.getHeaderField("Location")
+                        redirects++
+                        if (redirects > 10) throw Exception("Too many redirects")
+                    } else {
+                        break
+                    }
+                }
 
                 // Use contentLengthLong because 2.5GB exceeds the 32-bit Integer limit
                 val fileLength = connection.contentLengthLong
-                val input = java.io.BufferedInputStream(url.openStream())
+                val input = java.io.BufferedInputStream(connection.inputStream)
                 val output = java.io.FileOutputStream(MODEL_PATH)
 
                 val data = ByteArray(1024 * 64)
