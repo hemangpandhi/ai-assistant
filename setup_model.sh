@@ -13,6 +13,7 @@ read -p "> " MODEL_PATH
 if [ ! -f "$MODEL_PATH" ]; then
     echo "Error: File not found at $MODEL_PATH"
     exit 1
+fi
 FILENAME=$(basename "$MODEL_PATH")
 
 adb root

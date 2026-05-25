@@ -48,7 +48,10 @@ class LocalLLMActivity : AppCompatActivity() {
 
         // Check if model exists dynamically
         val filesDir = applicationContext.filesDir
-        val modelFile = filesDir.listFiles()?.firstOrNull {
+        val allFiles = filesDir.listFiles()
+        val allNames = allFiles?.map { it.name }?.joinToString(", ") ?: "null"
+        
+        val modelFile = allFiles?.firstOrNull {
             it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm")
         }
 
@@ -59,7 +62,7 @@ class LocalLLMActivity : AppCompatActivity() {
             btnLoadModel.isEnabled = true
         } else {
             MODEL_PATH = java.io.File(filesDir, "gemma-4-E2B-it.litertlm").absolutePath
-            outputText.text = "No model found in internal storage.\nPlease click 'Download' or push a model via ADB to:\n\${filesDir.absolutePath}"
+            outputText.text = "No model found in internal storage.\nPath: \${filesDir.absolutePath}\nContents: \$allNames\n\nPlease click 'Download' or push via ADB."
             generateButton.isEnabled = false
             btnLoadModel.isEnabled = false
         }
