@@ -20,6 +20,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var btnUseCase2: Button
     private lateinit var btnUseCase3: Button
     private lateinit var btnDownloadModel: Button
+    private lateinit var btnLoadModel: Button
     private lateinit var progressBar: android.widget.ProgressBar
 
     private var llmInference: LlmInference? = null
@@ -39,21 +40,27 @@ class LocalLLMActivity : AppCompatActivity() {
         btnUseCase2 = findViewById(R.id.btnUseCase2)
         btnUseCase3 = findViewById(R.id.btnUseCase3)
         btnDownloadModel = findViewById(R.id.btnDownloadModel)
+        btnLoadModel = findViewById(R.id.btnLoadModel)
         progressBar = findViewById(R.id.progressBar)
 
         supportActionBar?.title = "MediaPipe Local LLM"
 
         setupUseCases()
 
-        // Initialize the local model in the background
+        // Check if model exists
         val modelFile = java.io.File(MODEL_PATH)
         if (modelFile.exists() && modelFile.length() > 0) {
+            outputText.text = "Model found locally at \$MODEL_PATH.\nClick 'Load Local Model' to initialize."
+            generateButton.isEnabled = false
+        } else {
+            outputText.text = "Model not found at \$MODEL_PATH.\nPlease click 'Download' or push it via ADB."
+            generateButton.isEnabled = false
+        }
+
+        btnLoadModel.setOnClickListener {
             lifecycleScope.launch {
                 initLlm()
             }
-        } else {
-            outputText.text = "Model not found at \$MODEL_PATH.\nPlease click 'Download Model' to fetch it."
-            generateButton.isEnabled = false
         }
 
         btnDownloadModel.setOnClickListener {

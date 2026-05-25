@@ -1,6 +1,7 @@
 R_DEF: Internal format may change without notice
 local
 id btnDownloadModel
+id btnLoadModel
 id btnUseCase1
 id btnUseCase2
 id btnUseCase3

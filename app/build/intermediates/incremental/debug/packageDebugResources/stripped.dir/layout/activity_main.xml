@@ -14,12 +14,27 @@
         android:textStyle="bold"
         android:layout_marginBottom="8dp" />
 
-    <Button
-        android:id="@+id/btnDownloadModel"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Download Gemma 4 Model (2.5 GB)"
-        android:layout_marginBottom="8dp" />
+        android:orientation="horizontal"
+        android:layout_marginBottom="8dp">
+
+        <Button
+            android:id="@+id/btnLoadModel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Load Local Model" />
+
+        <Button
+            android:id="@+id/btnDownloadModel"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="8dp"
+            android:text="Download (2.5GB)" />
+    </LinearLayout>
 
     <ProgressBar
         android:id="@+id/progressBar"

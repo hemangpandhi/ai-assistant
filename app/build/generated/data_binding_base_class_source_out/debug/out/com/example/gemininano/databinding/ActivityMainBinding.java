@@ -26,6 +26,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final Button btnDownloadModel;
 
   @NonNull
+  public final Button btnLoadModel;
+
+  @NonNull
   public final Button btnUseCase1;
 
   @NonNull
@@ -47,11 +50,12 @@ public final class ActivityMainBinding implements ViewBinding {
   public final ProgressBar progressBar;
 
   private ActivityMainBinding(@NonNull LinearLayout rootView, @NonNull Button btnDownloadModel,
-      @NonNull Button btnUseCase1, @NonNull Button btnUseCase2, @NonNull Button btnUseCase3,
-      @NonNull Button generateButton, @NonNull EditText inputText, @NonNull TextView outputText,
-      @NonNull ProgressBar progressBar) {
+      @NonNull Button btnLoadModel, @NonNull Button btnUseCase1, @NonNull Button btnUseCase2,
+      @NonNull Button btnUseCase3, @NonNull Button generateButton, @NonNull EditText inputText,
+      @NonNull TextView outputText, @NonNull ProgressBar progressBar) {
     this.rootView = rootView;
     this.btnDownloadModel = btnDownloadModel;
+    this.btnLoadModel = btnLoadModel;
     this.btnUseCase1 = btnUseCase1;
     this.btnUseCase2 = btnUseCase2;
     this.btnUseCase3 = btnUseCase3;
@@ -91,6 +95,12 @@ public final class ActivityMainBinding implements ViewBinding {
       id = R.id.btnDownloadModel;
       Button btnDownloadModel = ViewBindings.findChildViewById(rootView, id);
       if (btnDownloadModel == null) {
+        break missingId;
+      }
+
+      id = R.id.btnLoadModel;
+      Button btnLoadModel = ViewBindings.findChildViewById(rootView, id);
+      if (btnLoadModel == null) {
         break missingId;
       }
 
@@ -136,8 +146,9 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
-      return new ActivityMainBinding((LinearLayout) rootView, btnDownloadModel, btnUseCase1,
-          btnUseCase2, btnUseCase3, generateButton, inputText, outputText, progressBar);
+      return new ActivityMainBinding((LinearLayout) rootView, btnDownloadModel, btnLoadModel,
+          btnUseCase1, btnUseCase2, btnUseCase3, generateButton, inputText, outputText,
+          progressBar);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
