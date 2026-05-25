@@ -46,12 +46,15 @@ class LocalLLMActivity : AppCompatActivity() {
 
         setupUseCases()
 
-        // Check if model exists dynamically
-        val filesDir = applicationContext.filesDir
-        val allFiles = filesDir.listFiles()
-        val allNames = allFiles?.map { it.name }?.joinToString(", ") ?: "null"
+        // Check if model exists dynamically in internal or external storage
+        val internalDir = applicationContext.filesDir
+        val externalDir = applicationContext.getExternalFilesDir(null)
         
-        val modelFile = allFiles?.firstOrNull {
+        val internalFiles = internalDir.listFiles()?.toList() ?: emptyList()
+        val externalFiles = externalDir?.listFiles()?.toList() ?: emptyList()
+        val allFiles = internalFiles + externalFiles
+        
+        val modelFile = allFiles.firstOrNull {
             it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm")
         }
 
@@ -61,8 +64,9 @@ class LocalLLMActivity : AppCompatActivity() {
             generateButton.isEnabled = false
             btnLoadModel.isEnabled = true
         } else {
-            MODEL_PATH = java.io.File(filesDir, "gemma-4-E2B-it.litertlm").absolutePath
-            outputText.text = "No model found in internal storage.\nPath: \${filesDir.absolutePath}\nContents: \$allNames\n\nPlease click 'Download' or push via ADB."
+            val allNames = allFiles.map { it.name }.joinToString(", ").takeIf { it.isNotEmpty() } ?: "empty"
+            MODEL_PATH = java.io.File(externalDir ?: internalDir, "gemma-4-E2B-it.litertlm").absolutePath
+            outputText.text = "No model found.\nChecked: \${externalDir?.absolutePath}\nContents: \$allNames\n\nPlease click 'Download' or push via ADB."
             generateButton.isEnabled = false
             btnLoadModel.isEnabled = false
         }
