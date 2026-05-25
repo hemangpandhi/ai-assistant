@@ -60,13 +60,13 @@ class LocalLLMActivity : AppCompatActivity() {
 
         if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
             MODEL_PATH = modelFile.absolutePath
-            outputText.text = "Model found locally:\n\${modelFile.name}\n\nClick 'Load Local Model' to initialize."
+            outputText.text = "Model found locally:\n${modelFile.name}\n\nClick 'Load Local Model' to initialize."
             generateButton.isEnabled = false
             btnLoadModel.isEnabled = true
         } else {
             val allNames = allFiles.map { it.name }.joinToString(", ").takeIf { it.isNotEmpty() } ?: "empty"
             MODEL_PATH = java.io.File(externalDir ?: internalDir, "gemma-4-E2B-it.litertlm").absolutePath
-            outputText.text = "No model found.\nChecked: \${externalDir?.absolutePath}\nContents: \$allNames\n\nPlease click 'Download' or push via ADB."
+            outputText.text = "No model found.\nChecked: ${externalDir?.absolutePath}\nContents: $allNames\n\nPlease click 'Download' or push via ADB."
             generateButton.isEnabled = false
             btnLoadModel.isEnabled = false
         }
