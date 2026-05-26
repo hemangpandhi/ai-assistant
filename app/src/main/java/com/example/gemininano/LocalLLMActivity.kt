@@ -61,7 +61,6 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var stopButton: Button
     private lateinit var clearButton: Button
 
-    private var llmInference: LlmInference? = null
     private var generationFuture: com.google.common.util.concurrent.ListenableFuture<String>? = null
     
     private lateinit var tts: TextToSpeech
@@ -362,7 +361,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val executeScenario = { prompt: String ->
             inputText.setText(prompt)
             tabLayout.getTabAt(0)?.select()
-            if (llmInference == null) {
+            if (LLMManager.llmInference == null) {
                 chatAdapter.addMessage(ChatMessage("System: Please load a model first before executing a scenario.", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
             } else if (!isGenerating) {
@@ -397,33 +396,22 @@ class LocalLLMActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun initLlm() = withContext(Dispatchers.IO) {
-        try {
-            withContext(Dispatchers.Main) {
-                chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH... This may take a minute.", isUser = false))
-                generateButton.isEnabled = false
-            }
+    private suspend fun initLlm() = withContext(Dispatchers.Main) {
+        chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH... This may take a minute.", isUser = false))
+        generateButton.isEnabled = false
 
-            val options = LlmInference.LlmInferenceOptions.builder()
-                .setModelPath(MODEL_PATH)
-                .setMaxTokens(1024)
-                .build()
-            
-            llmInference = LlmInference.createFromOptions(applicationContext, options)
-            Log.d("LocalLLM", "LLM Initialized")
-            
-            withContext(Dispatchers.Main) {
+        LLMManager.initialize(applicationContext, MODEL_PATH, object : LLMManager.InitCallback {
+            override fun onSuccess() {
                 chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Ready for inference.", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                 generateButton.isEnabled = true
                 btnLoadModel.isEnabled = false
             }
-        } catch (e: Exception) {
-            Log.e("LocalLLM", "Error initializing model", e)
-            withContext(Dispatchers.Main) {
+
+            override fun onError(e: Exception) {
                 chatAdapter.addMessage(ChatMessage("Failed to load model from $MODEL_PATH.\nException: ${e.message}", isUser = false))
             }
-        }
+        })
     }
     
     private fun triggerEmergencyAlarm() {
@@ -466,7 +454,7 @@ class LocalLLMActivity : AppCompatActivity() {
         
         try {
             var alarmTriggered = false
-            generationFuture = llmInference?.generateResponseAsync(prompt) { partialResult, done ->
+            generationFuture = LLMManager.llmInference?.generateResponseAsync(prompt) { partialResult, done ->
                 runOnUiThread {
                     var cleanResult = partialResult
                     if (cleanResult.contains("<end_of_turn>")) cleanResult = cleanResult.replace("<end_of_turn>", "")
