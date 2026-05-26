@@ -12,8 +12,10 @@ import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import android.speech.tts.TextToSpeech
+import java.util.Locale
 
-class AssistantSession(context: Context) : VoiceInteractionSession(context) {
+class AssistantSession(context: Context) : VoiceInteractionSession(context), TextToSpeech.OnInitListener {
 
     private lateinit var overlayView: View
     private lateinit var statusText: TextView
@@ -24,9 +26,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private lateinit var inputControls: View
     
     private var lastResponseBuilder = java.lang.StringBuilder()
+    private var tts: TextToSpeech? = null
+
+    override fun onInit(status: Int) {
+        if (status == TextToSpeech.SUCCESS) {
+            tts?.language = Locale.US
+        }
+    }
 
     override fun onCreateContentView(): View {
         VehicleManager.initialize(context)
+        tts = TextToSpeech(context, this)
         overlayView = layoutInflater.inflate(R.layout.assistant_overlay, null)
         
         statusText = overlayView.findViewById(R.id.assistantStatusText)
@@ -116,8 +126,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 if (done) {
                     statusText.text = "Done."
                     btnSend.isEnabled = true
+                    if (displayString.isNotBlank()) {
+                        tts?.speak(displayString, TextToSpeech.QUEUE_FLUSH, null, null)
+                    }
                 }
             }
         }
+    }
+
+    override fun onDestroy() {
+        tts?.stop()
+        tts?.shutdown()
+        super.onDestroy()
     }
 }
