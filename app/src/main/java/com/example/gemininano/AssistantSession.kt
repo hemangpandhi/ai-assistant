@@ -78,9 +78,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         btnSend.isEnabled = false
         
         val systemPrompt = "You are an in-car Android Automotive assistant. " +
-               "Current state: Speed ${VehicleManager.vehicleState.speed}mph, " +
+               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, " +
                "Cabin Temp ${VehicleManager.getRealTemperature()}F, " +
-               "Seat Heater Level ${VehicleManager.vehicleState.seatHeaterLevel}. " +
+               "Seat Heater Level ${VehicleManager.getRealSeatHeaterLevel()}. " +
                "If the user asks to increase temperature, output exactly <TEMP_UP>. If they ask to decrease it, output <TEMP_DOWN>. " +
                "The user says: '$query'."
                
@@ -99,13 +99,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 var displayString = lastResponseBuilder.toString()
                 
                 if (displayString.contains("<TEMP_UP>")) {
-                    VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() + 4
-                    VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
+                    val newTemp = VehicleManager.getRealTemperature() + 4
+                    VehicleManager.writeTemperatureToVhal(newTemp.toFloat())
                     displayString = displayString.replace("<TEMP_UP>", "")
                 }
                 if (displayString.contains("<TEMP_DOWN>")) {
-                    VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() - 4
-                    VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
+                    val newTemp = VehicleManager.getRealTemperature() - 4
+                    VehicleManager.writeTemperatureToVhal(newTemp.toFloat())
                     displayString = displayString.replace("<TEMP_DOWN>", "")
                 }
                 

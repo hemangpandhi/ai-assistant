@@ -245,9 +245,10 @@ class LocalLLMActivity : AppCompatActivity() {
         val dashHeater = findViewById<android.widget.TextView>(R.id.dashHeater)
         
         runOnUiThread {
+            val seatHeaterLevel = VehicleManager.getRealSeatHeaterLevel()
             dashTemp?.text = "🌡️ Temp: ${VehicleManager.getRealTemperature()}°F"
-            dashSpeed?.text = "🏎️ Speed: ${VehicleManager.vehicleState.speed}mph"
-            dashHeater?.text = "💺 Heater: ${if (VehicleManager.vehicleState.seatHeaterLevel > 0) "Level ${VehicleManager.vehicleState.seatHeaterLevel}" else "Off"}"
+            dashSpeed?.text = "🏎️ Speed: ${VehicleManager.getRealSpeed()}mph"
+            dashHeater?.text = "💺 Heater: ${if (seatHeaterLevel > 0) "Level $seatHeaterLevel" else "Off"}"
         }
     }
     
@@ -255,9 +256,9 @@ class LocalLLMActivity : AppCompatActivity() {
 
     private fun buildSystemPrompt(userInput: String): String {
         return "You are an in-car Android Automotive assistant. " +
-               "Current state: Speed ${VehicleManager.vehicleState.speed}mph, " +
+               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, " +
                "Cabin Temp ${VehicleManager.getRealTemperature()}F, " +
-               "Seat Heater Level ${VehicleManager.vehicleState.seatHeaterLevel}. " +
+               "Seat Heater Level ${VehicleManager.getRealSeatHeaterLevel()}. " +
                "If the user asks to increase temperature, output exactly <TEMP_UP>. If they ask to decrease it, output <TEMP_DOWN>. " +
                "The user says: '$userInput'."
     }
@@ -432,15 +433,15 @@ class LocalLLMActivity : AppCompatActivity() {
                     
                     var didUpdateTemp = false
                     if (lastResponseBuilder.contains("<TEMP_UP>")) {
-                        VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() + 4
-                        VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
+                        val newTemp = VehicleManager.getRealTemperature() + 4
+                        VehicleManager.writeTemperatureToVhal(newTemp.toFloat())
                         didUpdateTemp = true
                         val idx = lastResponseBuilder.indexOf("<TEMP_UP>")
                         lastResponseBuilder.delete(idx, idx + 9)
                     }
                     if (lastResponseBuilder.contains("<TEMP_DOWN>")) {
-                        VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() - 4
-                        VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
+                        val newTemp = VehicleManager.getRealTemperature() - 4
+                        VehicleManager.writeTemperatureToVhal(newTemp.toFloat())
                         didUpdateTemp = true
                         val idx = lastResponseBuilder.indexOf("<TEMP_DOWN>")
                         lastResponseBuilder.delete(idx, idx + 11)
