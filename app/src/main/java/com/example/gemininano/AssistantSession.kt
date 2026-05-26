@@ -26,6 +26,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var lastResponseBuilder = java.lang.StringBuilder()
 
     override fun onCreateContentView(): View {
+        VehicleManager.initialize(context)
         overlayView = layoutInflater.inflate(R.layout.assistant_overlay, null)
         
         statusText = overlayView.findViewById(R.id.assistantStatusText)
@@ -77,6 +78,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         btnSend.isEnabled = false
         
         val systemPrompt = "You are an in-car Android Automotive assistant. " +
+               "Current state: Speed ${VehicleManager.vehicleState.speed}mph, " +
+               "Cabin Temp ${VehicleManager.getRealTemperature()}F, " +
+               "Seat Heater Level ${VehicleManager.vehicleState.seatHeaterLevel}. " +
+               "If the user asks to increase temperature, output exactly <TEMP_UP>. If they ask to decrease it, output <TEMP_DOWN>. " +
                "The user says: '$query'."
                
         LLMManager.llmInference?.generateResponseAsync(systemPrompt) { partialResult, done ->
@@ -90,7 +95,21 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 if (cleanResult.contains("<|im_start|>")) cleanResult = cleanResult.replace("<|im_start|>", "")
                 
                 lastResponseBuilder.append(cleanResult)
-                responseText.text = lastResponseBuilder.toString()
+                
+                var displayString = lastResponseBuilder.toString()
+                
+                if (displayString.contains("<TEMP_UP>")) {
+                    VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() + 4
+                    VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
+                    displayString = displayString.replace("<TEMP_UP>", "")
+                }
+                if (displayString.contains("<TEMP_DOWN>")) {
+                    VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() - 4
+                    VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
+                    displayString = displayString.replace("<TEMP_DOWN>", "")
+                }
+                
+                responseText.text = displayString
                 
                 if (done) {
                     statusText.text = "Done."

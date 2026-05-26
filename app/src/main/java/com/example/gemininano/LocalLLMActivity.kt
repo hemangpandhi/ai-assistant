@@ -66,16 +66,6 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var tts: TextToSpeech
     private lateinit var speechRecognizer: SpeechRecognizer
 
-    data class MockVehicleState(
-        var speed: Int = 65,
-        var temperature: Int = 72,
-        var seatHeaterLevel: Int = 0,
-        var fuelLevelPercent: Int = 45,
-        var isMediaPlaying: Boolean = false,
-        var ambientLighting: String = "White",
-        var windowsOpen: Boolean = false
-    )
-    private val vehicleState = MockVehicleState()
 
     data class LlmModel(val name: String, val filename: String, val url: String, val size: String, val automotiveContext: String)
     private val supportedModels = listOf(
@@ -95,17 +85,11 @@ class LocalLLMActivity : AppCompatActivity() {
     private var lastResponseBuilder = java.lang.StringBuilder()
     private var alarmJob: Job? = null
     
-    private var carPropertyManager: CarPropertyManager? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        try {
-            val car = Car.createCar(this)
-            carPropertyManager = car.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
-        } catch (e: Exception) {
-            Log.e("LocalLLMActivity", "Failed to initialize CarPropertyManager", e)
-        }
+        VehicleManager.initialize(this)
         
         setContentView(R.layout.activity_main)
 
@@ -261,39 +245,19 @@ class LocalLLMActivity : AppCompatActivity() {
         val dashHeater = findViewById<android.widget.TextView>(R.id.dashHeater)
         
         runOnUiThread {
-            dashTemp?.text = "🌡️ Temp: ${getRealTemperature()}°F"
-            dashSpeed?.text = "🏎️ Speed: ${vehicleState.speed}mph"
-            dashHeater?.text = "💺 Heater: ${if (vehicleState.seatHeaterLevel > 0) "Level ${vehicleState.seatHeaterLevel}" else "Off"}"
+            dashTemp?.text = "🌡️ Temp: ${VehicleManager.getRealTemperature()}°F"
+            dashSpeed?.text = "🏎️ Speed: ${VehicleManager.vehicleState.speed}mph"
+            dashHeater?.text = "💺 Heater: ${if (VehicleManager.vehicleState.seatHeaterLevel > 0) "Level ${VehicleManager.vehicleState.seatHeaterLevel}" else "Off"}"
         }
     }
     
-    private fun getRealTemperature(): Int {
-        return try {
-            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)
-            val areaId = config?.areaIds?.firstOrNull() ?: 0
-            val currentTemp = carPropertyManager?.getFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId) ?: vehicleState.temperature.toFloat()
-            currentTemp.toInt()
-        } catch (e: Exception) {
-            Log.e("LocalLLMActivity", "Failed to read VHAL temp", e)
-            vehicleState.temperature
-        }
-    }
 
-    private fun setRealTemperature(temp: Float) {
-        try {
-            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)
-            val areaId = config?.areaIds?.firstOrNull() ?: 0
-            carPropertyManager?.setFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, temp)
-        } catch (e: Exception) {
-            Log.e("LocalLLMActivity", "Failed to write VHAL temp", e)
-        }
-    }
 
     private fun buildSystemPrompt(userInput: String): String {
         return "You are an in-car Android Automotive assistant. " +
-               "Current state: Speed ${vehicleState.speed}mph, " +
-               "Cabin Temp ${getRealTemperature()}F, " +
-               "Seat Heater Level ${vehicleState.seatHeaterLevel}. " +
+               "Current state: Speed ${VehicleManager.vehicleState.speed}mph, " +
+               "Cabin Temp ${VehicleManager.getRealTemperature()}F, " +
+               "Seat Heater Level ${VehicleManager.vehicleState.seatHeaterLevel}. " +
                "If the user asks to increase temperature, output exactly <TEMP_UP>. If they ask to decrease it, output <TEMP_DOWN>. " +
                "The user says: '$userInput'."
     }
@@ -468,15 +432,15 @@ class LocalLLMActivity : AppCompatActivity() {
                     
                     var didUpdateTemp = false
                     if (lastResponseBuilder.contains("<TEMP_UP>")) {
-                        vehicleState.temperature = getRealTemperature() + 4
-                        setRealTemperature(vehicleState.temperature.toFloat())
+                        VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() + 4
+                        VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
                         didUpdateTemp = true
                         val idx = lastResponseBuilder.indexOf("<TEMP_UP>")
                         lastResponseBuilder.delete(idx, idx + 9)
                     }
                     if (lastResponseBuilder.contains("<TEMP_DOWN>")) {
-                        vehicleState.temperature = getRealTemperature() - 4
-                        setRealTemperature(vehicleState.temperature.toFloat())
+                        VehicleManager.vehicleState.temperature = VehicleManager.getRealTemperature() - 4
+                        VehicleManager.writeTemperatureToVhal(VehicleManager.vehicleState.temperature.toFloat())
                         didUpdateTemp = true
                         val idx = lastResponseBuilder.indexOf("<TEMP_DOWN>")
                         lastResponseBuilder.delete(idx, idx + 11)
