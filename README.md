@@ -44,11 +44,22 @@ graph TD
 
 ## Supported Models & AAOS Hardware Contexts
 
-Because Android Automotive OS (AAOS) hardware varies significantly, this application supports models optimized for different computational tiers. All models are sourced from the [HuggingFace litert-community](https://huggingface.co/litert-community).
+Because Android Automotive OS (AAOS) hardware varies significantly, this application supports models optimized for different computational tiers. All models are sourced from the [HuggingFace litert-community](https://huggingface.co/litert-community) and can be downloaded directly **without any login required**.
 
 - **Entry-Level**: `SmolLM-135M-Instruct.task` (150MB)
-- **Mid-Range**: `Qwen2.5-1.5B-Instruct.litertlm` (1.6GB), `gemma-4-E2B-it.litertlm` (2.5GB)
+  - [Direct Download Link](https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task)
+  - `wget https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task -O SmolLM-135M-Instruct.task`
+- **Mid-Range**: `Qwen2.5-1.5B-Instruct.litertlm` (1.6GB)
+  - [Direct Download Link](https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm)
+  - `wget https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-1.5B-Instruct.litertlm`
+- **Mid-Range**: `gemma-4-E2B-it.litertlm` (2.5GB)
+  - [Direct Download Link](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm)
+  - `wget https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm -O gemma-4-E2B-it.litertlm`
 - **Premium**: `Phi-4-mini-instruct.litertlm` (3.8GB)
+  - [Direct Download Link](https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm)
+  - `wget https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Phi-4-mini-instruct.litertlm`
+
+*(Note: If you wish to use the official Google `gemma-2b-it-gpu-int4.bin` model, you must download it manually from Kaggle which requires a Google Login. The `gemma-4-E2B` model above provides identical architecture but is hosted publicly without login on HuggingFace).*
 
 ---
 
