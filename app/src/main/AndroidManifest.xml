@@ -3,11 +3,15 @@
 
     <!-- Permissions required for downloading the model -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    
+    <!-- Permissions required for Car VHAL -->
+    <uses-permission android:name="android.car.permission.CONTROL_CAR_CLIMATE" />
     <application
         android:allowBackup="true"
         android:label="GeminiNanoAutomotive"
         android:supportsRtl="true"
-        android:theme="@style/Theme.AppCompat.Light.DarkActionBar">
+        android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
         <activity
             android:name=".MainActivity"
             android:exported="true">
