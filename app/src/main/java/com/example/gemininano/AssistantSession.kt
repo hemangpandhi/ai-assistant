@@ -20,6 +20,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private lateinit var responseText: TextView
     private lateinit var etInput: EditText
     private lateinit var btnSend: Button
+    private lateinit var btnOpenApp: Button
+    private lateinit var inputControls: View
     
     private var lastResponseBuilder = java.lang.StringBuilder()
 
@@ -30,6 +32,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         responseText = overlayView.findViewById(R.id.assistantResponseText)
         etInput = overlayView.findViewById(R.id.etInput)
         btnSend = overlayView.findViewById(R.id.btnSend)
+        btnOpenApp = overlayView.findViewById(R.id.btnOpenApp)
+        inputControls = etInput.parent as View
+
+        btnOpenApp.setOnClickListener {
+            val intent = android.content.Intent(context, LocalLLMActivity::class.java)
+            intent.addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            hide()
+        }
 
         btnSend.setOnClickListener {
             val query = etInput.text.toString()
@@ -47,9 +58,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         
         if (LLMManager.llmInference == null) {
             statusText.text = "Model not loaded. Please open the main app first."
-            btnSend.isEnabled = false
+            btnOpenApp.visibility = View.VISIBLE
+            inputControls.visibility = View.GONE
         } else {
             statusText.text = "Hi, how can I help you?"
+            btnOpenApp.visibility = View.GONE
+            inputControls.visibility = View.VISIBLE
             btnSend.isEnabled = true
         }
     }

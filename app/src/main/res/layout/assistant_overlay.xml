@@ -32,6 +32,17 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="16dp" />
 
+            <!-- Open App Button (Hidden by default) -->
+            <Button
+                android:id="@+id/btnOpenApp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Open App to Load Model"
+                android:textColor="#1E1E1E"
+                android:backgroundTint="#64B5F6"
+                android:layout_marginBottom="16dp"
+                android:visibility="gone" />
+
             <!-- Output Text -->
             <ScrollView
                 android:layout_width="match_parent"
