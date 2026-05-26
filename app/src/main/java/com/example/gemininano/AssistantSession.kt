@@ -87,26 +87,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         lastResponseBuilder.clear()
         btnSend.isEnabled = false
         
-        val systemPrompt = "You are a concise in-car AI assistant.
-" +
-               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.
-" +
-               "RULES:
-" +
-               "1. Keep answers under 15 words.
-" +
-               "2. If user asks to increase temp, output EXACTLY <TEMP_UP> and a short confirmation.
-" +
-               "3. If user asks to decrease temp, output EXACTLY <TEMP_DOWN> and a short confirmation.
-" +
-               "4. If user asks to defrost windshield, output EXACTLY <DEFROST_ON> and a short confirmation.
-" +
-               "5. If Gear is Drive, refuse any request that distracts the driver (like playing video/movies) for safety.
-" +
-               "6. Be direct, no fluff.
-" +
-               "User: '$query'
-Assistant:"
+        val systemPrompt = "You are a concise in-car AI assistant.\n" +
+               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
+               "RULES:\n" +
+               "1. Keep answers under 15 words.\n" +
+               "2. If user asks to increase temp, output EXACTLY <TEMP_UP> and a short confirmation.\n" +
+               "3. If user asks to decrease temp, output EXACTLY <TEMP_DOWN> and a short confirmation.\n" +
+               "4. If user asks to defrost windshield, output EXACTLY <DEFROST_ON> and a short confirmation.\n" +
+               "5. If Gear is Drive, refuse any request that distracts the driver (like playing video/movies) for safety.\n" +
+               "6. Be direct, no fluff.\n" +
+               "User: '$query'\n" +
+               "Assistant:"
                
         LLMManager.llmInference?.generateResponseAsync(systemPrompt) { partialResult, done ->
             CoroutineScope(Dispatchers.Main).launch {
