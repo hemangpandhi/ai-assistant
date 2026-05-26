@@ -13,15 +13,15 @@ class LlmPromptTest {
     @Test
     fun testAllScenarios() {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val modelFile = File(context.filesDir, "gemma-4-E2B-it.litertlm")
+        val externalFilesDir = context.getExternalFilesDir(null)
+        var modelFile = externalFilesDir?.listFiles { file ->
+            file.extension == "litertlm"
+        }?.firstOrNull()
         
-        // Copy model from tmp if it doesn't exist (test wipes data)
-        if (!modelFile.exists()) {
-            val tmpFile = File("/data/local/tmp/gemma-4-E2B-it.litertlm")
-            if (tmpFile.exists()) {
-                tmpFile.copyTo(modelFile)
-            } else {
-                throw Exception("Model not found in /data/local/tmp!")
+        if (modelFile == null || !modelFile.exists()) {
+            modelFile = File("/data/local/tmp/gemma-4-E2B-it.litertlm")
+            if (!modelFile.exists()) {
+                throw Exception("Model not found in external files OR /data/local/tmp!")
             }
         }
         

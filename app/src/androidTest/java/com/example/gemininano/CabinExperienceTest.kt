@@ -15,7 +15,12 @@ import org.junit.runner.RunWith
 class CabinExperienceTest {
 
     @get:Rule
-    val grantPermissionRule: GrantPermissionRule = GrantPermissionRule.grant(android.Manifest.permission.RECORD_AUDIO)
+    val grantPermissionRule: GrantPermissionRule = GrantPermissionRule.grant(
+        android.Manifest.permission.RECORD_AUDIO,
+        "android.car.permission.CAR_SPEED",
+        "android.car.permission.CONTROL_CAR_SEATS",
+        "android.car.permission.CONTROL_CAR_CLIMATE"
+    )
 
     @get:Rule
     val activityRule = ActivityScenarioRule(LocalLLMActivity::class.java)

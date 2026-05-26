@@ -15,6 +15,14 @@ import org.junit.runner.RunWith
 class HVACTest {
 
     @get:Rule
+    val grantPermissionRule: androidx.test.rule.GrantPermissionRule = androidx.test.rule.GrantPermissionRule.grant(
+        android.Manifest.permission.RECORD_AUDIO,
+        "android.car.permission.CAR_SPEED",
+        "android.car.permission.CONTROL_CAR_SEATS",
+        "android.car.permission.CONTROL_CAR_CLIMATE"
+    )
+
+    @get:Rule
     val activityRule = ActivityScenarioRule(LocalLLMActivity::class.java)
 
     @Test
