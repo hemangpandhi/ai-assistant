@@ -43,14 +43,12 @@ graph TD
 
 Because Android Automotive OS (AAOS) hardware varies significantly, this application supports models optimized for different computational tiers. All models are sourced from the [HuggingFace litert-community](https://huggingface.co/litert-community) and can be downloaded directly **without any login required**.
 
-- **Entry-Level**: `SmolLM-135M-Instruct.task` (150MB)
+- **Entry-Level**: `SmolLM-135M-Instruct` (150MB)
   - `wget https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task -O SmolLM-135M-Instruct.task`
-- **Mid-Range**: `Qwen2.5-1.5B-Instruct.litertlm` (1.6GB)
+- **Mid-Range**: `Qwen2.5-1.5B-Instruct` (1.6GB, **Supports 4K Context**)
   - `wget https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-1.5B-Instruct.litertlm`
-- **Mid-Range**: `gemma-4-E2B-it.litertlm` (2.5GB)
-  - `wget https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm -O gemma-4-E2B-it.litertlm`
-- **Premium**: `Phi-4-mini-instruct.litertlm` (3.8GB)
-  - `wget https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Phi-4-mini-instruct.litertlm`
+- **Premium**: `Gemma-2B-IT GPU INT4` (2.5GB)
+  - `wget https://storage.googleapis.com/mediapipe-models/llm/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin`
 
 ---
 
