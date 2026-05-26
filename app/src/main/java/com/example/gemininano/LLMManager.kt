@@ -36,7 +36,7 @@ object LLMManager {
 
                 val options = LlmInference.LlmInferenceOptions.builder()
                     .setModelPath(modelPath)
-                    .setMaxTokens(1024)
+                    .setMaxTokens(4096)
                     .build()
 
                 llmInference = LlmInference.createFromOptions(context.applicationContext, options)
