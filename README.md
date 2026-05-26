@@ -85,7 +85,7 @@ In Android Automotive, the active driver is often assigned **User ID 10** instea
 ```bash
 adb root
 adb shell mkdir -p /data/media/10/Android/data/com.example.gemininano/files/
-adb push gemma-2b-it-gpu-int4.bin /data/media/10/Android/data/com.example.gemininano/files/
+adb push Qwen2.5-1.5B-Instruct.litertlm /data/media/10/Android/data/com.example.gemininano/files/
 ```
 
 ### Step 4: Configuration & Usage
