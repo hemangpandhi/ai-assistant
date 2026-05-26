@@ -1,15 +1,15 @@
-# Android Automotive Local LLM Sample
+# Android Automotive Local AI Assistant
 
-This project is a fully functional Android application demonstrating on-device Large Language Model (LLM) inference using Google's **MediaPipe Tasks GenAI** library. It is designed and tested within an AOSP (Android Automotive) environment on a Google Pixel Tablet.
+This project is a fully functional, system-level Android Digital Assistant demonstrating on-device Large Language Model (LLM) inference using Google's **MediaPipe Tasks GenAI** library. It is designed and tested within an AOSP (Android Automotive) environment on a Google Pixel Tablet.
 
 ## Features
 
-- **100% On-Device Inference**: No cloud API keys required. All text generation happens locally on the device's CPU/GPU.
-- **Interactive Voice Assistant**: Fully integrated Speech-to-Text (STT) and Text-to-Speech (TTS). Talk to the LLM naturally, and it speaks back!
-- **Context-Aware Vehicle State**: Injects simulated hardware state (Speed, Cabin Temp, Fuel Level, Ambient Lighting) into the prompt so the LLM responds accurately as the vehicle.
-- **8 Premium Cabin Experiences**: Includes one-tap scenarios for Diagnostics, Navigation, Media Control, and Digital Owner's Manuals.
-- **Professional Chat UI**: Modern messaging layout built with RecyclerView and Glassmorphism styling.
-- **Multiple Model Support**: Includes a dynamic dropdown to switch between supported LiteRT models (SmolLM, Gemma, Qwen, etc.).
+- **System-Level Digital Assistant**: Registers as a native `VoiceInteractionService`. Set it as your default assistant to summon a modern, glassmorphism overlay popup from any app using the home button.
+- **100% On-Device Inference**: No cloud API keys required. All text generation happens locally on the device's CPU/GPU via a persistent, singleton background engine.
+- **Native VHAL Integration (Read/Write)**: The AI is directly wired into the `CarPropertyManager`. It reads live telemetry (`PERF_VEHICLE_SPEED`, `HVAC_TEMPERATURE_SET`) for prompt context, and can physically alter the vehicle's HVAC system in real-time by intercepting `<TEMP_UP>`/`<TEMP_DOWN>` tags.
+- **Strict Prompt Engineering**: The underlying model is strictly constrained to provide concise, direct, sub-15-word answers with zero hallucination.
+- **Voice Interactions (STT & TTS)**: Fully integrated Speech-to-Text and Android Text-to-Speech (TTS). Talk to the Assistant naturally, and it will speak its precise confirmations aloud.
+- **Multiple Model Support**: Includes a dynamic fallback scanner to load any supported LiteRT model (SmolLM, Gemma, Qwen, Phi) placed in the external storage directory.
 
 ---
 
@@ -19,26 +19,23 @@ The application is built on top of MediaPipe's cross-platform GenAI SDK, which l
 
 ```mermaid
 graph TD
-    User((User)) -->|Voice / Text| UI[Android UI Layer\nLocalLLMActivity]
-    UI --> |STT Parsing & VHAL Injection| SystemPrompt[Contextual Prompt Builder]
-    SystemPrompt --> MediaPipe[MediaPipe Tasks GenAI API]
-    MediaPipe --> |Token Generation Stream| UI
-    UI --> |TTS Engine| SpokenOutput((Audio Out))
-    
-    subgraph On-Device Inference Engine
-        MediaPipe --> |Inference Request| TFLite[LiteRT / TensorFlow Lite C++ Backend]
-        TFLite --> |Execution| CPU[CPU Fallback / ARM NEON]
-    end
-    
-    subgraph Local Storage
-        Storage[App Private Sandbox\n/data/data/...] --> |Load .litertlm Weights| TFLite
-    end
+    User((User)) -->|Long-Press Home| Service[AssistantSessionService\nVoiceInteractionService]
+    Service --> UI[Glassmorphism Overlay UI]
+    UI --> |Live VHAL Polling| VehicleManager[Singleton VehicleManager]
+    VehicleManager --> |CarPropertyManager| VHAL((Vehicle Hardware))
+    VehicleManager --> |Inject Telemetry| SystemPrompt[Strict System Prompt]
+    SystemPrompt --> LLMManager[Singleton LLMManager]
+    LLMManager --> MediaPipe[MediaPipe Tasks GenAI API]
+    MediaPipe --> |Token Stream| UI
+    UI --> |Intercept Tags| VehicleManager
+    VehicleManager --> |setFloatProperty| VHAL
+    UI --> |Text-To-Speech| SpokenOutput((Audio Out))
 ```
 
 ### Key Components
-- **LocalLLMActivity**: The primary Kotlin activity managing the UI, Voice, and the `ListenableFuture` for generation.
-- **ChatAdapter**: Manages the RecyclerView for rendering dynamic User vs Model chat bubbles.
-- **MediaPipe LlmInference**: The core Java/JNI wrapper that abstracts away TFLite session management.
+- **VehicleManager**: A singleton bridging the Android Automotive `CarPropertyManager` to read/write real-world hardware sensors securely.
+- **LLMManager**: A singleton ensuring the multi-gigabyte LLM stays resident in RAM while the UI is dismissed.
+- **AssistantSession**: The core overlay popup that handles chat input, prompt strictness, tag parsing, and TTS playback.
 
 ---
 
@@ -47,19 +44,13 @@ graph TD
 Because Android Automotive OS (AAOS) hardware varies significantly, this application supports models optimized for different computational tiers. All models are sourced from the [HuggingFace litert-community](https://huggingface.co/litert-community) and can be downloaded directly **without any login required**.
 
 - **Entry-Level**: `SmolLM-135M-Instruct.task` (150MB)
-  - [Direct Download Link](https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task)
   - `wget https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task -O SmolLM-135M-Instruct.task`
 - **Mid-Range**: `Qwen2.5-1.5B-Instruct.litertlm` (1.6GB)
-  - [Direct Download Link](https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm)
   - `wget https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-1.5B-Instruct.litertlm`
 - **Mid-Range**: `gemma-4-E2B-it.litertlm` (2.5GB)
-  - [Direct Download Link](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm)
   - `wget https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm -O gemma-4-E2B-it.litertlm`
 - **Premium**: `Phi-4-mini-instruct.litertlm` (3.8GB)
-  - [Direct Download Link](https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm)
   - `wget https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Phi-4-mini-instruct.litertlm`
-
-*(Note: If you wish to use the official Google `gemma-2b-it-gpu-int4.bin` model, you must download it manually from Kaggle which requires a Google Login. The `gemma-4-E2B` model above provides identical architecture but is hosted publicly without login on HuggingFace).*
 
 ---
 
@@ -97,31 +88,9 @@ adb shell mkdir -p /data/media/10/Android/data/com.example.gemininano/files/
 adb push gemma-2b-it-gpu-int4.bin /data/media/10/Android/data/com.example.gemininano/files/
 ```
 
-### Step 4: Launch and Test
-Launch the app via ADB or from the app drawer:
-```bash
-adb shell am start -n com.example.gemininano/.LocalLLMActivity
-```
-1. Accept the Microphone Permissions prompt.
-2. The **Dynamic Fallback Scanner** will automatically detect any `.bin`, `.task`, or `.litertlm` file you pushed and switch the UI dropdown to match it!
-3. Verify it says **"Model found locally!"**
-4. Click **Load Model**, wait for initialization, and press the **🎤 Voice** button to test!
-
----
-
-## Porting to Another Platform
-
-Because this app is built on top of **MediaPipe**, the core LLM inference logic and the model files (`.litertlm`, `.task`) are completely cross-platform.
-
-### 1. Porting to Standard Android (Phones/Tablets)
-This codebase is already fully compatible with standard Android OS. Simply compile and deploy the APK. 
-
-### 2. Porting to iOS
-- Add the `MediaPipeTasksGenAI` CocoaPod to your Xcode project.
-- Copy the exact same `.litertlm` model files into your Xcode project bundle.
-- Rebuild the UI using Swift/SwiftUI. Use the Swift `LlmInference(options:)` API.
-
-### 3. Porting to Web (Browser)
-- Install the `@mediapipe/tasks-genai` NPM package.
-- Host the `.litertlm` models on a web server/CDN.
-- Pass the URL to the `FilesetResolver` and utilize WebGL/WebGPU for acceleration.
+### Step 4: Configuration & Usage
+1. Open the **Local AI Assistant** app manually from the launcher.
+2. Grant the required Microphone and Automotive Permissions.
+3. Tap **Load Model** to initialize the AI engine into memory.
+4. Navigate to **Android Settings -> Apps -> Default Apps -> Digital assistant app** and set it to **Local AI Assistant**.
+5. Long-press the home button to invoke the overlay and say *"Turn up the heat!"*.
