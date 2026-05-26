@@ -472,6 +472,9 @@ class LocalLLMActivity : AppCompatActivity() {
                     if (cleanResult.contains("<end_of_turn>")) cleanResult = cleanResult.replace("<end_of_turn>", "")
                     if (cleanResult.contains("<eos>")) cleanResult = cleanResult.replace("<eos>", "")
                     if (cleanResult.contains("<turn|>")) cleanResult = cleanResult.replace("<turn|>", "")
+                    if (cleanResult.contains("<|im_end|>")) cleanResult = cleanResult.replace("<|im_end|>", "")
+                    if (cleanResult.contains("im_end")) cleanResult = cleanResult.replace("im_end", "")
+                    if (cleanResult.contains("<|im_start|>")) cleanResult = cleanResult.replace("<|im_start|>", "")
                     
                     lastResponseBuilder.append(cleanResult)
                     
