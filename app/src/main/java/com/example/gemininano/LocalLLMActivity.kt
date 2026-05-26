@@ -255,12 +255,14 @@ class LocalLLMActivity : AppCompatActivity() {
 
 
     private fun buildSystemPrompt(userInput: String): String {
-        return "You are an in-car Android Automotive assistant. " +
-               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, " +
-               "Cabin Temp ${VehicleManager.getRealTemperature()}F, " +
-               "Seat Heater Level ${VehicleManager.getRealSeatHeaterLevel()}. " +
-               "If the user asks to increase temperature, output exactly <TEMP_UP>. If they ask to decrease it, output <TEMP_DOWN>. " +
-               "The user says: '$userInput'."
+        return "You are a concise in-car AI assistant.\n" +
+               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}.\n" +
+               "RULES:\n" +
+               "1. Keep answers under 15 words.\n" +
+               "2. If user asks to increase temp, output EXACTLY <TEMP_UP> and a short confirmation like 'Temperature increased by 4 degrees.'\n" +
+               "3. If user asks to decrease temp, output EXACTLY <TEMP_DOWN> and a short confirmation.\n" +
+               "4. Be direct, no fluff.\n" +
+               "User: '$userInput'\nAssistant:"
     }
 
     private fun stopEmergencyAlarm() {
