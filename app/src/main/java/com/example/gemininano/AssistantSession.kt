@@ -87,14 +87,26 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         lastResponseBuilder.clear()
         btnSend.isEnabled = false
         
-        val systemPrompt = "You are a concise in-car AI assistant.\n" +
-               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}.\n" +
-               "RULES:\n" +
-               "1. Keep answers under 15 words.\n" +
-               "2. If user asks to increase temp, output EXACTLY <TEMP_UP> and a short confirmation like 'Temperature increased by 4 degrees.'\n" +
-               "3. If user asks to decrease temp, output EXACTLY <TEMP_DOWN> and a short confirmation.\n" +
-               "4. Be direct, no fluff.\n" +
-               "User: '$query'\nAssistant:"
+        val systemPrompt = "You are a concise in-car AI assistant.
+" +
+               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.
+" +
+               "RULES:
+" +
+               "1. Keep answers under 15 words.
+" +
+               "2. If user asks to increase temp, output EXACTLY <TEMP_UP> and a short confirmation.
+" +
+               "3. If user asks to decrease temp, output EXACTLY <TEMP_DOWN> and a short confirmation.
+" +
+               "4. If user asks to defrost windshield, output EXACTLY <DEFROST_ON> and a short confirmation.
+" +
+               "5. If Gear is Drive, refuse any request that distracts the driver (like playing video/movies) for safety.
+" +
+               "6. Be direct, no fluff.
+" +
+               "User: '$query'
+Assistant:"
                
         LLMManager.llmInference?.generateResponseAsync(systemPrompt) { partialResult, done ->
             CoroutineScope(Dispatchers.Main).launch {
@@ -115,10 +127,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     VehicleManager.writeTemperatureToVhal(newTemp.toFloat())
                     displayString = displayString.replace("<TEMP_UP>", "")
                 }
+
                 if (displayString.contains("<TEMP_DOWN>")) {
                     val newTemp = VehicleManager.getRealTemperature() - 4
                     VehicleManager.writeTemperatureToVhal(newTemp.toFloat())
                     displayString = displayString.replace("<TEMP_DOWN>", "")
+                }
+                if (displayString.contains("<DEFROST_ON>")) {
+                    VehicleManager.writeDefrosterToVhal(true)
+                    displayString = displayString.replace("<DEFROST_ON>", "")
                 }
                 
                 responseText.text = displayString

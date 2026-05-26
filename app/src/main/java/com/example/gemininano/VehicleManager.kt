@@ -27,7 +27,6 @@ object VehicleManager {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.PERF_VEHICLE_SPEED)
             val areaId = config?.areaIds?.firstOrNull() ?: 0
             val speed = carPropertyManager?.getFloatProperty(VehiclePropertyIds.PERF_VEHICLE_SPEED, areaId) ?: 0f
-            // VHAL speed is usually m/s, let's just return it as Int (or if it's already mph/kmh based on config, returning Int is fine)
             speed.toInt()
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to read VHAL speed", e)
@@ -59,6 +58,36 @@ object VehicleManager {
         }
     }
 
+    fun getFuelLevel(): Float {
+        return try {
+            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.INFO_FUEL_LEVEL)
+            val areaId = config?.areaIds?.firstOrNull() ?: 0
+            carPropertyManager?.getFloatProperty(VehiclePropertyIds.INFO_FUEL_LEVEL, areaId) ?: 50f
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to read VHAL fuel level", e)
+            50f
+        }
+    }
+
+    fun getGearSelection(): String {
+        return try {
+            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.GEAR_SELECTION)
+            val areaId = config?.areaIds?.firstOrNull() ?: 0
+            val gear = carPropertyManager?.getIntProperty(VehiclePropertyIds.GEAR_SELECTION, areaId) ?: 4
+            // 1: Neutral, 2: Reverse, 4: Park, 8: Drive
+            when (gear) {
+                1 -> "Neutral"
+                2 -> "Reverse"
+                4 -> "Park"
+                8 -> "Drive"
+                else -> "Unknown"
+            }
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to read VHAL gear", e)
+            "Park" // Default safe
+        }
+    }
+
     fun writeTemperatureToVhal(temp: Float) {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)
@@ -66,6 +95,16 @@ object VehicleManager {
             carPropertyManager?.setFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, temp)
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL temp", e)
+        }
+    }
+    
+    fun writeDefrosterToVhal(on: Boolean) {
+        try {
+            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_DEFROSTER)
+            val areaId = config?.areaIds?.firstOrNull() ?: 0
+            carPropertyManager?.setBooleanProperty(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on)
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to write VHAL defroster", e)
         }
     }
 }

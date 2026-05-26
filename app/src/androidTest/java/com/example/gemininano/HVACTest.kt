@@ -19,7 +19,9 @@ class HVACTest {
         android.Manifest.permission.RECORD_AUDIO,
         "android.car.permission.CAR_SPEED",
         "android.car.permission.CONTROL_CAR_SEATS",
-        "android.car.permission.CONTROL_CAR_CLIMATE"
+        "android.car.permission.CONTROL_CAR_CLIMATE",
+        "android.car.permission.CAR_ENERGY",
+        "android.car.permission.CAR_POWERTRAIN"
     )
 
     @get:Rule
