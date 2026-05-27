@@ -528,7 +528,7 @@ class LocalLLMActivity : AppCompatActivity() {
         try {
             var alarmTriggered = false
             val timeoutJob = lifecycleScope.launch {
-                delay(45000) // 45 seconds max
+                delay(180000) // 3 minutes max (First-time GPU Shader Compilation can take up to 2-3 mins on AAOS)
                 if (isGenerating) {
                     runOnUiThread {
                         chatAdapter.updateLastMessage("\n\n[Model Hang Detected - Restarting]")
