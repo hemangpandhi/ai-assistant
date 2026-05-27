@@ -527,6 +527,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
             generationFuture = LLMManager.llmInference?.generateResponseAsync(prompt) { partialResult, done ->
                 runOnUiThread {
+                    if (!isGenerating) return@runOnUiThread // Ignore late callbacks after force-completion
                     var cleanResult = partialResult
                     if (cleanResult.contains("<end_of_turn>")) cleanResult = cleanResult.replace("<end_of_turn>", "")
                     if (cleanResult.contains("<eos>")) cleanResult = cleanResult.replace("<eos>", "")
