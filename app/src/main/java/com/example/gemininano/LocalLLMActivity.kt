@@ -203,8 +203,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (!matches.isNullOrEmpty()) {
                     val voiceText = matches[0]
 
-                    val fullPrompt = buildSystemPrompt(voiceText)
-                    generateText(fullPrompt, isVoice = true, displayPrompt = voiceText)
+                    generateText(voiceText, isVoice = true, displayPrompt = voiceText)
                 }
             }
             override fun onPartialResults(partialResults: Bundle?) {}
@@ -265,15 +264,21 @@ class LocalLLMActivity : AppCompatActivity() {
         generateButton.setOnClickListener {
             val prompt = inputText.text.toString()
             if (prompt.isNotEmpty()) {
-                val fullPrompt = buildSystemPrompt(prompt)
-                generateText(fullPrompt, displayPrompt = prompt)
+                generateText(prompt, displayPrompt = prompt)
             }
         }
 
         stopButton.setOnClickListener {
-            LLMManager.conversation?.cancelProcess()
-            chatAdapter.updateLastMessage("\n\n[Generation Stopped]")
-            resetControls()
+            if (isGenerating) {
+                // Cancel ongoing generation but DO NOT destroy the engine
+                LLMManager.conversation?.cancelProcess()
+                chatAdapter.updateLastMessage("\n\n[Inference stopped by user]")
+                resetControls()
+            } else {
+                // If not generating, clear chat and reset conversation state to grab fresh vehicle context
+                chatAdapter.clearMessages()
+                LLMManager.resetConversation()
+            }
         }
 
         clearButton.setOnClickListener {
@@ -281,6 +286,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 LLMManager.conversation?.cancelProcess()
             }
             chatAdapter.clearMessages()
+            LLMManager.resetConversation()
             resetControls()
         }
         
@@ -339,12 +345,7 @@ class LocalLLMActivity : AppCompatActivity() {
     
 
 
-    private fun buildSystemPrompt(userInput: String): String {
-        return "You are a helpful, conversational in-car AI assistant. " +
-               "Current vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater level ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
-               "If the user implies they are uncomfortable (e.g., 'I am freezing', 'I am hot', 'It is cold'), you should use your tools to adjust the climate control or proactively ask if they want you to adjust the temperature.\n" +
-               "User: '$userInput'\n"
-    }
+
 
     private fun stopEmergencyAlarm() {
         alarmJob?.cancel()
@@ -421,8 +422,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 chatAdapter.addMessage(ChatMessage("System: Please load a model first before executing a scenario.", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
             } else if (!isGenerating) {
-                val fullPrompt = buildSystemPrompt(prompt)
-                generateText(fullPrompt, displayPrompt = prompt)
+                generateText(prompt, displayPrompt = prompt)
             }
         }
 
@@ -611,8 +611,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val isGemma = modelName.contains("gemma")
         
         for (query in prompts) {
-            val systemPrompt = buildSystemPrompt(query)
-                   
+            generateText(query)       
             var status = "FAIL"
             var details = "Timeout/Error"
             var jsonOut = "N/A"
@@ -622,7 +621,7 @@ class LocalLLMActivity : AppCompatActivity() {
             
             try {
                 LLMManager.conversation?.sendMessageAsync(
-                    com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(systemPrompt)),
+                    com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(query)),
                     object : com.google.ai.edge.litertlm.MessageCallback {
                         override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
                             val chunk = message.toString()

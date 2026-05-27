@@ -166,6 +166,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 })
             }
         } else {
+            LLMManager.resetConversation()
             statusText.text = "Hi, how can I help you?"
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.VISIBLE
@@ -211,14 +212,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 finish() // Auto-dismiss
             }
         }
-        // Setup state prompt with real-time VHAL data
-        val systemPrompt = "You are a helpful in-car AI assistant. Current vehicle state: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater level ${VehicleManager.getRealSeatHeaterLevel()}.\n" +
-               "If the user says they are cold or hot, use your tools to adjust the climate or proactively ask if they want it changed.\n" +
-               "User: $query"
-        
         try {
             LLMManager.conversation!!.sendMessageAsync(
-                Contents.of(Content.Text(systemPrompt)),
+                Contents.of(Content.Text(query)),
                 object : MessageCallback {
                     override fun onMessage(message: Message) {
                         CoroutineScope(Dispatchers.Main).launch {

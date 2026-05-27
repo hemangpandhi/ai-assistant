@@ -8,6 +8,8 @@ import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.tool
+import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.Content
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -97,13 +99,7 @@ object LLMManager {
                 engine = Engine(engineConfig)
                 engine!!.initialize()
 
-                val toolset = AutomotiveTools()
-
-                val conversationConfig = ConversationConfig(
-                    tools = listOf(tool(toolset))
-                )
-
-                conversation = engine!!.createConversation(conversationConfig)
+                resetConversation()
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath")
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
@@ -120,13 +116,7 @@ object LLMManager {
                         engine = Engine(engineConfigFallback)
                         engine!!.initialize()
                         
-                        val toolset = AutomotiveTools()
-
-                        val conversationConfig = ConversationConfig(
-                            tools = listOf(tool(toolset))
-                        )
-                        
-                        conversation = engine!!.createConversation(conversationConfig)
+                        resetConversation()
                         currentModelPath = modelPath
                         Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
                         withContext(Dispatchers.Main) { callback?.onSuccess() }
@@ -140,6 +130,31 @@ object LLMManager {
             } finally {
                 isInitializing = false
             }
+        }
+    }
+    fun resetConversation() {
+        if (engine == null) return
+        
+        try {
+            conversation?.close()
+        } catch (e: Exception) {
+            Log.w("LLMManager", "Error closing previous conversation", e)
+        }
+        
+        val systemPrompt = "You are a helpful, conversational in-car AI assistant. " +
+               "Current vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater level ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
+               "If the user implies they are uncomfortable (e.g., 'I am freezing', 'I am hot', 'It is cold'), you should use your tools to adjust the climate control or proactively ask if they want you to adjust the temperature."
+               
+        val conversationConfig = ConversationConfig(
+            systemInstruction = Contents.of(Content.Text(systemPrompt)),
+            tools = listOf(tool(AutomotiveTools()))
+        )
+        
+        try {
+            conversation = engine!!.createConversation(conversationConfig)
+            Log.d("LLMManager", "Conversation reset with new vehicle state.")
+        } catch (e: Exception) {
+            Log.e("LLMManager", "Failed to reset conversation", e)
         }
     }
 }
