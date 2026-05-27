@@ -271,14 +271,14 @@ class LocalLLMActivity : AppCompatActivity() {
         }
 
         stopButton.setOnClickListener {
+            LLMManager.conversation?.cancelProcess()
             chatAdapter.updateLastMessage("\n\n[Generation Stopped]")
             resetControls()
-            lifecycleScope.launch { initLlm(force = true) }
         }
 
         clearButton.setOnClickListener {
             if (isGenerating) {
-                lifecycleScope.launch { initLlm(force = true) }
+                LLMManager.conversation?.cancelProcess()
             }
             chatAdapter.clearMessages()
             resetControls()
@@ -501,6 +501,10 @@ class LocalLLMActivity : AppCompatActivity() {
         voiceButton.isEnabled = true
         stopButton.isEnabled = false
         stopEmergencyAlarm()
+        val text = inputText.text.toString()
+        if (text == "Listening..." || text == "Processing Voice...") {
+            inputText.setText("")
+        }
     }
 
     private fun generateText(prompt: String, isVoice: Boolean = false, displayPrompt: String = "") {

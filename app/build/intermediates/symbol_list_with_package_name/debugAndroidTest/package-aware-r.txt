@@ -1,3 +1,0 @@
-com.example.gemininano.test
-style WhiteBackgroundDialogTheme
-style WhiteBackgroundTheme

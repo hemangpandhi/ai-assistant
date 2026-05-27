@@ -40,22 +40,22 @@
 22-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:15:22-74
 23
 24    <permission
-24-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/97415b8e2c2b19b88cea32d17b874052/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
+24-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
 25        android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-25-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/97415b8e2c2b19b88cea32d17b874052/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
+25-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
 26        android:protectionLevel="signature" />
-26-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/97415b8e2c2b19b88cea32d17b874052/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
+26-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
 27
 28    <uses-permission android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-28-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/97415b8e2c2b19b88cea32d17b874052/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
-28-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/97415b8e2c2b19b88cea32d17b874052/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
+28-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
+28-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
 29
 30    <application
 30-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:16:5-53:19
 31        android:allowBackup="true"
 31-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:17:9-35
 32        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-32-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/97415b8e2c2b19b88cea32d17b874052/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
+32-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
 33        android:debuggable="true"
 34        android:extractNativeLibs="false"
 35        android:label="Local AI Assistant"
@@ -128,92 +128,70 @@
 74-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:50:18-80
 75
 76        <provider
-76-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/1e813655ffdfd31673408563a57a86b7/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+76-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
 77            android:name="androidx.startup.InitializationProvider"
-77-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/1e813655ffdfd31673408563a57a86b7/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+77-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
 78            android:authorities="com.example.gemininano.androidx-startup"
-78-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/1e813655ffdfd31673408563a57a86b7/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+78-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
 79            android:exported="false" >
-79-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/1e813655ffdfd31673408563a57a86b7/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+79-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
 80            <meta-data
-80-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/1e813655ffdfd31673408563a57a86b7/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+80-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
 81                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-81-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/1e813655ffdfd31673408563a57a86b7/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+81-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
 82                android:value="androidx.startup" />
-82-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/1e813655ffdfd31673408563a57a86b7/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+82-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
 83            <meta-data
-83-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/6cdc33b192df6fe9746f7b5d766ccb8b/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
+83-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
 84                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-84-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/6cdc33b192df6fe9746f7b5d766ccb8b/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
+84-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
 85                android:value="androidx.startup" />
-85-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/6cdc33b192df6fe9746f7b5d766ccb8b/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
+85-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
 86            <meta-data
-86-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
+86-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
 87                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-87-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
+87-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
 88                android:value="androidx.startup" />
-88-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
+88-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
 89        </provider>
-90        <!--
-91             Applications that target Android S+ require explicit declaration of
-92             any referenced vendor-provided libraries.
-93        -->
-94        <uses-native-library
-94-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:15:9-17:40
-95            android:name="libOpenCL.so"
-95-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:16:13-40
-96            android:required="false" />
-96-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:17:13-37
-97        <uses-native-library
-97-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:15:9-17:40
-98            android:name="libOpenCL-car.so"
-98-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:16:13-40
-99            android:required="false" />
-99-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:17:13-37
-100        <uses-native-library
-100-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:15:9-17:40
-101            android:name="libOpenCL-pixel.so"
-101-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:16:13-40
-102            android:required="false" />
-102-->[com.google.mediapipe:tasks-genai:0.10.35] /home/hemang/.gradle/caches/transforms-3/1d44daffbb5d95653b35a549342a47f7/transformed/tasks-genai-0.10.35/AndroidManifest.xml:17:13-37
-103
-104        <receiver
-104-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
-105            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-105-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
-106            android:directBootAware="false"
-106-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
-107            android:enabled="true"
-107-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
-108            android:exported="true"
-108-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
-109            android:permission="android.permission.DUMP" >
-109-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
-110            <intent-filter>
-110-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
-111                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-111-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
-111-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
-112            </intent-filter>
-113            <intent-filter>
-113-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
-114                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-114-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
-114-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
-115            </intent-filter>
-116            <intent-filter>
-116-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
-117                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-117-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
-117-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
-118            </intent-filter>
-119            <intent-filter>
-119-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
-120                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-120-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
-120-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/2589b19b8e6a297e3d4989675197a625/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
-121            </intent-filter>
-122        </receiver>
-123    </application>
-124
-125</manifest>
+90
+91        <receiver
+91-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
+92            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+92-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
+93            android:directBootAware="false"
+93-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
+94            android:enabled="true"
+94-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
+95            android:exported="true"
+95-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
+96            android:permission="android.permission.DUMP" >
+96-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
+97            <intent-filter>
+97-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
+98                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+98-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
+98-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
+99            </intent-filter>
+100            <intent-filter>
+100-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
+101                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+101-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
+101-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
+102            </intent-filter>
+103            <intent-filter>
+103-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
+104                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+104-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
+104-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
+105            </intent-filter>
+106            <intent-filter>
+106-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
+107                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+107-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
+107-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
+108            </intent-filter>
+109        </receiver>
+110    </application>
+111
+112</manifest>

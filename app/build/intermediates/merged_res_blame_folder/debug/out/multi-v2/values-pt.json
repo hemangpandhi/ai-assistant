@@ -4,7 +4,7 @@
             "outputFile": "com.example.gemininano.app-mergeDebugResources-29:/values-pt/values-pt.xml",
             "map": [
                 {
-                    "source": "/home/hemang/.gradle/caches/transforms-3/d219056562254d5f48577226afcb14b6/transformed/appcompat-1.6.1/res/values-pt/values-pt.xml",
+                    "source": "/home/hemang/.gradle/caches/transforms-3/3f2b22d24eec647cbaefe34be7d37c86/transformed/appcompat-1.6.1/res/values-pt/values-pt.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29",
                         "startColumns": "4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4",
@@ -21,7 +21,7 @@
                     }
                 },
                 {
-                    "source": "/home/hemang/.gradle/caches/transforms-3/97415b8e2c2b19b88cea32d17b874052/transformed/core-1.12.0/res/values-pt/values-pt.xml",
+                    "source": "/home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/res/values-pt/values-pt.xml",
                     "from": {
                         "startLines": "2,3,4,5,6,7,8,9",
                         "startColumns": "4,4,4,4,4,4,4,4",

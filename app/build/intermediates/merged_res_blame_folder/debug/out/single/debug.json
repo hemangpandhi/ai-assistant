@@ -1,38 +1,34 @@
 [
     {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/xml_voice_interaction_service.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/xml/voice_interaction_service.xml"
-    },
-    {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/layout_spinner_dropdown_item.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/spinner_dropdown_item.xml"
-    },
-    {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/drawable_bg_input_pill.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/drawable/bg_input_pill.xml"
-    },
-    {
         "merged": "com.example.gemininano.app-merged_res-31:/layout_activity_main.xml.flat",
         "source": "com.example.gemininano.app-main-33:/layout/activity_main.xml"
     },
     {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/layout_item_chat_message.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/item_chat_message.xml"
+        "merged": "com.example.gemininano.app-merged_res-31:/layout_item_chat_message.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/layout/item_chat_message.xml"
     },
     {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/layout_assistant_overlay.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/assistant_overlay.xml"
+        "merged": "com.example.gemininano.app-merged_res-31:/xml_voice_interaction_service.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/xml/voice_interaction_service.xml"
     },
     {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/drawable_rounded_bg.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/drawable/rounded_bg.xml"
+        "merged": "com.example.gemininano.app-merged_res-31:/drawable_bg_input_pill.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/drawable/bg_input_pill.xml"
     },
     {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/layout_spinner_item.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/spinner_item.xml"
+        "merged": "com.example.gemininano.app-merged_res-31:/layout_spinner_dropdown_item.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/layout/spinner_dropdown_item.xml"
     },
     {
-        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/layout_activity_main.xml.flat",
-        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/activity_main.xml"
+        "merged": "com.example.gemininano.app-merged_res-31:/layout_spinner_item.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/layout/spinner_item.xml"
+    },
+    {
+        "merged": "com.example.gemininano.app-merged_res-31:/drawable_rounded_bg.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/drawable/rounded_bg.xml"
+    },
+    {
+        "merged": "com.example.gemininano.app-merged_res-31:/layout_assistant_overlay.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/layout/assistant_overlay.xml"
     }
 ]
