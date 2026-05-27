@@ -343,11 +343,16 @@ class LocalLLMActivity : AppCompatActivity() {
         val etEvBattery = dialogView.findViewById<android.widget.EditText>(R.id.etEvBattery)
         val etTirePressure = dialogView.findViewById<android.widget.EditText>(R.id.etTirePressure)
         val etOutsideTemp = dialogView.findViewById<android.widget.EditText>(R.id.etOutsideTemp)
+        val etKvCache = dialogView.findViewById<android.widget.EditText>(R.id.etKvCache)
 
         etSpeed.setText(VehicleManager.getRealSpeed().toString())
         etEvBattery.setText(VehicleManager.getEvBatteryLevel().toString())
         etTirePressure.setText(VehicleManager.getTirePressureFrontLeft().toString())
         etOutsideTemp.setText(VehicleManager.getOutsideTemperature().toString())
+        
+        val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val currentKvCache = prefs.getInt("max_tokens", 512)
+        etKvCache.setText(currentKvCache.toString())
 
         android.app.AlertDialog.Builder(this)
             .setView(dialogView)
@@ -356,6 +361,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 val newBattery = etEvBattery.text.toString().toFloatOrNull()
                 val newTire = etTirePressure.text.toString().toFloatOrNull()
                 val newTemp = etOutsideTemp.text.toString().toFloatOrNull()
+                val newKvCache = etKvCache.text.toString().toIntOrNull()
 
                 if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)
                 if (newBattery != null) VehicleManager.setMockEvBatteryLevel(newBattery)
@@ -364,6 +370,15 @@ class LocalLLMActivity : AppCompatActivity() {
 
                 updateDashboardUI()
                 Toast.makeText(this, "Telemetry Updated", Toast.LENGTH_SHORT).show()
+                
+                if (newKvCache != null && newKvCache != currentKvCache) {
+                    prefs.edit().putInt("max_tokens", newKvCache).apply()
+                    Toast.makeText(this, "Re-initializing LLM with new KV Cache...", Toast.LENGTH_SHORT).show()
+                    
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                        LLMManager.autoInitialize(this@LocalLLMActivity, force = true)
+                    }
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()

@@ -31,6 +31,7 @@ id dashTemp
 id dashboardLayout
 id etEvBattery
 id etInput
+id etKvCache
 id etOutsideTemp
 id etSpeed
 id etTirePressure

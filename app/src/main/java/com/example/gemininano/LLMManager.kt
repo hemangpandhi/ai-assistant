@@ -80,6 +80,9 @@ object LLMManager {
 
         withContext(Dispatchers.IO) {
             isInitializing = true
+            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val maxTokens = prefs.getInt("max_tokens", 512)
+            
             try {
                 try {
                     conversation?.close()
@@ -95,7 +98,7 @@ object LLMManager {
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
-                    maxNumTokens = 512
+                    maxNumTokens = maxTokens
                 )
 
                 engine = Engine(engineConfig)
@@ -113,7 +116,7 @@ object LLMManager {
                         val engineConfigFallback = EngineConfig(
                             modelPath = modelPath,
                             backend = Backend.CPU(),
-                            maxNumTokens = 512
+                            maxNumTokens = maxTokens
                         )
                         engine = Engine(engineConfigFallback)
                         engine!!.initialize()

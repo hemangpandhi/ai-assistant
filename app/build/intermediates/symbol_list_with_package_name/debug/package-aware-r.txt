@@ -3284,6 +3284,7 @@ id enterAlways
 id enterAlwaysCollapsed
 id etEvBattery
 id etInput
+id etKvCache
 id etOutsideTemp
 id etSpeed
 id etTirePressure
