@@ -63,11 +63,25 @@ Ensure you have the Android SDK installed, or use the provided Gradle wrapper.
 ./gradlew clean assembleDebug
 ```
 
-### Step 2: Install the Application
-Connect to your hardware via ADB and install the generated APK.
+### Step 2: Deploy as Privileged System App (Required for HVAC/Time Control)
+Because the app requires `android.car.permission.CONTROL_CAR_CLIMATE` and `android.permission.SET_TIME`, it must be installed as a Privileged System App on new hardware.
+
+Connect to your hardware via ADB and execute the following to push the APK and pre-grant permissions:
 ```bash
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb root
+adb remount
+
+# Push the permission whitelist XML
+adb push app/src/main/res/xml/privapp-permissions-com.example.gemininano.xml /etc/permissions/
+
+# Create the directory and push the APK
+adb shell mkdir -p /system/priv-app/GeminiNano
+adb push app/build/outputs/apk/debug/app-debug.apk /system/priv-app/GeminiNano/
+
+# Reboot the system to apply privileged status
+adb reboot
 ```
+*(If you do not need HVAC controls and just want to test chat, you can simply run `adb install -r -g app/build/outputs/apk/debug/app-debug.apk` to install with pre-granted standard permissions.)*
 
 ### Step 3: Push the LLM Model Safely
 Android 14 imposes strict SELinux rules on internal app storage. To bypass permission denials, this application has been upgraded to read from the FUSE-backed **External App-Specific Directory** (`/sdcard/Android/data/com.example.gemininano/files/`).
