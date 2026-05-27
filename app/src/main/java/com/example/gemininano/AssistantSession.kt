@@ -255,6 +255,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         CoroutineScope(Dispatchers.Main).launch {
                             var finalMsg = lastResponseBuilder.toString()
                             
+                            // Auto-Context Clearing Hack for silent KV Cache overflows
+                            if (finalMsg.trim().length <= 3) {
+                                android.util.Log.w("AssistantSession", "Suspiciously short response. KV Cache full. Resetting...")
+                                LLMManager.resetConversation()
+                                handleQuery(query)
+                                return@launch
+                            }
+                            
                             // Regex parser for inline tool tags
                             val regex = "<TOOL>(.*?)</TOOL>".toRegex()
                             val matches = regex.findAll(finalMsg)

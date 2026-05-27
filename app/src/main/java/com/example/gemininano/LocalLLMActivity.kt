@@ -569,6 +569,16 @@ class LocalLLMActivity : AppCompatActivity() {
                             
                             var finalResponse = lastResponseBuilder.toString()
                             
+                            // Auto-Context Clearing Hack for silent KV Cache overflows
+                            if (finalResponse.trim().length <= 3) {
+                                android.util.Log.w("LocalLLMActivity", "Suspiciously short response. KV Cache full. Resetting...")
+                                chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Automatically clearing history...", isUser = false))
+                                LLMManager.resetConversation()
+                                resetControls()
+                                generateText(prompt, isVoice, displayPrompt)
+                                return@runOnUiThread
+                            }
+                            
                             // Regex parser for inline tool tags
                             val regex = "<TOOL>(.*?)</TOOL>".toRegex()
                             val matches = regex.findAll(finalResponse)
