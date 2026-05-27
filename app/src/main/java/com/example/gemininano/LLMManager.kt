@@ -146,7 +146,7 @@ object LLMManager {
                "Memory: $userMemory\n" +
                "Tools: <TOOL>increaseTemperature(VAL)</TOOL>, <TOOL>decreaseTemperature(VAL)</TOOL>, <TOOL>setTemperature(VAL)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>setWindowPosition(PCT)</TOOL>, <TOOL>navigate(DEST)</TOOL>, <TOOL>playMusic(SONG)</TOOL>, <TOOL>call(NAME)</TOOL>, <TOOL>remember(FACT)</TOOL>\n" +
                "Rules:\n" +
-               "1. If asked about car problems, explain OBD code and ask to call mechanic.\n" +
+               "1. If asked about car problems, explain OBD code and ask the user: 'Do you want me to call a mechanic for you?'.\n" +
                "2. If user is heading home, use navigate(Home). If Ext Temp is freezing (<40F), also ask if they want the heater on.\n" +
                "3. Example: 'I'll warm it up. <TOOL>increaseTemperature(5)</TOOL>'"
     }
