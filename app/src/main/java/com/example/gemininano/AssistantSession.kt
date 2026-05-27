@@ -189,21 +189,20 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
             kotlinx.coroutines.delay(30000) // 30 sec timeout
             if (!isQueryProcessed) {
-                statusText.text = "Timeout."
-                responseText.text = "Model took too long."
-                btnSend.isEnabled = true
-                try {
-                    val inference = LLMManager.llmInference!!
-                    val implicitSessionField = inference.javaClass.getDeclaredField("implicitSession")
-                    implicitSessionField.isAccessible = true
-                    val sessionRef = implicitSessionField.get(inference) as java.util.concurrent.atomic.AtomicReference<*>
-                    val session = sessionRef.get()
-                    if (session != null) {
-                        val cancelMethod = session.javaClass.getDeclaredMethod("cancelGenerateResponseAsync")
-                        cancelMethod.isAccessible = true
-                        cancelMethod.invoke(session)
+                statusText.text = "Timeout - Restarting Model..."
+                responseText.text = "Please wait a moment."
+                btnSend.isEnabled = false
+                LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
+                    override fun onSuccess() {
+                        statusText.text = "Hi, how can I help you?"
+                        responseText.text = ""
+                        btnSend.isEnabled = true
                     }
-                } catch (e: Exception) {}
+                    override fun onError(e: Exception) {
+                        statusText.text = "Error restarting."
+                        btnSend.isEnabled = true
+                    }
+                })
                 kotlinx.coroutines.delay(2000)
                 finish() // Auto-dismiss
             }
@@ -327,9 +326,22 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
             }
         } catch (e: IllegalStateException) {
-            statusText.text = "Model Busy"
-            responseText.text = "Please wait for the previous query to finish processing."
-            btnSend.isEnabled = true
+            statusText.text = "Restarting Busy Model..."
+            responseText.text = "Please wait a moment."
+            btnSend.isEnabled = false
+            CoroutineScope(Dispatchers.Main).launch {
+                LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
+                    override fun onSuccess() {
+                        statusText.text = "Hi, how can I help you?"
+                        responseText.text = ""
+                        btnSend.isEnabled = true
+                    }
+                    override fun onError(e: Exception) {
+                        statusText.text = "Error restarting."
+                        btnSend.isEnabled = true
+                    }
+                })
+            }
         } catch (e: Exception) {
             statusText.text = "Error"
             responseText.text = "An unexpected error occurred."

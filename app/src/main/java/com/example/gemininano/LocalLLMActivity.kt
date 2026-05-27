@@ -599,7 +599,7 @@ class LocalLLMActivity : AppCompatActivity() {
             val errorMsg = e.message ?: ""
             chatAdapter.updateLastMessage("\nError: $errorMsg")
             resetControls()
-            if (errorMsg.contains("busy", ignoreCase = true)) {
+            if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invocation", ignoreCase = true)) {
                 chatAdapter.addMessage(ChatMessage("Restarting busy model...", isUser = false))
                 lifecycleScope.launch { initLlm(force = true) }
             }
