@@ -521,6 +521,12 @@ class LocalLLMActivity : AppCompatActivity() {
         chatAdapter.addMessage(ChatMessage("", isUser = false, isStreaming = true))
         chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
         
+        if (LLMManager.conversation == null) {
+            chatAdapter.replaceLastMessage("System: Please click 'Load Model' before sending a prompt.")
+            resetControls()
+            return
+        }
+        
         try {
             var alarmTriggered = false
             val timeoutJob = lifecycleScope.launch {
@@ -603,6 +609,7 @@ class LocalLLMActivity : AppCompatActivity() {
                             val errorMsg = throwable.message ?: ""
                             chatAdapter.updateLastMessage("\nError: $errorMsg")
                             resetControls()
+                            LLMManager.isFirstMessage = true
                         }
                     }
                 },
@@ -613,8 +620,15 @@ class LocalLLMActivity : AppCompatActivity() {
             val errorMsg = e.message ?: ""
             chatAdapter.updateLastMessage("\nError: $errorMsg")
             resetControls()
-            if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invocation", ignoreCase = true)) {
-                chatAdapter.addMessage(ChatMessage("Restarting busy model...", isUser = false))
+            LLMManager.isFirstMessage = true
+            
+            if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
+                if (errorMsg.contains("Status Code: 13") && !switchCpuBackend.isChecked) {
+                    chatAdapter.addMessage(ChatMessage("GPU Memory Limit Exceeded. Auto-switching to CPU...", isUser = false))
+                    switchCpuBackend.isChecked = true
+                } else {
+                    chatAdapter.addMessage(ChatMessage("Restarting busy model...", isUser = false))
+                }
                 lifecycleScope.launch { initLlm(force = true) }
             }
         }

@@ -289,6 +289,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             statusText.text = "Error"
                             responseText.text = throwable.message ?: "An unexpected error occurred."
                             btnSend.isEnabled = true
+                            LLMManager.isFirstMessage = true
                             
                             kotlinx.coroutines.delay(2000)
                             finish()
