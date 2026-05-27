@@ -141,11 +141,11 @@ object LLMManager {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
-        return "You are an in-car AI assistant. " +
-               "Vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}, EV Battery ${VehicleManager.getEvBatteryLevel()}%, Tire Pressure FL ${VehicleManager.getTirePressureFrontLeft()}PSI, Outside Temp ${VehicleManager.getOutsideTemperature()}F, OBD Code P0420 (Check Engine Light ON).\n" +
-               "User Memory: $userMemory\n" +
-               "If you need to perform an action, you MUST append a tool tag to your response. Example: 'I will lower the temperature. <TOOL>decreaseTemperature(5.0)</TOOL>'. " +
-               "Valid tool tags are: <TOOL>increaseTemperature(VALUE)</TOOL>, <TOOL>decreaseTemperature(VALUE)</TOOL>, <TOOL>setTemperature(VALUE)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>turnOffDefroster()</TOOL>, <TOOL>setSeatHeater(LEVEL)</TOOL>, <TOOL>setWindowPosition(PERCENTAGE)</TOOL>, <TOOL>navigate(DESTINATION)</TOOL>, <TOOL>playMusic(QUERY)</TOOL>, <TOOL>call(CONTACT)</TOOL>, <TOOL>remember(FACT)</TOOL>."
+        return "You are an AI in-car assistant. You MUST ALWAYS perform actions using XML <TOOL> tags. If you do not use a tool tag, the action will fail.\n" +
+               "State: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, EV Bat ${VehicleManager.getEvBatteryLevel()}%, Tire(FL) ${VehicleManager.getTirePressureFrontLeft()}PSI, Ext Temp ${VehicleManager.getOutsideTemperature()}F, OBD P0420.\n" +
+               "Memory: $userMemory\n" +
+               "Tools: <TOOL>increaseTemperature(VAL)</TOOL>, <TOOL>decreaseTemperature(VAL)</TOOL>, <TOOL>setTemperature(VAL)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>setWindowPosition(PCT)</TOOL>, <TOOL>navigate(DEST)</TOOL>, <TOOL>playMusic(SONG)</TOOL>, <TOOL>call(NAME)</TOOL>, <TOOL>remember(FACT)</TOOL>\n" +
+               "Example: 'I'll warm it up. <TOOL>increaseTemperature(5)</TOOL>'"
     }
 
     fun resetConversation() {

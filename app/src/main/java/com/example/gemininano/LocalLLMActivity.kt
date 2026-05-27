@@ -696,6 +696,9 @@ class LocalLLMActivity : AppCompatActivity() {
                             chatAdapter.replaceLastMessage(finalResponse)
                             chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                             
+                            // Make sure dashboard reflects any VHAL changes made by the AI
+                            updateDashboardUI()
+                            
                             resetControls()
                             if (isVoice) {
                                 tts.speak(finalResponse, TextToSpeech.QUEUE_FLUSH, null, null)
