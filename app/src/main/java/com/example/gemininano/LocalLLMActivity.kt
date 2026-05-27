@@ -338,14 +338,14 @@ class LocalLLMActivity : AppCompatActivity() {
 
 
     private fun buildSystemPrompt(userInput: String): String {
-        return "You are a concise in-car AI assistant.\n" +
-               "Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
+        return "You are an in-car AI. Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
                "RULES:\n" +
                "1. You must respond in valid JSON format ONLY. Do not include extra text.\n" +
-               "2. If user asks to change temp, output: {\"action\": \"set_temperature\", \"value\": 75, \"message\": \"[confirmation]\"} (replace 75 with requested temp)\n" +
-               "3. If user asks to defrost, output: {\"action\": \"defrost\", \"status\": true, \"message\": \"[confirmation]\"}\n" +
-               "4. For all other queries, output: {\"action\": \"chat\", \"message\": \"[your answer]\"}\n" +
-               "5. If Gear is Drive, refuse any distracting requests for safety.\n" +
+               "2. To set exact temp: {\"action\": \"set_temperature\", \"value\": 72, \"message\": \"Setting temperature to 72 degrees.\"}\n" +
+               "3. To increase temp: {\"action\": \"increase_temperature\", \"value\": 2, \"message\": \"Increasing temperature.\"}\n" +
+               "4. To decrease temp: {\"action\": \"decrease_temperature\", \"value\": 2, \"message\": \"Decreasing temperature.\"}\n" +
+               "5. To defrost: {\"action\": \"defrost\", \"status\": true, \"message\": \"Defrosting the windshield.\"}\n" +
+               "6. For chat: {\"action\": \"chat\", \"message\": \"[your answer]\"}\n" +
                "User: '$userInput'\n" +
                "Assistant:"
     }
