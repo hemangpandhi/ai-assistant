@@ -84,6 +84,8 @@ object LLMManager {
                     
                 if (useCpu) {
                     optionsBuilder.setPreferredBackend(LlmInference.Backend.CPU)
+                } else {
+                    optionsBuilder.setPreferredBackend(LlmInference.Backend.GPU)
                 }
 
                 llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilder.build())
