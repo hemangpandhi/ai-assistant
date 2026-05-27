@@ -5,6 +5,7 @@ import android.util.Log
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.File
 
 object LLMManager {
     var llmInference: LlmInference? = null
@@ -19,6 +20,35 @@ object LLMManager {
     interface InitCallback {
         fun onSuccess()
         fun onError(e: Exception)
+    }
+
+    suspend fun autoInitialize(context: Context, callback: InitCallback? = null) {
+        if (llmInference != null) {
+            callback?.onSuccess()
+            return
+        }
+
+        withContext(Dispatchers.IO) {
+            val internalDir = context.filesDir
+            val externalDir = context.getExternalFilesDir(null)
+            val tmpDir = File("/data/local/tmp/")
+
+            val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles(), tmpDir.listFiles())
+                .flatMap { it.toList() }
+
+            val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
+            
+            // Prioritize Gemma because SmolLM/Qwen BPE tokenizers are incompatible with MediaPipe's SentencePiece engine, causing duplicated/corrupted tokens.
+            val modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
+                ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+                ?: models.firstOrNull()
+
+            if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
+                initialize(context, modelFile.absolutePath, callback)
+            } else {
+                withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
+            }
+        }
     }
 
     suspend fun initialize(context: Context, modelPath: String, callback: InitCallback? = null) {
@@ -51,5 +81,4 @@ object LLMManager {
             }
         }
     }
-
 }

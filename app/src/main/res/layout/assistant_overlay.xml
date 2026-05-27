@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootOverlay"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#60000000"> <!-- Darker, smoother transparent background -->
 
     <!-- Assistant Bottom Sheet -->
     <androidx.cardview.widget.CardView
+        android:id="@+id/cardPopup"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
@@ -14,7 +16,9 @@
         app:cardCornerRadius="32dp"
         app:cardElevation="24dp"
         android:layout_marginHorizontal="8dp"
-        android:layout_marginBottom="8dp">
+        android:layout_marginBottom="8dp"
+        android:clickable="true"
+        android:focusable="true">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -68,8 +72,8 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:minHeight="48dp"
-                android:maxHeight="350dp"
+                app:layout_constrainedHeight="true"
+                app:layout_constraintHeight_max="250dp"
                 app:layout_constraintTop_toBottomOf="@id/assistantStatusText"
                 app:layout_constraintBottom_toTopOf="@id/inputControlsContainer">
                 
