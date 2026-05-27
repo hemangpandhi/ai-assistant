@@ -27,6 +27,8 @@ object LLMManager {
     var isInitializing = false
         private set
 
+    var isFirstMessage = true
+
     interface InitCallback {
         fun onSuccess()
         fun onError(e: Exception)
@@ -132,6 +134,13 @@ object LLMManager {
             }
         }
     }
+    fun getSystemPrompt(): String {
+        return "You are an in-car AI assistant. " +
+               "Vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
+               "If you need to change the temperature, you MUST append a tool tag to your response. Example: 'I will lower the temperature. <TOOL>decreaseTemperature(5.0)</TOOL>'. " +
+               "Valid tool tags are: <TOOL>increaseTemperature(VALUE)</TOOL>, <TOOL>decreaseTemperature(VALUE)</TOOL>, <TOOL>setTemperature(VALUE)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>turnOffDefroster()</TOOL>."
+    }
+
     fun resetConversation() {
         if (engine == null) return
         
@@ -141,18 +150,13 @@ object LLMManager {
             Log.w("LLMManager", "Error closing previous conversation", e)
         }
         
-        val systemPrompt = "You are a helpful, conversational in-car AI assistant. " +
-               "Current vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater level ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
-               "If the user implies they are uncomfortable (e.g., 'I am freezing', 'I am hot', 'It is cold'), you should use your tools to adjust the climate control or proactively ask if they want you to adjust the temperature."
-               
-        val conversationConfig = ConversationConfig(
-            systemInstruction = Contents.of(Content.Text(systemPrompt)),
-            tools = listOf(tool(AutomotiveTools()))
-        )
+        isFirstMessage = true
+        
+        val conversationConfig = ConversationConfig()
         
         try {
             conversation = engine!!.createConversation(conversationConfig)
-            Log.d("LLMManager", "Conversation reset with new vehicle state.")
+            Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
         } catch (e: Exception) {
             Log.e("LLMManager", "Failed to reset conversation", e)
         }

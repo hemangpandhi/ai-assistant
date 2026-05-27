@@ -533,8 +533,15 @@ class LocalLLMActivity : AppCompatActivity() {
                     initLlm(force = true)
                 }
             }
+            val finalPrompt = if (LLMManager.isFirstMessage) {
+                LLMManager.isFirstMessage = false
+                LLMManager.getSystemPrompt() + "\nUser: " + prompt
+            } else {
+                prompt
+            }
+
             LLMManager.conversation?.sendMessageAsync(
-                com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(prompt)),
+                com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalPrompt)),
                 object : com.google.ai.edge.litertlm.MessageCallback {
                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
                         runOnUiThread {
@@ -550,9 +557,43 @@ class LocalLLMActivity : AppCompatActivity() {
                         runOnUiThread {
                             if (!isGenerating) return@runOnUiThread
                             timeoutJob.cancel()
+                            
+                            var finalResponse = lastResponseBuilder.toString()
+                            
+                            // Regex parser for inline tool tags
+                            val regex = "<TOOL>(.*?)</TOOL>".toRegex()
+                            val matches = regex.findAll(finalResponse)
+                            for (match in matches) {
+                                val toolCall = match.groups[1]?.value ?: continue
+                                try {
+                                    if (toolCall.startsWith("increaseTemperature")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                                        val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                                        VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
+                                    } else if (toolCall.startsWith("decreaseTemperature")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                                        val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                                        VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
+                                    } else if (toolCall.startsWith("setTemperature")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
+                                        VehicleManager.writeTemperatureToVhal(value.toFloat())
+                                    } else if (toolCall.startsWith("turnOnDefroster")) {
+                                        VehicleManager.writeDefrosterToVhal(true)
+                                    } else if (toolCall.startsWith("turnOffDefroster")) {
+                                        VehicleManager.writeDefrosterToVhal(false)
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("LocalLLMActivity", "Failed to parse tool call: $toolCall", e)
+                                }
+                            }
+                            
+                            finalResponse = finalResponse.replace(regex, "").trim()
+                            chatAdapter.replaceLastMessage(finalResponse)
+                            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                            
                             resetControls()
                             if (isVoice) {
-                                tts.speak(lastResponseBuilder.toString(), TextToSpeech.QUEUE_FLUSH, null, null)
+                                tts.speak(finalResponse, TextToSpeech.QUEUE_FLUSH, null, null)
                             }
                         }
                     }

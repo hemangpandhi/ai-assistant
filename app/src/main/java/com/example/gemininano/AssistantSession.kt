@@ -212,9 +212,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 finish() // Auto-dismiss
             }
         }
+        val finalPrompt = if (LLMManager.isFirstMessage) {
+            LLMManager.isFirstMessage = false
+            LLMManager.getSystemPrompt() + "\nUser: " + query
+        } else {
+            query
+        }
+
         try {
             LLMManager.conversation!!.sendMessageAsync(
-                Contents.of(Content.Text(query)),
+                Contents.of(Content.Text(finalPrompt)),
                 object : MessageCallback {
                     override fun onMessage(message: Message) {
                         CoroutineScope(Dispatchers.Main).launch {
@@ -226,7 +233,38 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
                     override fun onDone() {
                         CoroutineScope(Dispatchers.Main).launch {
-                            val finalMsg = lastResponseBuilder.toString()
+                            var finalMsg = lastResponseBuilder.toString()
+                            
+                            // Regex parser for inline tool tags
+                            val regex = "<TOOL>(.*?)</TOOL>".toRegex()
+                            val matches = regex.findAll(finalMsg)
+                            for (match in matches) {
+                                val toolCall = match.groups[1]?.value ?: continue
+                                try {
+                                    if (toolCall.startsWith("increaseTemperature")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                                        val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                                        VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
+                                    } else if (toolCall.startsWith("decreaseTemperature")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                                        val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                                        VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
+                                    } else if (toolCall.startsWith("setTemperature")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
+                                        VehicleManager.writeTemperatureToVhal(value.toFloat())
+                                    } else if (toolCall.startsWith("turnOnDefroster")) {
+                                        VehicleManager.writeDefrosterToVhal(true)
+                                    } else if (toolCall.startsWith("turnOffDefroster")) {
+                                        VehicleManager.writeDefrosterToVhal(false)
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("AssistantSession", "Failed to parse tool call: $toolCall", e)
+                                }
+                            }
+                            
+                            finalMsg = finalMsg.replace(regex, "").trim()
+                            responseText.text = finalMsg
+                            
                             statusText.text = "Done."
                             btnSend.isEnabled = true
                             isQueryProcessed = true
