@@ -250,12 +250,27 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     override fun onError(throwable: Throwable) {
                         CoroutineScope(Dispatchers.Main).launch {
                             android.util.Log.e("AssistantSession", "LLM Error", throwable)
+                            val errorMsg = throwable.message ?: "An unexpected error occurred."
                             statusText.text = "Error"
-                            responseText.text = throwable.message ?: "An unexpected error occurred."
+                            responseText.text = errorMsg
                             btnSend.isEnabled = true
                             
-                            kotlinx.coroutines.delay(2000)
-                            finish()
+                            if (errorMsg.contains("Failed to invoke the compiled model", ignoreCase = true) || errorMsg.contains("INTERNAL", ignoreCase = true) || errorMsg.contains("Code: 13", ignoreCase = true)) {
+                                statusText.text = "GPU Failed. Falling back to CPU..."
+                                val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                                prefs.edit().putBoolean("use_cpu", true).apply()
+                                LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
+                                    override fun onSuccess() {
+                                        statusText.text = "CPU fallback ready. Try again."
+                                    }
+                                    override fun onError(e: Exception) {
+                                        statusText.text = "CPU fallback failed."
+                                    }
+                                })
+                            } else {
+                                kotlinx.coroutines.delay(2000)
+                                finish()
+                            }
                         }
                     }
                 },
