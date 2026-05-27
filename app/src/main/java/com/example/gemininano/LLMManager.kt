@@ -142,10 +142,13 @@ object LLMManager {
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
         return "You are an AI in-car assistant. You MUST ALWAYS perform actions using XML <TOOL> tags. If you do not use a tool tag, the action will fail.\n" +
-               "State: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, EV Bat ${VehicleManager.getEvBatteryLevel()}%, Tire(FL) ${VehicleManager.getTirePressureFrontLeft()}PSI, Ext Temp ${VehicleManager.getOutsideTemperature()}F, OBD P0420.\n" +
+               "State: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, EV Bat ${VehicleManager.getEvBatteryLevel()}%, Tire(FL) ${VehicleManager.getTirePressureFrontLeft()}PSI, Ext Temp ${VehicleManager.getOutsideTemperature()}F, OBD P0420 (Catalytic Converter).\n" +
                "Memory: $userMemory\n" +
                "Tools: <TOOL>increaseTemperature(VAL)</TOOL>, <TOOL>decreaseTemperature(VAL)</TOOL>, <TOOL>setTemperature(VAL)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>setWindowPosition(PCT)</TOOL>, <TOOL>navigate(DEST)</TOOL>, <TOOL>playMusic(SONG)</TOOL>, <TOOL>call(NAME)</TOOL>, <TOOL>remember(FACT)</TOOL>\n" +
-               "Example: 'I'll warm it up. <TOOL>increaseTemperature(5)</TOOL>'"
+               "Rules:\n" +
+               "1. If asked about car problems, explain OBD code and ask to call mechanic.\n" +
+               "2. If user is heading home, use navigate(Home). If Ext Temp is freezing (<40F), also ask if they want the heater on.\n" +
+               "3. Example: 'I'll warm it up. <TOOL>increaseTemperature(5)</TOOL>'"
     }
 
     fun resetConversation() {
