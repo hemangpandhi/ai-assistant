@@ -1,4 +1,4 @@
-#Wed May 27 23:35:39 JST 2026
+#Thu May 28 00:02:46 JST 2026
 base.0=/home/hemang/socllm/AOSP_GeminiNano_Sample/app/build/intermediates/dex/debug/mergeExtDexDebug/classes.dex
 base.1=/home/hemang/socllm/AOSP_GeminiNano_Sample/app/build/intermediates/dex/debug/mergeProjectDexDebug/0/classes.dex
 base.2=/home/hemang/socllm/AOSP_GeminiNano_Sample/app/build/intermediates/dex/debug/mergeProjectDexDebug/13/classes.dex

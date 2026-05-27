@@ -88,8 +88,10 @@ class LocalLLMActivity : AppCompatActivity() {
 
     private var MODEL_PATH = ""
     private var isGenerating = false
-    private var lastResponseBuilder = java.lang.StringBuilder()
+    private var isVoiceMode = false
     private var alarmJob: Job? = null
+    private var timeoutJob: Job? = null
+    private var lastResponseBuilder = java.lang.StringBuilder()
     
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -529,7 +531,8 @@ class LocalLLMActivity : AppCompatActivity() {
         
         try {
             var alarmTriggered = false
-            val timeoutJob = lifecycleScope.launch {
+            timeoutJob?.cancel()
+            timeoutJob = lifecycleScope.launch {
                 delay(180000) // 3 minutes max (First-time GPU Shader Compilation can take up to 2-3 mins on AAOS)
                 if (isGenerating) {
                     runOnUiThread {
@@ -562,7 +565,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     override fun onDone() {
                         runOnUiThread {
                             if (!isGenerating) return@runOnUiThread
-                            timeoutJob.cancel()
+                            timeoutJob?.cancel()
                             
                             var finalResponse = lastResponseBuilder.toString()
                             
@@ -617,6 +620,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     
                     override fun onError(throwable: Throwable) {
                         runOnUiThread {
+                            timeoutJob?.cancel()
                             val errorMsg = throwable.message ?: ""
                             chatAdapter.updateLastMessage("\nError: $errorMsg")
                             resetControls()
@@ -632,7 +636,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 emptyMap()
             )
         } catch (e: Exception) {
-
+            timeoutJob?.cancel()
             val errorMsg = e.message ?: ""
             chatAdapter.updateLastMessage("\nError: $errorMsg")
             resetControls()
