@@ -536,34 +536,59 @@ class LocalLLMActivity : AppCompatActivity() {
                     
                     lastResponseBuilder.append(cleanResult)
                     
-                    // We'll parse JSON on done
-                    if (done) {
+                    val currentText = lastResponseBuilder.toString()
+                    var forceDone = false
+                    
+                    val jsonMatch = Regex("\\{.*\\}", RegexOption.DOT_MATCHES_ALL).find(currentText)
+                    if (jsonMatch != null) {
                         try {
-                            val jsonString = lastResponseBuilder.toString().substringAfter("{").substringBeforeLast("}")
-                            val json = org.json.JSONObject("{$jsonString}")
+                            val jsonString = jsonMatch.value
+                            val json = org.json.JSONObject(jsonString)
                             val action = json.optString("action")
                             if (action == "set_temperature") {
                                 val temp = json.optDouble("value", VehicleManager.getRealTemperature().toDouble())
                                 VehicleManager.writeTemperatureToVhal(temp.toFloat())
                                 updateDashboardUI()
+                            } else if (action == "increase_temperature") {
+                                val amount = json.optDouble("value", 2.0)
+                                val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                                VehicleManager.writeTemperatureToVhal((currentTemp + amount).toFloat())
+                                updateDashboardUI()
+                            } else if (action == "decrease_temperature") {
+                                val amount = json.optDouble("value", 2.0)
+                                val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                                VehicleManager.writeTemperatureToVhal((currentTemp - amount).toFloat())
+                                updateDashboardUI()
                             } else if (action == "defrost") {
                                 VehicleManager.writeDefrosterToVhal(json.optBoolean("status", true))
                             }
                             
-                            val displayMsg = json.optString("message")
-                            if (displayMsg.isNotEmpty()) {
-                                lastResponseBuilder.clear()
-                                lastResponseBuilder.append(displayMsg)
-                                chatAdapter.replaceLastMessage(displayMsg)
-                            } else {
-                                chatAdapter.replaceLastMessage("Done.")
-                            }
+                            val displayMsg = json.optString("message", "Done.")
+                            lastResponseBuilder.clear()
+                            lastResponseBuilder.append(displayMsg)
+                            chatAdapter.replaceLastMessage(displayMsg)
+                            
+                            forceDone = true
+                            
+                            // Forcefully terminate background generation
+                            try {
+                                val inference = LLMManager.llmInference!!
+                                val implicitSessionField = inference.javaClass.getDeclaredField("implicitSession")
+                                implicitSessionField.isAccessible = true
+                                val sessionRef = implicitSessionField.get(inference) as java.util.concurrent.atomic.AtomicReference<*>
+                                val session = sessionRef.get()
+                                if (session != null) {
+                                    val cancelMethod = session.javaClass.getDeclaredMethod("cancelGenerateResponseAsync")
+                                    cancelMethod.isAccessible = true
+                                    cancelMethod.invoke(session)
+                                }
+                            } catch (e: Exception) {}
                         } catch (e: Exception) {
-                            Log.e("LocalLLMActivity", "JSON parse error", e)
-                            chatAdapter.replaceLastMessage("Sorry, I didn't understand that.")
+                            // JSON not fully formed
                         }
-                    } else {
-                        val currentText = lastResponseBuilder.toString()
+                    }
+                    
+                    if (!forceDone && !done) {
                         val msgIndex = currentText.indexOf("\"message\": \"")
                         if (msgIndex != -1) {
                             var extracted = currentText.substring(msgIndex + 12)
@@ -575,23 +600,24 @@ class LocalLLMActivity : AppCompatActivity() {
                         } else {
                             chatAdapter.replaceLastMessage("Thinking...")
                         }
+                    } else if (done && !forceDone) {
+                        chatAdapter.replaceLastMessage("Sorry, I didn't understand that.")
                     }
                     
                     chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                     
-                    // SmolLM (135M) frequently hallucinates JSON. 
-                    // For demo reliability, we also trigger if the original prompt was the emergency scenario.
                     if (!alarmTriggered && (lastResponseBuilder.contains("sound_alarm") || prompt.contains("falling asleep"))) {
                         alarmTriggered = true
                         triggerEmergencyAlarm()
                     }
                     
-                    if (done) {
+                    if (done || forceDone) {
                         timeoutJob.cancel()
                         resetControls()
                         if (isVoice) {
                             tts.speak(lastResponseBuilder.toString(), TextToSpeech.QUEUE_FLUSH, null, null)
                         }
+                        if (forceDone) return@runOnUiThread
                     }
                 }
             }
