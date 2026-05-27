@@ -62,6 +62,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var btnLoadModel: Button
     private lateinit var progressBar: android.widget.ProgressBar
     private lateinit var modelSpinner: Spinner
+    private lateinit var switchCpuBackend: com.google.android.material.switchmaterial.SwitchMaterial
     private lateinit var stopButton: Button
     private lateinit var clearButton: Button
 
@@ -116,6 +117,7 @@ class LocalLLMActivity : AppCompatActivity() {
         btnLoadModel = findViewById(R.id.btnLoadModel)
         progressBar = findViewById(R.id.progressBar)
         modelSpinner = findViewById(R.id.modelSpinner)
+        switchCpuBackend = findViewById(R.id.switchCpuBackend)
         stopButton = findViewById(R.id.stopButton)
         clearButton = findViewById(R.id.clearButton)
 
@@ -457,10 +459,11 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private suspend fun initLlm(force: Boolean = false) = withContext(Dispatchers.Main) {
-        chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH... This may take a minute.", isUser = false))
+        val useCpu = switchCpuBackend.isChecked
+        chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH...\nBackend: ${if (useCpu) "CPU" else "GPU"}\nThis may take a minute.", isUser = false))
         generateButton.isEnabled = false
 
-        LLMManager.initialize(applicationContext, MODEL_PATH, force, object : LLMManager.InitCallback {
+        LLMManager.initialize(applicationContext, MODEL_PATH, force, useCpu, object : LLMManager.InitCallback {
             override fun onSuccess() {
                 chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Ready for inference.", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)

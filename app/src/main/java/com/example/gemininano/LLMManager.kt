@@ -22,7 +22,7 @@ object LLMManager {
         fun onError(e: Exception)
     }
 
-    suspend fun autoInitialize(context: Context, force: Boolean = false, callback: InitCallback? = null) {
+    suspend fun autoInitialize(context: Context, force: Boolean = false, useCpu: Boolean = false, callback: InitCallback? = null) {
         if (!force && llmInference != null) {
             callback?.onSuccess()
             return
@@ -44,14 +44,14 @@ object LLMManager {
                 ?: models.firstOrNull()
 
             if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
-                initialize(context, modelFile.absolutePath, force, callback)
+                initialize(context, modelFile.absolutePath, force, useCpu, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
             }
         }
     }
 
-    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, callback: InitCallback? = null) {
+    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, useCpu: Boolean = false, callback: InitCallback? = null) {
         if (!force && llmInference != null && currentModelPath == modelPath) {
             callback?.onSuccess()
             return // Already initialized with this model
@@ -68,12 +68,15 @@ object LLMManager {
                 }
                 llmInference = null
 
-                val options = LlmInference.LlmInferenceOptions.builder()
+                val optionsBuilder = LlmInference.LlmInferenceOptions.builder()
                     .setModelPath(modelPath)
                     .setMaxTokens(4096)
-                    .build()
+                    
+                if (useCpu) {
+                    optionsBuilder.setPreferredBackend(LlmInference.Backend.CPU)
+                }
 
-                llmInference = LlmInference.createFromOptions(context.applicationContext, options)
+                llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilder.build())
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath")
                 withContext(Dispatchers.Main) { callback?.onSuccess() }

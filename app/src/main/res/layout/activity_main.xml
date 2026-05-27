@@ -131,6 +131,22 @@
                 android:orientation="horizontal"
                 android:layout_marginBottom="8dp">
 
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchCpuBackend"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Force CPU Backend (Fixes GPU Hangs)"
+                    android:textColor="#FFFFFF"
+                    app:useMaterialThemeColors="true" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnLoadModel"
                     android:layout_width="0dp"
