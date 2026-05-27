@@ -41,6 +41,26 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale.US
+            tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                override fun onStart(utteranceId: String?) {}
+
+                override fun onDone(utteranceId: String?) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        if (utteranceId == "QUESTION") {
+                            btnMic.performClick()
+                        } else {
+                            kotlinx.coroutines.delay(500)
+                            finish()
+                        }
+                    }
+                }
+
+                override fun onError(utteranceId: String?) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        finish()
+                    }
+                }
+            })
         }
     }
 
@@ -281,15 +301,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             isQueryProcessed = true
                             
                             if (finalMsg.isNotBlank()) {
-                                tts?.speak(finalMsg, TextToSpeech.QUEUE_FLUSH, null, null)
-                            }
-                            
-                            // Re-open microphone if the model is asking a question!
-                            if (finalMsg.trim().endsWith("?")) {
-                                btnMic.performClick()
+                                val utteranceId = if (finalMsg.trim().endsWith("?")) "QUESTION" else "STATEMENT"
+                                tts?.speak(finalMsg, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
                             } else {
-                                kotlinx.coroutines.delay(2000)
-                                finish()
+                                if (finalMsg.trim().endsWith("?")) {
+                                    btnMic.performClick()
+                                } else {
+                                    kotlinx.coroutines.delay(2000)
+                                    finish()
+                                }
                             }
                         }
                     }
