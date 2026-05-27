@@ -623,12 +623,7 @@ class LocalLLMActivity : AppCompatActivity() {
             LLMManager.isFirstMessage = true
             
             if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
-                if (errorMsg.contains("Status Code: 13") && !switchCpuBackend.isChecked) {
-                    chatAdapter.addMessage(ChatMessage("GPU Memory Limit Exceeded. Auto-switching to CPU...", isUser = false))
-                    switchCpuBackend.isChecked = true
-                } else {
-                    chatAdapter.addMessage(ChatMessage("Restarting busy model...", isUser = false))
-                }
+                chatAdapter.addMessage(ChatMessage("Restarting busy model...", isUser = false))
                 lifecycleScope.launch { initLlm(force = true) }
             }
         }
