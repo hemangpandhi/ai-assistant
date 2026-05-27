@@ -45,6 +45,7 @@ object VehicleManager {
             carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.HVAC_TEMPERATURE_SET, CarPropertyManager.SENSOR_RATE_ONCHANGE)
             carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.FUEL_LEVEL, CarPropertyManager.SENSOR_RATE_ONCHANGE)
             carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.GEAR_SELECTION, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+            carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.WINDOW_POS, CarPropertyManager.SENSOR_RATE_ONCHANGE)
             
             currentSpeed = getFloatPropertyQuietly(VehiclePropertyIds.PERF_VEHICLE_SPEED, 0f)
             currentSeatHeaterLevel = getIntPropertyQuietly(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, 0)
@@ -133,6 +134,39 @@ object VehicleManager {
             carPropertyManager?.setBooleanProperty(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on)
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL defroster", e)
+        }
+    }
+
+    fun writeSeatHeaterToVhal(level: Int) {
+        try {
+            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
+            config?.areaIds?.forEach { areaId ->
+                val maxLevel = config.getMaxValue(areaId) as? Int ?: 3
+                val minLevel = config.getMinValue(areaId) as? Int ?: 0
+                var finalLevel = level
+                if (finalLevel > maxLevel) finalLevel = maxLevel
+                if (finalLevel < minLevel) finalLevel = minLevel
+                carPropertyManager?.setIntProperty(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel)
+            }
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to write VHAL seat heater", e)
+        }
+    }
+
+    fun writeWindowPositionToVhal(percentage: Int) {
+        try {
+            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS)
+            config?.areaIds?.forEach { areaId ->
+                val maxPos = config.getMaxValue(areaId) as? Int ?: 100
+                val minPos = config.getMinValue(areaId) as? Int ?: 0
+                
+                // Assuming percentage is 0-100, map it to min-max limits of the window motor
+                val targetPos = minPos + ((maxPos - minPos) * (percentage / 100.0)).toInt()
+                
+                carPropertyManager?.setIntProperty(VehiclePropertyIds.WINDOW_POS, areaId, targetPos)
+            }
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to write VHAL window pos", e)
         }
     }
 

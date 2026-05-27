@@ -587,6 +587,17 @@ class LocalLLMActivity : AppCompatActivity() {
                                         VehicleManager.writeDefrosterToVhal(true)
                                     } else if (toolCall.startsWith("turnOffDefroster")) {
                                         VehicleManager.writeDefrosterToVhal(false)
+                                    } else if (toolCall.startsWith("setSeatHeater")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
+                                        VehicleManager.writeSeatHeaterToVhal(value)
+                                    } else if (toolCall.startsWith("setWindowPosition")) {
+                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
+                                        VehicleManager.writeWindowPositionToVhal(value)
+                                    } else if (toolCall.startsWith("navigate")) {
+                                        val dest = toolCall.substringAfter("(").substringBefore(")")
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
+                                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                        startActivity(intent)
                                     }
                                 } catch (e: Exception) {
                                     android.util.Log.e("LocalLLMActivity", "Failed to parse tool call: $toolCall", e)

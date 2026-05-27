@@ -136,9 +136,9 @@ object LLMManager {
     }
     fun getSystemPrompt(): String {
         return "You are an in-car AI assistant. " +
-               "Vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
-               "If you need to change the temperature, you MUST append a tool tag to your response. Example: 'I will lower the temperature. <TOOL>decreaseTemperature(5.0)</TOOL>'. " +
-               "Valid tool tags are: <TOOL>increaseTemperature(VALUE)</TOOL>, <TOOL>decreaseTemperature(VALUE)</TOOL>, <TOOL>setTemperature(VALUE)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>turnOffDefroster()</TOOL>."
+               "Vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}, OBD Code P0420 (Check Engine Light ON).\n" +
+               "If you need to perform an action, you MUST append a tool tag to your response. Example: 'I will lower the temperature. <TOOL>decreaseTemperature(5.0)</TOOL>'. " +
+               "Valid tool tags are: <TOOL>increaseTemperature(VALUE)</TOOL>, <TOOL>decreaseTemperature(VALUE)</TOOL>, <TOOL>setTemperature(VALUE)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>turnOffDefroster()</TOOL>, <TOOL>setSeatHeater(LEVEL)</TOOL>, <TOOL>setWindowPosition(PERCENTAGE)</TOOL>, <TOOL>navigate(DESTINATION)</TOOL>."
     }
 
     fun resetConversation() {
