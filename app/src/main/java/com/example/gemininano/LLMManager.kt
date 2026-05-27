@@ -22,8 +22,8 @@ object LLMManager {
         fun onError(e: Exception)
     }
 
-    suspend fun autoInitialize(context: Context, callback: InitCallback? = null) {
-        if (llmInference != null) {
+    suspend fun autoInitialize(context: Context, force: Boolean = false, callback: InitCallback? = null) {
+        if (!force && llmInference != null) {
             callback?.onSuccess()
             return
         }
@@ -44,15 +44,15 @@ object LLMManager {
                 ?: models.firstOrNull()
 
             if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
-                initialize(context, modelFile.absolutePath, callback)
+                initialize(context, modelFile.absolutePath, force, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
             }
         }
     }
 
-    suspend fun initialize(context: Context, modelPath: String, callback: InitCallback? = null) {
-        if (llmInference != null && currentModelPath == modelPath) {
+    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, callback: InitCallback? = null) {
+        if (!force && llmInference != null && currentModelPath == modelPath) {
             callback?.onSuccess()
             return // Already initialized with this model
         }

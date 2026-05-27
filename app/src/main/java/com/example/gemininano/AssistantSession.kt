@@ -143,7 +143,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             inputControls.visibility = View.GONE
             
             CoroutineScope(Dispatchers.Main).launch {
-                LLMManager.autoInitialize(context, object : LLMManager.InitCallback {
+                LLMManager.autoInitialize(context, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
                         statusText.text = "Hi, how can I help you?"
                         inputControls.visibility = View.VISIBLE

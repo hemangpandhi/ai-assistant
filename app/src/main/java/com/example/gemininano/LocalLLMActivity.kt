@@ -270,9 +270,14 @@ class LocalLLMActivity : AppCompatActivity() {
             generationFuture?.cancel(true)
             chatAdapter.updateLastMessage("\n\n[Generation Stopped]")
             resetControls()
+            lifecycleScope.launch { initLlm(force = true) }
         }
 
         clearButton.setOnClickListener {
+            if (isGenerating) {
+                generationFuture?.cancel(true)
+                lifecycleScope.launch { initLlm(force = true) }
+            }
             chatAdapter.clearMessages()
             resetControls()
         }
@@ -451,11 +456,11 @@ class LocalLLMActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun initLlm() = withContext(Dispatchers.Main) {
+    private suspend fun initLlm(force: Boolean = false) = withContext(Dispatchers.Main) {
         chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH... This may take a minute.", isUser = false))
         generateButton.isEnabled = false
 
-        LLMManager.initialize(applicationContext, MODEL_PATH, object : LLMManager.InitCallback {
+        LLMManager.initialize(applicationContext, MODEL_PATH, force, object : LLMManager.InitCallback {
             override fun onSuccess() {
                 chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Ready for inference.", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
@@ -509,6 +514,16 @@ class LocalLLMActivity : AppCompatActivity() {
         
         try {
             var alarmTriggered = false
+            val timeoutJob = lifecycleScope.launch {
+                delay(45000) // 45 seconds max
+                if (isGenerating) {
+                    runOnUiThread {
+                        chatAdapter.updateLastMessage("\n\n[Model Hang Detected - Restarting]")
+                        resetControls()
+                    }
+                    initLlm(force = true)
+                }
+            }
             generationFuture = LLMManager.llmInference?.generateResponseAsync(prompt) { partialResult, done ->
                 runOnUiThread {
                     var cleanResult = partialResult
@@ -572,6 +587,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     }
                     
                     if (done) {
+                        timeoutJob.cancel()
                         resetControls()
                         if (isVoice) {
                             tts.speak(lastResponseBuilder.toString(), TextToSpeech.QUEUE_FLUSH, null, null)
@@ -580,8 +596,13 @@ class LocalLLMActivity : AppCompatActivity() {
                 }
             }
         } catch (e: Exception) {
-            chatAdapter.updateLastMessage("\nError: ${e.message}")
+            val errorMsg = e.message ?: ""
+            chatAdapter.updateLastMessage("\nError: $errorMsg")
             resetControls()
+            if (errorMsg.contains("busy", ignoreCase = true)) {
+                chatAdapter.addMessage(ChatMessage("Restarting busy model...", isUser = false))
+                lifecycleScope.launch { initLlm(force = true) }
+            }
         }
     }
 
