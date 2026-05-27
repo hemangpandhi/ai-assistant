@@ -39,6 +39,7 @@ id progressBar
 id rootOverlay
 id stopButton
 id svResponse
+id switchCpuBackend
 id tabInference
 id tabLayout
 id tabUseCases

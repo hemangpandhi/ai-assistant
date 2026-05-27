@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='UTF-8' ?>
+<testsuite name="com.example.gemininano.LlmPromptTest" tests="1" failures="1" errors="0" skipped="0" time="2.64" timestamp="2026-05-27T06:40:33" hostname="localhost">
+  <properties>
+    <property name="device" value="AOSP on Tangorpro - 14" />
+    <property name="flavor" value="" />
+    <property name="project" value=":app" />
+  </properties>
+  <testcase name="testAllScenarios" classname="com.example.gemininano.LlmPromptTest" time="1.746">
+    <failure></failure>
+  </testcase>
+  <system-err>Test run failed to complete. Instrumentation run failed due to Process crashed.
+</system-err>
+</testsuite>

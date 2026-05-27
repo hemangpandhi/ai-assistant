@@ -4,6 +4,7 @@ import android.Manifest
 import android.car.Car
 import android.car.VehiclePropertyIds
 import android.car.hardware.property.CarPropertyManager
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioManager
@@ -460,6 +461,14 @@ class LocalLLMActivity : AppCompatActivity() {
 
     private suspend fun initLlm(force: Boolean = false) = withContext(Dispatchers.Main) {
         val useCpu = switchCpuBackend.isChecked
+        
+        // Save to SharedPreferences for AssistantSession (Voice Overlay)
+        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("selected_model", MODEL_PATH)
+            .putBoolean("use_cpu", useCpu)
+            .apply()
+            
         chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH...\nBackend: ${if (useCpu) "CPU" else "GPU"}\nThis may take a minute.", isUser = false))
         generateButton.isEnabled = false
 

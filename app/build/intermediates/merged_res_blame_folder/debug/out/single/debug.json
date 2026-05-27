@@ -12,6 +12,10 @@
         "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/drawable/bg_input_pill.xml"
     },
     {
+        "merged": "com.example.gemininano.app-merged_res-31:/layout_activity_main.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/layout/activity_main.xml"
+    },
+    {
         "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/layout_item_chat_message.xml.flat",
         "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/item_chat_message.xml"
     },
@@ -30,9 +34,5 @@
     {
         "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-merged_res-31:/layout_activity_main.xml.flat",
         "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/activity_main.xml"
-    },
-    {
-        "merged": "com.example.gemininano.app-merged_res-31:/layout_assistant_overlay.xml.flat",
-        "source": "com.example.gemininano.app-main-33:/layout/assistant_overlay.xml"
     }
 ]

@@ -19,6 +19,7 @@ import androidx.viewbinding.ViewBindings;
 import com.example.gemininano.R;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.google.android.material.tabs.TabLayout;
 import java.lang.NullPointerException;
 import java.lang.Override;
@@ -98,6 +99,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final MaterialButton stopButton;
 
   @NonNull
+  public final SwitchMaterial switchCpuBackend;
+
+  @NonNull
   public final LinearLayout tabInference;
 
   @NonNull
@@ -120,9 +124,9 @@ public final class ActivityMainBinding implements ViewBinding {
       @NonNull TextView dashInternet, @NonNull TextView dashSpeed, @NonNull TextView dashTemp,
       @NonNull LinearLayout dashboardLayout, @NonNull MaterialButton generateButton,
       @NonNull EditText inputText, @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
-      @NonNull MaterialButton stopButton, @NonNull LinearLayout tabInference,
-      @NonNull TabLayout tabLayout, @NonNull ScrollView tabUseCases,
-      @NonNull FloatingActionButton voiceButton) {
+      @NonNull MaterialButton stopButton, @NonNull SwitchMaterial switchCpuBackend,
+      @NonNull LinearLayout tabInference, @NonNull TabLayout tabLayout,
+      @NonNull ScrollView tabUseCases, @NonNull FloatingActionButton voiceButton) {
     this.rootView = rootView;
     this.btnDownloadModel = btnDownloadModel;
     this.btnLoadModel = btnLoadModel;
@@ -147,6 +151,7 @@ public final class ActivityMainBinding implements ViewBinding {
     this.modelSpinner = modelSpinner;
     this.progressBar = progressBar;
     this.stopButton = stopButton;
+    this.switchCpuBackend = switchCpuBackend;
     this.tabInference = tabInference;
     this.tabLayout = tabLayout;
     this.tabUseCases = tabUseCases;
@@ -318,6 +323,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.switchCpuBackend;
+      SwitchMaterial switchCpuBackend = ViewBindings.findChildViewById(rootView, id);
+      if (switchCpuBackend == null) {
+        break missingId;
+      }
+
       id = R.id.tabInference;
       LinearLayout tabInference = ViewBindings.findChildViewById(rootView, id);
       if (tabInference == null) {
@@ -347,7 +358,7 @@ public final class ActivityMainBinding implements ViewBinding {
           btnPremiumUseCase5, btnPremiumUseCase6, btnPremiumUseCase7, btnPremiumUseCase8,
           btnSyncTime, chatRecyclerView, clearButton, dashHeater, dashInternet, dashSpeed, dashTemp,
           dashboardLayout, generateButton, inputText, modelSpinner, progressBar, stopButton,
-          tabInference, tabLayout, tabUseCases, voiceButton);
+          switchCpuBackend, tabInference, tabLayout, tabUseCases, voiceButton);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

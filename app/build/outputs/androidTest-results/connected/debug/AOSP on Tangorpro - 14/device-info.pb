@@ -1,0 +1,2 @@
+
+3417105H805UGQ34€Íæ¶*	arm64-v8a2Google:3417105H805UGQRAOSP on Tangorpro

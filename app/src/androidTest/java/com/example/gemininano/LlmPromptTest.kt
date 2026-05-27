@@ -19,7 +19,7 @@ class LlmPromptTest {
         }?.firstOrNull()
         
         if (modelFile == null || !modelFile.exists()) {
-            modelFile = File("/data/local/tmp/gemma-4-E2B-it.litertlm")
+            modelFile = File("/data/local/tmp/SmolLM-135M-Instruct.task")
             if (!modelFile.exists()) {
                 throw Exception("Model not found in external files OR /data/local/tmp!")
             }
@@ -36,19 +36,21 @@ class LlmPromptTest {
         val llmInference = LlmInference.createFromOptions(context, options)
         
         val prompts = listOf(
-            "I'm running low on gas and my kids are hungry. Find the nearest rest stop or family restaurant along my current route on I-5.",
-            "The check engine light just came on, and the dashboard says OBD Code P0420. Is it safe to drive 50 more miles?",
-            "I'm freezing and the sun is glaring right into my eyes. Provide the exact JSON commands to adjust the HVAC and sunshades.",
-            "Sensors indicate the driver is falling asleep! Output EXACTLY this JSON: {\"action\": \"sound_alarm\"} and provide a short, urgent voice message to wake them up.",
-            "Play some relaxing jazz music and turn the volume down a bit.",
-            "Read my last text message and reply that I am driving and will be there in 15 minutes.",
-            "Roll down all the windows and set the ambient lighting to a calming blue.",
-            "How do I enable adaptive cruise control on the highway?"
+            "increase temperature"
         )
         
         for ((index, prompt) in prompts.withIndex()) {
             Log.d("TEST_REPORT", "Running Scenario ${index + 1}...")
-            val systemPrompt = "You are an in-car Android Automotive assistant. The user says: '$prompt'."
+            val systemPrompt = "You are a concise in-car AI assistant.\n" +
+                "Current state: Speed 0mph, Cabin Temp 70F, Heater Off, Fuel Level 100%, Gear Park.\n" +
+                "RULES:\n" +
+                "1. You must respond in valid JSON format ONLY. Do not include extra text.\n" +
+                "2. If user asks to change temp, output: {\"action\": \"set_temperature\", \"value\": 75, \"message\": \"[confirmation]\"} (replace 75 with requested temp)\n" +
+                "3. If user asks to defrost, output: {\"action\": \"defrost\", \"status\": true, \"message\": \"[confirmation]\"}\n" +
+                "4. For all other queries, output: {\"action\": \"chat\", \"message\": \"[your answer]\"}\n" +
+                "5. If Gear is Drive, refuse any distracting requests for safety.\n" +
+                "User: '$prompt'\n" +
+                "Assistant:"
             val response = try {
                 llmInference.generateResponse(systemPrompt).replace("\n", " ").trim()
             } catch (e: Exception) {

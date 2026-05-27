@@ -1,0 +1,6 @@
+com.example.gemininano.test.app-annotation-experimental-1.3.0-0 /home/hemang/.gradle/caches/transforms-3/414ac2d8f67d60d33c67d23fc5cdea1a/transformed/annotation-experimental-1.3.0/res
+com.example.gemininano.test.app-core-1.5.0-1 /home/hemang/.gradle/caches/transforms-3/daeaa9d72d83e48db3e3ff4d39b0563d/transformed/core-1.5.0/res
+com.example.gemininano.test.app-androidTest-2 /home/hemang/socllm/AOSP_GeminiNano_Sample/app/build/generated/res/resValues/androidTest/debug
+com.example.gemininano.test.app-mergeDebugAndroidTestResources-3 /home/hemang/socllm/AOSP_GeminiNano_Sample/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/merged.dir
+com.example.gemininano.test.app-mergeDebugAndroidTestResources-4 /home/hemang/socllm/AOSP_GeminiNano_Sample/app/build/intermediates/incremental/debugAndroidTest/mergeDebugAndroidTestResources/stripped.dir
+com.example.gemininano.test.app-merged_res-5 /home/hemang/socllm/AOSP_GeminiNano_Sample/app/build/intermediates/merged_res/debugAndroidTest

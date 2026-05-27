@@ -38,13 +38,23 @@ object LLMManager {
 
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             
-            // Prioritize Gemma because SmolLM/Qwen BPE tokenizers are incompatible with MediaPipe's SentencePiece engine, causing duplicated/corrupted tokens.
-            val modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
-                ?: models.firstOrNull()
+            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val savedModelPath = prefs.getString("selected_model", null)
+            val savedUseCpu = prefs.getBoolean("use_cpu", false)
+            
+            var modelFile: File? = null
+            if (savedModelPath != null) {
+                modelFile = File(savedModelPath)
+            }
+            if (modelFile == null || !modelFile.exists()) {
+                // Prioritize Gemma if no saved preference
+                modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
+                    ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+                    ?: models.firstOrNull()
+            }
 
             if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
-                initialize(context, modelFile.absolutePath, force, useCpu, callback)
+                initialize(context, modelFile.absolutePath, force, useCpu || savedUseCpu, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
             }
