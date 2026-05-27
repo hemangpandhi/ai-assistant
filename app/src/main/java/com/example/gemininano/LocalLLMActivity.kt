@@ -703,20 +703,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val isGemma = modelName.contains("gemma")
         
         for (query in prompts) {
-            val systemPrompt = if (isGemma) {
-                "You are an in-car AI. Current Temp: ${VehicleManager.getRealTemperature()}F, Speed: ${VehicleManager.getRealSpeed()}mph, Fuel: ${VehicleManager.getFuelLevel()}%.\n" +
-                "You must ONLY output valid JSON.\n" +
-                "Example 1:\nUser: 'increase temp by 5 degrees' -> {\"action\": \"increase_temperature\", \"value\": 5, \"message\": \"Increasing temperature by 5 degrees.\"}\n" +
-                "Example 2:\nUser: 'set temperature to 74F' -> {\"action\": \"set_temperature\", \"value\": 74, \"message\": \"Setting temperature to 74 degrees.\"}\n" +
-                "Example 3:\nUser: 'decrease temp by 10%' -> {\"action\": \"decrease_temperature\", \"value\": ${(VehicleManager.getRealTemperature() * 0.1).toInt()}, \"message\": \"Decreasing temperature by 10%.\"}\n" +
-                "Example 4:\nUser: 'defrost windshield' -> {\"action\": \"defrost\", \"status\": true, \"message\": \"Defroster on.\"}\n" +
-                "Example 5:\nUser: 'hello' -> {\"action\": \"chat\", \"message\": \"Hi there!\"}\n\nUser: '$query' -> {"
-            } else {
-                "You are an in-car AI. Output ONLY JSON.\n" +
-                "User: 'increase temp' -> {\"action\": \"increase_temperature\", \"value\": 2, \"message\": \"Done\"}\n" +
-                "User: 'defrost' -> {\"action\": \"defrost\", \"status\": true, \"message\": \"Done\"}\n" +
-                "User: '$query' -> {"
-            }
+            val systemPrompt = buildSystemPrompt(query)
                    
             var status = "FAIL"
             var details = "Timeout/Error"
