@@ -70,7 +70,7 @@ object LLMManager {
 
                 val optionsBuilder = LlmInference.LlmInferenceOptions.builder()
                     .setModelPath(modelPath)
-                    .setMaxTokens(4096)
+                    .setMaxTokens(1024)
                     
                 if (useCpu) {
                     optionsBuilder.setPreferredBackend(LlmInference.Backend.CPU)
