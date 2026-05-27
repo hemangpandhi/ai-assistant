@@ -567,14 +567,6 @@ class LocalLLMActivity : AppCompatActivity() {
                             val errorMsg = throwable.message ?: ""
                             chatAdapter.updateLastMessage("\nError: $errorMsg")
                             resetControls()
-                            
-                            if (errorMsg.contains("Failed to invoke the compiled model", ignoreCase = true) || errorMsg.contains("INTERNAL", ignoreCase = true) || errorMsg.contains("Code: 13", ignoreCase = true)) {
-                                if (!switchCpuBackend.isChecked) {
-                                    chatAdapter.addMessage(ChatMessage("GPU inference failed (Status Code 13). Automatically falling back to CPU...", isUser = false))
-                                    switchCpuBackend.isChecked = true
-                                    lifecycleScope.launch { initLlm(force = true) }
-                                }
-                            }
                         }
                     }
                 },
