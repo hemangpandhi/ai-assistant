@@ -18,6 +18,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.Locale
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.Message
+import com.google.ai.edge.litertlm.MessageCallback
 
 class AssistantSession(context: Context) : VoiceInteractionSession(context), TextToSpeech.OnInitListener {
 
@@ -137,7 +141,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         
-        if (LLMManager.llmInference == null) {
+        if (LLMManager.engine == null) {
             statusText.text = "Initializing Model..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
@@ -177,7 +181,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var isQueryProcessed = false
 
     private fun handleQuery(query: String) {
-        if (LLMManager.llmInference == null) return
+        if (LLMManager.engine == null || LLMManager.conversation == null) return
         
         statusText.text = "Thinking..."
         responseText.text = ""
@@ -207,141 +211,56 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 finish() // Auto-dismiss
             }
         }
-        val modelName = LLMManager.currentModelPath.lowercase()
-        val isGemma = modelName.contains("gemma")
+        // Setup state prompt with real-time VHAL data
+        val systemPrompt = "Current Car State: Temp: ${VehicleManager.getRealTemperature()}F, Speed: ${VehicleManager.getRealSpeed()}mph.\nUser: $query"
         
-        val systemPrompt = if (isGemma) {
-            "You are an in-car AI. Current Temp: ${VehicleManager.getRealTemperature()}F, Speed: ${VehicleManager.getRealSpeed()}mph, Fuel: ${VehicleManager.getFuelLevel()}%.\n" +
-            "You must ONLY output valid JSON.\n" +
-            "Example 1:\nUser: 'increase temp by 5 degrees'\n{\"action\": \"increase_temperature\", \"value\": 5, \"message\": \"Increasing temperature by 5 degrees.\"}\n" +
-            "Example 2:\nUser: 'set temperature to 74F'\n{\"action\": \"set_temperature\", \"value\": 74, \"message\": \"Setting temperature to 74 degrees.\"}\n" +
-            "Example 3:\nUser: 'decrease temp by 10%'\n{\"action\": \"decrease_temperature\", \"value\": ${(VehicleManager.getRealTemperature() * 0.1).toInt()}, \"message\": \"Decreasing temperature by 10%.\"}\n" +
-            "Example 4:\nUser: 'defrost windshield'\n{\"action\": \"defrost\", \"status\": true, \"message\": \"Defroster on.\"}\n" +
-            "Example 5:\nUser: 'hello'\n{\"action\": \"chat\", \"message\": \"Hi there!\"}\n\nUser: '$query'\n"
-        } else {
-            // Simplified prompt for SmolLM-135M to prevent context overflow and hallucinations
-            "You are an in-car AI. Output ONLY JSON.\n" +
-            "User: 'increase temp'\n{\"action\": \"increase_temperature\", \"value\": 2, \"message\": \"Done\"}\n" +
-            "User: 'defrost'\n{\"action\": \"defrost\", \"status\": true, \"message\": \"Done\"}\n" +
-            "User: '$query'\n"
-        }
-               
         try {
-            LLMManager.llmInference?.generateResponseAsync(systemPrompt) { partialResult, done ->
-            CoroutineScope(Dispatchers.Main).launch {
-                if (isQueryProcessed) return@launch // Stop processing if we already found the JSON
-                
-                var cleanResult = partialResult
-                if (cleanResult.contains("<end_of_turn>")) cleanResult = cleanResult.replace("<end_of_turn>", "")
-                if (cleanResult.contains("<eos>")) cleanResult = cleanResult.replace("<eos>", "")
-                if (cleanResult.contains("<turn|>")) cleanResult = cleanResult.replace("<turn|>", "")
-                if (cleanResult.contains("<|im_end|>")) cleanResult = cleanResult.replace("<|im_end|>", "")
-                if (cleanResult.contains("im_end")) cleanResult = cleanResult.replace("im_end", "")
-                if (cleanResult.contains("<|im_start|>")) cleanResult = cleanResult.replace("<|im_start|>", "")
-                
-                lastResponseBuilder.append(cleanResult)
-                val currentText = lastResponseBuilder.toString()
-                
-                // Early JSON detection to bypass infinite generation bugs on mismatched models
-                val jsonMatch = Regex("\\{.*\\}", RegexOption.DOT_MATCHES_ALL).find(currentText)
-                if (jsonMatch != null) {
-                    try {
-                        val jsonString = jsonMatch.value
-                        val json = org.json.JSONObject(jsonString)
-                        val action = json.optString("action")
-                        
-                        if (action == "set_temperature") {
-                            val temp = json.optDouble("value", VehicleManager.getRealTemperature().toDouble())
-                            VehicleManager.writeTemperatureToVhal(temp.toFloat())
-                        } else if (action == "increase_temperature") {
-                            val amount = json.optDouble("value", 2.0)
-                            val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                            VehicleManager.writeTemperatureToVhal((currentTemp + amount).toFloat())
-                        } else if (action == "decrease_temperature") {
-                            val amount = json.optDouble("value", 2.0)
-                            val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                            VehicleManager.writeTemperatureToVhal((currentTemp - amount).toFloat())
-                        } else if (action == "defrost") {
-                            VehicleManager.writeDefrosterToVhal(json.optBoolean("status", true))
+            LLMManager.conversation!!.sendMessageAsync(
+                Contents.of(Content.Text(systemPrompt)),
+                object : MessageCallback {
+                    override fun onMessage(message: Message) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            val chunk = message.toString()
+                            lastResponseBuilder.append(chunk)
+                            responseText.text = lastResponseBuilder.toString()
                         }
-                        
-                        val displayMsg = json.optString("message", "Done.")
-                        responseText.text = displayMsg
-                        
-                        statusText.text = "Done."
-                        btnSend.isEnabled = true
-                        isQueryProcessed = true
-                        
-                        if (displayMsg.isNotBlank()) {
-                            tts?.speak(displayMsg, TextToSpeech.QUEUE_FLUSH, null, null)
-                        }
-                        
-                        // Forcefully terminate the background generation via Reflection
-                        // This prevents the model from continuing to generate tokens and causing IllegalStateExceptions
-                        try {
-                            val inference = LLMManager.llmInference!!
-                            val implicitSessionField = inference.javaClass.getDeclaredField("implicitSession")
-                            implicitSessionField.isAccessible = true
-                            val sessionRef = implicitSessionField.get(inference) as java.util.concurrent.atomic.AtomicReference<*>
-                            val session = sessionRef.get()
-                            if (session != null) {
-                                val cancelMethod = session.javaClass.getDeclaredMethod("cancelGenerateResponseAsync")
-                                cancelMethod.isAccessible = true
-                                cancelMethod.invoke(session)
-                                android.util.Log.i("AssistantSession", "Forcefully terminated LLM generation early.")
+                    }
+
+                    override fun onDone() {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            val finalMsg = lastResponseBuilder.toString()
+                            statusText.text = "Done."
+                            btnSend.isEnabled = true
+                            isQueryProcessed = true
+                            
+                            if (finalMsg.isNotBlank()) {
+                                tts?.speak(finalMsg, TextToSpeech.QUEUE_FLUSH, null, null)
                             }
-                        } catch (e: Exception) {
-                            android.util.Log.e("AssistantSession", "Failed to forcefully terminate LLM", e)
+                            
+                            // Re-open microphone if the model is asking a question!
+                            if (finalMsg.trim().endsWith("?")) {
+                                btnMic.performClick()
+                            } else {
+                                kotlinx.coroutines.delay(2000)
+                                finish()
+                            }
                         }
-                        
-                        // Auto-dismiss after 2 seconds
-                        kotlinx.coroutines.delay(2000)
-                        finish()
-                        
-                        return@launch
-                    } catch (e: Exception) {
-                        // JSON not yet fully formed, continue accumulating
                     }
-                }
-                
-                if (done && !isQueryProcessed) {
-                    android.util.Log.e("AssistantSession", "Failed to parse JSON. Full response: $currentText")
-                    responseText.text = "Error processing request."
-                    statusText.text = "Error."
-                    btnSend.isEnabled = true
-                    
-                    kotlinx.coroutines.delay(2000)
-                    finish()
-                } else if (!isQueryProcessed) {
-                    val msgIndex = currentText.indexOf("\"message\": \"")
-                    if (msgIndex != -1) {
-                        var extracted = currentText.substring(msgIndex + 12)
-                        val endQuoteIndex = extracted.indexOf("\"")
-                        if (endQuoteIndex != -1) {
-                            extracted = extracted.substring(0, endQuoteIndex)
+
+                    override fun onError(throwable: Throwable) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            android.util.Log.e("AssistantSession", "LLM Error", throwable)
+                            statusText.text = "Error"
+                            responseText.text = throwable.message ?: "An unexpected error occurred."
+                            btnSend.isEnabled = true
+                            
+                            kotlinx.coroutines.delay(2000)
+                            finish()
                         }
-                        responseText.text = extracted
                     }
-                }
-            }
-            }
-        } catch (e: IllegalStateException) {
-            statusText.text = "Restarting Busy Model..."
-            responseText.text = "Please wait a moment."
-            btnSend.isEnabled = false
-            CoroutineScope(Dispatchers.Main).launch {
-                LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
-                    override fun onSuccess() {
-                        statusText.text = "Hi, how can I help you?"
-                        responseText.text = ""
-                        btnSend.isEnabled = true
-                    }
-                    override fun onError(e: Exception) {
-                        statusText.text = "Error restarting."
-                        btnSend.isEnabled = true
-                    }
-                })
-            }
+                },
+                emptyMap()
+            )
         } catch (e: Exception) {
             statusText.text = "Error"
             responseText.text = "An unexpected error occurred."

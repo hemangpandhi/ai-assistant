@@ -56,8 +56,7 @@ dependencies {
     // Alternatively, for cloud fallback:
     // implementation("com.google.ai.client.generativeai:generativeai:0.2.0")
 
-    // MediaPipe library for running custom Local LLMs (Gemma, Llama, Falcon, etc.)
-    implementation("com.google.mediapipe:tasks-genai:0.10.35")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.11.0")
 
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")

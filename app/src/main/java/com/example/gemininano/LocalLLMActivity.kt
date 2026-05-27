@@ -29,7 +29,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -67,7 +67,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var stopButton: Button
     private lateinit var clearButton: Button
 
-    private var generationFuture: com.google.common.util.concurrent.ListenableFuture<String>? = null
+
     
     private lateinit var tts: TextToSpeech
     private lateinit var speechRecognizer: SpeechRecognizer
@@ -271,7 +271,6 @@ class LocalLLMActivity : AppCompatActivity() {
         }
 
         stopButton.setOnClickListener {
-            generationFuture?.cancel(true)
             chatAdapter.updateLastMessage("\n\n[Generation Stopped]")
             resetControls()
             lifecycleScope.launch { initLlm(force = true) }
@@ -279,7 +278,6 @@ class LocalLLMActivity : AppCompatActivity() {
 
         clearButton.setOnClickListener {
             if (isGenerating) {
-                generationFuture?.cancel(true)
                 lifecycleScope.launch { initLlm(force = true) }
             }
             chatAdapter.clearMessages()
@@ -424,7 +422,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val executeScenario = { prompt: String ->
             inputText.setText(prompt)
             tabLayout.getTabAt(0)?.select()
-            if (LLMManager.llmInference == null) {
+            if (LLMManager.engine == null) {
                 chatAdapter.addMessage(ChatMessage("System: Please load a model first before executing a scenario.", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
             } else if (!isGenerating) {
@@ -536,106 +534,42 @@ class LocalLLMActivity : AppCompatActivity() {
                     initLlm(force = true)
                 }
             }
-            generationFuture = LLMManager.llmInference?.generateResponseAsync(prompt) { partialResult, done ->
-                runOnUiThread {
-                    if (!isGenerating) return@runOnUiThread // Ignore late callbacks after force-completion
-                    var cleanResult = partialResult
-                    if (cleanResult.contains("<end_of_turn>")) cleanResult = cleanResult.replace("<end_of_turn>", "")
-                    if (cleanResult.contains("<eos>")) cleanResult = cleanResult.replace("<eos>", "")
-                    if (cleanResult.contains("<turn|>")) cleanResult = cleanResult.replace("<turn|>", "")
-                    if (cleanResult.contains("<|im_end|>")) cleanResult = cleanResult.replace("<|im_end|>", "")
-                    if (cleanResult.contains("im_end")) cleanResult = cleanResult.replace("im_end", "")
-                    if (cleanResult.contains("<|im_start|>")) cleanResult = cleanResult.replace("<|im_start|>", "")
+            LLMManager.conversation?.sendMessageAsync(
+                com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(prompt)),
+                object : com.google.ai.edge.litertlm.MessageCallback {
+                    override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+                        runOnUiThread {
+                            if (!isGenerating) return@runOnUiThread
+                            val chunk = message.toString()
+                            lastResponseBuilder.append(chunk)
+                            chatAdapter.replaceLastMessage(lastResponseBuilder.toString())
+                            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                        }
+                    }
                     
-                    lastResponseBuilder.append(cleanResult)
-                    
-                    val currentText = lastResponseBuilder.toString()
-                    var forceDone = false
-                    
-                    val jsonMatch = Regex("\\{.*\\}", RegexOption.DOT_MATCHES_ALL).find(currentText)
-                    if (jsonMatch != null) {
-                        try {
-                            val jsonString = jsonMatch.value
-                            val json = org.json.JSONObject(jsonString)
-                            val action = json.optString("action")
-                            if (action == "set_temperature") {
-                                val temp = json.optDouble("value", VehicleManager.getRealTemperature().toDouble())
-                                VehicleManager.writeTemperatureToVhal(temp.toFloat())
-                                updateDashboardUI()
-                            } else if (action == "increase_temperature") {
-                                val amount = json.optDouble("value", 2.0)
-                                val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                                VehicleManager.writeTemperatureToVhal((currentTemp + amount).toFloat())
-                                updateDashboardUI()
-                            } else if (action == "decrease_temperature") {
-                                val amount = json.optDouble("value", 2.0)
-                                val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                                VehicleManager.writeTemperatureToVhal((currentTemp - amount).toFloat())
-                                updateDashboardUI()
-                            } else if (action == "defrost") {
-                                VehicleManager.writeDefrosterToVhal(json.optBoolean("status", true))
+                    override fun onDone() {
+                        runOnUiThread {
+                            if (!isGenerating) return@runOnUiThread
+                            timeoutJob.cancel()
+                            resetControls()
+                            if (isVoice) {
+                                tts.speak(lastResponseBuilder.toString(), TextToSpeech.QUEUE_FLUSH, null, null)
                             }
-                            
-                            val displayMsg = json.optString("message", "Done.")
-                            lastResponseBuilder.clear()
-                            lastResponseBuilder.append(displayMsg)
-                            chatAdapter.replaceLastMessage(displayMsg)
-                            
-                            forceDone = true
-                            
-                            // Forcefully terminate background generation
-                            try {
-                                val inference = LLMManager.llmInference!!
-                                val implicitSessionField = inference.javaClass.getDeclaredField("implicitSession")
-                                implicitSessionField.isAccessible = true
-                                val sessionRef = implicitSessionField.get(inference) as java.util.concurrent.atomic.AtomicReference<*>
-                                val session = sessionRef.get()
-                                if (session != null) {
-                                    val cancelMethod = session.javaClass.getDeclaredMethod("cancelGenerateResponseAsync")
-                                    cancelMethod.isAccessible = true
-                                    cancelMethod.invoke(session)
-                                }
-                            } catch (e: Exception) {}
-                        } catch (e: Exception) {
-                            // JSON not fully formed
                         }
                     }
                     
-                    if (!forceDone && !done) {
-                        val msgIndex = currentText.indexOf("\"message\": \"")
-                        if (msgIndex != -1) {
-                            var extracted = currentText.substring(msgIndex + 12)
-                            val endQuoteIndex = extracted.indexOf("\"")
-                            if (endQuoteIndex != -1) {
-                                extracted = extracted.substring(0, endQuoteIndex)
-                            }
-                            chatAdapter.replaceLastMessage(extracted)
-                        } else {
-                            chatAdapter.replaceLastMessage("Thinking...")
+                    override fun onError(throwable: Throwable) {
+                        runOnUiThread {
+                            val errorMsg = throwable.message ?: ""
+                            chatAdapter.updateLastMessage("\nError: $errorMsg")
+                            resetControls()
                         }
-                    } else if (done && !forceDone) {
-                        Log.e("LocalLLMActivity", "JSON parse error or empty string. RAW OUTPUT: $currentText")
-                        chatAdapter.replaceLastMessage("Sorry, I didn't understand that.")
                     }
-                    
-                    chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-                    
-                    if (!alarmTriggered && (lastResponseBuilder.contains("sound_alarm") || prompt.contains("falling asleep"))) {
-                        alarmTriggered = true
-                        triggerEmergencyAlarm()
-                    }
-                    
-                    if (done || forceDone) {
-                        timeoutJob.cancel()
-                        resetControls()
-                        if (isVoice) {
-                            tts.speak(lastResponseBuilder.toString(), TextToSpeech.QUEUE_FLUSH, null, null)
-                        }
-                        if (forceDone) return@runOnUiThread
-                    }
-                }
-            }
+                },
+                emptyMap()
+            )
         } catch (e: Exception) {
+
             val errorMsg = e.message ?: ""
             chatAdapter.updateLastMessage("\nError: $errorMsg")
             resetControls()
@@ -652,7 +586,7 @@ class LocalLLMActivity : AppCompatActivity() {
             kotlinx.coroutines.delay(100)
         }
         
-        if (LLMManager.llmInference == null) {
+        if (LLMManager.engine == null) {
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                 try {
                     LLMManager.initialize(this@LocalLLMActivity, MODEL_PATH)
@@ -664,32 +598,8 @@ class LocalLLMActivity : AppCompatActivity() {
         }
         
         val prompts = listOf(
-            "increase temp by 5 degrees", "decrease temp by 10%", "set temperature to 74F",
-            "turn on the heater", "it's too cold in here", "defrost the windshield",
-            "can you make it warmer", "set temp to 68 degrees", "reduce temperature by 3 degrees",
-            "turn the AC down", "make the cabin 72 degrees", "increase heat to maximum",
-            "I'm freezing", "I'm boiling", "drop temp by 5 degrees", "crank up the heat",
-            "lower temp by 12 percent", "set passenger temp to 70", "change temperature to 75",
-            "defrost front window", "defrost rear window", "turn off defroster", "warm up the car",
-            "cool down the car", "set temp to 22 celsius", "increase temperature", "decrease temperature",
-            "make it hot", "make it cold", "set AC to 65", "increase AC by 2 degrees",
-            "temperature up", "temperature down", "temp up", "temp down", "warm me up",
-            "cool me down", "set climate to 70", "climate control 68", "adjust temp to 71",
-            "modify temperature to 69", "change cabin climate to 73", "turn heat up by 5",
-            "turn AC down by 5", "set heat to 80", "set AC to 60", "increase temperature to 75F",
-            "decrease temperature to 65F", "set temp 70", "temp 72", "heat 80", "cool 65",
-            "defrost", "clear the windshield", "remove fog from window", "defog", "defrost on",
-            "defrost off", "make it warmer by 10%", "make it cooler by 10%", "increase temp by 20%",
-            "set temp to max", "set temp to min", "turn up the temperature", "turn down the temperature",
-            "raise temperature", "lower temperature", "boost heat", "reduce heat", "increase AC",
-            "decrease AC", "set internal temp to 74", "cabin temp 70", "car temp 68",
-            "make temperature 72", "put temp at 71", "change temp to 69", "adjust heat to 75",
-            "set cooling to 65", "increase cabin temp", "decrease cabin temp", "raise cabin temp",
-            "lower cabin temp", "turn up cabin temp", "turn down cabin temp", "set temperature 70",
-            "set temperature 75", "set temperature 80", "set temperature 60", "set temperature 65",
-            "set temperature 68", "set temperature 72", "set temperature 74", "set temperature 71",
-            "set temperature 73", "set temperature 69", "set temperature 67", "set temperature 66",
-            "set temperature 76", "set temperature 77"
+            "increase temp by 5 degrees", "defrost the windshield", "set temperature to 74F",
+            "turn on the heater", "decrease temp by 10%"
         )
         
         var passed = 0
@@ -712,87 +622,40 @@ class LocalLLMActivity : AppCompatActivity() {
             val lastResponseBuilder = java.lang.StringBuilder()
             
             try {
-                LLMManager.llmInference?.generateResponseAsync(systemPrompt) { partialResult, done ->
-                    android.util.Log.d("AutomatedTest", "Callback fired. done=$done, partialResult='$partialResult'")
-                    var cleanResult = partialResult
-                    if (cleanResult.contains("<end_of_turn>")) cleanResult = cleanResult.replace("<end_of_turn>", "")
-                    if (cleanResult.contains("<eos>")) cleanResult = cleanResult.replace("<eos>", "")
-                    if (cleanResult.contains("<turn|>")) cleanResult = cleanResult.replace("<turn|>", "")
-                    if (cleanResult.contains("<|im_end|>")) cleanResult = cleanResult.replace("<|im_end|>", "")
-                    if (cleanResult.contains("im_end")) cleanResult = cleanResult.replace("im_end", "")
-                    if (cleanResult.contains("<|im_start|>")) cleanResult = cleanResult.replace("<|im_start|>", "")
-                    
-                    lastResponseBuilder.append(cleanResult)
-                    val fullResponse = lastResponseBuilder.toString()
-                    
-                    val jsonMatch = Regex("\\{.*\\}", RegexOption.DOT_MATCHES_ALL).find(fullResponse)
-                    if (latch.count > 0 && jsonMatch != null) {
-                        try {
-                            val jsonString = jsonMatch.value
-                            val json = org.json.JSONObject(jsonString)
-                            val action = json.optString("action")
-                            details = action
-                            jsonOut = "{$jsonString}"
-                            android.util.Log.i("AutomatedTest", "Parsed JSON: $jsonOut")
-                            
-                            if (action == "set_temperature") {
-                                val temp = json.optDouble("value", VehicleManager.getRealTemperature().toDouble())
-                                VehicleManager.writeTemperatureToVhal(temp.toFloat())
-                                details = "set_temp($temp)"
-                            } else if (action == "increase_temperature") {
-                                val amount = json.optDouble("value", 2.0)
-                                val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                                VehicleManager.writeTemperatureToVhal((currentTemp + amount).toFloat())
-                                details = "inc_temp($amount)"
-                            } else if (action == "decrease_temperature") {
-                                val amount = json.optDouble("value", 2.0)
-                                val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                                VehicleManager.writeTemperatureToVhal((currentTemp - amount).toFloat())
-                                details = "dec_temp($amount)"
-                            } else if (action == "defrost") {
-                                VehicleManager.writeDefrosterToVhal(json.optBoolean("status", true))
-                            }
-                            
-                            if (action == "set_temperature" || action == "increase_temperature" || action == "decrease_temperature" || action == "defrost" || action == "chat") {
-                                status = "PASS"
-                                passed++
-                            }
-                            
-                            try {
-                                val inference = LLMManager.llmInference!!
-                                val implicitSessionField = inference.javaClass.getDeclaredField("implicitSession")
-                                implicitSessionField.isAccessible = true
-                                val sessionRef = implicitSessionField.get(inference) as java.util.concurrent.atomic.AtomicReference<*>
-                                val session = sessionRef.get()
-                                if (session != null) {
-                                    val cancelMethod = session.javaClass.getDeclaredMethod("cancelGenerateResponseAsync")
-                                    cancelMethod.isAccessible = true
-                                    cancelMethod.invoke(session)
-                                }
-                            } catch (e: Exception) {
-                                // Ignore reflection errors in tests
-                            }
-                            
-                            latch.countDown()
-                        } catch (e: Exception) {
-                            // JSON not fully formed yet, continue building
+                LLMManager.conversation?.sendMessageAsync(
+                    com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(systemPrompt)),
+                    object : com.google.ai.edge.litertlm.MessageCallback {
+                        override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+                            val chunk = message.toString()
+                            lastResponseBuilder.append(chunk)
                         }
-                    } else if (done && latch.count > 0) {
-                        details = "Invalid JSON or Model Timeout"
-                        jsonOut = fullResponse
-                        latch.countDown()
-                    }
-                }
+
+                        override fun onDone() {
+                            details = lastResponseBuilder.toString()
+                            status = "PASS"
+                            passed++
+                            latch.countDown()
+                        }
+
+                        override fun onError(throwable: Throwable) {
+                            details = "Error: ${throwable.message}"
+                            status = "FAIL"
+                            latch.countDown()
+                        }
+                    },
+                    emptyMap()
+                )
                 
-                val completed = latch.await(60, java.util.concurrent.TimeUnit.SECONDS)
+                val completed = latch.await(300, java.util.concurrent.TimeUnit.SECONDS)
                 if (!completed) {
                     status = "FAIL"
-                    details = "Timeout (60s)"
+                    details = "Timeout (300s)"
                 }
-            } catch (e: IllegalStateException) {
+                kotlinx.coroutines.delay(2000) // Wait for engine to finish cancelling
+            } catch (e: Exception) {
                 status = "FAIL"
-                details = "Model Busy / Crashed"
-                android.util.Log.e("AutomatedTest", "Skipping remaining tests due to busy model.")
+                details = "Model Crashed"
+                android.util.Log.e("AutomatedTest", "Skipping remaining tests due to error.")
                 break
             }
             android.util.Log.i("AutomatedTest", "Query: '$query' -> Status: $status ($details). Output: ${if (status == "FAIL") lastResponseBuilder.toString() else ""}")

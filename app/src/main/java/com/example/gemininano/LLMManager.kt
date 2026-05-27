@@ -2,13 +2,21 @@ package com.example.gemininano
 
 import android.content.Context
 import android.util.Log
-import com.google.mediapipe.tasks.genai.llminference.LlmInference
+import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Conversation
+import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.tool
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
 
 object LLMManager {
-    var llmInference: LlmInference? = null
+    var engine: Engine? = null
+        private set
+
+    var conversation: Conversation? = null
         private set
 
     var currentModelPath: String = ""
@@ -23,7 +31,7 @@ object LLMManager {
     }
 
     suspend fun autoInitialize(context: Context, force: Boolean = false, useCpu: Boolean = false, callback: InitCallback? = null) {
-        if (!force && llmInference != null) {
+        if (!force && engine != null) {
             callback?.onSuccess()
             return
         }
@@ -47,7 +55,6 @@ object LLMManager {
                 modelFile = File(savedModelPath)
             }
             if (modelFile == null || !modelFile.exists()) {
-                // Prioritize Gemma if no saved preference
                 modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
                     ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
                     ?: models.firstOrNull()
@@ -62,34 +69,41 @@ object LLMManager {
     }
 
     suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, useCpu: Boolean = false, callback: InitCallback? = null) {
-        if (!force && llmInference != null && currentModelPath == modelPath) {
+        if (!force && engine != null && currentModelPath == modelPath) {
             callback?.onSuccess()
-            return // Already initialized with this model
+            return
         }
 
         withContext(Dispatchers.IO) {
             isInitializing = true
             try {
                 try {
-                    // Close existing if any
-                    llmInference?.close()
+                    conversation?.close()
+                    engine?.close()
                 } catch (e: Exception) {
-                    Log.w("LLMManager", "Failed to cleanly close old inference instance. It may be busy.", e)
+                    Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
                 }
-                llmInference = null
+                conversation = null
+                engine = null
 
-                val optionsBuilder = LlmInference.LlmInferenceOptions.builder()
-                    .setModelPath(modelPath)
-                    .setMaxTokens(1024)
-                    
-                if (useCpu) {
-                    optionsBuilder.setPreferredBackend(LlmInference.Backend.CPU)
-                } else {
-                    optionsBuilder.setPreferredBackend(LlmInference.Backend.GPU)
-                }
+                val backend = if (useCpu) Backend.CPU() else Backend.GPU()
 
-                llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilder.build())
-                
+                val engineConfig = EngineConfig(
+                    modelPath = modelPath,
+                    backend = backend,
+                    maxNumTokens = 1024
+                )
+
+                engine = Engine(engineConfig)
+                engine!!.initialize()
+
+                val toolset = AutomotiveTools()
+
+                val conversationConfig = ConversationConfig(
+                    tools = listOf(tool(toolset))
+                )
+
+                conversation = engine!!.createConversation(conversationConfig)
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath")
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
@@ -98,11 +112,21 @@ object LLMManager {
                 if (!useCpu) {
                     Log.i("LLMManager", "Attempting fallback to CPU backend...")
                     try {
-                        val optionsBuilderFallback = LlmInference.LlmInferenceOptions.builder()
-                            .setModelPath(modelPath)
-                            .setMaxTokens(1024)
-                            .setPreferredBackend(LlmInference.Backend.CPU)
-                        llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilderFallback.build())
+                        val engineConfigFallback = EngineConfig(
+                            modelPath = modelPath,
+                            backend = Backend.CPU(),
+                            maxNumTokens = 1024
+                        )
+                        engine = Engine(engineConfigFallback)
+                        engine!!.initialize()
+                        
+                        val toolset = AutomotiveTools()
+
+                        val conversationConfig = ConversationConfig(
+                            tools = listOf(tool(toolset))
+                        )
+                        
+                        conversation = engine!!.createConversation(conversationConfig)
                         currentModelPath = modelPath
                         Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
                         withContext(Dispatchers.Main) { callback?.onSuccess() }
