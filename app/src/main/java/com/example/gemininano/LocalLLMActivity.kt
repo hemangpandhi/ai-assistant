@@ -347,7 +347,7 @@ class LocalLLMActivity : AppCompatActivity() {
                "5. To defrost: {\"action\": \"defrost\", \"status\": true, \"message\": \"Defrosting the windshield.\"}\n" +
                "6. For chat: {\"action\": \"chat\", \"message\": \"[your answer]\"}\n" +
                "User: '$userInput'\n" +
-               "Assistant:"
+               "Assistant: {"
     }
 
     private fun stopEmergencyAlarm() {
@@ -500,6 +500,7 @@ class LocalLLMActivity : AppCompatActivity() {
         isGenerating = true
         
         lastResponseBuilder.clear()
+        lastResponseBuilder.append("{") // Seed with the forced bracket to guarantee JSON
         
         val actualDisplay = if (isVoice) displayPrompt else prompt
         chatAdapter.addMessage(ChatMessage(actualDisplay, isUser = true))
