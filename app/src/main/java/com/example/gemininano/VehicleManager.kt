@@ -17,6 +17,11 @@ object VehicleManager {
     private var currentTemperature: Float = 22f // Store raw VHAL value (usually Celsius)
     private var currentFuelLevel: Float = 50f
     private var currentGear: Int = 4
+    
+    // Expanded Mock Telemetry
+    private var currentEvBatteryLevel: Float = 42f
+    private var currentTirePressureFrontLeft: Float = 28f // Low pressure
+    private var currentOutsideTemperature: Float = 32f // Freezing outside
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
         override fun onChangeEvent(value: CarPropertyValue<*>) {
@@ -96,6 +101,11 @@ object VehicleManager {
             else -> "Unknown"
         }
     }
+
+    // Expanded Telemetry Accessors
+    fun getEvBatteryLevel(): Float = currentEvBatteryLevel
+    fun getTirePressureFrontLeft(): Float = currentTirePressureFrontLeft
+    fun getOutsideTemperature(): Float = currentOutsideTemperature
 
     fun writeTemperatureToVhal(temp: Float) {
         try {

@@ -544,7 +544,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
             val finalPrompt = if (LLMManager.isFirstMessage) {
                 LLMManager.isFirstMessage = false
-                LLMManager.getSystemPrompt() + "\nUser: " + prompt
+                LLMManager.getSystemPrompt(applicationContext) + "\nUser: " + prompt
             } else {
                 prompt
             }
@@ -594,13 +594,36 @@ class LocalLLMActivity : AppCompatActivity() {
                                         val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
                                         VehicleManager.writeSeatHeaterToVhal(value)
                                     } else if (toolCall.startsWith("setWindowPosition")) {
-                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
-                                        VehicleManager.writeWindowPositionToVhal(value)
+                                        if (VehicleManager.getRealSpeed() > 70) {
+                                            android.util.Log.w("SafetyGuardrail", "Speed > 70mph. Ignored setWindowPosition tool.")
+                                            chatAdapter.addMessage(ChatMessage("System: Safety lockout prevented window action at high speed.", isUser = false))
+                                        } else {
+                                            val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
+                                            VehicleManager.writeWindowPositionToVhal(value)
+                                        }
                                     } else if (toolCall.startsWith("navigate")) {
                                         val dest = toolCall.substringAfter("(").substringBefore(")")
                                         val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
                                         intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                                         startActivity(intent)
+                                    } else if (toolCall.startsWith("playMusic")) {
+                                        val query = toolCall.substringAfter("(").substringBefore(")")
+                                        val intent = android.content.Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
+                                        intent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
+                                        intent.putExtra(android.app.SearchManager.QUERY, query)
+                                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                        if (intent.resolveActivity(packageManager) != null) startActivity(intent)
+                                    } else if (toolCall.startsWith("call")) {
+                                        val contact = toolCall.substringAfter("(").substringBefore(")")
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${android.net.Uri.encode(contact)}"))
+                                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                        startActivity(intent)
+                                    } else if (toolCall.startsWith("remember")) {
+                                        val fact = toolCall.substringAfter("(").substringBefore(")")
+                                        val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                                        val currentMemory = prefs.getString("user_memory", "") ?: ""
+                                        val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
+                                        prefs.edit().putString("user_memory", newMemory).apply()
                                     }
                                 } catch (e: Exception) {
                                     android.util.Log.e("LocalLLMActivity", "Failed to parse tool call: $toolCall", e)

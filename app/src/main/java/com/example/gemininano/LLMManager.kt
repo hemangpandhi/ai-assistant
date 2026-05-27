@@ -134,11 +134,15 @@ object LLMManager {
             }
         }
     }
-    fun getSystemPrompt(): String {
+    fun getSystemPrompt(context: android.content.Context): String {
+        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val userMemory = prefs.getString("user_memory", "None") ?: "None"
+        
         return "You are an in-car AI assistant. " +
-               "Vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}, OBD Code P0420 (Check Engine Light ON).\n" +
+               "Vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}, EV Battery ${VehicleManager.getEvBatteryLevel()}%, Tire Pressure FL ${VehicleManager.getTirePressureFrontLeft()}PSI, Outside Temp ${VehicleManager.getOutsideTemperature()}F, OBD Code P0420 (Check Engine Light ON).\n" +
+               "User Memory: $userMemory\n" +
                "If you need to perform an action, you MUST append a tool tag to your response. Example: 'I will lower the temperature. <TOOL>decreaseTemperature(5.0)</TOOL>'. " +
-               "Valid tool tags are: <TOOL>increaseTemperature(VALUE)</TOOL>, <TOOL>decreaseTemperature(VALUE)</TOOL>, <TOOL>setTemperature(VALUE)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>turnOffDefroster()</TOOL>, <TOOL>setSeatHeater(LEVEL)</TOOL>, <TOOL>setWindowPosition(PERCENTAGE)</TOOL>, <TOOL>navigate(DESTINATION)</TOOL>."
+               "Valid tool tags are: <TOOL>increaseTemperature(VALUE)</TOOL>, <TOOL>decreaseTemperature(VALUE)</TOOL>, <TOOL>setTemperature(VALUE)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>turnOffDefroster()</TOOL>, <TOOL>setSeatHeater(LEVEL)</TOOL>, <TOOL>setWindowPosition(PERCENTAGE)</TOOL>, <TOOL>navigate(DESTINATION)</TOOL>, <TOOL>playMusic(QUERY)</TOOL>, <TOOL>call(CONTACT)</TOOL>, <TOOL>remember(FACT)</TOOL>."
     }
 
     fun resetConversation() {
