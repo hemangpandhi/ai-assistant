@@ -349,8 +349,7 @@ class LocalLLMActivity : AppCompatActivity() {
                "4. To decrease temp: {\"action\": \"decrease_temperature\", \"value\": 2, \"message\": \"Decreasing temperature.\"}\n" +
                "5. To defrost: {\"action\": \"defrost\", \"status\": true, \"message\": \"Defrosting the windshield.\"}\n" +
                "6. For chat: {\"action\": \"chat\", \"message\": \"[your answer]\"}\n" +
-               "User: '$userInput'\n" +
-               "Assistant: {"
+               "User: '$userInput'\n"
     }
 
     private fun stopEmergencyAlarm() {
@@ -512,7 +511,6 @@ class LocalLLMActivity : AppCompatActivity() {
         isGenerating = true
         
         lastResponseBuilder.clear()
-        lastResponseBuilder.append("{") // Seed with the forced bracket to guarantee JSON
         
         val actualDisplay = if (isVoice) displayPrompt else prompt
         chatAdapter.addMessage(ChatMessage(actualDisplay, isUser = true))
@@ -711,7 +709,6 @@ class LocalLLMActivity : AppCompatActivity() {
             
             val latch = java.util.concurrent.CountDownLatch(1)
             val lastResponseBuilder = java.lang.StringBuilder()
-            lastResponseBuilder.append("{") // Seed with the forced bracket
             
             try {
                 LLMManager.llmInference?.generateResponseAsync(systemPrompt) { partialResult, done ->
@@ -727,10 +724,11 @@ class LocalLLMActivity : AppCompatActivity() {
                     lastResponseBuilder.append(cleanResult)
                     val fullResponse = lastResponseBuilder.toString()
                     
-                    if (latch.count > 0 && fullResponse.contains("{") && fullResponse.contains("}")) {
+                    val jsonMatch = Regex("\\{.*\\}", RegexOption.DOT_MATCHES_ALL).find(fullResponse)
+                    if (latch.count > 0 && jsonMatch != null) {
                         try {
-                            val jsonString = fullResponse.substringAfter("{").substringBeforeLast("}")
-                            val json = org.json.JSONObject("{$jsonString}")
+                            val jsonString = jsonMatch.value
+                            val json = org.json.JSONObject(jsonString)
                             val action = json.optString("action")
                             details = action
                             jsonOut = "{$jsonString}"
