@@ -95,7 +95,24 @@ object LLMManager {
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
             } catch (e: Exception) {
                 Log.e("LLMManager", "Error initializing model", e)
-                withContext(Dispatchers.Main) { callback?.onError(e) }
+                if (!useCpu) {
+                    Log.i("LLMManager", "Attempting fallback to CPU backend...")
+                    try {
+                        val optionsBuilderFallback = LlmInference.LlmInferenceOptions.builder()
+                            .setModelPath(modelPath)
+                            .setMaxTokens(1024)
+                            .setPreferredBackend(LlmInference.Backend.CPU)
+                        llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilderFallback.build())
+                        currentModelPath = modelPath
+                        Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
+                        withContext(Dispatchers.Main) { callback?.onSuccess() }
+                    } catch (fallbackEx: Exception) {
+                         Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
+                         withContext(Dispatchers.Main) { callback?.onError(fallbackEx) }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { callback?.onError(e) }
+                }
             } finally {
                 isInitializing = false
             }
