@@ -239,6 +239,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, R.layout.spinner_item, supportedModels.map { "[${it.automotiveContext}] ${it.name} (${it.size})" })
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
         modelSpinner.adapter = adapter
+        modelSpinner.setSelection(4) // Default to Gemma 4-E2B IT
         
         modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
