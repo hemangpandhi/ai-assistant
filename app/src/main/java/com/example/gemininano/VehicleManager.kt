@@ -117,22 +117,15 @@ object VehicleManager {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)
             config?.areaIds?.forEach { areaId ->
-                val maxTemp = config.getMaxValue(areaId) as? Float ?: 32f
-                val minTemp = config.getMinValue(areaId) as? Float ?: 16f
-                
                 var finalTemp = temp
                 // If requested temp is clearly in Fahrenheit (e.g., > 50), convert to Celsius
-                if (finalTemp > 50f && maxTemp < 50f) {
+                // We assume VHAL expects Celsius if max limits aren't explicitly fetched
+                if (finalTemp > 50f) {
                     finalTemp = (finalTemp - 32f) * 5f / 9f
                 }
                 
-                // Clamp to VHAL limits to avoid IllegalArgumentException
-                if (finalTemp > maxTemp) finalTemp = maxTemp
-                if (finalTemp < minTemp) finalTemp = minTemp
-                
                 // Android Automotive HVAC UI strictly requires temperatures to be rounded
-                // to the nearest 0.5 (or according to configArray). If we pass 23.88889,
-                // the SystemUI will completely ignore the update.
+                // to the nearest 0.5. If we pass 23.88889, SystemUI ignores it.
                 finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
                 
                 carPropertyManager?.setFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp)
@@ -157,11 +150,9 @@ object VehicleManager {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
             config?.areaIds?.forEach { areaId ->
-                val maxLevel = config.getMaxValue(areaId) as? Int ?: 3
-                val minLevel = config.getMinValue(areaId) as? Int ?: 0
                 var finalLevel = level
-                if (finalLevel > maxLevel) finalLevel = maxLevel
-                if (finalLevel < minLevel) finalLevel = minLevel
+                if (finalLevel > 3) finalLevel = 3
+                if (finalLevel < 0) finalLevel = 0
                 carPropertyManager?.setIntProperty(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel)
             }
         } catch (e: Exception) {
@@ -173,13 +164,8 @@ object VehicleManager {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS)
             config?.areaIds?.forEach { areaId ->
-                val maxPos = config.getMaxValue(areaId) as? Int ?: 100
-                val minPos = config.getMinValue(areaId) as? Int ?: 0
-                
-                // Assuming percentage is 0-100, map it to min-max limits of the window motor
-                val targetPos = minPos + ((maxPos - minPos) * (percentage / 100.0)).toInt()
-                
-                carPropertyManager?.setIntProperty(VehiclePropertyIds.WINDOW_POS, areaId, targetPos)
+                // Assuming percentage is 0-100
+                carPropertyManager?.setIntProperty(VehiclePropertyIds.WINDOW_POS, areaId, percentage)
             }
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL window pos", e)
