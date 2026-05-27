@@ -340,14 +340,9 @@ class LocalLLMActivity : AppCompatActivity() {
 
 
     private fun buildSystemPrompt(userInput: String): String {
-        return "You are an in-car AI. Current state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
-               "RULES:\n" +
-               "1. You must respond in valid JSON format ONLY. Do not include extra text.\n" +
-               "2. To set exact temp: {\"action\": \"set_temperature\", \"value\": 72, \"message\": \"Setting temperature to 72 degrees.\"}\n" +
-               "3. To increase temp: {\"action\": \"increase_temperature\", \"value\": 2, \"message\": \"Increasing temperature.\"}\n" +
-               "4. To decrease temp: {\"action\": \"decrease_temperature\", \"value\": 2, \"message\": \"Decreasing temperature.\"}\n" +
-               "5. To defrost: {\"action\": \"defrost\", \"status\": true, \"message\": \"Defrosting the windshield.\"}\n" +
-               "6. For chat: {\"action\": \"chat\", \"message\": \"[your answer]\"}\n" +
+        return "You are a helpful, conversational in-car AI assistant. " +
+               "Current vehicle state: Speed ${VehicleManager.getRealSpeed()}mph, Cabin Temp ${VehicleManager.getRealTemperature()}F, Heater level ${VehicleManager.getRealSeatHeaterLevel()}, Fuel Level ${VehicleManager.getFuelLevel()}%, Gear ${VehicleManager.getGearSelection()}.\n" +
+               "If the user implies they are uncomfortable (e.g., 'I am freezing', 'I am hot', 'It is cold'), you should use your tools to adjust the climate control or proactively ask if they want you to adjust the temperature.\n" +
                "User: '$userInput'\n"
     }
 

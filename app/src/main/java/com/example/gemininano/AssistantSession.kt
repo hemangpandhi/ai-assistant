@@ -212,7 +212,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
         }
         // Setup state prompt with real-time VHAL data
-        val systemPrompt = "Current Car State: Temp: ${VehicleManager.getRealTemperature()}F, Speed: ${VehicleManager.getRealSpeed()}mph.\nUser: $query"
+        val systemPrompt = "You are a helpful in-car AI assistant. Current vehicle state: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater level ${VehicleManager.getRealSeatHeaterLevel()}.\n" +
+               "If the user says they are cold or hot, use your tools to adjust the climate or proactively ask if they want it changed.\n" +
+               "User: $query"
         
         try {
             LLMManager.conversation!!.sendMessageAsync(
