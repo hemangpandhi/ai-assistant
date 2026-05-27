@@ -88,7 +88,18 @@ object LLMManager {
                     optionsBuilder.setPreferredBackend(LlmInference.Backend.GPU)
                 }
 
-                llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilder.build())
+                try {
+                    llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilder.build())
+                } catch (e: Exception) {
+                    if (!useCpu) {
+                        Log.w("LLMManager", "GPU initialization failed (likely OpenCL delegate error). Falling back to CPU...", e)
+                        optionsBuilder.setPreferredBackend(LlmInference.Backend.CPU)
+                        llmInference = LlmInference.createFromOptions(context.applicationContext, optionsBuilder.build())
+                    } else {
+                        throw e
+                    }
+                }
+                
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath")
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
