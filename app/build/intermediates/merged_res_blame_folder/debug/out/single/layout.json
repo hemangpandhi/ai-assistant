@@ -12,6 +12,10 @@
         "source": "com.example.gemininano.app-main-33:/layout/assistant_overlay.xml"
     },
     {
+        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/dialog_telemetry_settings.xml",
+        "source": "com.example.gemininano.app-main-33:/layout/dialog_telemetry_settings.xml"
+    },
+    {
         "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/activity_main.xml",
         "source": "com.example.gemininano.app-main-33:/layout/activity_main.xml"
     },

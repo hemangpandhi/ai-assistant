@@ -3189,6 +3189,7 @@ id btnPremiumUseCase6
 id btnPremiumUseCase7
 id btnPremiumUseCase8
 id btnSend
+id btnSettings
 id btnSyncTime
 id bubbleCard
 id buttonPanel
@@ -3281,7 +3282,11 @@ id end
 id endToStart
 id enterAlways
 id enterAlwaysCollapsed
+id etEvBattery
 id etInput
+id etOutsideTemp
+id etSpeed
+id etTirePressure
 id exitUntilCollapsed
 id expand_activities_button
 id expanded_menu
@@ -3746,6 +3751,7 @@ layout design_navigation_menu
 layout design_navigation_menu_item
 layout design_text_input_end_icon
 layout design_text_input_start_icon
+layout dialog_telemetry_settings
 layout ime_base_split_test_activity
 layout ime_secondary_split_test_activity
 layout item_chat_message

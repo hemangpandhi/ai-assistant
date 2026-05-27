@@ -60,6 +60,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final Button btnPremiumUseCase8;
 
   @NonNull
+  public final MaterialButton btnSettings;
+
+  @NonNull
   public final MaterialButton btnSyncTime;
 
   @NonNull
@@ -119,11 +122,12 @@ public final class ActivityMainBinding implements ViewBinding {
       @NonNull Button btnPremiumUseCase3, @NonNull Button btnPremiumUseCase4,
       @NonNull Button btnPremiumUseCase5, @NonNull Button btnPremiumUseCase6,
       @NonNull Button btnPremiumUseCase7, @NonNull Button btnPremiumUseCase8,
-      @NonNull MaterialButton btnSyncTime, @NonNull RecyclerView chatRecyclerView,
-      @NonNull MaterialButton clearButton, @NonNull TextView dashHeater,
-      @NonNull TextView dashInternet, @NonNull TextView dashSpeed, @NonNull TextView dashTemp,
-      @NonNull LinearLayout dashboardLayout, @NonNull MaterialButton generateButton,
-      @NonNull EditText inputText, @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
+      @NonNull MaterialButton btnSettings, @NonNull MaterialButton btnSyncTime,
+      @NonNull RecyclerView chatRecyclerView, @NonNull MaterialButton clearButton,
+      @NonNull TextView dashHeater, @NonNull TextView dashInternet, @NonNull TextView dashSpeed,
+      @NonNull TextView dashTemp, @NonNull LinearLayout dashboardLayout,
+      @NonNull MaterialButton generateButton, @NonNull EditText inputText,
+      @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
       @NonNull MaterialButton stopButton, @NonNull SwitchMaterial switchCpuBackend,
       @NonNull LinearLayout tabInference, @NonNull TabLayout tabLayout,
       @NonNull ScrollView tabUseCases, @NonNull FloatingActionButton voiceButton) {
@@ -138,6 +142,7 @@ public final class ActivityMainBinding implements ViewBinding {
     this.btnPremiumUseCase6 = btnPremiumUseCase6;
     this.btnPremiumUseCase7 = btnPremiumUseCase7;
     this.btnPremiumUseCase8 = btnPremiumUseCase8;
+    this.btnSettings = btnSettings;
     this.btnSyncTime = btnSyncTime;
     this.chatRecyclerView = chatRecyclerView;
     this.clearButton = clearButton;
@@ -242,6 +247,12 @@ public final class ActivityMainBinding implements ViewBinding {
       id = R.id.btnPremiumUseCase8;
       Button btnPremiumUseCase8 = ViewBindings.findChildViewById(rootView, id);
       if (btnPremiumUseCase8 == null) {
+        break missingId;
+      }
+
+      id = R.id.btnSettings;
+      MaterialButton btnSettings = ViewBindings.findChildViewById(rootView, id);
+      if (btnSettings == null) {
         break missingId;
       }
 
@@ -356,9 +367,10 @@ public final class ActivityMainBinding implements ViewBinding {
       return new ActivityMainBinding((LinearLayout) rootView, btnDownloadModel, btnLoadModel,
           btnPremiumUseCase1, btnPremiumUseCase2, btnPremiumUseCase3, btnPremiumUseCase4,
           btnPremiumUseCase5, btnPremiumUseCase6, btnPremiumUseCase7, btnPremiumUseCase8,
-          btnSyncTime, chatRecyclerView, clearButton, dashHeater, dashInternet, dashSpeed, dashTemp,
-          dashboardLayout, generateButton, inputText, modelSpinner, progressBar, stopButton,
-          switchCpuBackend, tabInference, tabLayout, tabUseCases, voiceButton);
+          btnSettings, btnSyncTime, chatRecyclerView, clearButton, dashHeater, dashInternet,
+          dashSpeed, dashTemp, dashboardLayout, generateButton, inputText, modelSpinner,
+          progressBar, stopButton, switchCpuBackend, tabInference, tabLayout, tabUseCases,
+          voiceButton);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

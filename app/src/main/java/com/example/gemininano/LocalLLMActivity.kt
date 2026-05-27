@@ -330,6 +330,43 @@ class LocalLLMActivity : AppCompatActivity() {
                 }
             }.start()
         }
+        
+        val btnSettings = findViewById<Button>(R.id.btnSettings)
+        btnSettings.setOnClickListener {
+            showTelemetrySettingsDialog()
+        }
+    }
+
+    private fun showTelemetrySettingsDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_telemetry_settings, null)
+        val etSpeed = dialogView.findViewById<android.widget.EditText>(R.id.etSpeed)
+        val etEvBattery = dialogView.findViewById<android.widget.EditText>(R.id.etEvBattery)
+        val etTirePressure = dialogView.findViewById<android.widget.EditText>(R.id.etTirePressure)
+        val etOutsideTemp = dialogView.findViewById<android.widget.EditText>(R.id.etOutsideTemp)
+
+        etSpeed.setText(VehicleManager.getRealSpeed().toString())
+        etEvBattery.setText(VehicleManager.getEvBatteryLevel().toString())
+        etTirePressure.setText(VehicleManager.getTirePressureFrontLeft().toString())
+        etOutsideTemp.setText(VehicleManager.getOutsideTemperature().toString())
+
+        android.app.AlertDialog.Builder(this)
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val newSpeed = etSpeed.text.toString().toFloatOrNull()
+                val newBattery = etEvBattery.text.toString().toFloatOrNull()
+                val newTire = etTirePressure.text.toString().toFloatOrNull()
+                val newTemp = etOutsideTemp.text.toString().toFloatOrNull()
+
+                if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)
+                if (newBattery != null) VehicleManager.setMockEvBatteryLevel(newBattery)
+                if (newTire != null) VehicleManager.setMockTirePressure(newTire)
+                if (newTemp != null) VehicleManager.setMockOutsideTemperature(newTemp)
+
+                updateDashboardUI()
+                Toast.makeText(this, "Telemetry Updated", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun updateDashboardUI() {

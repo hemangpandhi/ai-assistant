@@ -107,6 +107,12 @@ object VehicleManager {
     fun getTirePressureFrontLeft(): Float = currentTirePressureFrontLeft
     fun getOutsideTemperature(): Float = currentOutsideTemperature
 
+    // Mock Telemetry Setters (for testing)
+    fun setMockSpeed(speed: Float) { currentSpeed = speed }
+    fun setMockEvBatteryLevel(level: Float) { currentEvBatteryLevel = level }
+    fun setMockTirePressure(pressure: Float) { currentTirePressureFrontLeft = pressure }
+    fun setMockOutsideTemperature(temp: Float) { currentOutsideTemperature = temp }
+
     fun writeTemperatureToVhal(temp: Float) {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)

@@ -17,6 +17,7 @@ id btnPremiumUseCase6
 id btnPremiumUseCase7
 id btnPremiumUseCase8
 id btnSend
+id btnSettings
 id btnSyncTime
 id bubbleCard
 id cardPopup
@@ -28,7 +29,11 @@ id dashInternet
 id dashSpeed
 id dashTemp
 id dashboardLayout
+id etEvBattery
 id etInput
+id etOutsideTemp
+id etSpeed
+id etTirePressure
 id generateButton
 id inputControlsContainer
 id inputText
@@ -46,6 +51,7 @@ id tabUseCases
 id voiceButton
 layout activity_main
 layout assistant_overlay
+layout dialog_telemetry_settings
 layout item_chat_message
 layout spinner_dropdown_item
 layout spinner_item
