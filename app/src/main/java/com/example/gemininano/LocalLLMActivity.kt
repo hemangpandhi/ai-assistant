@@ -610,6 +610,11 @@ class LocalLLMActivity : AppCompatActivity() {
                             chatAdapter.updateLastMessage("\nError: $errorMsg")
                             resetControls()
                             LLMManager.isFirstMessage = true
+                            
+                            if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
+                                chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
+                                LLMManager.resetConversation()
+                            }
                         }
                     }
                 },
@@ -623,8 +628,8 @@ class LocalLLMActivity : AppCompatActivity() {
             LLMManager.isFirstMessage = true
             
             if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
-                chatAdapter.addMessage(ChatMessage("Restarting busy model...", isUser = false))
-                lifecycleScope.launch { initLlm(force = true) }
+                chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
+                LLMManager.resetConversation()
             }
         }
     }
