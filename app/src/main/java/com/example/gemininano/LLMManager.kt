@@ -60,8 +60,12 @@ object LLMManager {
         withContext(Dispatchers.IO) {
             isInitializing = true
             try {
-                // Close existing if any
-                llmInference?.close()
+                try {
+                    // Close existing if any
+                    llmInference?.close()
+                } catch (e: Exception) {
+                    Log.w("LLMManager", "Failed to cleanly close old inference instance. It may be busy.", e)
+                }
                 llmInference = null
 
                 val options = LlmInference.LlmInferenceOptions.builder()
