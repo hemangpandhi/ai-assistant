@@ -601,6 +601,7 @@ class LocalLLMActivity : AppCompatActivity() {
                             chatAdapter.replaceLastMessage("Thinking...")
                         }
                     } else if (done && !forceDone) {
+                        Log.e("LocalLLMActivity", "JSON parse error or empty string. RAW OUTPUT: $currentText")
                         chatAdapter.replaceLastMessage("Sorry, I didn't understand that.")
                     }
                     
