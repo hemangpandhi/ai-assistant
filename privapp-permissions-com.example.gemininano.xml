@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<permissions>
+    <privapp-permissions package="com.example.gemininano">
+        <permission name="android.car.permission.CONTROL_CAR_CLIMATE"/>
+        <permission name="android.car.permission.CONTROL_CAR_SEATS"/>
+        <permission name="android.car.permission.CAR_SPEED"/>
+        <permission name="android.car.permission.CAR_ENERGY"/>
+        <permission name="android.car.permission.CAR_POWERTRAIN"/>
+        <permission name="android.permission.SET_TIME"/>
+    </privapp-permissions>
+</permissions>

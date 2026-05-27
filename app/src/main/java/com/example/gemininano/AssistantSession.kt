@@ -182,26 +182,49 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         statusText.text = "Thinking..."
         responseText.text = ""
         lastResponseBuilder.clear()
-        lastResponseBuilder.append("{") // Seed with the forced bracket
         btnSend.isEnabled = false
         isQueryProcessed = false
+        
+        // Timeout watchdog
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            kotlinx.coroutines.delay(30000) // 30 sec timeout
+            if (!isQueryProcessed) {
+                statusText.text = "Timeout."
+                responseText.text = "Model took too long."
+                btnSend.isEnabled = true
+                try {
+                    val inference = LLMManager.llmInference!!
+                    val implicitSessionField = inference.javaClass.getDeclaredField("implicitSession")
+                    implicitSessionField.isAccessible = true
+                    val sessionRef = implicitSessionField.get(inference) as java.util.concurrent.atomic.AtomicReference<*>
+                    val session = sessionRef.get()
+                    if (session != null) {
+                        val cancelMethod = session.javaClass.getDeclaredMethod("cancelGenerateResponseAsync")
+                        cancelMethod.isAccessible = true
+                        cancelMethod.invoke(session)
+                    }
+                } catch (e: Exception) {}
+                kotlinx.coroutines.delay(2000)
+                finish() // Auto-dismiss
+            }
+        }
         val modelName = LLMManager.currentModelPath.lowercase()
         val isGemma = modelName.contains("gemma")
         
         val systemPrompt = if (isGemma) {
             "You are an in-car AI. Current Temp: ${VehicleManager.getRealTemperature()}F, Speed: ${VehicleManager.getRealSpeed()}mph, Fuel: ${VehicleManager.getFuelLevel()}%.\n" +
             "You must ONLY output valid JSON.\n" +
-            "Example 1:\nUser: 'increase temp by 5 degrees' -> {\"action\": \"increase_temperature\", \"value\": 5, \"message\": \"Increasing temperature by 5 degrees.\"}\n" +
-            "Example 2:\nUser: 'set temperature to 74F' -> {\"action\": \"set_temperature\", \"value\": 74, \"message\": \"Setting temperature to 74 degrees.\"}\n" +
-            "Example 3:\nUser: 'decrease temp by 10%' -> {\"action\": \"decrease_temperature\", \"value\": ${(VehicleManager.getRealTemperature() * 0.1).toInt()}, \"message\": \"Decreasing temperature by 10%.\"}\n" +
-            "Example 4:\nUser: 'defrost windshield' -> {\"action\": \"defrost\", \"status\": true, \"message\": \"Defroster on.\"}\n" +
-            "Example 5:\nUser: 'hello' -> {\"action\": \"chat\", \"message\": \"Hi there!\"}\n\nUser: '$query' -> {"
+            "Example 1:\nUser: 'increase temp by 5 degrees'\n{\"action\": \"increase_temperature\", \"value\": 5, \"message\": \"Increasing temperature by 5 degrees.\"}\n" +
+            "Example 2:\nUser: 'set temperature to 74F'\n{\"action\": \"set_temperature\", \"value\": 74, \"message\": \"Setting temperature to 74 degrees.\"}\n" +
+            "Example 3:\nUser: 'decrease temp by 10%'\n{\"action\": \"decrease_temperature\", \"value\": ${(VehicleManager.getRealTemperature() * 0.1).toInt()}, \"message\": \"Decreasing temperature by 10%.\"}\n" +
+            "Example 4:\nUser: 'defrost windshield'\n{\"action\": \"defrost\", \"status\": true, \"message\": \"Defroster on.\"}\n" +
+            "Example 5:\nUser: 'hello'\n{\"action\": \"chat\", \"message\": \"Hi there!\"}\n\nUser: '$query'\n"
         } else {
             // Simplified prompt for SmolLM-135M to prevent context overflow and hallucinations
             "You are an in-car AI. Output ONLY JSON.\n" +
-            "User: 'increase temp' -> {\"action\": \"increase_temperature\", \"value\": 2, \"message\": \"Done\"}\n" +
-            "User: 'defrost' -> {\"action\": \"defrost\", \"status\": true, \"message\": \"Done\"}\n" +
-            "User: '$query' -> {"
+            "User: 'increase temp'\n{\"action\": \"increase_temperature\", \"value\": 2, \"message\": \"Done\"}\n" +
+            "User: 'defrost'\n{\"action\": \"defrost\", \"status\": true, \"message\": \"Done\"}\n" +
+            "User: '$query'\n"
         }
                
         try {
@@ -221,10 +244,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 val currentText = lastResponseBuilder.toString()
                 
                 // Early JSON detection to bypass infinite generation bugs on mismatched models
-                if (currentText.contains("{") && currentText.contains("}")) {
+                val jsonMatch = Regex("\\{.*\\}", RegexOption.DOT_MATCHES_ALL).find(currentText)
+                if (jsonMatch != null) {
                     try {
-                        val jsonString = currentText.substringAfter("{").substringBeforeLast("}")
-                        val json = org.json.JSONObject("{$jsonString}")
+                        val jsonString = jsonMatch.value
+                        val json = org.json.JSONObject(jsonString)
                         val action = json.optString("action")
                         
                         if (action == "set_temperature") {
@@ -271,6 +295,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             android.util.Log.e("AssistantSession", "Failed to forcefully terminate LLM", e)
                         }
                         
+                        // Auto-dismiss after 2 seconds
+                        kotlinx.coroutines.delay(2000)
+                        finish()
+                        
                         return@launch
                     } catch (e: Exception) {
                         // JSON not yet fully formed, continue accumulating
@@ -282,6 +310,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     responseText.text = "Error processing request."
                     statusText.text = "Error."
                     btnSend.isEnabled = true
+                    
+                    kotlinx.coroutines.delay(2000)
+                    finish()
                 } else if (!isQueryProcessed) {
                     val msgIndex = currentText.indexOf("\"message\": \"")
                     if (msgIndex != -1) {

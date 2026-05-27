@@ -1,0 +1,26 @@
+[
+    {
+        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-mergeDebugResources-30:/layout/assistant_overlay.xml",
+        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/assistant_overlay.xml"
+    },
+    {
+        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-mergeDebugResources-30:/layout/activity_main.xml",
+        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/activity_main.xml"
+    },
+    {
+        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-mergeDebugResources-30:/layout/spinner_dropdown_item.xml",
+        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/spinner_dropdown_item.xml"
+    },
+    {
+        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/assistant_overlay.xml",
+        "source": "com.example.gemininano.app-main-33:/layout/assistant_overlay.xml"
+    },
+    {
+        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-mergeDebugResources-30:/layout/spinner_item.xml",
+        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/spinner_item.xml"
+    },
+    {
+        "merged": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-mergeDebugResources-30:/layout/item_chat_message.xml",
+        "source": "/home/hemang/.gradle/daemon/8.4/com.example.gemininano.app-main-33:/layout/item_chat_message.xml"
+    }
+]

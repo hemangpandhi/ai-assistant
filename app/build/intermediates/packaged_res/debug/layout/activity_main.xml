@@ -1,0 +1,559 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:keepScreenOn="true"
+    android:background="#000000">
+
+    <LinearLayout
+        android:id="@+id/dashboardLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="#2A2A2A"
+        android:padding="12dp"
+        android:gravity="center">
+
+        <TextView
+            android:id="@+id/dashTemp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🌡️ Temp: 72°F"
+            android:textColor="#03DAC6"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:id="@+id/dashSpeed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏎️ Speed: 65mph"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:id="@+id/dashHeater"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="💺 Heater: Off"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginEnd="16dp" />
+
+        <TextView
+            android:id="@+id/dashInternet"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🌐 Net: Off"
+            android:textColor="#CF6679"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+            
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnSyncTime"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:textColor="#BB86FC"
+            android:text="[Sync]"
+            android:minHeight="0dp"
+            android:minWidth="0dp"
+            android:padding="0dp"/>
+    </LinearLayout>
+
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="#1E1E1E"
+        app:tabTextColor="#888888"
+        app:tabSelectedTextColor="#FFFFFF"
+        app:tabIndicatorColor="#BB86FC">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Live Inference" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Automotive Experiences" />
+    </com.google.android.material.tabs.TabLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+        <!-- TAB 1: INFERENCE -->
+        <LinearLayout
+            android:id="@+id/tabInference"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/rounded_bg"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Model:"
+                    android:textColor="#AAAAAA"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="8dp"/>
+
+                <Spinner
+                    android:id="@+id/modelSpinner"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:backgroundTint="#BB86FC" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginBottom="8dp">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnLoadModel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    app:backgroundTint="#333333"
+                    android:textColor="#FFFFFF"
+                    app:cornerRadius="8dp"
+                    android:text="Load Model" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDownloadModel"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    app:backgroundTint="#BB86FC"
+                    android:textColor="#000000"
+                    app:cornerRadius="8dp"
+                    android:text="Download" />
+            </LinearLayout>
+
+            <ProgressBar
+                android:id="@+id/progressBar"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:max="100"
+                android:visibility="gone" />
+
+            <!-- CHAT BUBBLES RECYCLERVIEW -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/chatRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:layout_marginBottom="16dp"
+                android:scrollbars="vertical" />
+
+            <!-- BOTTOM INPUT BAR -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="#1E1E1E"
+                android:padding="8dp">
+
+                <com.google.android.material.floatingactionbutton.FloatingActionButton
+                    android:id="@+id/voiceButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:fabSize="mini"
+                    app:backgroundTint="#03DAC6"
+                    app:srcCompat="@android:drawable/ic_btn_speak_now"
+                    android:contentDescription="Voice Input" />
+
+                <EditText
+                    android:id="@+id/inputText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:layout_marginEnd="8dp"
+                    android:hint="Type a message..."
+                    android:textColorHint="#888888"
+                    android:textColor="#FFFFFF"
+                    android:background="@android:color/transparent"
+                    android:padding="12dp"
+                    android:maxLines="4" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/generateButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:backgroundTint="#BB86FC"
+                    android:textColor="#000000"
+                    app:cornerRadius="20dp"
+                    android:text="Send" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/stopButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    app:backgroundTint="#CF6679"
+                    android:textColor="#000000"
+                    app:cornerRadius="20dp"
+                    android:enabled="false"
+                    android:text="Stop" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/clearButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    app:backgroundTint="#333333"
+                    android:textColor="#FFFFFF"
+                    app:cornerRadius="20dp"
+                    android:text="Clear" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- TAB 2: USE CASES -->
+        <ScrollView
+            android:id="@+id/tabUseCases"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:padding="16dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Premium Automotive Experiences"
+                    android:textColor="#FFFFFF"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:layout_marginBottom="16dp" />
+
+                <!-- CARD 1 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Contextual Navigation &amp; POI"
+                            android:textColor="#BB86FC"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;I'm running low on gas and my kids are hungry. Find the nearest rest stop or family restaurant along my current route on I-5.&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase1"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#03DAC6"
+                            android:textColor="#000000"
+                            android:text="Execute Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 2 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Advanced Vehicle Diagnostics"
+                            android:textColor="#BB86FC"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;The check engine light just came on, and the dashboard says OBD Code P0420. Is it safe to drive 50 more miles?&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#03DAC6"
+                            android:textColor="#000000"
+                            android:text="Execute Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 3 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Smart Cabin Control"
+                            android:textColor="#BB86FC"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;I'm freezing and the sun is glaring right into my eyes. Provide the exact JSON commands to adjust the HVAC and sunshades.&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase3"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#03DAC6"
+                            android:textColor="#000000"
+                            android:text="Execute Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 4 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Driver Safety &amp; Monitoring"
+                            android:textColor="#CF6679"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;Sensors indicate the driver is falling asleep! Output EXACTLY this JSON: {\&quot;action\&quot;: \&quot;sound_alarm\&quot;} and provide a short, urgent voice message.&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase4"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#CF6679"
+                            android:textColor="#000000"
+                            android:text="Execute Emergency Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 5 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Media &amp; Entertainment Control"
+                            android:textColor="#BB86FC"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;Play some relaxing jazz music and turn the volume down a bit.&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase5"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#03DAC6"
+                            android:textColor="#000000"
+                            android:text="Execute Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 6 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Communication &amp; Productivity"
+                            android:textColor="#BB86FC"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;Read my last text message and reply that I am driving and will be there in 15 minutes.&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase6"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#03DAC6"
+                            android:textColor="#000000"
+                            android:text="Execute Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 7 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Ambient Environment"
+                            android:textColor="#BB86FC"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;Roll down all the windows and set the ambient lighting to a calming blue.&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase7"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#03DAC6"
+                            android:textColor="#000000"
+                            android:text="Execute Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- CARD 8 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="12dp"
+                    app:cardBackgroundColor="#2A2A2A"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="8dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Digital Owner's Manual"
+                            android:textColor="#BB86FC"
+                            android:textSize="18sp"
+                            android:textStyle="bold" />
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="&quot;How do I enable adaptive cruise control on the highway?&quot;"
+                            android:textColor="#DDDDDD"
+                            android:layout_marginTop="8dp" />
+                        <Button
+                            android:id="@+id/btnPremiumUseCase8"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:backgroundTint="#03DAC6"
+                            android:textColor="#000000"
+                            android:text="Execute Scenario" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+            </LinearLayout>
+        </ScrollView>
+    </FrameLayout>
+</LinearLayout>
