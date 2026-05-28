@@ -31,6 +31,84 @@ graph TD
     E -->|Streaming Chunks| J
 ```
 
+### Class & Structural Block Diagram
+
+The following diagram illustrates the class relationships, dependencies, and interfaces between the core components of the application.
+
+```mermaid
+classDiagram
+    class LocalLLMActivity {
+        -SharedPreferences prefs
+        -TextToSpeech tts
+        -ChatAdapter chatAdapter
+        +onCreate()
+        +initLlm()
+        -processQuery(prompt, isVoice)
+        -executeToolCall(toolCall)
+    }
+
+    class AssistantSession {
+        -TextToSpeech tts
+        -SpeechRecognizer speechRecognizer
+        +onCreate()
+        +onShow(args, showFlags)
+        -handleQuery(query)
+        -processQuery(query, prefixSpan)
+        -executeToolCall(toolCall)
+    }
+
+    class LLMManager {
+        <<Singleton>>
+        -LlmInference engine
+        -Conversation conversation
+        +isFirstMessage: Boolean
+        +isWarmingUp: Boolean
+        +initialize(context, modelPath, useCpu)
+        +warmUpSystemPrompt(context)
+        +resetConversation()
+        +getSystemPrompt(context): String
+    }
+
+    class WakeWordService {
+        <<ForegroundService>>
+        -SpeechService speechService
+        -Model voskModel
+        -wakeWord: String
+        +onCreate()
+        +recognizerSetup()
+        -checkWakeWord(hypothesis)
+    }
+
+    class AssistantVoiceInteractionService {
+        -BroadcastReceiver receiver
+        +onReady()
+        +onShutdown()
+    }
+
+    class VehicleManager {
+        <<Object>>
+        -CarPropertyManager carPropertyManager
+        +init(context)
+        +setHVACTemperature(temp)
+        +setDefroster(enabled)
+        +setSeatHeater(level)
+    }
+    
+    %% Relationships
+    LocalLLMActivity --> LLMManager : "Initializes & Queries"
+    AssistantSession --> LLMManager : "Queries"
+    LocalLLMActivity --> VehicleManager : "Injects Tool Actions"
+    AssistantSession --> VehicleManager : "Injects Tool Actions"
+    LocalLLMActivity --> WakeWordService : "Starts/Stops"
+    WakeWordService ..> AssistantVoiceInteractionService : "Broadcasts Intent"
+    AssistantVoiceInteractionService --> AssistantSession : "Triggers showSession()"
+    
+    %% Hardware bindings
+    VehicleManager ..> CarPropertyManager : "AAOS VHAL"
+    WakeWordService ..> AudioRecord : "Vosk Mic Stream"
+    AssistantSession ..> SpeechRecognizer : "Android STT"
+```
+
 ## Main Components & Classes
 
 ### 1. `LLMManager.kt` (Singleton Inference Engine)
