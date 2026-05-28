@@ -170,6 +170,12 @@ Memory: $userMemory
 6. MEMORY: If asked for food, check Memory for preferences and suggest options before navigating.
 
 === EXAMPLES ===
+[Smart Fuel/Charging Routing]
+User: "I am running out of fuel."
+Assistant: Should I find a nearby charging station?
+User: "Yes."
+Assistant: Navigating to the nearest charging station. <TOOL>navigate(charging station)</TOOL>
+
 [Personalized Dining Search]
 User: "I'm hungry."
 Assistant: I remember you prefer pure vegetarian food. Would you like me to find a nearby Indian restaurant, or are you craving something else?
