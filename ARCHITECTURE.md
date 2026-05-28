@@ -61,6 +61,36 @@ The bridge between the LLM's generated text and the car's physical hardware.
 *   **Role**: Connects to the AAOS `CarPropertyManager`.
 *   **Execution**: When the LLM outputs a tag like `<TOOL>setTemperature(72)</TOOL>`, the UI strips it from the display text and forwards it to `VehicleManager`, which synchronously injects the command into the car's CAN bus/VHAL.
 
+## Tool Command Parsing & Navigation Logic
+The application employs a regex-based stream interception mechanism to handle tool calls dynamically as the LLM generates tokens, without waiting for the full response to finish.
+
+1.  **System Prompt Instruction**: The LLM is instructed via its system prompt to wrap any hardware commands in XML-like tags, for example: `<TOOL>setTemperature(72)</TOOL>`.
+2.  **Stream Interception**: As tokens stream into the `onMessage` callback from LiteRT, the UI appends them to a `lastResponseBuilder`.
+3.  **Regex Matching**: On every new token chunk, the app runs the regex `<TOOL>(.*?)</TOOL>` against the accumulated string.
+4.  **Execution & UI Stripping**: If a match is found:
+    *   The command string (e.g., `setTemperature(72)`) is extracted and passed to `VehicleManager.kt`.
+    *   The `VehicleManager` parses the command name and arguments, mapping them directly to `CarPropertyManager` properties (like `VehiclePropertyIds.HVAC_TEMPERATURE_SET`).
+    *   The `<TOOL>...</TOOL>` block is immediately replaced with an empty string in the display buffer, ensuring the user never sees the raw code on the screen.
+5.  **Deduplication**: A `Set` tracks executed commands to prevent the same tool call from firing multiple times during the streaming process.
+
+## Speech and Audio Engines
+
+To provide a seamless, automotive-grade voice experience, the application splits audio responsibilities across distinct engines based on the specific lifecycle of the interaction.
+
+### 1. Wake Word STT Engine: Vosk API (Offline)
+*   **Purpose**: Continuous, passive background listening for the "hey auto" trigger.
+*   **Why Vosk?**: Android's built-in `SpeechRecognizer` emits an invasive "beep" sound every time it starts listening, which makes it unusable for silent, continuous background monitoring. Vosk (`com.alphacephei:vosk-android`) uses a lightweight acoustic model (under 50MB) loaded into RAM that runs entirely offline. It processes audio directly from the microphone buffer via `AudioRecord`, avoiding all system-level UI interruptions.
+
+### 2. Active Command STT Engine: Android SpeechRecognizer
+*   **Purpose**: High-fidelity transcription of the user's actual command once the assistant overlay is visible.
+*   **Why Android API?**: Once the overlay (`AssistantSession`) pops up, the app switches to the system's native `SpeechRecognizer` (`android.speech.SpeechRecognizer`). This engine is highly optimized for complex sentences and intent parsing.
+*   **Optimization**: The app explicitly omits the `EXTRA_PARTIAL_RESULTS` flag from the intent. This forces the STT engine to trigger its "end of speech" callback immediately upon trailing silence, cutting out artificial timeout delays and passing the text to the LLM instantly.
+
+### 3. Text-to-Speech (TTS) Engine: Android Native TTS
+*   **Purpose**: Speaking the AI's generated response back to the driver.
+*   **Streaming Implementation**: The LLM output is streamed, but TTS engines cannot speak half a word. The application uses a custom regex sentence boundary chunker (`"^(.*?)([.!?]+(?:\\s+|$)|\\n)".toRegex()`). 
+*   **Behavior**: As tokens arrive, the regex looks for punctuation (`.`, `!`, `?`) or newlines (`\n`). When a complete sentence or list item is formed, it is sliced off and pushed to the TTS `QUEUE_ADD` buffer. This allows the car to start speaking the first sentence while the LLM is still generating the second sentence, significantly reducing perceived latency.
+
 ## Sequence Diagram: Wake Word to Hardware Actuation
 
 The following sequence details the ultra-low latency loop from the moment the user speaks the wake word to the moment the hardware reacts.
@@ -109,4 +139,4 @@ sequenceDiagram
 ## Third-Party Libraries
 
 *   **LiteRT (TensorFlow Lite)**: Google's edge inference engine. Enables running multi-billion parameter quantized models (Gemma, Qwen) directly on the automotive Snapdragon SOC without internet access.
-*   **Vosk API**: Provides offline speech recognition. Specifically chosen over standard Android `SpeechRecognizer` for continuous background listening because it does not trigger the invasive Android "beep" sound during audio capture, allowing for a seamless automotive experience.
+*   **Vosk API**: Provides offline, silent speech recognition for continuous background wake-word listening.
