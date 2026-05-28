@@ -434,7 +434,14 @@ class LocalLLMActivity : AppCompatActivity() {
         val currentWakeWord = prefs.getString("wake_word", "hey auto")
         etWakeWord.setText(currentWakeWord)
         
+        val isWakeWordEnabled = prefs.getBoolean("wake_word_enabled", false)
+        switchWakeWord.isChecked = isWakeWordEnabled
+        if (isWakeWordEnabled) {
+            startForegroundService(Intent(this, WakeWordService::class.java))
+        }
+        
         switchWakeWord.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("wake_word_enabled", isChecked).apply()
             val intent = Intent(this, WakeWordService::class.java)
             if (isChecked) {
                 startForegroundService(intent)
