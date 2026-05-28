@@ -58,6 +58,10 @@ dependencies {
 
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.11.0")
 
+    // Vosk Offline Speech Recognition for Wake Word
+    implementation("com.alphacephei:vosk-android:0.3.47@aar")
+    implementation("net.java.dev.jna:jna:5.13.0@aar")
+
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")

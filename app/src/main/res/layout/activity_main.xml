@@ -173,6 +173,44 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:background="@drawable/rounded_bg"
+                android:padding="8dp"
+                android:layout_marginBottom="8dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Wake Word:"
+                    android:textColor="#AAAAAA"
+                    android:textStyle="bold"
+                    android:layout_marginEnd="8dp"/>
+
+                <EditText
+                    android:id="@+id/etWakeWord"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="hey auto"
+                    android:textColor="#FFFFFF"
+                    android:backgroundTint="#BB86FC"
+                    android:inputType="textNoSuggestions"
+                    android:maxLines="1" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/switchWakeWord"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Enable"
+                    android:textColor="#FFFFFF"
+                    android:layout_marginStart="8dp"
+                    app:useMaterialThemeColors="true" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:layout_marginBottom="8dp">
 
                 <com.google.android.material.button.MaterialButton

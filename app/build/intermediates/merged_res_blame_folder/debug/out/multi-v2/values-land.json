@@ -1,7 +1,7 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.gemininano.app-mergeDebugResources-29:/values-land/values-land.xml",
+            "outputFile": "com.example.gemininano.app-mergeDebugResources-30:/values-land/values-land.xml",
             "map": [
                 {
                     "source": "/home/hemang/.gradle/caches/transforms-3/9d1caa38aaac422d28fcc837e0c74d83/transformed/material-1.11.0/res/values-land/values-land.xml",

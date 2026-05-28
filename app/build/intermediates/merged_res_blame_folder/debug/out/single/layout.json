@@ -1,26 +1,26 @@
 [
     {
-        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/spinner_item.xml",
-        "source": "com.example.gemininano.app-main-33:/layout/spinner_item.xml"
+        "merged": "com.example.gemininano.app-mergeDebugResources-31:/layout/dialog_telemetry_settings.xml",
+        "source": "com.example.gemininano.app-main-34:/layout/dialog_telemetry_settings.xml"
     },
     {
-        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/spinner_dropdown_item.xml",
-        "source": "com.example.gemininano.app-main-33:/layout/spinner_dropdown_item.xml"
+        "merged": "com.example.gemininano.app-mergeDebugResources-31:/layout/spinner_dropdown_item.xml",
+        "source": "com.example.gemininano.app-main-34:/layout/spinner_dropdown_item.xml"
     },
     {
-        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/assistant_overlay.xml",
-        "source": "com.example.gemininano.app-main-33:/layout/assistant_overlay.xml"
+        "merged": "com.example.gemininano.app-mergeDebugResources-31:/layout/item_chat_message.xml",
+        "source": "com.example.gemininano.app-main-34:/layout/item_chat_message.xml"
     },
     {
-        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/dialog_telemetry_settings.xml",
-        "source": "com.example.gemininano.app-main-33:/layout/dialog_telemetry_settings.xml"
+        "merged": "com.example.gemininano.app-mergeDebugResources-31:/layout/spinner_item.xml",
+        "source": "com.example.gemininano.app-main-34:/layout/spinner_item.xml"
     },
     {
-        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/activity_main.xml",
-        "source": "com.example.gemininano.app-main-33:/layout/activity_main.xml"
+        "merged": "com.example.gemininano.app-mergeDebugResources-31:/layout/activity_main.xml",
+        "source": "com.example.gemininano.app-main-34:/layout/activity_main.xml"
     },
     {
-        "merged": "com.example.gemininano.app-mergeDebugResources-30:/layout/item_chat_message.xml",
-        "source": "com.example.gemininano.app-main-33:/layout/item_chat_message.xml"
+        "merged": "com.example.gemininano.app-mergeDebugResources-31:/layout/assistant_overlay.xml",
+        "source": "com.example.gemininano.app-main-34:/layout/assistant_overlay.xml"
     }
 ]

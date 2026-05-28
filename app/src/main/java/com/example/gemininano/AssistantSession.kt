@@ -46,9 +46,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
                 override fun onDone(utteranceId: String?) {
                     CoroutineScope(Dispatchers.Main).launch {
-                        if (utteranceId == "QUESTION") {
+                        if (utteranceId == "QUESTION_FINAL") {
                             btnMic.performClick()
-                        } else {
+                        } else if (utteranceId == "STATEMENT_FINAL") {
                             kotlinx.coroutines.delay(500)
                             finish()
                         }
@@ -223,6 +223,62 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         overlayView.findViewById<View>(R.id.flIconContainer).alpha = 1f
     }
 
+    private fun executeToolCall(toolCall: String) {
+        try {
+            if (toolCall.startsWith("increaseTemperature")) {
+                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
+            } else if (toolCall.startsWith("decreaseTemperature")) {
+                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
+            } else if (toolCall.startsWith("setTemperature")) {
+                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
+                VehicleManager.writeTemperatureToVhal(value.toFloat())
+            } else if (toolCall.startsWith("turnOnDefroster")) {
+                VehicleManager.writeDefrosterToVhal(true)
+            } else if (toolCall.startsWith("turnOffDefroster")) {
+                VehicleManager.writeDefrosterToVhal(false)
+            } else if (toolCall.startsWith("setSeatHeater")) {
+                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
+                VehicleManager.writeSeatHeaterToVhal(value)
+            } else if (toolCall.startsWith("setWindowPosition")) {
+                if (VehicleManager.getRealSpeed() > 70) {
+                    android.util.Log.w("SafetyGuardrail", "Speed > 70mph. Ignored setWindowPosition tool.")
+                } else {
+                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
+                    VehicleManager.writeWindowPositionToVhal(value)
+                }
+            } else if (toolCall.startsWith("navigate")) {
+                val dest = toolCall.substringAfter("(").substringBefore(")")
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
+                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                context.startActivity(intent)
+            } else if (toolCall.startsWith("playMusic")) {
+                val query = toolCall.substringAfter("(").substringBefore(")")
+                val intent = android.content.Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
+                intent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
+                intent.putExtra(android.app.SearchManager.QUERY, query)
+                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                if (intent.resolveActivity(context.packageManager) != null) context.startActivity(intent)
+            } else if (toolCall.startsWith("call")) {
+                val contact = toolCall.substringAfter("(").substringBefore(")")
+                val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${android.net.Uri.encode(contact)}"))
+                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                context.startActivity(intent)
+            } else if (toolCall.startsWith("remember")) {
+                val fact = toolCall.substringAfter("(").substringBefore(")")
+                val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                val currentMemory = prefs.getString("user_memory", "") ?: ""
+                val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
+                prefs.edit().putString("user_memory", newMemory).apply()
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("AssistantSession", "Failed to parse tool call: $toolCall", e)
+        }
+    }
+
     private fun handleQuery(query: String) {
         if (LLMManager.engine == null || LLMManager.conversation == null) return
         
@@ -265,6 +321,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             query
         }
 
+        val executedTools = mutableSetOf<String>()
+        val regex = "<TOOL>(.*?)</TOOL>".toRegex()
+        val spokenTextLength = intArrayOf(0)
+
         try {
             LLMManager.conversation!!.sendMessageAsync(
                 Contents.of(Content.Text(finalPrompt)),
@@ -273,7 +333,31 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         CoroutineScope(Dispatchers.Main).launch {
                             val chunk = message.toString()
                             lastResponseBuilder.append(chunk)
-                            responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + lastResponseBuilder.toString().replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
+                            val currentText = lastResponseBuilder.toString()
+                            
+                            val matches = regex.findAll(currentText)
+                            for (match in matches) {
+                                val toolCall = match.groups[1]?.value ?: continue
+                                if (executedTools.add(toolCall)) {
+                                    executeToolCall(toolCall)
+                                }
+                            }
+                            
+                            val displayMsg = currentText.replace(regex, "").trim()
+                            responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + displayMsg.replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
+                            
+                            // Streaming TTS Logic
+                            var remainingText = displayMsg.substring(spokenTextLength[0])
+                            val sentenceRegex = "^(.*?)([.!?\n])(?:\\s|$)".toRegex()
+                            var match = sentenceRegex.find(remainingText)
+                            while (match != null) {
+                                val sentence = match.value
+                                spokenTextLength[0] += sentence.length
+                                tts?.speak(sentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
+                                
+                                remainingText = displayMsg.substring(spokenTextLength[0])
+                                match = sentenceRegex.find(remainingText)
+                            }
                         }
                     }
 
@@ -290,66 +374,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 return@launch
                             }
                             
-                            // Regex parser for inline tool tags
-                            val regex = "<TOOL>(.*?)</TOOL>".toRegex()
-                            val matches = regex.findAll(finalMsg)
-                            for (match in matches) {
-                                val toolCall = match.groups[1]?.value ?: continue
-                                try {
-                                    if (toolCall.startsWith("increaseTemperature")) {
-                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
-                                        val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                                        VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
-                                    } else if (toolCall.startsWith("decreaseTemperature")) {
-                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
-                                        val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                                        VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
-                                    } else if (toolCall.startsWith("setTemperature")) {
-                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
-                                        VehicleManager.writeTemperatureToVhal(value.toFloat())
-                                    } else if (toolCall.startsWith("turnOnDefroster")) {
-                                        VehicleManager.writeDefrosterToVhal(true)
-                                    } else if (toolCall.startsWith("turnOffDefroster")) {
-                                        VehicleManager.writeDefrosterToVhal(false)
-                                    } else if (toolCall.startsWith("setSeatHeater")) {
-                                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
-                                        VehicleManager.writeSeatHeaterToVhal(value)
-                                    } else if (toolCall.startsWith("setWindowPosition")) {
-                                        if (VehicleManager.getRealSpeed() > 70) {
-                                            android.util.Log.w("SafetyGuardrail", "Speed > 70mph. Ignored setWindowPosition tool.")
-                                        } else {
-                                            val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
-                                            VehicleManager.writeWindowPositionToVhal(value)
-                                        }
-                                    } else if (toolCall.startsWith("navigate")) {
-                                        val dest = toolCall.substringAfter("(").substringBefore(")")
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
-                                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                        context.startActivity(intent)
-                                    } else if (toolCall.startsWith("playMusic")) {
-                                        val query = toolCall.substringAfter("(").substringBefore(")")
-                                        val intent = android.content.Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
-                                        intent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
-                                        intent.putExtra(android.app.SearchManager.QUERY, query)
-                                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                        if (intent.resolveActivity(context.packageManager) != null) context.startActivity(intent)
-                                    } else if (toolCall.startsWith("call")) {
-                                        val contact = toolCall.substringAfter("(").substringBefore(")")
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${android.net.Uri.encode(contact)}"))
-                                        intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                                        context.startActivity(intent)
-                                    } else if (toolCall.startsWith("remember")) {
-                                        val fact = toolCall.substringAfter("(").substringBefore(")")
-                                        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                                        val currentMemory = prefs.getString("user_memory", "") ?: ""
-                                        val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
-                                        prefs.edit().putString("user_memory", newMemory).apply()
-                                    }
-                                } catch (e: Exception) {
-                                    android.util.Log.e("AssistantSession", "Failed to parse tool call: $toolCall", e)
-                                }
-                            }
-                            
                             finalMsg = finalMsg.replace(regex, "").trim()
                             responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + finalMsg.replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
                             
@@ -359,8 +383,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             isQueryProcessed = true
                             
                             if (finalMsg.isNotBlank()) {
-                                val utteranceId = if (finalMsg.trim().endsWith("?")) "QUESTION" else "STATEMENT"
-                                tts?.speak(finalMsg, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
+                                val remainingSentence = finalMsg.substring(spokenTextLength[0]).trim()
+                                if (remainingSentence.isNotEmpty()) {
+                                    tts?.speak(remainingSentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
+                                }
+                                val finalUtterance = if (finalMsg.trim().endsWith("?")) "QUESTION_FINAL" else "STATEMENT_FINAL"
+                                tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
                             } else {
                                 if (finalMsg.trim().endsWith("?")) {
                                     btnMic.performClick()

@@ -99,6 +99,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final EditText etSystemPrompt;
 
   @NonNull
+  public final EditText etWakeWord;
+
+  @NonNull
   public final MaterialButton generateButton;
 
   @NonNull
@@ -115,6 +118,9 @@ public final class ActivityMainBinding implements ViewBinding {
 
   @NonNull
   public final SwitchMaterial switchCpuBackend;
+
+  @NonNull
+  public final SwitchMaterial switchWakeWord;
 
   @NonNull
   public final LinearLayout tabInference;
@@ -143,12 +149,12 @@ public final class ActivityMainBinding implements ViewBinding {
       @NonNull MaterialButton clearButton, @NonNull TextView dashHeater,
       @NonNull TextView dashInternet, @NonNull TextView dashSpeed, @NonNull TextView dashTemp,
       @NonNull LinearLayout dashboardLayout, @NonNull EditText etSystemPrompt,
-      @NonNull MaterialButton generateButton, @NonNull EditText inputText,
-      @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
+      @NonNull EditText etWakeWord, @NonNull MaterialButton generateButton,
+      @NonNull EditText inputText, @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
       @NonNull MaterialButton stopButton, @NonNull SwitchMaterial switchCpuBackend,
-      @NonNull LinearLayout tabInference, @NonNull TabLayout tabLayout,
-      @NonNull LinearLayout tabSystemPrompt, @NonNull ScrollView tabUseCases,
-      @NonNull FloatingActionButton voiceButton) {
+      @NonNull SwitchMaterial switchWakeWord, @NonNull LinearLayout tabInference,
+      @NonNull TabLayout tabLayout, @NonNull LinearLayout tabSystemPrompt,
+      @NonNull ScrollView tabUseCases, @NonNull FloatingActionButton voiceButton) {
     this.rootView = rootView;
     this.btnDownloadModel = btnDownloadModel;
     this.btnLoadModel = btnLoadModel;
@@ -173,12 +179,14 @@ public final class ActivityMainBinding implements ViewBinding {
     this.dashTemp = dashTemp;
     this.dashboardLayout = dashboardLayout;
     this.etSystemPrompt = etSystemPrompt;
+    this.etWakeWord = etWakeWord;
     this.generateButton = generateButton;
     this.inputText = inputText;
     this.modelSpinner = modelSpinner;
     this.progressBar = progressBar;
     this.stopButton = stopButton;
     this.switchCpuBackend = switchCpuBackend;
+    this.switchWakeWord = switchWakeWord;
     this.tabInference = tabInference;
     this.tabLayout = tabLayout;
     this.tabSystemPrompt = tabSystemPrompt;
@@ -351,6 +359,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.etWakeWord;
+      EditText etWakeWord = ViewBindings.findChildViewById(rootView, id);
+      if (etWakeWord == null) {
+        break missingId;
+      }
+
       id = R.id.generateButton;
       MaterialButton generateButton = ViewBindings.findChildViewById(rootView, id);
       if (generateButton == null) {
@@ -384,6 +398,12 @@ public final class ActivityMainBinding implements ViewBinding {
       id = R.id.switchCpuBackend;
       SwitchMaterial switchCpuBackend = ViewBindings.findChildViewById(rootView, id);
       if (switchCpuBackend == null) {
+        break missingId;
+      }
+
+      id = R.id.switchWakeWord;
+      SwitchMaterial switchWakeWord = ViewBindings.findChildViewById(rootView, id);
+      if (switchWakeWord == null) {
         break missingId;
       }
 
@@ -422,9 +442,9 @@ public final class ActivityMainBinding implements ViewBinding {
           btnPremiumUseCase4, btnPremiumUseCase5, btnPremiumUseCase6, btnPremiumUseCase7,
           btnPremiumUseCase8, btnResetPrompt, btnSavePrompt, btnSettings, btnSyncTime,
           chatRecyclerView, clearButton, dashHeater, dashInternet, dashSpeed, dashTemp,
-          dashboardLayout, etSystemPrompt, generateButton, inputText, modelSpinner, progressBar,
-          stopButton, switchCpuBackend, tabInference, tabLayout, tabSystemPrompt, tabUseCases,
-          voiceButton);
+          dashboardLayout, etSystemPrompt, etWakeWord, generateButton, inputText, modelSpinner,
+          progressBar, stopButton, switchCpuBackend, switchWakeWord, tabInference, tabLayout,
+          tabSystemPrompt, tabUseCases, voiceButton);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

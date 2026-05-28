@@ -42,6 +42,7 @@ id etOutsideTemp
 id etSpeed
 id etSystemPrompt
 id etTirePressure
+id etWakeWord
 id flIconContainer
 id generateButton
 id inputControlsContainer
@@ -54,6 +55,7 @@ id rootOverlay
 id stopButton
 id svResponse
 id switchCpuBackend
+id switchWakeWord
 id tabInference
 id tabLayout
 id tabSystemPrompt
