@@ -152,7 +152,7 @@ object LLMManager {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
-        return """You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses extremely brief.
+        return """You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.
         
 === VEHICLE STATE ===
 Speed: ${VehicleManager.getRealSpeed()}mph, Temp: ${VehicleManager.getRealTemperature()}F, Heater: ${VehicleManager.getRealSeatHeaterLevel()}, EV Bat: ${VehicleManager.getEvBatteryLevel()}%, Tire: ${VehicleManager.getTirePressureFrontLeft()}PSI, Ext Temp: ${VehicleManager.getOutsideTemperature()}F, OBD: ${VehicleManager.getObdCodes()}, City: ${LocationManager.getCurrentCity()}

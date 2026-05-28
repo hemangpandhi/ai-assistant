@@ -61,3 +61,15 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
   * **AI:** *"Navigating home. I noticed it's freezing outside (32F). Would you like me to turn on the heater and seat warmers for your drive?"*
   * **User:** *"Yes, please."*
   * **AI:** (Outputs `<TOOL>setTemperature(72)</TOOL>` and `<TOOL>setSeatHeater(3)</TOOL>`) *"Heating up the cabin for your commute."*
+
+### 7. Advanced Generative AI & Reasoning
+*Demonstrate the AI's ability to act as a creative assistant, a knowledgeable guide, and a deep thinker, taking advantage of its large language model capabilities.*
+* **7.1 Sightseeing & Tour Guide:**
+  * **User:** *"I'm driving through San Francisco. What are some interesting things I should see along the way?"*
+  * **Expected Output:** The AI will act as a tour guide, generating a detailed response about landmarks like the Golden Gate Bridge, Alcatraz, and Fisherman's Wharf, perhaps even suggesting you navigate there.
+* **7.2 In-Car Entertainment (Storytelling):**
+  * **User:** *"Tell me a fun story about a flying car to keep my kids entertained."*
+  * **Expected Output:** The AI will generate a creative, multi-paragraph story on the fly, proving it's not just a command-parser but a full conversational agent.
+* **7.3 Deep Automotive Knowledge:**
+  * **User:** *"Explain to me how a catalytic converter works and why it's important."*
+  * **Expected Output:** The AI will provide a detailed, educational explanation of the car part, showcasing its internal knowledge base.
