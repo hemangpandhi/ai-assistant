@@ -35,7 +35,7 @@ class WakeWordService : Service(), RecognitionListener {
             .setContentText("Say your wake word to summon assistant")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .build()
-        startForeground(1, notification)
+        startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         
         updateWakeWord()
 
