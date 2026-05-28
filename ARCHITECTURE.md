@@ -10,17 +10,17 @@ The system is built on a split architecture: a primary User Interface (`LocalLLM
 
 ```mermaid
 graph TD
-    A[Microphone] -->|Continuous Audio| B(WakeWordService\nVosk Offline STT)
-    B -->|Broadcast 'WAKE_WORD_DETECTED'| C(AssistantVoiceInteractionService)
-    C -->|Trigger showSession()| D(AssistantSession\nSystem UI Overlay)
+    A[Microphone] -->|Continuous Audio| B("WakeWordService<br/>Vosk Offline STT")
+    B -->|Broadcast WAKE_WORD_DETECTED| C(AssistantVoiceInteractionService)
+    C -->|Trigger showSession| D("AssistantSession<br/>System UI Overlay")
     A -->|On-Demand Audio| D
     
-    A -->|On-Demand Audio| E(LocalLLMActivity\nMain App UI)
+    A -->|On-Demand Audio| E("LocalLLMActivity<br/>Main App UI")
     
-    D <-->|Prompt / Streaming Tokens| F{LLMManager\nSingleton Inference Engine}
+    D <-->|Prompt / Streaming Tokens| F{"LLMManager<br/>Singleton Inference Engine"}
     E <-->|Prompt / Streaming Tokens| F
     
-    F -->|Model Initialization & Warmup| G[(LiteRT / TensorFlow Lite)]
+    F -->|Model Initialization| G[("LiteRT / TensorFlow Lite")]
     
     D -->|Parsed <TOOL> Tags| H(VehicleManager)
     E -->|Parsed <TOOL> Tags| H
@@ -95,18 +95,18 @@ classDiagram
     }
     
     %% Relationships
-    LocalLLMActivity --> LLMManager : "Initializes & Queries"
-    AssistantSession --> LLMManager : "Queries"
-    LocalLLMActivity --> VehicleManager : "Injects Tool Actions"
-    AssistantSession --> VehicleManager : "Injects Tool Actions"
-    LocalLLMActivity --> WakeWordService : "Starts/Stops"
-    WakeWordService ..> AssistantVoiceInteractionService : "Broadcasts Intent"
-    AssistantVoiceInteractionService --> AssistantSession : "Triggers showSession()"
+    LocalLLMActivity --> LLMManager : Initializes and Queries
+    AssistantSession --> LLMManager : Queries
+    LocalLLMActivity --> VehicleManager : Injects Tool Actions
+    AssistantSession --> VehicleManager : Injects Tool Actions
+    LocalLLMActivity --> WakeWordService : Starts and Stops
+    WakeWordService ..> AssistantVoiceInteractionService : Broadcasts Intent
+    AssistantVoiceInteractionService --> AssistantSession : Triggers showSession
     
     %% Hardware bindings
-    VehicleManager ..> CarPropertyManager : "AAOS VHAL"
-    WakeWordService ..> AudioRecord : "Vosk Mic Stream"
-    AssistantSession ..> SpeechRecognizer : "Android STT"
+    VehicleManager ..> CarPropertyManager : AAOS VHAL
+    WakeWordService ..> AudioRecord : Vosk Mic Stream
+    AssistantSession ..> SpeechRecognizer : Android STT
 ```
 
 ## Main Components & Classes
@@ -196,7 +196,7 @@ sequenceDiagram
     STT-->>AS: Returns text "Set temperature to 72"
     
     AS->>LLM: sendMessageAsync("Set temperature to 72")
-    Note over LLM: KV Cache is pre-warmed.<br/>Prefill takes <50ms.
+    Note over LLM: KV Cache is pre-warmed.<br/>Prefill takes under 50ms.
     
     LLM-->>AS: Streams tokens: "<TOOL>"
     LLM-->>AS: Streams tokens: "setTemperature(72)"
