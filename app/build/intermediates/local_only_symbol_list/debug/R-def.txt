@@ -1,6 +1,8 @@
 R_DEF: Internal format may change without notice
 local
+drawable bg_ai_gradient_circle
 drawable bg_input_pill
+drawable bg_send_button
 drawable rounded_bg
 id assistantResponseText
 id assistantStatusText
@@ -39,6 +41,7 @@ id etOutsideTemp
 id etSpeed
 id etSystemPrompt
 id etTirePressure
+id flIconContainer
 id generateButton
 id inputControlsContainer
 id inputText

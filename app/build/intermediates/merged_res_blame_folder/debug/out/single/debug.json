@@ -20,6 +20,14 @@
         "source": "com.example.gemininano.app-main-33:/layout/dialog_telemetry_settings.xml"
     },
     {
+        "merged": "com.example.gemininano.app-merged_res-31:/drawable_bg_ai_gradient_circle.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/drawable/bg_ai_gradient_circle.xml"
+    },
+    {
+        "merged": "com.example.gemininano.app-merged_res-31:/drawable_bg_send_button.xml.flat",
+        "source": "com.example.gemininano.app-main-33:/drawable/bg_send_button.xml"
+    },
+    {
         "merged": "com.example.gemininano.app-merged_res-31:/layout_spinner_dropdown_item.xml.flat",
         "source": "com.example.gemininano.app-main-33:/layout/spinner_dropdown_item.xml"
     },

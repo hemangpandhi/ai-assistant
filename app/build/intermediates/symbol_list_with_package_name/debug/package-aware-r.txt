@@ -2968,7 +2968,9 @@ drawable abc_textfield_search_material
 drawable abc_vector_test
 drawable avd_hide_password
 drawable avd_show_password
+drawable bg_ai_gradient_circle
 drawable bg_input_pill
+drawable bg_send_button
 drawable btn_checkbox_checked_mtrl
 drawable btn_checkbox_checked_to_unchecked_mtrl_animation
 drawable btn_checkbox_unchecked_mtrl
@@ -3306,6 +3308,7 @@ id fitStart
 id fitToContents
 id fitXY
 id fixed
+id flIconContainer
 id flip
 id floating
 id forever

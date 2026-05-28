@@ -48,6 +48,9 @@ public final class AssistantOverlayBinding implements ViewBinding {
   public final EditText etInput;
 
   @NonNull
+  public final FrameLayout flIconContainer;
+
+  @NonNull
   public final LinearLayout inputControlsContainer;
 
   @NonNull
@@ -62,7 +65,7 @@ public final class AssistantOverlayBinding implements ViewBinding {
   private AssistantOverlayBinding(@NonNull FrameLayout rootView,
       @NonNull TextView assistantResponseText, @NonNull TextView assistantStatusText,
       @NonNull ImageButton btnMic, @NonNull Button btnOpenApp, @NonNull Button btnSend,
-      @NonNull CardView cardPopup, @NonNull EditText etInput,
+      @NonNull CardView cardPopup, @NonNull EditText etInput, @NonNull FrameLayout flIconContainer,
       @NonNull LinearLayout inputControlsContainer, @NonNull ImageView ivAssistantIcon,
       @NonNull FrameLayout rootOverlay, @NonNull ScrollView svResponse) {
     this.rootView = rootView;
@@ -73,6 +76,7 @@ public final class AssistantOverlayBinding implements ViewBinding {
     this.btnSend = btnSend;
     this.cardPopup = cardPopup;
     this.etInput = etInput;
+    this.flIconContainer = flIconContainer;
     this.inputControlsContainer = inputControlsContainer;
     this.ivAssistantIcon = ivAssistantIcon;
     this.rootOverlay = rootOverlay;
@@ -148,6 +152,12 @@ public final class AssistantOverlayBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.flIconContainer;
+      FrameLayout flIconContainer = ViewBindings.findChildViewById(rootView, id);
+      if (flIconContainer == null) {
+        break missingId;
+      }
+
       id = R.id.inputControlsContainer;
       LinearLayout inputControlsContainer = ViewBindings.findChildViewById(rootView, id);
       if (inputControlsContainer == null) {
@@ -169,7 +179,7 @@ public final class AssistantOverlayBinding implements ViewBinding {
       }
 
       return new AssistantOverlayBinding((FrameLayout) rootView, assistantResponseText,
-          assistantStatusText, btnMic, btnOpenApp, btnSend, cardPopup, etInput,
+          assistantStatusText, btnMic, btnOpenApp, btnSend, cardPopup, etInput, flIconContainer,
           inputControlsContainer, ivAssistantIcon, rootOverlay, svResponse);
     }
     String missingId = rootView.getResources().getResourceName(id);
