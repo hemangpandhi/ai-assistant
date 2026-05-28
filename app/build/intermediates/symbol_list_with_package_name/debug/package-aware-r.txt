@@ -3188,6 +3188,8 @@ id btnPremiumUseCase5
 id btnPremiumUseCase6
 id btnPremiumUseCase7
 id btnPremiumUseCase8
+id btnResetPrompt
+id btnSavePrompt
 id btnSend
 id btnSettings
 id btnSyncTime
@@ -3288,6 +3290,7 @@ id etInput
 id etKvCache
 id etOutsideTemp
 id etSpeed
+id etSystemPrompt
 id etTirePressure
 id exitUntilCollapsed
 id expand_activities_button
@@ -3551,6 +3554,7 @@ id switchCpuBackend
 id tabInference
 id tabLayout
 id tabMode
+id tabSystemPrompt
 id tabUseCases
 id tag_accessibility_actions
 id tag_accessibility_clickable_spans

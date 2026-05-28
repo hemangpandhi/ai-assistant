@@ -140,6 +140,17 @@ object LLMManager {
     fun getSystemPrompt(context: android.content.Context): String {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
+        val customPrompt = prefs.getString("custom_system_prompt", null)
+        if (!customPrompt.isNullOrBlank()) {
+            return customPrompt
+        }
+        
+        return getDefaultSystemPrompt(context)
+    }
+    
+    fun getDefaultSystemPrompt(context: android.content.Context): String {
+        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
         return """You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses extremely brief.
         

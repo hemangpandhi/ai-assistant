@@ -16,6 +16,8 @@ id btnPremiumUseCase5
 id btnPremiumUseCase6
 id btnPremiumUseCase7
 id btnPremiumUseCase8
+id btnResetPrompt
+id btnSavePrompt
 id btnSend
 id btnSettings
 id btnSyncTime
@@ -35,6 +37,7 @@ id etInput
 id etKvCache
 id etOutsideTemp
 id etSpeed
+id etSystemPrompt
 id etTirePressure
 id generateButton
 id inputControlsContainer
@@ -49,6 +52,7 @@ id svResponse
 id switchCpuBackend
 id tabInference
 id tabLayout
+id tabSystemPrompt
 id tabUseCases
 id voiceButton
 layout activity_main

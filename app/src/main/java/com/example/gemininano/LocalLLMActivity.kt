@@ -49,8 +49,13 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var chatRecyclerView: RecyclerView
     private lateinit var chatAdapter: ChatAdapter
     private lateinit var tabLayout: com.google.android.material.tabs.TabLayout
-    private lateinit var tabInference: View
-    private lateinit var tabUseCases: View
+    private lateinit var tabInference: android.widget.LinearLayout
+    private lateinit var tabUseCases: android.widget.ScrollView
+    private lateinit var tabSystemPrompt: android.widget.LinearLayout
+    private lateinit var etSystemPrompt: android.widget.EditText
+    private lateinit var btnSavePrompt: com.google.android.material.button.MaterialButton
+    private lateinit var btnResetPrompt: com.google.android.material.button.MaterialButton
+
     private lateinit var btnPremiumUseCase1: Button
     private lateinit var btnPremiumUseCase2: Button
     private lateinit var btnPremiumUseCase3: Button
@@ -105,8 +110,13 @@ class LocalLLMActivity : AppCompatActivity() {
         voiceButton = findViewById(R.id.voiceButton)
         chatRecyclerView = findViewById(R.id.chatRecyclerView)
         tabLayout = findViewById(R.id.tabLayout)
-        tabInference = findViewById(R.id.tabInference)
-        tabUseCases = findViewById(R.id.tabUseCases)
+        tabInference = findViewById<android.widget.LinearLayout>(R.id.tabInference)
+        tabUseCases = findViewById<android.widget.ScrollView>(R.id.tabUseCases)
+        tabSystemPrompt = findViewById<android.widget.LinearLayout>(R.id.tabSystemPrompt)
+        etSystemPrompt = findViewById(R.id.etSystemPrompt)
+        btnSavePrompt = findViewById(R.id.btnSavePrompt)
+        btnResetPrompt = findViewById(R.id.btnResetPrompt)
+
         btnPremiumUseCase1 = findViewById(R.id.btnPremiumUseCase1)
         btnPremiumUseCase2 = findViewById(R.id.btnPremiumUseCase2)
         btnPremiumUseCase3 = findViewById(R.id.btnPremiumUseCase3)
@@ -251,17 +261,38 @@ class LocalLLMActivity : AppCompatActivity() {
 
         tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                if (tab?.position == 0) {
-                    tabInference.visibility = View.VISIBLE
-                    tabUseCases.visibility = View.GONE
-                } else {
-                    tabInference.visibility = View.GONE
-                    tabUseCases.visibility = View.VISIBLE
+                tabInference.visibility = View.GONE
+                tabUseCases.visibility = View.GONE
+                tabSystemPrompt.visibility = View.GONE
+                
+                when (tab?.position) {
+                    0 -> tabInference.visibility = View.VISIBLE
+                    1 -> tabUseCases.visibility = View.VISIBLE
+                    2 -> tabSystemPrompt.visibility = View.VISIBLE
                 }
             }
             override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
             override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
         })
+
+        // Setup System Prompt Editor
+        etSystemPrompt.setText(LLMManager.getSystemPrompt(this))
+        
+        btnSavePrompt.setOnClickListener {
+            val newPrompt = etSystemPrompt.text.toString()
+            prefs.edit().putString("custom_system_prompt", newPrompt).apply()
+            LLMManager.resetConversation()
+            Toast.makeText(this, "System Prompt Saved & Applied!", Toast.LENGTH_SHORT).show()
+        }
+        
+        btnResetPrompt.setOnClickListener {
+            val defaultPrompt = LLMManager.getDefaultSystemPrompt(this)
+            etSystemPrompt.setText(defaultPrompt)
+            prefs.edit().remove("custom_system_prompt").apply()
+            LLMManager.resetConversation()
+            Toast.makeText(this, "Reset to Default Prompt!", Toast.LENGTH_SHORT).show()
+        }
+
 
         setupUseCases()
         

@@ -60,6 +60,12 @@ public final class ActivityMainBinding implements ViewBinding {
   public final Button btnPremiumUseCase8;
 
   @NonNull
+  public final MaterialButton btnResetPrompt;
+
+  @NonNull
+  public final MaterialButton btnSavePrompt;
+
+  @NonNull
   public final MaterialButton btnSettings;
 
   @NonNull
@@ -87,6 +93,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final LinearLayout dashboardLayout;
 
   @NonNull
+  public final EditText etSystemPrompt;
+
+  @NonNull
   public final MaterialButton generateButton;
 
   @NonNull
@@ -111,6 +120,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final TabLayout tabLayout;
 
   @NonNull
+  public final LinearLayout tabSystemPrompt;
+
+  @NonNull
   public final ScrollView tabUseCases;
 
   @NonNull
@@ -122,15 +134,17 @@ public final class ActivityMainBinding implements ViewBinding {
       @NonNull Button btnPremiumUseCase3, @NonNull Button btnPremiumUseCase4,
       @NonNull Button btnPremiumUseCase5, @NonNull Button btnPremiumUseCase6,
       @NonNull Button btnPremiumUseCase7, @NonNull Button btnPremiumUseCase8,
+      @NonNull MaterialButton btnResetPrompt, @NonNull MaterialButton btnSavePrompt,
       @NonNull MaterialButton btnSettings, @NonNull MaterialButton btnSyncTime,
       @NonNull RecyclerView chatRecyclerView, @NonNull MaterialButton clearButton,
       @NonNull TextView dashHeater, @NonNull TextView dashInternet, @NonNull TextView dashSpeed,
       @NonNull TextView dashTemp, @NonNull LinearLayout dashboardLayout,
-      @NonNull MaterialButton generateButton, @NonNull EditText inputText,
-      @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
+      @NonNull EditText etSystemPrompt, @NonNull MaterialButton generateButton,
+      @NonNull EditText inputText, @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
       @NonNull MaterialButton stopButton, @NonNull SwitchMaterial switchCpuBackend,
       @NonNull LinearLayout tabInference, @NonNull TabLayout tabLayout,
-      @NonNull ScrollView tabUseCases, @NonNull FloatingActionButton voiceButton) {
+      @NonNull LinearLayout tabSystemPrompt, @NonNull ScrollView tabUseCases,
+      @NonNull FloatingActionButton voiceButton) {
     this.rootView = rootView;
     this.btnDownloadModel = btnDownloadModel;
     this.btnLoadModel = btnLoadModel;
@@ -142,6 +156,8 @@ public final class ActivityMainBinding implements ViewBinding {
     this.btnPremiumUseCase6 = btnPremiumUseCase6;
     this.btnPremiumUseCase7 = btnPremiumUseCase7;
     this.btnPremiumUseCase8 = btnPremiumUseCase8;
+    this.btnResetPrompt = btnResetPrompt;
+    this.btnSavePrompt = btnSavePrompt;
     this.btnSettings = btnSettings;
     this.btnSyncTime = btnSyncTime;
     this.chatRecyclerView = chatRecyclerView;
@@ -151,6 +167,7 @@ public final class ActivityMainBinding implements ViewBinding {
     this.dashSpeed = dashSpeed;
     this.dashTemp = dashTemp;
     this.dashboardLayout = dashboardLayout;
+    this.etSystemPrompt = etSystemPrompt;
     this.generateButton = generateButton;
     this.inputText = inputText;
     this.modelSpinner = modelSpinner;
@@ -159,6 +176,7 @@ public final class ActivityMainBinding implements ViewBinding {
     this.switchCpuBackend = switchCpuBackend;
     this.tabInference = tabInference;
     this.tabLayout = tabLayout;
+    this.tabSystemPrompt = tabSystemPrompt;
     this.tabUseCases = tabUseCases;
     this.voiceButton = voiceButton;
   }
@@ -250,6 +268,18 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.btnResetPrompt;
+      MaterialButton btnResetPrompt = ViewBindings.findChildViewById(rootView, id);
+      if (btnResetPrompt == null) {
+        break missingId;
+      }
+
+      id = R.id.btnSavePrompt;
+      MaterialButton btnSavePrompt = ViewBindings.findChildViewById(rootView, id);
+      if (btnSavePrompt == null) {
+        break missingId;
+      }
+
       id = R.id.btnSettings;
       MaterialButton btnSettings = ViewBindings.findChildViewById(rootView, id);
       if (btnSettings == null) {
@@ -304,6 +334,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.etSystemPrompt;
+      EditText etSystemPrompt = ViewBindings.findChildViewById(rootView, id);
+      if (etSystemPrompt == null) {
+        break missingId;
+      }
+
       id = R.id.generateButton;
       MaterialButton generateButton = ViewBindings.findChildViewById(rootView, id);
       if (generateButton == null) {
@@ -352,6 +388,12 @@ public final class ActivityMainBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.tabSystemPrompt;
+      LinearLayout tabSystemPrompt = ViewBindings.findChildViewById(rootView, id);
+      if (tabSystemPrompt == null) {
+        break missingId;
+      }
+
       id = R.id.tabUseCases;
       ScrollView tabUseCases = ViewBindings.findChildViewById(rootView, id);
       if (tabUseCases == null) {
@@ -367,10 +409,10 @@ public final class ActivityMainBinding implements ViewBinding {
       return new ActivityMainBinding((LinearLayout) rootView, btnDownloadModel, btnLoadModel,
           btnPremiumUseCase1, btnPremiumUseCase2, btnPremiumUseCase3, btnPremiumUseCase4,
           btnPremiumUseCase5, btnPremiumUseCase6, btnPremiumUseCase7, btnPremiumUseCase8,
-          btnSettings, btnSyncTime, chatRecyclerView, clearButton, dashHeater, dashInternet,
-          dashSpeed, dashTemp, dashboardLayout, generateButton, inputText, modelSpinner,
-          progressBar, stopButton, switchCpuBackend, tabInference, tabLayout, tabUseCases,
-          voiceButton);
+          btnResetPrompt, btnSavePrompt, btnSettings, btnSyncTime, chatRecyclerView, clearButton,
+          dashHeater, dashInternet, dashSpeed, dashTemp, dashboardLayout, etSystemPrompt,
+          generateButton, inputText, modelSpinner, progressBar, stopButton, switchCpuBackend,
+          tabInference, tabLayout, tabSystemPrompt, tabUseCases, voiceButton);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));
