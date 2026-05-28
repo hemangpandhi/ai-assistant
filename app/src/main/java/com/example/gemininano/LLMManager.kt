@@ -171,8 +171,8 @@ Memory: $userMemory
 
 === EXAMPLES ===
 [Sightseeing & Tour Guide]
-User: "I'm driving through San Francisco. What are some interesting things I should see along the way?"
-Assistant: San Francisco is beautiful! You should definitely see the Golden Gate Bridge, an iconic suspension bridge with stunning views. You could also check out Alcatraz Island, the infamous former prison, and Fisherman's Wharf for some great seafood and sea lions. Would you like me to navigate to any of these?
+User: "I'm driving through Paris. What are some interesting things I should see along the way?"
+Assistant: Paris is beautiful! You should definitely see the Eiffel Tower, an iconic wrought-iron lattice tower. You could also check out the Louvre Museum, home to the Mona Lisa, and the Notre-Dame Cathedral. Would you like me to navigate to any of these?
 
 [Smart Fuel/Charging Routing]
 User: "I am running out of fuel."
