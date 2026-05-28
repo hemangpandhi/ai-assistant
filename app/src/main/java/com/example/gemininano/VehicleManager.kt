@@ -120,20 +120,26 @@ object VehicleManager {
 
     fun writeTemperatureToVhal(temp: Float) {
         try {
-            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)
-            config?.areaIds?.forEach { areaId ->
+            var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
+            if (areaIds == null || areaIds.isEmpty()) {
+                areaIds = intArrayOf(17, 49) // Fallback for SEAT_1_LEFT and SEAT_1_RIGHT in AOSP
+            }
+            
+            areaIds.forEach { areaId ->
                 var finalTemp = temp
                 // If requested temp is clearly in Fahrenheit (e.g., > 50), convert to Celsius
-                // We assume VHAL expects Celsius if max limits aren't explicitly fetched
                 if (finalTemp > 50f) {
                     finalTemp = (finalTemp - 32f) * 5f / 9f
                 }
                 
-                // Android Automotive HVAC UI strictly requires temperatures to be rounded
-                // to the nearest 0.5. If we pass 23.88889, SystemUI ignores it.
+                // Android Automotive HVAC UI strictly requires temperatures to be rounded to the nearest 0.5
                 finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
                 
-                carPropertyManager?.setFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp)
+                try {
+                    carPropertyManager?.setFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp)
+                } catch (e: Exception) {
+                    Log.e("VehicleManager", "Failed to set temp for area $areaId", e)
+                }
             }
             currentTemperature = temp
         } catch (e: Exception) {
