@@ -29,6 +29,7 @@ id dashInternet
 id dashSpeed
 id dashTemp
 id dashboardLayout
+id etAutoFlush
 id etEvBattery
 id etInput
 id etKvCache

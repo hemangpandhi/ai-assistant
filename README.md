@@ -15,7 +15,7 @@ This project is a fully functional, system-level Android Digital Assistant demon
 
 ## Architecture
 
-The application is built on top of MediaPipe's cross-platform GenAI SDK, which leverages LiteRT (formerly TensorFlow Lite) to run quantized model weights natively on the device hardware.
+The application is built directly on the **LiteRT (formerly TensorFlow Lite) Native API** (`com.google.ai.edge.litertlm`), providing lower-level, high-performance access to the inference engine and conversation context management compared to higher-level SDKs like MediaPipe.
 
 ```mermaid
 graph TD
@@ -25,18 +25,33 @@ graph TD
     VehicleManager --> |CarPropertyManager| VHAL((Vehicle Hardware))
     VehicleManager --> |Inject Telemetry| SystemPrompt[Strict System Prompt]
     SystemPrompt --> LLMManager[Singleton LLMManager]
-    LLMManager --> MediaPipe[MediaPipe Tasks GenAI API]
-    MediaPipe --> |Token Stream| UI
-    UI --> |Intercept Tags| VehicleManager
+    LLMManager --> LiteRTConversation[LiteRT Conversation Session]
+    LiteRTConversation --> LiteRTEngine[LiteRT Native Engine]
+    LiteRTEngine --> |Async Token Generation| UI
+    UI --> |Intercept XML Tags| VehicleManager
     VehicleManager --> |setFloatProperty| VHAL
     UI --> |Text-To-Speech| SpokenOutput((Audio Out))
 ```
 
 ### Key Components
 - **VehicleManager**: A singleton bridging the Android Automotive `CarPropertyManager` to read/write real-world hardware sensors securely.
-- **LLMManager**: A singleton ensuring the multi-gigabyte LLM stays resident in RAM while the UI is dismissed.
-- **AssistantSession**: The core overlay popup that handles chat input, prompt strictness, tag parsing, and TTS playback.
+- **LLMManager**: A singleton orchestrating the `Engine` and `Conversation` objects from the LiteRT library, managing the strict KV Cache bounds (e.g., 512-token auto-flush) and maintaining the model resident in RAM.
+- **AssistantSession**: The core overlay popup that handles chat input, prompt strictness, XML tag parsing, and TTS playback.
 
+### Intent Recognition & Tool Execution Pipeline
+Unlike cloud-based LLMs that use JSON schema-based function calling, this offline architecture leverages **In-Context Learning and XML Tagging** to execute tools with zero overhead.
+
+1. **Strict Context Inject:** `LLMManager` injects live VHAL data and a strict list of allowed tools into the System Prompt at instantiation (e.g., `<TOOL>increaseTemperature(VAL)</TOOL>`).
+2. **Async Generation:** The user's query is sent to the LiteRT `Conversation` object, which evaluates the prompt against the system bounds and generates an asynchronous token stream.
+3. **Regex Interception:** `AssistantSession` (or `LocalLLMActivity`) runs a standard regex parser (`<TOOL>(.*?)</TOOL>`) on the completed generation string.
+4. **VHAL Execution:** If a valid tag is detected (e.g., `<TOOL>setWindowPosition(50)</TOOL>`), the UI layer intercepts it, extracts the argument (`50`), strips the XML from the user-facing UI, and instantly invokes the physical hardware setter via `VehicleManager.setMockWindowPosition(50)`.
+
+#### Example Use-Case: "I am feeling cold"
+When a user says *"I am feeling cold"*, the AI does not just blindly respond. It leverages its injected knowledge of the vehicle's current state and available tools to perform a physical action:
+- **Context Awareness:** The model reads the injected System Prompt: `State: Temp 65F, Outside 30F... Tools: <TOOL>increaseTemperature(VAL)</TOOL>, <TOOL>turnOnDefroster()</TOOL>`.
+- **Reasoning:** The model understands that the user is cold, and the current temperature is only 65F. It knows it has a tool to increase the temperature.
+- **Generation:** The model generates the response: `I will turn up the heat for you. <TOOL>increaseTemperature(5)</TOOL>`.
+- **Action:** The UI displays and speaks *"I will turn up the heat for you."* while the regex parser silently intercepts the `<TOOL>` tag in the background. The app immediately calls `VehicleManager.setMockTemperature(70)`, adjusting the actual HVAC systems in the car.
 ---
 
 ## Supported Models & AAOS Hardware Contexts

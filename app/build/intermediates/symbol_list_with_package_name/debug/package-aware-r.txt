@@ -3282,6 +3282,7 @@ id end
 id endToStart
 id enterAlways
 id enterAlwaysCollapsed
+id etAutoFlush
 id etEvBattery
 id etInput
 id etKvCache

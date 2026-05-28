@@ -83,8 +83,7 @@ class LocalLLMActivity : AppCompatActivity() {
         LlmModel("Phi-4-mini", "Phi-4-mini-instruct.litertlm", "https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.8GB", "Premium")
     )
     
-    // Default to Gemma (Index 4) because SmolLM has a corrupted tokenizer in MediaPipe
-    private var currentModel = supportedModels[4] 
+    private var currentModel = supportedModels[2] 
 
     private var MODEL_PATH = ""
     private var isGenerating = false
@@ -125,12 +124,42 @@ class LocalLLMActivity : AppCompatActivity() {
         clearButton = findViewById(R.id.clearButton)
 
         // Re-use test logic when intent action matches
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        val savedModelPath = prefs.getString("selected_model", "")
+        if (!savedModelPath.isNullOrEmpty()) {
+            MODEL_PATH = savedModelPath
+        }
+        
         if (intent.action == "com.example.gemininano.RUN_TESTS" && !isTestRunning) {
+            val internalFiles = applicationContext.filesDir.listFiles()?.toList() ?: emptyList()
+            val externalFiles = applicationContext.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
+            val tmpFiles = java.io.File("/data/local/tmp/").listFiles()?.toList() ?: emptyList()
+            val allFiles = internalFiles + externalFiles + tmpFiles
+            val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
+            android.util.Log.i("AutomatedTest", "Found models: ${models.joinToString { it.absolutePath }}")
+            
+            lifecycleScope.launch {
+                initLlm()
+            }
             isTestRunning = true
             android.util.Log.i("AutomatedTest", "Starting automated test suite...")
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 runAutomatedTests()
                 isTestRunning = false
+            }
+        }
+        
+        if (intent.action == "com.example.gemininano.DUMP_TEST_RESULTS") {
+            val file = java.io.File(getExternalFilesDir(null), "test_results.md")
+            if (file.exists()) {
+                val lines = file.readLines()
+                android.util.Log.i("AutomatedTest", "--- BEGIN TEST RESULTS ---")
+                for (line in lines) {
+                    android.util.Log.i("AutomatedTest", line)
+                }
+                android.util.Log.i("AutomatedTest", "--- END TEST RESULTS ---")
+            } else {
+                android.util.Log.e("AutomatedTest", "test_results.md does not exist!")
             }
         }
 
@@ -352,7 +381,10 @@ class LocalLLMActivity : AppCompatActivity() {
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val currentKvCache = prefs.getInt("max_tokens", 512)
+        val currentAutoFlush = prefs.getInt("auto_flush_interval", 3)
         etKvCache.setText(currentKvCache.toString())
+        val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)
+        etAutoFlush.setText(currentAutoFlush.toString())
 
         android.app.AlertDialog.Builder(this)
             .setView(dialogView)
@@ -362,6 +394,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 val newTire = etTirePressure.text.toString().toFloatOrNull()
                 val newTemp = etOutsideTemp.text.toString().toFloatOrNull()
                 val newKvCache = etKvCache.text.toString().toIntOrNull()
+                val newAutoFlush = etAutoFlush.text.toString().toIntOrNull()
 
                 if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)
                 if (newBattery != null) VehicleManager.setMockEvBatteryLevel(newBattery)
@@ -371,6 +404,10 @@ class LocalLLMActivity : AppCompatActivity() {
                 updateDashboardUI()
                 Toast.makeText(this, "Telemetry Updated", Toast.LENGTH_SHORT).show()
                 
+                if (newAutoFlush != null) {
+                    prefs.edit().putInt("auto_flush_interval", newAutoFlush).apply()
+                }
+
                 if (newKvCache != null && newKvCache != currentKvCache) {
                     prefs.edit().putInt("max_tokens", newKvCache).apply()
                     Toast.makeText(this, "Re-initializing LLM with new KV Cache...", Toast.LENGTH_SHORT).show()
@@ -738,7 +775,7 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private suspend fun runAutomatedTests() {
-        android.util.Log.i("AutomatedTest", "Initializing tests...")
+        android.util.Log.i("AutomatedTest", "Initializing 200 Comprehensive Tests...")
         while (MODEL_PATH.isEmpty()) {
             kotlinx.coroutines.delay(100)
         }
@@ -754,77 +791,105 @@ class LocalLLMActivity : AppCompatActivity() {
             }
         }
         
-        val prompts = listOf(
-            "increase temp by 5 degrees", "defrost the windshield", "set temperature to 74F",
-            "turn on the heater", "decrease temp by 10%"
-        )
-        
-        var passed = 0
-        val resultsBuilder = java.lang.StringBuilder()
-        resultsBuilder.append("# Automated LLM Prompt Test Results\n\n")
-        resultsBuilder.append("| Prompt | Status | Action | JSON Output |\n")
-        resultsBuilder.append("|---|---|---|---|\n")
-
-        val modelName = LLMManager.currentModelPath.lowercase()
-        val isGemma = modelName.contains("gemma")
-        
-        for (query in prompts) {
-            generateText(query)       
-            var status = "FAIL"
-            var details = "Timeout/Error"
-            var jsonOut = "N/A"
-            
-            val latch = java.util.concurrent.CountDownLatch(1)
-            val lastResponseBuilder = java.lang.StringBuilder()
-            
-            try {
-                LLMManager.conversation?.sendMessageAsync(
-                    com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(query)),
-                    object : com.google.ai.edge.litertlm.MessageCallback {
-                        override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
-                            val chunk = message.toString()
-                            lastResponseBuilder.append(chunk)
-                        }
-
-                        override fun onDone() {
-                            details = lastResponseBuilder.toString()
-                            status = "PASS"
-                            passed++
-                            latch.countDown()
-                        }
-
-                        override fun onError(throwable: Throwable) {
-                            details = "Error: ${throwable.message}"
-                            status = "FAIL"
-                            latch.countDown()
-                        }
-                    },
-                    emptyMap()
-                )
-                
-                val completed = latch.await(300, java.util.concurrent.TimeUnit.SECONDS)
-                if (!completed) {
-                    status = "FAIL"
-                    details = "Timeout (300s)"
-                }
-                kotlinx.coroutines.delay(2000) // Wait for engine to finish cancelling
-            } catch (e: Exception) {
-                status = "FAIL"
-                details = "Model Crashed"
-                android.util.Log.e("AutomatedTest", "Skipping remaining tests due to error.")
-                break
-            }
-            android.util.Log.i("AutomatedTest", "Query: '$query' -> Status: $status ($details). Output: ${if (status == "FAIL") lastResponseBuilder.toString() else ""}")
-            resultsBuilder.append("| $query | $status | $details | $jsonOut |\n")
+        // Ensure conversation is initialized before starting
+        if (LLMManager.conversation == null) {
+            LLMManager.resetConversation()
         }
         
-        val reportHeader = "Total Tests: ${prompts.size}\nPass: $passed\nFail: ${prompts.size - passed}\n\n"
+        var passed = 0
+        var failed = 0
+        val resultsBuilder = java.lang.StringBuilder()
+        resultsBuilder.append("# Comprehensive Automotive AI Test Results\n\n")
+        resultsBuilder.append("| # | Prompt | Expected Tool | Result | Output |\n")
+        resultsBuilder.append("|---|---|---|---|---|\n")
+
+        val totalTests = AutomatedTestSuite.testCases.size
+        
+        for ((index, testCase) in AutomatedTestSuite.testCases.withIndex()) {
+            val query = testCase.prompt
+            val expected = testCase.expectedToolPrefix
+            var status = "FAIL"
+            var outputSnippet = "Timeout/Error"
+            
+            try {
+                val deferred = kotlinx.coroutines.CompletableDeferred<String>()
+                val lastResponseBuilder = java.lang.StringBuilder()
+                
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    val isFirst = LLMManager.isFirstMessage
+                    val finalQuery = if (isFirst) {
+                        LLMManager.isFirstMessage = false
+                        LLMManager.getSystemPrompt(applicationContext) + "\nUser: " + query
+                    } else {
+                        "User: $query"
+                    }
+                    
+                    android.util.Log.i("AutomatedTest", "Conversation is null: ${LLMManager.conversation == null}")
+                    
+                    LLMManager.conversation!!.sendMessageAsync(
+                        com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalQuery)),
+                        object : com.google.ai.edge.litertlm.MessageCallback {
+                            override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+                                lastResponseBuilder.append(message.toString())
+                            }
+
+                            override fun onDone() {
+                                deferred.complete(lastResponseBuilder.toString())
+                            }
+
+                            override fun onError(throwable: Throwable) {
+                                deferred.completeExceptionally(throwable)
+                            }
+                        },
+                        emptyMap()
+                    )
+                }
+                
+                val fullResponse = kotlinx.coroutines.withTimeout(120_000) {
+                    deferred.await()
+                }
+                
+                outputSnippet = fullResponse.replace("\n", " ").take(100)
+                if (fullResponse.contains(expected, ignoreCase = true)) {
+                    status = "PASS"
+                    passed++
+                } else {
+                    status = "FAIL"
+                    failed++
+                }
+                
+                val testPrefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+                val autoFlushInterval = testPrefs.getInt("auto_flush_interval", 3)
+                
+                // Clear cache if we are getting close to 512 context limit
+                if (index > 0 && index % autoFlushInterval == 0) {
+                   kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                       LLMManager.resetConversation()
+                   }
+                }
+                
+                kotlinx.coroutines.delay(200) 
+            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+                status = "FAIL"
+                outputSnippet = "Timeout (120s)"
+                failed++
+            } catch (e: Exception) {
+                status = "FAIL"
+                outputSnippet = "Model Crashed: ${e.message}"
+                failed++
+            }
+            
+            android.util.Log.i("AutomatedTest", "Test ${index+1}/$totalTests -> $status. Expected: $expected")
+            resultsBuilder.append("| ${index+1} | $query | $expected | $status | $outputSnippet |\n")
+        }
+        
+        val reportHeader = "Total Tests: $totalTests\nPass: $passed\nFail: $failed\n\n"
         val finalReport = reportHeader + resultsBuilder.toString()
         
         try {
             val file = java.io.File(getExternalFilesDir(null), "test_results.md")
             file.writeText(finalReport)
-            android.util.Log.i("AutomatedTest", "Test complete. Results written to ${file.absolutePath}")
+            android.util.Log.i("AutomatedTest", "Test suite complete. Results written to ${file.absolutePath}")
         } catch (e: Exception) {
             android.util.Log.e("AutomatedTest", "Failed to write report", e)
         }

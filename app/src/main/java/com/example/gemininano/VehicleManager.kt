@@ -22,6 +22,11 @@ object VehicleManager {
     private var currentEvBatteryLevel: Float = 42f
     private var currentTirePressureFrontLeft: Float = 28f // Low pressure
     private var currentOutsideTemperature: Float = 32f // Freezing outside
+    private var currentObdCodes: String = "P0420"
+    
+    fun getObdCodes(): String {
+        return currentObdCodes
+    }
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
         override fun onChangeEvent(value: CarPropertyValue<*>) {
