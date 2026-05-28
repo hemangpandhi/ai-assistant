@@ -836,7 +836,7 @@ class LocalLLMActivity : AppCompatActivity() {
                             
                             if (isVoice) {
                                 var remainingText = displayMsg.substring(spokenTextLength[0])
-                                val sentenceRegex = "^(.*?)([.!?\n])(?:\\s|$)".toRegex()
+                                val sentenceRegex = "^(.*?)([.!?]+(?:\\s+|$)|\\n)".toRegex()
                                 var match = sentenceRegex.find(remainingText)
                                 while (match != null) {
                                     val sentence = match.value
