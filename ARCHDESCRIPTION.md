@@ -4,6 +4,35 @@ This document provides an in-depth technical explanation of the AI framework, mo
 
 ---
 
+## High-Level System Flow Diagram
+
+The following diagram illustrates the overall flow of audio, tokens, and hardware actuations across the entire Automotive AI Assistant stack:
+
+```mermaid
+graph TD
+    A[Microphone] -->|Continuous Audio| B("WakeWordService<br/>Vosk Offline STT")
+    B -->|Broadcast WAKE_WORD_DETECTED| C(AssistantVoiceInteractionService)
+    C -->|Trigger showSession| D("AssistantSession<br/>System UI Overlay")
+    A -->|On-Demand Audio| D
+    
+    A -->|On-Demand Audio| E("LocalLLMActivity<br/>Main App UI")
+    
+    D <-->|Prompt / Streaming Tokens| F{"LLMManager<br/>Singleton Inference Engine"}
+    E <-->|Prompt / Streaming Tokens| F
+    
+    F -->|Model Initialization| G[("LiteRT / TensorFlow Lite")]
+    
+    D -->|Parsed <TOOL> Tags| H(VehicleManager)
+    E -->|Parsed <TOOL> Tags| H
+    
+    H -->|CarPropertyManager| I[AAOS VHAL<br/>Hardware Actuation]
+    
+    D -->|Streaming Chunks| J(TextToSpeech TTS)
+    E -->|Streaming Chunks| J
+```
+
+---
+
 ## 1. AI Framework & Engine Details
 
 ### The Framework: LiteRT (TensorFlow Lite)
@@ -58,3 +87,50 @@ The application relies on highly specialized Android system components to bridge
 ### 4. `VehicleManager` (The Hardware Bridge)
 *   **Concept**: The bridge to the vehicle's CAN bus.
 *   **Implementation**: Connects to the AAOS `CarPropertyManager`. When the LLM decides to change the temperature, the `VehicleManager` receives the parsed XML command and injects it synchronously into the hardware abstraction layer (VHAL).
+
+---
+
+## Complete Interaction Flow Sequence
+
+The following sequence details the ultra-low latency loop from the moment the user speaks the wake word to the moment the hardware reacts.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User
+    participant V as WakeWordService (Vosk)
+    participant AVIS as AssistantVoiceInteractionService
+    participant AS as AssistantSession (Overlay)
+    participant STT as SpeechRecognizer
+    participant LLM as LLMManager (LiteRT)
+    participant VM as VehicleManager (VHAL)
+    participant TTS as TextToSpeech
+
+    User->>V: Speaks "Hey auto"
+    V->>AVIS: Broadcasts WAKE_WORD_DETECTED
+    V->>V: Pauses listening (prevents loops)
+    AVIS->>AS: Calls showSession()
+    AS-->>User: Pops up UI Overlay
+    AS->>STT: Starts listening automatically
+    
+    User->>STT: Speaks "Set temperature to 72"
+    STT-->>AS: Returns text "Set temperature to 72"
+    
+    AS->>LLM: sendMessageAsync("Set temperature to 72")
+    Note over LLM: KV Cache is pre-warmed.<br/>Prefill takes under 50ms.
+    
+    LLM-->>AS: Streams tokens: "<TOOL>"
+    LLM-->>AS: Streams tokens: "setTemperature(72)"
+    LLM-->>AS: Streams tokens: "</TOOL> Sure!"
+    
+    AS->>AS: Regex captures <TOOL> tags
+    AS->>VM: executeToolCall("setTemperature(72)")
+    VM->>VM: Actuates HVAC hardware
+    
+    LLM-->>AS: Streams tokens: " The cabin is "
+    LLM-->>AS: Streams tokens: "now heating up.\n"
+    
+    AS->>AS: Regex chunks sentence by '\n' or '.'
+    AS->>TTS: Sends chunk to speak ("Sure! The cabin is now heating up.")
+    TTS-->>User: Plays audio response
+```
