@@ -812,10 +812,19 @@ class LocalLLMActivity : AppCompatActivity() {
             val regex = "<TOOL>(.*?)</TOOL>".toRegex()
             val spokenTextLength = intArrayOf(0)
 
+            val startTime = System.currentTimeMillis()
+            var firstTokenTime = -1L
+
             LLMManager.conversation?.sendMessageAsync(
                 com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalPrompt)),
                 object : com.google.ai.edge.litertlm.MessageCallback {
                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+                        if (firstTokenTime == -1L) {
+                            firstTokenTime = System.currentTimeMillis()
+                            val ttft = firstTokenTime - startTime
+                            android.util.Log.i("LLMLatency", "[LocalLLMActivity] Time to First Token (TTFT): ${ttft}ms")
+                        }
+                        
                         runOnUiThread {
                             if (!isGenerating) return@runOnUiThread
                             val chunk = message.toString()
@@ -851,6 +860,9 @@ class LocalLLMActivity : AppCompatActivity() {
                     }
                     
                     override fun onDone() {
+                        val totalTime = System.currentTimeMillis() - startTime
+                        android.util.Log.i("LLMLatency", "[LocalLLMActivity] Total Generation Time: ${totalTime}ms")
+                        
                         runOnUiThread {
                             if (!isGenerating) return@runOnUiThread
                             timeoutJob?.cancel()

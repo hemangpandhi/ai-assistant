@@ -351,12 +351,20 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val regex = "<TOOL>(.*?)</TOOL>".toRegex()
         val spokenTextLength = intArrayOf(0)
         
+        val startTime = System.currentTimeMillis()
+        var firstTokenTime = -1L
 
         try {
             LLMManager.conversation!!.sendMessageAsync(
                 Contents.of(Content.Text(finalPrompt)),
                 object : MessageCallback {
                     override fun onMessage(message: Message) {
+                        if (firstTokenTime == -1L) {
+                            firstTokenTime = System.currentTimeMillis()
+                            val ttft = firstTokenTime - startTime
+                            android.util.Log.i("LLMLatency", "[AssistantSession] Time to First Token (TTFT): ${ttft}ms")
+                        }
+                        
                         CoroutineScope(Dispatchers.Main).launch {
                             val chunk = message.toString()
                             lastResponseBuilder.append(chunk)
@@ -391,6 +399,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
 
                     override fun onDone() {
+                        val totalTime = System.currentTimeMillis() - startTime
+                        android.util.Log.i("LLMLatency", "[AssistantSession] Total Generation Time: ${totalTime}ms")
+                        
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
                             var finalMsg = lastResponseBuilder.toString()
