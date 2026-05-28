@@ -129,6 +129,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network Timeout."
                     SpeechRecognizer.ERROR_NO_MATCH -> "No match found."
                     SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout."
+                    13 -> "Offline Language Pack Missing! Type instead."
                     else -> "Voice Error: $error"
                 }
                 statusText.text = errorMsg

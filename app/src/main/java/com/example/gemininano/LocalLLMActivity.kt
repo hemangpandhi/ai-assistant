@@ -239,8 +239,16 @@ class LocalLLMActivity : AppCompatActivity() {
                 inputText.setText("Processing Voice...")
             }
             override fun onError(error: Int) {
-                inputText.setText("")
-                chatAdapter.addMessage(ChatMessage("Voice Error: $error", isUser = false))
+                val msg = when (error) {
+                    SpeechRecognizer.ERROR_NETWORK -> "Network Error"
+                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network Timeout"
+                    SpeechRecognizer.ERROR_NO_MATCH -> "No match found"
+                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
+                    13 -> "Offline Language Pack Missing"
+                    else -> "Voice Error: $error"
+                }
+                inputText.setText(msg)
+                chatAdapter.addMessage(ChatMessage(msg, isUser = false))
             }
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
