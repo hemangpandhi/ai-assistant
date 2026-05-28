@@ -766,6 +766,21 @@ class LocalLLMActivity : AppCompatActivity() {
             return
         }
         
+        if (LLMManager.isWarmingUp) {
+            chatAdapter.updateLastMessage("\n\n[Warming up AI context... please wait]")
+            lifecycleScope.launch {
+                while (LLMManager.isWarmingUp) {
+                    delay(500)
+                }
+                chatAdapter.replaceLastMessage("")
+                processQuery(prompt, isVoice, displayPrompt)
+            }
+        } else {
+            processQuery(prompt, isVoice, displayPrompt)
+        }
+    }
+    
+    private fun processQuery(prompt: String, isVoice: Boolean, displayPrompt: String) {
         try {
             var alarmTriggered = false
             timeoutJob?.cancel()

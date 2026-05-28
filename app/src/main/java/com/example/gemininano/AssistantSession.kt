@@ -299,6 +299,22 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         btnSend.isEnabled = false
         isQueryProcessed = false
         
+        if (LLMManager.isWarmingUp) {
+            statusText.text = "Warming up AI context... please wait a moment."
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                while (LLMManager.isWarmingUp) {
+                    kotlinx.coroutines.delay(500)
+                }
+                statusText.text = "Thinking..."
+                processQuery(query, prefixSpan)
+            }
+        } else {
+            processQuery(query, prefixSpan)
+        }
+    }
+    
+    private fun processQuery(query: String, prefixSpan: android.text.SpannableStringBuilder) {
+        
         // Timeout watchdog
         timeoutJob?.cancel()
         timeoutJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {

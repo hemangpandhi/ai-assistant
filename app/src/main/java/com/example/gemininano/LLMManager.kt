@@ -28,6 +28,7 @@ object LLMManager {
         private set
 
     var isFirstMessage = true
+    var isWarmingUp = false
 
     interface InitCallback {
         fun onSuccess()
@@ -107,7 +108,12 @@ object LLMManager {
                 resetConversation()
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath")
-                withContext(Dispatchers.Main) { callback?.onSuccess() }
+                
+                // Trigger warmup on the Main Thread so it doesn't block Initialization
+                withContext(Dispatchers.Main) { 
+                    callback?.onSuccess() 
+                    warmUpSystemPrompt(context)
+                }
             } catch (e: Exception) {
                 Log.e("LLMManager", "Error initializing model", e)
                 if (!useCpu) {
@@ -220,6 +226,35 @@ Assistant: <TOOL>setTemperature(72)</TOOL><TOOL>setSeatHeater(3)</TOOL> Heating 
             Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
         } catch (e: Exception) {
             Log.e("LLMManager", "Failed to reset conversation", e)
+        }
+    }
+
+    fun warmUpSystemPrompt(context: Context) {
+        if (!isFirstMessage || engine == null || conversation == null) return
+        
+        Log.i("LLMManager", "Starting KV Cache Warmup for System Prompt...")
+        isWarmingUp = true
+        isFirstMessage = false // Prevent others from sending the system prompt
+        
+        val sysPrompt = getSystemPrompt(context) + "\n\nUser: Acknowledge these instructions silently."
+        
+        try {
+            conversation?.sendMessageAsync(Contents.of(Content.Text(sysPrompt)), object : com.google.ai.edge.litertlm.MessageCallback {
+                override fun onMessage(message: com.google.ai.edge.litertlm.Message) {}
+                override fun onError(throwable: Throwable) {
+                    Log.e("LLMManager", "Warmup failed", throwable)
+                    isWarmingUp = false
+                    isFirstMessage = true
+                }
+                override fun onDone() {
+                    Log.i("LLMManager", "KV Cache Warmup Complete!")
+                    isWarmingUp = false
+                }
+            })
+        } catch (e: Exception) {
+            Log.e("LLMManager", "Failed to start warmup", e)
+            isWarmingUp = false
+            isFirstMessage = true
         }
     }
 }
