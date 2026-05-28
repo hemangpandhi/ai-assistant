@@ -284,7 +284,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         statusText.text = "Thinking..."
         startThinkingAnimation()
-        responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> ", android.text.Html.FROM_HTML_MODE_LEGACY)
+        
+        val prefixSpan = android.text.SpannableStringBuilder()
+        prefixSpan.append("You: ")
+        prefixSpan.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), 0, 5, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        prefixSpan.append("$query\n\n")
+        val assistantStart = prefixSpan.length
+        prefixSpan.append("Assistant: ")
+        prefixSpan.setSpan(android.text.style.StyleSpan(android.graphics.Typeface.BOLD), assistantStart, prefixSpan.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        
+        responseText.text = prefixSpan
+
         lastResponseBuilder.clear()
         btnSend.isEnabled = false
         isQueryProcessed = false
@@ -324,6 +334,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val executedTools = mutableSetOf<String>()
         val regex = "<TOOL>(.*?)</TOOL>".toRegex()
         val spokenTextLength = intArrayOf(0)
+        
 
         try {
             LLMManager.conversation!!.sendMessageAsync(
@@ -344,7 +355,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             }
                             
                             val displayMsg = currentText.replace(regex, "").trim()
-                            responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + displayMsg.replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
+                            
+                            val currentSpannable = android.text.SpannableStringBuilder(prefixSpan).append(displayMsg)
+                            responseText.text = currentSpannable
                             
                             // Streaming TTS Logic
                             var remainingText = displayMsg.substring(spokenTextLength[0])
@@ -375,7 +388,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             }
                             
                             finalMsg = finalMsg.replace(regex, "").trim()
-                            responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + finalMsg.replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
+                            
+                            val currentSpannable = android.text.SpannableStringBuilder(prefixSpan).append(finalMsg)
+                            responseText.text = currentSpannable
                             
                             statusText.text = "Done."
                             stopThinkingAnimation()
