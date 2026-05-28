@@ -205,7 +205,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         if (LLMManager.engine == null || LLMManager.conversation == null) return
         
         statusText.text = "Thinking..."
-        responseText.text = ""
+        responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> ", android.text.Html.FROM_HTML_MODE_LEGACY)
         lastResponseBuilder.clear()
         btnSend.isEnabled = false
         isQueryProcessed = false
@@ -247,7 +247,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         CoroutineScope(Dispatchers.Main).launch {
                             val chunk = message.toString()
                             lastResponseBuilder.append(chunk)
-                            responseText.text = lastResponseBuilder.toString()
+                            responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + lastResponseBuilder.toString().replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
                         }
                     }
 
@@ -324,7 +324,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             }
                             
                             finalMsg = finalMsg.replace(regex, "").trim()
-                            responseText.text = finalMsg
+                            responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + finalMsg.replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
                             
                             statusText.text = "Done."
                             btnSend.isEnabled = true
