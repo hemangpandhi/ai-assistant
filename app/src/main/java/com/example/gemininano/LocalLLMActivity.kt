@@ -210,6 +210,17 @@ class LocalLLMActivity : AppCompatActivity() {
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts.language = Locale.US
+                tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+                    override fun onStart(utteranceId: String?) {}
+                    override fun onDone(utteranceId: String?) {
+                        if (utteranceId == "QUESTION") {
+                            runOnUiThread {
+                                voiceButton.performClick()
+                            }
+                        }
+                    }
+                    override fun onError(utteranceId: String?) {}
+                })
             }
         }
 
@@ -788,7 +799,8 @@ class LocalLLMActivity : AppCompatActivity() {
                             
                             resetControls()
                             if (isVoice) {
-                                tts.speak(finalResponse, TextToSpeech.QUEUE_FLUSH, null, null)
+                                val utteranceId = if (finalResponse.trim().endsWith("?")) "QUESTION" else "STATEMENT"
+                                tts.speak(finalResponse, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
                             }
                         }
                     }
