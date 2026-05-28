@@ -161,6 +161,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         
+        responseText.text = ""
+        etInput.setText("")
+        
         if (LLMManager.engine == null) {
             statusText.text = "Initializing Model..."
             btnOpenApp.visibility = View.GONE
@@ -200,11 +203,29 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     }
 
     private var isQueryProcessed = false
+    private var iconAnimator: android.animation.ObjectAnimator? = null
+
+    private fun startThinkingAnimation() {
+        val iconContainer = overlayView.findViewById<View>(R.id.flIconContainer)
+        iconAnimator?.cancel()
+        iconAnimator = android.animation.ObjectAnimator.ofFloat(iconContainer, "alpha", 1f, 0.4f).apply {
+            duration = 800
+            repeatCount = android.animation.ValueAnimator.INFINITE
+            repeatMode = android.animation.ValueAnimator.REVERSE
+            start()
+        }
+    }
+
+    private fun stopThinkingAnimation() {
+        iconAnimator?.cancel()
+        overlayView.findViewById<View>(R.id.flIconContainer).alpha = 1f
+    }
 
     private fun handleQuery(query: String) {
         if (LLMManager.engine == null || LLMManager.conversation == null) return
         
         statusText.text = "Thinking..."
+        startThinkingAnimation()
         responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> ", android.text.Html.FROM_HTML_MODE_LEGACY)
         lastResponseBuilder.clear()
         btnSend.isEnabled = false
@@ -220,11 +241,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
                         statusText.text = "Hi, how can I help you?"
+                        stopThinkingAnimation()
                         responseText.text = ""
                         btnSend.isEnabled = true
                     }
                     override fun onError(e: Exception) {
                         statusText.text = "Error restarting."
+                        stopThinkingAnimation()
                         btnSend.isEnabled = true
                     }
                 })
@@ -327,6 +350,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             responseText.text = android.text.Html.fromHtml("<b>You:</b> $query<br><br><b>Assistant:</b> " + finalMsg.replace("\n", "<br>"), android.text.Html.FROM_HTML_MODE_LEGACY)
                             
                             statusText.text = "Done."
+                            stopThinkingAnimation()
                             btnSend.isEnabled = true
                             isQueryProcessed = true
                             
@@ -348,6 +372,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         CoroutineScope(Dispatchers.Main).launch {
                             android.util.Log.e("AssistantSession", "LLM Error", throwable)
                             statusText.text = "Error"
+                            stopThinkingAnimation()
                             responseText.text = throwable.message ?: "An unexpected error occurred."
                             btnSend.isEnabled = true
                             LLMManager.isFirstMessage = true
@@ -361,6 +386,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             )
         } catch (e: Exception) {
             statusText.text = "Error"
+            stopThinkingAnimation()
             responseText.text = "An unexpected error occurred."
             btnSend.isEnabled = true
         }
