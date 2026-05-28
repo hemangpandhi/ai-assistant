@@ -205,6 +205,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     private var isQueryProcessed = false
     private var iconAnimator: android.animation.ObjectAnimator? = null
+    private var timeoutJob: kotlinx.coroutines.Job? = null
 
     private fun startThinkingAnimation() {
         val iconContainer = overlayView.findViewById<View>(R.id.flIconContainer)
@@ -233,8 +234,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         isQueryProcessed = false
         
         // Timeout watchdog
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-            kotlinx.coroutines.delay(30000) // 30 sec timeout
+        timeoutJob?.cancel()
+        timeoutJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            kotlinx.coroutines.delay(180000) // 3 minutes max (First-time GPU Shader Compilation / CPU Fallback)
             if (!isQueryProcessed) {
                 statusText.text = "Timeout - Restarting Model..."
                 responseText.text = "Please wait a moment."
@@ -277,6 +279,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
                     override fun onDone() {
                         CoroutineScope(Dispatchers.Main).launch {
+                            timeoutJob?.cancel()
                             var finalMsg = lastResponseBuilder.toString()
                             
                             // Auto-Context Clearing Hack for silent KV Cache overflows
@@ -371,12 +374,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
                     override fun onError(throwable: Throwable) {
                         CoroutineScope(Dispatchers.Main).launch {
+                            timeoutJob?.cancel()
                             android.util.Log.e("AssistantSession", "LLM Error", throwable)
                             statusText.text = "Error"
                             stopThinkingAnimation()
                             responseText.text = throwable.message ?: "An unexpected error occurred."
                             btnSend.isEnabled = true
                             LLMManager.isFirstMessage = true
+                            isQueryProcessed = true
                             
                             kotlinx.coroutines.delay(2000)
                             finish()
