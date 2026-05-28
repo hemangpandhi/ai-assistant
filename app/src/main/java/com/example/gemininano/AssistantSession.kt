@@ -189,7 +189,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 })
             }
         } else {
-            LLMManager.resetConversation()
+            // DO NOT reset the conversation here. Resetting invalidates the KV cache 
+            // and forces the LLM to re-process the massive System Prompt, causing a 2-3s delay.
             statusText.text = "Hi, how can I help you?"
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.VISIBLE
