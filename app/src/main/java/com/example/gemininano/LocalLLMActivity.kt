@@ -380,7 +380,7 @@ class LocalLLMActivity : AppCompatActivity() {
         etOutsideTemp.setText(VehicleManager.getOutsideTemperature().toString())
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-        val currentKvCache = prefs.getInt("max_tokens", 512)
+        val currentKvCache = prefs.getInt("max_tokens", 4096)
         val currentAutoFlush = prefs.getInt("auto_flush_interval", 3)
         etKvCache.setText(currentKvCache.toString())
         val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)

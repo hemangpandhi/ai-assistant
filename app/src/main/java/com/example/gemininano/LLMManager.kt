@@ -81,7 +81,13 @@ object LLMManager {
         withContext(Dispatchers.IO) {
             isInitializing = true
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val maxTokens = prefs.getInt("max_tokens", 512)
+            var maxTokens = prefs.getInt("max_tokens", 4096)
+            // Auto-migrate old 512 token limits to 4096 to support the new huge system prompt
+            if (maxTokens < 2048) {
+                maxTokens = 4096
+                prefs.edit().putInt("max_tokens", 4096).apply()
+                Log.i("LLMManager", "Auto-upgraded KV Cache limit to 4096")
+            }
             
             try {
                 try {
