@@ -36,6 +36,9 @@ public final class ActivityMainBinding implements ViewBinding {
   public final MaterialButton btnLoadModel;
 
   @NonNull
+  public final MaterialButton btnOfflineTTS;
+
+  @NonNull
   public final Button btnPremiumUseCase1;
 
   @NonNull
@@ -130,17 +133,18 @@ public final class ActivityMainBinding implements ViewBinding {
 
   private ActivityMainBinding(@NonNull LinearLayout rootView,
       @NonNull MaterialButton btnDownloadModel, @NonNull MaterialButton btnLoadModel,
-      @NonNull Button btnPremiumUseCase1, @NonNull Button btnPremiumUseCase2,
-      @NonNull Button btnPremiumUseCase3, @NonNull Button btnPremiumUseCase4,
-      @NonNull Button btnPremiumUseCase5, @NonNull Button btnPremiumUseCase6,
-      @NonNull Button btnPremiumUseCase7, @NonNull Button btnPremiumUseCase8,
-      @NonNull MaterialButton btnResetPrompt, @NonNull MaterialButton btnSavePrompt,
-      @NonNull MaterialButton btnSettings, @NonNull MaterialButton btnSyncTime,
-      @NonNull RecyclerView chatRecyclerView, @NonNull MaterialButton clearButton,
-      @NonNull TextView dashHeater, @NonNull TextView dashInternet, @NonNull TextView dashSpeed,
-      @NonNull TextView dashTemp, @NonNull LinearLayout dashboardLayout,
-      @NonNull EditText etSystemPrompt, @NonNull MaterialButton generateButton,
-      @NonNull EditText inputText, @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
+      @NonNull MaterialButton btnOfflineTTS, @NonNull Button btnPremiumUseCase1,
+      @NonNull Button btnPremiumUseCase2, @NonNull Button btnPremiumUseCase3,
+      @NonNull Button btnPremiumUseCase4, @NonNull Button btnPremiumUseCase5,
+      @NonNull Button btnPremiumUseCase6, @NonNull Button btnPremiumUseCase7,
+      @NonNull Button btnPremiumUseCase8, @NonNull MaterialButton btnResetPrompt,
+      @NonNull MaterialButton btnSavePrompt, @NonNull MaterialButton btnSettings,
+      @NonNull MaterialButton btnSyncTime, @NonNull RecyclerView chatRecyclerView,
+      @NonNull MaterialButton clearButton, @NonNull TextView dashHeater,
+      @NonNull TextView dashInternet, @NonNull TextView dashSpeed, @NonNull TextView dashTemp,
+      @NonNull LinearLayout dashboardLayout, @NonNull EditText etSystemPrompt,
+      @NonNull MaterialButton generateButton, @NonNull EditText inputText,
+      @NonNull Spinner modelSpinner, @NonNull ProgressBar progressBar,
       @NonNull MaterialButton stopButton, @NonNull SwitchMaterial switchCpuBackend,
       @NonNull LinearLayout tabInference, @NonNull TabLayout tabLayout,
       @NonNull LinearLayout tabSystemPrompt, @NonNull ScrollView tabUseCases,
@@ -148,6 +152,7 @@ public final class ActivityMainBinding implements ViewBinding {
     this.rootView = rootView;
     this.btnDownloadModel = btnDownloadModel;
     this.btnLoadModel = btnLoadModel;
+    this.btnOfflineTTS = btnOfflineTTS;
     this.btnPremiumUseCase1 = btnPremiumUseCase1;
     this.btnPremiumUseCase2 = btnPremiumUseCase2;
     this.btnPremiumUseCase3 = btnPremiumUseCase3;
@@ -217,6 +222,12 @@ public final class ActivityMainBinding implements ViewBinding {
       id = R.id.btnLoadModel;
       MaterialButton btnLoadModel = ViewBindings.findChildViewById(rootView, id);
       if (btnLoadModel == null) {
+        break missingId;
+      }
+
+      id = R.id.btnOfflineTTS;
+      MaterialButton btnOfflineTTS = ViewBindings.findChildViewById(rootView, id);
+      if (btnOfflineTTS == null) {
         break missingId;
       }
 
@@ -407,12 +418,13 @@ public final class ActivityMainBinding implements ViewBinding {
       }
 
       return new ActivityMainBinding((LinearLayout) rootView, btnDownloadModel, btnLoadModel,
-          btnPremiumUseCase1, btnPremiumUseCase2, btnPremiumUseCase3, btnPremiumUseCase4,
-          btnPremiumUseCase5, btnPremiumUseCase6, btnPremiumUseCase7, btnPremiumUseCase8,
-          btnResetPrompt, btnSavePrompt, btnSettings, btnSyncTime, chatRecyclerView, clearButton,
-          dashHeater, dashInternet, dashSpeed, dashTemp, dashboardLayout, etSystemPrompt,
-          generateButton, inputText, modelSpinner, progressBar, stopButton, switchCpuBackend,
-          tabInference, tabLayout, tabSystemPrompt, tabUseCases, voiceButton);
+          btnOfflineTTS, btnPremiumUseCase1, btnPremiumUseCase2, btnPremiumUseCase3,
+          btnPremiumUseCase4, btnPremiumUseCase5, btnPremiumUseCase6, btnPremiumUseCase7,
+          btnPremiumUseCase8, btnResetPrompt, btnSavePrompt, btnSettings, btnSyncTime,
+          chatRecyclerView, clearButton, dashHeater, dashInternet, dashSpeed, dashTemp,
+          dashboardLayout, etSystemPrompt, generateButton, inputText, modelSpinner, progressBar,
+          stopButton, switchCpuBackend, tabInference, tabLayout, tabSystemPrompt, tabUseCases,
+          voiceButton);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

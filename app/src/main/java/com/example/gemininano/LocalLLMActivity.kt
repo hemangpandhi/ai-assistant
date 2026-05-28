@@ -395,6 +395,17 @@ class LocalLLMActivity : AppCompatActivity() {
         btnSettings.setOnClickListener {
             showTelemetrySettingsDialog()
         }
+
+        val btnOfflineTTS = findViewById<Button>(R.id.btnOfflineTTS)
+        btnOfflineTTS.setOnClickListener {
+            val intent = Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            try {
+                startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(this, "TTS Settings not found on this device.", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun showTelemetrySettingsDialog() {

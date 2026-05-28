@@ -3181,6 +3181,7 @@ id bounceStart
 id btnDownloadModel
 id btnLoadModel
 id btnMic
+id btnOfflineTTS
 id btnOpenApp
 id btnPremiumUseCase1
 id btnPremiumUseCase2
