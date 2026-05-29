@@ -723,20 +723,25 @@ class LocalLLMActivity : AppCompatActivity() {
                 }
             } else if (toolCall.startsWith("navigate")) {
                 val dest = toolCall.substringAfter("(").substringBefore(")")
-                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(dest)}"))
-                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                
+                // On AOSP Emulator, the Maps app silently swallows intents without throwing exceptions.
+                // We bypass it by trying to explicitly launch the AOSP WebView Shell first.
+                val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=${android.net.Uri.encode(dest)}"))
+                browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                browserIntent.setPackage("org.chromium.webview_shell")
+                
                 try {
-                    applicationContext.startActivity(intent)
+                    applicationContext.startActivity(browserIntent)
                 } catch (e: Exception) {
-                    val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
-                    fallbackIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(dest)}"))
+                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                     try {
-                        applicationContext.startActivity(fallbackIntent)
+                        applicationContext.startActivity(intent)
                     } catch (e2: Exception) {
-                        val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=${android.net.Uri.encode(dest)}"))
-                        browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
+                        fallbackIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                         try {
-                            applicationContext.startActivity(browserIntent)
+                            applicationContext.startActivity(fallbackIntent)
                         } catch (e3: Exception) {
                             android.util.Log.e("Navigation", "Failed to launch any navigation intents", e3)
                         }
