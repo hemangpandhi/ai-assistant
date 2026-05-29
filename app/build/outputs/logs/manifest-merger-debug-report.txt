@@ -4,51 +4,78 @@ ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManife
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-77:12
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-77:12
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:2:1-77:12
-MERGED from [androidx.databinding:viewbinding:8.2.2] /home/hemang/.gradle/caches/transforms-3/8202e6e610a8758da682bd065bc840f8/transformed/viewbinding-8.2.2/AndroidManifest.xml:2:1-7:12
-MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/9d1caa38aaac422d28fcc837e0c74d83/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/579aa568dee819796f9429e7cfeac5d1/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
-MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/hemang/.gradle/caches/transforms-3/4e3654e044385961449f404ad54e9e2f/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.appcompat:appcompat:1.6.1] /home/hemang/.gradle/caches/transforms-3/3f2b22d24eec647cbaefe34be7d37c86/transformed/appcompat-1.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/hemang/.gradle/caches/transforms-3/92eff44b5ce1e902eb96cdc7fb33dff8/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:2:1-7:12
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:17:1-35:12
-MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cb102aa7d0b85621a55e3e832b792a8/transformed/viewpager2-1.0.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.fragment:fragment:1.3.6] /home/hemang/.gradle/caches/transforms-3/58b864308f3eeb58caa973abe3e996c6/transformed/fragment-1.3.6/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.activity:activity:1.8.0] /home/hemang/.gradle/caches/transforms-3/b72b73e364faccede0a4615a52a0849c/transformed/activity-1.8.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/hemang/.gradle/caches/transforms-3/2978a8560457f850f72b78071fbf776d/transformed/drawerlayout-1.1.1/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/hemang/.gradle/caches/transforms-3/7d693104c288292cdac98455cb75e3bb/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/hemang/.gradle/caches/transforms-3/5dbac4b88c98c4d046298ad1740a2f1f/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.transition:transition:1.2.0] /home/hemang/.gradle/caches/transforms-3/2d4f91bd875797e5622f56e8040dbc05/transformed/transition-1.2.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/hemang/.gradle/caches/transforms-3/ef784e42d8cdf2a5f25431bf4fa564b9/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/hemang/.gradle/caches/transforms-3/3aaf3b1a5186bf350cbc5300b60e04fa/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/hemang/.gradle/caches/transforms-3/043766236b574d2311579148e948a453/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/hemang/.gradle/caches/transforms-3/067bad1e30f8dde407af45c5aade9228/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.loader:loader:1.0.0] /home/hemang/.gradle/caches/transforms-3/25e19d70b5fc9162dbed823ad71eb54e/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/hemang/.gradle/caches/transforms-3/69d4036901cdf3c24b5e4a0c156b32f2/transformed/recyclerview-1.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.customview:customview:1.1.0] /home/hemang/.gradle/caches/transforms-3/afbb750036e91f8e3afbc598abd292c8/transformed/customview-1.1.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:17:1-30:12
-MERGED from [androidx.savedstate:savedstate:1.2.1] /home/hemang/.gradle/caches/transforms-3/72c576c04396c494e14ac5c1ec09b77e/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:17:1-35:12
-MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/hemang/.gradle/caches/transforms-3/d8c0b9f12ca5c56b6dc26e41606964bb/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/hemang/.gradle/caches/transforms-3/3e9a609798a71967fcf71825cdff3d1c/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/hemang/.gradle/caches/transforms-3/60abc914b58e8684962bca22d7a42087/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/hemang/.gradle/caches/transforms-3/ec308dd2615d5cb134ea980ed040bae9/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:2:1-7:12
-MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/hemang/.gradle/caches/transforms-3/3565b51ce61324ad5c0a3feab96ca772/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.core:core-ktx:1.12.0] /home/hemang/.gradle/caches/transforms-3/cbd2f0cc437d1a0e39829063e976e4dc/transformed/core-ktx-1.12.0/AndroidManifest.xml:2:1-7:12
-MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/04bb649bc1b44bd8faa15448b1e0e9c4/transformed/litertlm-android-0.11.0/AndroidManifest.xml:2:1-7:12
-MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/hemang/.gradle/caches/transforms-3/0308ebcbf66073064cab73fc05de5b3c/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/hemang/.gradle/caches/transforms-3/69fe553da954e4008b82ba537c23fc8c/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.cardview:cardview:1.0.0] /home/hemang/.gradle/caches/transforms-3/0aecbc964af9ced8e5d1439560c9a656/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.interpolator:interpolator:1.0.0] /home/hemang/.gradle/caches/transforms-3/7d106d479634973bfa435f766cf16831/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/4e5252b3f47872d309a146770b54aae5/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
-MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:17:1-55:12
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/d445ab07e0c56993caf9f1818ec7e34d/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
-MERGED from [androidx.tracing:tracing:1.0.0] /home/hemang/.gradle/caches/transforms-3/eecf7b254bb3e7950ff542b94aa5eb63/transformed/tracing-1.0.0/AndroidManifest.xml:17:1-24:12
-MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/hemang/.gradle/caches/transforms-3/fd4f7055011f39cc02dd1f2e778e20d3/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.documentfile:documentfile:1.0.0] /home/hemang/.gradle/caches/transforms-3/05c9608e8872dd2534c4b9d50e9ab9ca/transformed/documentfile-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/hemang/.gradle/caches/transforms-3/7d97304d19cd6e743dd55d92cc573be5/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-3/186d6d05f3db23c5fe0a4b230bc3b183/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
-MERGED from [com.alphacephei:vosk-android:0.3.47] /home/hemang/.gradle/caches/transforms-3/fb0afa4a9454f65863f2f34ce38d7e00/transformed/vosk-android-0.3.47/AndroidManifest.xml:2:1-7:12
-MERGED from [net.java.dev.jna:jna:5.13.0] /home/hemang/.gradle/caches/transforms-3/be7091bcb7147b01f9c83f3ba9009f9a/transformed/jna-5.13.0/AndroidManifest.xml:2:1-8:12
+MERGED from [androidx.databinding:viewbinding:8.2.2] /home/hemang/.gradle/caches/transforms-3/ff738bfa393afe45258a2a48e3f72b44/transformed/viewbinding-8.2.2/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/b3f61dffa74d263504d7517c373d8233/transformed/material-1.11.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/0e4c5f292d63682fb52757bebfaaf37a/transformed/constraintlayout-2.1.4/AndroidManifest.xml:2:1-11:12
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/hemang/.gradle/caches/transforms-3/dfa49be159557e60f8d3b15d310fe980/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.appcompat:appcompat:1.6.1] /home/hemang/.gradle/caches/transforms-3/cf27ab299c0121d378c2df078f43a8fd/transformed/appcompat-1.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cbef02fb6a33dd2fdb05b81cfb246f0/transformed/viewpager2-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.fragment:fragment:1.3.6] /home/hemang/.gradle/caches/transforms-3/bbdabd05477ae53cecf7dda0da396179/transformed/fragment-1.3.6/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/hemang/.gradle/caches/transforms-3/a02a064dca9de840237a854129d9c397/transformed/drawerlayout-1.1.1/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/hemang/.gradle/caches/transforms-3/35a53b34466f980fa0616c5d7c771157/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/hemang/.gradle/caches/transforms-3/1d9a3ae201dcf47f073c44f93981dabe/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.transition:transition:1.2.0] /home/hemang/.gradle/caches/transforms-3/69d74495ddbaba69717703a2943aeeb0/transformed/transition-1.2.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/hemang/.gradle/caches/transforms-3/fedf1f512864ae266a19e3d1bb265d6d/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/hemang/.gradle/caches/transforms-3/15da733fc2f38907d31e39c10f507501/transformed/vectordrawable-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.compose.material3:material3-android:1.2.0] /home/hemang/.gradle/caches/transforms-3/ef590eb8fb4e0921ee693a9df1f5d126/transformed/material3-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.material:material-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/646a6b32084396051d699ce27f4f5f06/transformed/material-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-icons-core-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/cd81157c3a9653df7bb7c170f499fd7d/transformed/material-icons-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.material:material-ripple-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/2ecb719a2d046894b47e3f80e56a21d3/transformed/material-ripple-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/3fe900d35fc72741d576b2699f3eb0f7/transformed/foundation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/526d0dd771ceab45dca3c99c58d751b7/transformed/animation-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/a9fa2ba01cf3b9046d1b104f63be36ae/transformed/foundation-layout-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.animation:animation-core-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/8fc055bc0e2d4040f0513ec1f9317cf0/transformed/animation-core-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/971754ac157c0184ab7da82f6130d167/transformed/ui-tooling-data-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-unit-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/c893f0fd12a9042050a5baab60e6afad/transformed/ui-unit-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-geometry-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/44e25db013cf49080e5c4c61b4637f02/transformed/ui-geometry-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-util-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/b455042b51ca121a23db5e1b63d1a91f/transformed/ui-util-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-text-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/d72bab2c0845d7c2fd8336b378d090ff/transformed/ui-text-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/0f9d66a3b0d1b0a2a56ce55ffee2500c/transformed/ui-tooling-preview-release/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:17:1-28:12
+MERGED from [androidx.compose.ui:ui-graphics-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/a2e06fd99fd446f36ef41bc38e2eb275/transformed/ui-graphics-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:17:1-28:12
+MERGED from [androidx.compose.ui:ui-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/3964ab8b2fa67d411e10e5411c59f6ce/transformed/ui-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-ktx:1.8.2] /home/hemang/.gradle/caches/transforms-3/3a6a8452a65f917fd5de736a6a23f2f4/transformed/activity-ktx-1.8.2/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity-compose:1.8.2] /home/hemang/.gradle/caches/transforms-3/a865c4f0920dcb4b7193afe71c63772e/transformed/activity-compose-1.8.2/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.activity:activity:1.8.2] /home/hemang/.gradle/caches/transforms-3/1f09738b500082902a49a2d08300fb54/transformed/activity-1.8.2/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/hemang/.gradle/caches/transforms-3/0ea40373e7688d591150d3780be1095b/transformed/viewpager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cdeb2b769a7ea863e5e9a7a73bf2b66/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.loader:loader:1.0.0] /home/hemang/.gradle/caches/transforms-3/2b2dd3da25abff9385a90051cd540005/transformed/loader-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/hemang/.gradle/caches/transforms-3/bbb2b4d6c13ffafd12501b69905a5561/transformed/recyclerview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.customview:customview:1.1.0] /home/hemang/.gradle/caches/transforms-3/e5b19f2ef9f1dc4e2cb73f919a4358c6/transformed/customview-1.1.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.autofill:autofill:1.0.0] /home/hemang/.gradle/caches/transforms-3/291df676212d7e49462ce8f76901adcd/transformed/autofill-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/hemang/.gradle/caches/transforms-3/9e558f78c792a157f9eb37c9f38dfed2/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:17:1-30:12
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/hemang/.gradle/caches/transforms-3/bf621335f939fef4fee5e580bd510e32/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/hemang/.gradle/caches/transforms-3/8fd03c1c791780c3d4ffd487efcd267a/transformed/savedstate-1.2.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:17:1-35:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1] /home/hemang/.gradle/caches/transforms-3/41b5d58aa8b7a3a8a4c634ba9c7526d3/transformed/lifecycle-viewmodel-ktx-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.1] /home/hemang/.gradle/caches/transforms-3/9b2b68cd48f01728401b4342e3868c48/transformed/lifecycle-runtime-ktx-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/hemang/.gradle/caches/transforms-3/805b8024214176674af2738d6d552e4d/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/hemang/.gradle/caches/transforms-3/4ef87462dcd9ddf5907fad84f35ac603/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/hemang/.gradle/caches/transforms-3/a369a012aa4948d82fcedd2642775915/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/hemang/.gradle/caches/transforms-3/2ccdc168f20aa2a52351298af3fef5bf/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/hemang/.gradle/caches/transforms-3/4703bd26c515d27c3bdaeb9c6f39d157/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /home/hemang/.gradle/caches/transforms-3/2e2fc3dc9a59391ef42eb53c0f128ca7/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:17:1-23:12
+MERGED from [androidx.core:core-ktx:1.12.0] /home/hemang/.gradle/caches/transforms-3/04f4c009406fa5653d443e3ebafe2a9a/transformed/core-ktx-1.12.0/AndroidManifest.xml:2:1-7:12
+MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/6b08efb3adbd868c17538e75e45201b3/transformed/litertlm-android-0.11.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/ae03d4576049bfee5c0e2688c1e1c161/transformed/runtime-saveable-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.compose.runtime:runtime-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/d7c4e838bff35f946a00b59734afd0a2/transformed/runtime-release/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] /home/hemang/.gradle/caches/transforms-3/70739cf469502c6210ee12343cb00336/transformed/annotation-experimental-1.4.0/AndroidManifest.xml:2:1-7:12
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/d0474aef239e45eb1c398a4842995377/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:17:1-27:12
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/hemang/.gradle/caches/transforms-3/63c62968072ab6c7f6741562c48158a0/transformed/cursoradapter-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.cardview:cardview:1.0.0] /home/hemang/.gradle/caches/transforms-3/d962e8446ec684a5ad53c92ca88efdac/transformed/cardview-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/hemang/.gradle/caches/transforms-3/1b8c04816059078ba80cdbac8388b8b2/transformed/interpolator-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:17:1-55:12
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/2368be3eb1d7e700514a8c0a8d51948b/transformed/startup-runtime-1.1.1/AndroidManifest.xml:17:1-33:12
+MERGED from [androidx.tracing:tracing:1.0.0] /home/hemang/.gradle/caches/transforms-3/2d7b6193d9ef6546b1b2e6ae18281abd/transformed/tracing-1.0.0/AndroidManifest.xml:17:1-24:12
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/hemang/.gradle/caches/transforms-3/dda8c88914dc9107a8d64f021751817b/transformed/documentfile-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/hemang/.gradle/caches/transforms-3/24a1f841eb370c273de61eee56123352/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-3/c4a27c683a8b1f680db1ae9e7726cb53/transformed/print-1.0.0/AndroidManifest.xml:17:1-22:12
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/hemang/.gradle/caches/transforms-3/ccf4fee0ca2ae37a26fc4bab3f491bc6/transformed/core-runtime-2.2.0/AndroidManifest.xml:17:1-22:12
+MERGED from [com.alphacephei:vosk-android:0.3.47] /home/hemang/.gradle/caches/transforms-3/023ba1b9aee1838740cdc6b1eda3876b/transformed/vosk-android-0.3.47/AndroidManifest.xml:2:1-7:12
+MERGED from [net.java.dev.jna:jna:5.13.0] /home/hemang/.gradle/caches/transforms-3/ff519bd5ea6563e442d13b745a3b4b64/transformed/jna-5.13.0/AndroidManifest.xml:2:1-8:12
 	package
 		INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
 	android:versionName
@@ -122,28 +149,32 @@ ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManife
 application
 ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:34:5-75:19
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:34:5-75:19
-MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/9d1caa38aaac422d28fcc837e0c74d83/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
-MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/9d1caa38aaac422d28fcc837e0c74d83/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
-MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/579aa568dee819796f9429e7cfeac5d1/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
-MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/579aa568dee819796f9429e7cfeac5d1/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:23:5-33:19
-MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:28:5-89
-MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:28:5-89
-MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:23:5-33:19
-MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:23:5-33:19
-MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/04bb649bc1b44bd8faa15448b1e0e9c4/transformed/litertlm-android-0.11.0/AndroidManifest.xml:5:5-6:19
-MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/04bb649bc1b44bd8faa15448b1e0e9c4/transformed/litertlm-android-0.11.0/AndroidManifest.xml:5:5-6:19
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/4e5252b3f47872d309a146770b54aae5/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/4e5252b3f47872d309a146770b54aae5/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
-MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:23:5-53:19
-MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:23:5-53:19
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/d445ab07e0c56993caf9f1818ec7e34d/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/d445ab07e0c56993caf9f1818ec7e34d/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/b3f61dffa74d263504d7517c373d8233/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
+MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/b3f61dffa74d263504d7517c373d8233/transformed/material-1.11.0/AndroidManifest.xml:22:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/0e4c5f292d63682fb52757bebfaaf37a/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/0e4c5f292d63682fb52757bebfaaf37a/transformed/constraintlayout-2.1.4/AndroidManifest.xml:9:5-20
+MERGED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:22:5-26:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:28:5-89
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:23:5-33:19
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:23:5-33:19
+MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/6b08efb3adbd868c17538e75e45201b3/transformed/litertlm-android-0.11.0/AndroidManifest.xml:5:5-6:19
+MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/6b08efb3adbd868c17538e75e45201b3/transformed/litertlm-android-0.11.0/AndroidManifest.xml:5:5-6:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/d0474aef239e45eb1c398a4842995377/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/d0474aef239e45eb1c398a4842995377/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:24:5-25:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:23:5-53:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/2368be3eb1d7e700514a8c0a8d51948b/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/2368be3eb1d7e700514a8c0a8d51948b/transformed/startup-runtime-1.1.1/AndroidManifest.xml:25:5-31:19
 	android:extractNativeLibs
 		INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
 	android:appComponentFactory
-		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
+		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
 	android:supportsRtl
 		ADDED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:37:9-35
 	android:label
@@ -214,188 +245,254 @@ uses-sdk
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml reason: use-sdk injection requested
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
 INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
-MERGED from [androidx.databinding:viewbinding:8.2.2] /home/hemang/.gradle/caches/transforms-3/8202e6e610a8758da682bd065bc840f8/transformed/viewbinding-8.2.2/AndroidManifest.xml:5:5-44
-MERGED from [androidx.databinding:viewbinding:8.2.2] /home/hemang/.gradle/caches/transforms-3/8202e6e610a8758da682bd065bc840f8/transformed/viewbinding-8.2.2/AndroidManifest.xml:5:5-44
-MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/9d1caa38aaac422d28fcc837e0c74d83/transformed/material-1.11.0/AndroidManifest.xml:20:5-44
-MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/9d1caa38aaac422d28fcc837e0c74d83/transformed/material-1.11.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/579aa568dee819796f9429e7cfeac5d1/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
-MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/579aa568dee819796f9429e7cfeac5d1/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
-MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/hemang/.gradle/caches/transforms-3/4e3654e044385961449f404ad54e9e2f/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/hemang/.gradle/caches/transforms-3/4e3654e044385961449f404ad54e9e2f/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.appcompat:appcompat:1.6.1] /home/hemang/.gradle/caches/transforms-3/3f2b22d24eec647cbaefe34be7d37c86/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.appcompat:appcompat:1.6.1] /home/hemang/.gradle/caches/transforms-3/3f2b22d24eec647cbaefe34be7d37c86/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/hemang/.gradle/caches/transforms-3/92eff44b5ce1e902eb96cdc7fb33dff8/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:5:5-44
-MERGED from [androidx.emoji2:emoji2-views-helper:1.2.0] /home/hemang/.gradle/caches/transforms-3/92eff44b5ce1e902eb96cdc7fb33dff8/transformed/emoji2-views-helper-1.2.0/AndroidManifest.xml:5:5-44
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:21:5-44
-MERGED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:21:5-44
-MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cb102aa7d0b85621a55e3e832b792a8/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cb102aa7d0b85621a55e3e832b792a8/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.fragment:fragment:1.3.6] /home/hemang/.gradle/caches/transforms-3/58b864308f3eeb58caa973abe3e996c6/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.fragment:fragment:1.3.6] /home/hemang/.gradle/caches/transforms-3/58b864308f3eeb58caa973abe3e996c6/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.activity:activity:1.8.0] /home/hemang/.gradle/caches/transforms-3/b72b73e364faccede0a4615a52a0849c/transformed/activity-1.8.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.activity:activity:1.8.0] /home/hemang/.gradle/caches/transforms-3/b72b73e364faccede0a4615a52a0849c/transformed/activity-1.8.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/hemang/.gradle/caches/transforms-3/2978a8560457f850f72b78071fbf776d/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/hemang/.gradle/caches/transforms-3/2978a8560457f850f72b78071fbf776d/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/hemang/.gradle/caches/transforms-3/7d693104c288292cdac98455cb75e3bb/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/hemang/.gradle/caches/transforms-3/7d693104c288292cdac98455cb75e3bb/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/hemang/.gradle/caches/transforms-3/5dbac4b88c98c4d046298ad1740a2f1f/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/hemang/.gradle/caches/transforms-3/5dbac4b88c98c4d046298ad1740a2f1f/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.transition:transition:1.2.0] /home/hemang/.gradle/caches/transforms-3/2d4f91bd875797e5622f56e8040dbc05/transformed/transition-1.2.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.transition:transition:1.2.0] /home/hemang/.gradle/caches/transforms-3/2d4f91bd875797e5622f56e8040dbc05/transformed/transition-1.2.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/hemang/.gradle/caches/transforms-3/ef784e42d8cdf2a5f25431bf4fa564b9/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/hemang/.gradle/caches/transforms-3/ef784e42d8cdf2a5f25431bf4fa564b9/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/hemang/.gradle/caches/transforms-3/3aaf3b1a5186bf350cbc5300b60e04fa/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/hemang/.gradle/caches/transforms-3/3aaf3b1a5186bf350cbc5300b60e04fa/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/hemang/.gradle/caches/transforms-3/043766236b574d2311579148e948a453/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.viewpager:viewpager:1.0.0] /home/hemang/.gradle/caches/transforms-3/043766236b574d2311579148e948a453/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/hemang/.gradle/caches/transforms-3/067bad1e30f8dde407af45c5aade9228/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/hemang/.gradle/caches/transforms-3/067bad1e30f8dde407af45c5aade9228/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.loader:loader:1.0.0] /home/hemang/.gradle/caches/transforms-3/25e19d70b5fc9162dbed823ad71eb54e/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.loader:loader:1.0.0] /home/hemang/.gradle/caches/transforms-3/25e19d70b5fc9162dbed823ad71eb54e/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/hemang/.gradle/caches/transforms-3/69d4036901cdf3c24b5e4a0c156b32f2/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/hemang/.gradle/caches/transforms-3/69d4036901cdf3c24b5e4a0c156b32f2/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.customview:customview:1.1.0] /home/hemang/.gradle/caches/transforms-3/afbb750036e91f8e3afbc598abd292c8/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.customview:customview:1.1.0] /home/hemang/.gradle/caches/transforms-3/afbb750036e91f8e3afbc598abd292c8/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.savedstate:savedstate:1.2.1] /home/hemang/.gradle/caches/transforms-3/72c576c04396c494e14ac5c1ec09b77e/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.savedstate:savedstate:1.2.1] /home/hemang/.gradle/caches/transforms-3/72c576c04396c494e14ac5c1ec09b77e/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:21:5-44
-MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:21:5-44
-MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/hemang/.gradle/caches/transforms-3/d8c0b9f12ca5c56b6dc26e41606964bb/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/hemang/.gradle/caches/transforms-3/d8c0b9f12ca5c56b6dc26e41606964bb/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/hemang/.gradle/caches/transforms-3/3e9a609798a71967fcf71825cdff3d1c/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/hemang/.gradle/caches/transforms-3/3e9a609798a71967fcf71825cdff3d1c/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/hemang/.gradle/caches/transforms-3/60abc914b58e8684962bca22d7a42087/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/hemang/.gradle/caches/transforms-3/60abc914b58e8684962bca22d7a42087/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/hemang/.gradle/caches/transforms-3/ec308dd2615d5cb134ea980ed040bae9/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:5:5-44
-MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/hemang/.gradle/caches/transforms-3/ec308dd2615d5cb134ea980ed040bae9/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:5:5-44
-MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/hemang/.gradle/caches/transforms-3/3565b51ce61324ad5c0a3feab96ca772/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/hemang/.gradle/caches/transforms-3/3565b51ce61324ad5c0a3feab96ca772/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:20:5-44
-MERGED from [androidx.core:core-ktx:1.12.0] /home/hemang/.gradle/caches/transforms-3/cbd2f0cc437d1a0e39829063e976e4dc/transformed/core-ktx-1.12.0/AndroidManifest.xml:5:5-44
-MERGED from [androidx.core:core-ktx:1.12.0] /home/hemang/.gradle/caches/transforms-3/cbd2f0cc437d1a0e39829063e976e4dc/transformed/core-ktx-1.12.0/AndroidManifest.xml:5:5-44
-MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/04bb649bc1b44bd8faa15448b1e0e9c4/transformed/litertlm-android-0.11.0/AndroidManifest.xml:4:5-44
-MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/04bb649bc1b44bd8faa15448b1e0e9c4/transformed/litertlm-android-0.11.0/AndroidManifest.xml:4:5-44
-MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/hemang/.gradle/caches/transforms-3/0308ebcbf66073064cab73fc05de5b3c/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.annotation:annotation-experimental:1.3.0] /home/hemang/.gradle/caches/transforms-3/0308ebcbf66073064cab73fc05de5b3c/transformed/annotation-experimental-1.3.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/hemang/.gradle/caches/transforms-3/69fe553da954e4008b82ba537c23fc8c/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/hemang/.gradle/caches/transforms-3/69fe553da954e4008b82ba537c23fc8c/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.cardview:cardview:1.0.0] /home/hemang/.gradle/caches/transforms-3/0aecbc964af9ced8e5d1439560c9a656/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.cardview:cardview:1.0.0] /home/hemang/.gradle/caches/transforms-3/0aecbc964af9ced8e5d1439560c9a656/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.interpolator:interpolator:1.0.0] /home/hemang/.gradle/caches/transforms-3/7d106d479634973bfa435f766cf16831/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.interpolator:interpolator:1.0.0] /home/hemang/.gradle/caches/transforms-3/7d106d479634973bfa435f766cf16831/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/4e5252b3f47872d309a146770b54aae5/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/4e5252b3f47872d309a146770b54aae5/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:21:5-44
-MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:21:5-44
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/d445ab07e0c56993caf9f1818ec7e34d/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/d445ab07e0c56993caf9f1818ec7e34d/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
-MERGED from [androidx.tracing:tracing:1.0.0] /home/hemang/.gradle/caches/transforms-3/eecf7b254bb3e7950ff542b94aa5eb63/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.tracing:tracing:1.0.0] /home/hemang/.gradle/caches/transforms-3/eecf7b254bb3e7950ff542b94aa5eb63/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
-MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/hemang/.gradle/caches/transforms-3/fd4f7055011f39cc02dd1f2e778e20d3/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/hemang/.gradle/caches/transforms-3/fd4f7055011f39cc02dd1f2e778e20d3/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.documentfile:documentfile:1.0.0] /home/hemang/.gradle/caches/transforms-3/05c9608e8872dd2534c4b9d50e9ab9ca/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.documentfile:documentfile:1.0.0] /home/hemang/.gradle/caches/transforms-3/05c9608e8872dd2534c4b9d50e9ab9ca/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/hemang/.gradle/caches/transforms-3/7d97304d19cd6e743dd55d92cc573be5/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/hemang/.gradle/caches/transforms-3/7d97304d19cd6e743dd55d92cc573be5/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-3/186d6d05f3db23c5fe0a4b230bc3b183/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-3/186d6d05f3db23c5fe0a4b230bc3b183/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
-MERGED from [com.alphacephei:vosk-android:0.3.47] /home/hemang/.gradle/caches/transforms-3/fb0afa4a9454f65863f2f34ce38d7e00/transformed/vosk-android-0.3.47/AndroidManifest.xml:5:5-44
-MERGED from [com.alphacephei:vosk-android:0.3.47] /home/hemang/.gradle/caches/transforms-3/fb0afa4a9454f65863f2f34ce38d7e00/transformed/vosk-android-0.3.47/AndroidManifest.xml:5:5-44
-MERGED from [net.java.dev.jna:jna:5.13.0] /home/hemang/.gradle/caches/transforms-3/be7091bcb7147b01f9c83f3ba9009f9a/transformed/jna-5.13.0/AndroidManifest.xml:7:5-47
-MERGED from [net.java.dev.jna:jna:5.13.0] /home/hemang/.gradle/caches/transforms-3/be7091bcb7147b01f9c83f3ba9009f9a/transformed/jna-5.13.0/AndroidManifest.xml:7:5-47
+MERGED from [androidx.databinding:viewbinding:8.2.2] /home/hemang/.gradle/caches/transforms-3/ff738bfa393afe45258a2a48e3f72b44/transformed/viewbinding-8.2.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.databinding:viewbinding:8.2.2] /home/hemang/.gradle/caches/transforms-3/ff738bfa393afe45258a2a48e3f72b44/transformed/viewbinding-8.2.2/AndroidManifest.xml:5:5-44
+MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/b3f61dffa74d263504d7517c373d8233/transformed/material-1.11.0/AndroidManifest.xml:20:5-44
+MERGED from [com.google.android.material:material:1.11.0] /home/hemang/.gradle/caches/transforms-3/b3f61dffa74d263504d7517c373d8233/transformed/material-1.11.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/0e4c5f292d63682fb52757bebfaaf37a/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.constraintlayout:constraintlayout:2.1.4] /home/hemang/.gradle/caches/transforms-3/0e4c5f292d63682fb52757bebfaaf37a/transformed/constraintlayout-2.1.4/AndroidManifest.xml:5:5-7:41
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/hemang/.gradle/caches/transforms-3/dfa49be159557e60f8d3b15d310fe980/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat-resources:1.6.1] /home/hemang/.gradle/caches/transforms-3/dfa49be159557e60f8d3b15d310fe980/transformed/appcompat-resources-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat:1.6.1] /home/hemang/.gradle/caches/transforms-3/cf27ab299c0121d378c2df078f43a8fd/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.appcompat:appcompat:1.6.1] /home/hemang/.gradle/caches/transforms-3/cf27ab299c0121d378c2df078f43a8fd/transformed/appcompat-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cbef02fb6a33dd2fdb05b81cfb246f0/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.viewpager2:viewpager2:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cbef02fb6a33dd2fdb05b81cfb246f0/transformed/viewpager2-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.3.6] /home/hemang/.gradle/caches/transforms-3/bbdabd05477ae53cecf7dda0da396179/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.fragment:fragment:1.3.6] /home/hemang/.gradle/caches/transforms-3/bbdabd05477ae53cecf7dda0da396179/transformed/fragment-1.3.6/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/hemang/.gradle/caches/transforms-3/a02a064dca9de840237a854129d9c397/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.drawerlayout:drawerlayout:1.1.1] /home/hemang/.gradle/caches/transforms-3/a02a064dca9de840237a854129d9c397/transformed/drawerlayout-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/hemang/.gradle/caches/transforms-3/35a53b34466f980fa0616c5d7c771157/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.coordinatorlayout:coordinatorlayout:1.1.0] /home/hemang/.gradle/caches/transforms-3/35a53b34466f980fa0616c5d7c771157/transformed/coordinatorlayout-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/hemang/.gradle/caches/transforms-3/1d9a3ae201dcf47f073c44f93981dabe/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.dynamicanimation:dynamicanimation:1.0.0] /home/hemang/.gradle/caches/transforms-3/1d9a3ae201dcf47f073c44f93981dabe/transformed/dynamicanimation-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.transition:transition:1.2.0] /home/hemang/.gradle/caches/transforms-3/69d74495ddbaba69717703a2943aeeb0/transformed/transition-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.transition:transition:1.2.0] /home/hemang/.gradle/caches/transforms-3/69d74495ddbaba69717703a2943aeeb0/transformed/transition-1.2.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/hemang/.gradle/caches/transforms-3/fedf1f512864ae266a19e3d1bb265d6d/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable-animated:1.1.0] /home/hemang/.gradle/caches/transforms-3/fedf1f512864ae266a19e3d1bb265d6d/transformed/vectordrawable-animated-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/hemang/.gradle/caches/transforms-3/15da733fc2f38907d31e39c10f507501/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.vectordrawable:vectordrawable:1.1.0] /home/hemang/.gradle/caches/transforms-3/15da733fc2f38907d31e39c10f507501/transformed/vectordrawable-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.compose.material3:material3-android:1.2.0] /home/hemang/.gradle/caches/transforms-3/ef590eb8fb4e0921ee693a9df1f5d126/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material3:material3-android:1.2.0] /home/hemang/.gradle/caches/transforms-3/ef590eb8fb4e0921ee693a9df1f5d126/transformed/material3-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.material:material-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/646a6b32084396051d699ce27f4f5f06/transformed/material-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/646a6b32084396051d699ce27f4f5f06/transformed/material-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/cd81157c3a9653df7bb7c170f499fd7d/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-icons-core-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/cd81157c3a9653df7bb7c170f499fd7d/transformed/material-icons-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/2ecb719a2d046894b47e3f80e56a21d3/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.material:material-ripple-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/2ecb719a2d046894b47e3f80e56a21d3/transformed/material-ripple-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/3fe900d35fc72741d576b2699f3eb0f7/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/3fe900d35fc72741d576b2699f3eb0f7/transformed/foundation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/526d0dd771ceab45dca3c99c58d751b7/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/526d0dd771ceab45dca3c99c58d751b7/transformed/animation-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/a9fa2ba01cf3b9046d1b104f63be36ae/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.foundation:foundation-layout-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/a9fa2ba01cf3b9046d1b104f63be36ae/transformed/foundation-layout-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/8fc055bc0e2d4040f0513ec1f9317cf0/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.animation:animation-core-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/8fc055bc0e2d4040f0513ec1f9317cf0/transformed/animation-core-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/971754ac157c0184ab7da82f6130d167/transformed/ui-tooling-data-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-data-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/971754ac157c0184ab7da82f6130d167/transformed/ui-tooling-data-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/c893f0fd12a9042050a5baab60e6afad/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-unit-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/c893f0fd12a9042050a5baab60e6afad/transformed/ui-unit-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/44e25db013cf49080e5c4c61b4637f02/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-geometry-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/44e25db013cf49080e5c4c61b4637f02/transformed/ui-geometry-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/b455042b51ca121a23db5e1b63d1a91f/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-util-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/b455042b51ca121a23db5e1b63d1a91f/transformed/ui-util-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/d72bab2c0845d7c2fd8336b378d090ff/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-text-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/d72bab2c0845d7c2fd8336b378d090ff/transformed/ui-text-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/0f9d66a3b0d1b0a2a56ce55ffee2500c/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-preview-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/0f9d66a3b0d1b0a2a56ce55ffee2500c/transformed/ui-tooling-preview-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/a2e06fd99fd446f36ef41bc38e2eb275/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-graphics-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/a2e06fd99fd446f36ef41bc38e2eb275/transformed/ui-graphics-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.compose.ui:ui-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/3964ab8b2fa67d411e10e5411c59f6ce/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.ui:ui-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/3964ab8b2fa67d411e10e5411c59f6ce/transformed/ui-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.8.2] /home/hemang/.gradle/caches/transforms-3/3a6a8452a65f917fd5de736a6a23f2f4/transformed/activity-ktx-1.8.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-ktx:1.8.2] /home/hemang/.gradle/caches/transforms-3/3a6a8452a65f917fd5de736a6a23f2f4/transformed/activity-ktx-1.8.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.8.2] /home/hemang/.gradle/caches/transforms-3/a865c4f0920dcb4b7193afe71c63772e/transformed/activity-compose-1.8.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity-compose:1.8.2] /home/hemang/.gradle/caches/transforms-3/a865c4f0920dcb4b7193afe71c63772e/transformed/activity-compose-1.8.2/AndroidManifest.xml:5:5-44
+MERGED from [androidx.activity:activity:1.8.2] /home/hemang/.gradle/caches/transforms-3/1f09738b500082902a49a2d08300fb54/transformed/activity-1.8.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.activity:activity:1.8.2] /home/hemang/.gradle/caches/transforms-3/1f09738b500082902a49a2d08300fb54/transformed/activity-1.8.2/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/hemang/.gradle/caches/transforms-3/0ea40373e7688d591150d3780be1095b/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.viewpager:viewpager:1.0.0] /home/hemang/.gradle/caches/transforms-3/0ea40373e7688d591150d3780be1095b/transformed/viewpager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cdeb2b769a7ea863e5e9a7a73bf2b66/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.legacy:legacy-support-core-utils:1.0.0] /home/hemang/.gradle/caches/transforms-3/4cdeb2b769a7ea863e5e9a7a73bf2b66/transformed/legacy-support-core-utils-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/hemang/.gradle/caches/transforms-3/2b2dd3da25abff9385a90051cd540005/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.loader:loader:1.0.0] /home/hemang/.gradle/caches/transforms-3/2b2dd3da25abff9385a90051cd540005/transformed/loader-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/hemang/.gradle/caches/transforms-3/bbb2b4d6c13ffafd12501b69905a5561/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.recyclerview:recyclerview:1.1.0] /home/hemang/.gradle/caches/transforms-3/bbb2b4d6c13ffafd12501b69905a5561/transformed/recyclerview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/hemang/.gradle/caches/transforms-3/e5b19f2ef9f1dc4e2cb73f919a4358c6/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.customview:customview:1.1.0] /home/hemang/.gradle/caches/transforms-3/e5b19f2ef9f1dc4e2cb73f919a4358c6/transformed/customview-1.1.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.autofill:autofill:1.0.0] /home/hemang/.gradle/caches/transforms-3/291df676212d7e49462ce8f76901adcd/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.autofill:autofill:1.0.0] /home/hemang/.gradle/caches/transforms-3/291df676212d7e49462ce8f76901adcd/transformed/autofill-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/hemang/.gradle/caches/transforms-3/9e558f78c792a157f9eb37c9f38dfed2/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2-views-helper:1.3.0] /home/hemang/.gradle/caches/transforms-3/9e558f78c792a157f9eb37c9f38dfed2/transformed/emoji2-views-helper-1.3.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/hemang/.gradle/caches/transforms-3/bf621335f939fef4fee5e580bd510e32/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate-ktx:1.2.1] /home/hemang/.gradle/caches/transforms-3/bf621335f939fef4fee5e580bd510e32/transformed/savedstate-ktx-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/hemang/.gradle/caches/transforms-3/8fd03c1c791780c3d4ffd487efcd267a/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.savedstate:savedstate:1.2.1] /home/hemang/.gradle/caches/transforms-3/8fd03c1c791780c3d4ffd487efcd267a/transformed/savedstate-1.2.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:21:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1] /home/hemang/.gradle/caches/transforms-3/41b5d58aa8b7a3a8a4c634ba9c7526d3/transformed/lifecycle-viewmodel-ktx-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1] /home/hemang/.gradle/caches/transforms-3/41b5d58aa8b7a3a8a4c634ba9c7526d3/transformed/lifecycle-viewmodel-ktx-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.1] /home/hemang/.gradle/caches/transforms-3/9b2b68cd48f01728401b4342e3868c48/transformed/lifecycle-runtime-ktx-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime-ktx:2.6.1] /home/hemang/.gradle/caches/transforms-3/9b2b68cd48f01728401b4342e3868c48/transformed/lifecycle-runtime-ktx-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/hemang/.gradle/caches/transforms-3/805b8024214176674af2738d6d552e4d/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata:2.6.1] /home/hemang/.gradle/caches/transforms-3/805b8024214176674af2738d6d552e4d/transformed/lifecycle-livedata-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/hemang/.gradle/caches/transforms-3/4ef87462dcd9ddf5907fad84f35ac603/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-runtime:2.6.1] /home/hemang/.gradle/caches/transforms-3/4ef87462dcd9ddf5907fad84f35ac603/transformed/lifecycle-runtime-2.6.1/AndroidManifest.xml:5:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/hemang/.gradle/caches/transforms-3/a369a012aa4948d82fcedd2642775915/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-livedata-core:2.6.1] /home/hemang/.gradle/caches/transforms-3/a369a012aa4948d82fcedd2642775915/transformed/lifecycle-livedata-core-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/hemang/.gradle/caches/transforms-3/2ccdc168f20aa2a52351298af3fef5bf/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel:2.6.1] /home/hemang/.gradle/caches/transforms-3/2ccdc168f20aa2a52351298af3fef5bf/transformed/lifecycle-viewmodel-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/hemang/.gradle/caches/transforms-3/4703bd26c515d27c3bdaeb9c6f39d157/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.lifecycle:lifecycle-viewmodel-savedstate:2.6.1] /home/hemang/.gradle/caches/transforms-3/4703bd26c515d27c3bdaeb9c6f39d157/transformed/lifecycle-viewmodel-savedstate-2.6.1/AndroidManifest.xml:20:5-44
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /home/hemang/.gradle/caches/transforms-3/2e2fc3dc9a59391ef42eb53c0f128ca7/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.customview:customview-poolingcontainer:1.0.0] /home/hemang/.gradle/caches/transforms-3/2e2fc3dc9a59391ef42eb53c0f128ca7/transformed/customview-poolingcontainer-1.0.0/AndroidManifest.xml:20:5-21:38
+MERGED from [androidx.core:core-ktx:1.12.0] /home/hemang/.gradle/caches/transforms-3/04f4c009406fa5653d443e3ebafe2a9a/transformed/core-ktx-1.12.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.core:core-ktx:1.12.0] /home/hemang/.gradle/caches/transforms-3/04f4c009406fa5653d443e3ebafe2a9a/transformed/core-ktx-1.12.0/AndroidManifest.xml:5:5-44
+MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/6b08efb3adbd868c17538e75e45201b3/transformed/litertlm-android-0.11.0/AndroidManifest.xml:4:5-44
+MERGED from [com.google.ai.edge.litertlm:litertlm-android:0.11.0] /home/hemang/.gradle/caches/transforms-3/6b08efb3adbd868c17538e75e45201b3/transformed/litertlm-android-0.11.0/AndroidManifest.xml:4:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/ae03d4576049bfee5c0e2688c1e1c161/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-saveable-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/ae03d4576049bfee5c0e2688c1e1c161/transformed/runtime-saveable-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/d7c4e838bff35f946a00b59734afd0a2/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.compose.runtime:runtime-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/d7c4e838bff35f946a00b59734afd0a2/transformed/runtime-release/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] /home/hemang/.gradle/caches/transforms-3/70739cf469502c6210ee12343cb00336/transformed/annotation-experimental-1.4.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.annotation:annotation-experimental:1.4.0] /home/hemang/.gradle/caches/transforms-3/70739cf469502c6210ee12343cb00336/transformed/annotation-experimental-1.4.0/AndroidManifest.xml:5:5-44
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/d0474aef239e45eb1c398a4842995377/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.versionedparcelable:versionedparcelable:1.1.1] /home/hemang/.gradle/caches/transforms-3/d0474aef239e45eb1c398a4842995377/transformed/versionedparcelable-1.1.1/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/hemang/.gradle/caches/transforms-3/63c62968072ab6c7f6741562c48158a0/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cursoradapter:cursoradapter:1.0.0] /home/hemang/.gradle/caches/transforms-3/63c62968072ab6c7f6741562c48158a0/transformed/cursoradapter-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/hemang/.gradle/caches/transforms-3/d962e8446ec684a5ad53c92ca88efdac/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.cardview:cardview:1.0.0] /home/hemang/.gradle/caches/transforms-3/d962e8446ec684a5ad53c92ca88efdac/transformed/cardview-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/hemang/.gradle/caches/transforms-3/1b8c04816059078ba80cdbac8388b8b2/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.interpolator:interpolator:1.0.0] /home/hemang/.gradle/caches/transforms-3/1b8c04816059078ba80cdbac8388b8b2/transformed/interpolator-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:21:5-44
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/2368be3eb1d7e700514a8c0a8d51948b/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/2368be3eb1d7e700514a8c0a8d51948b/transformed/startup-runtime-1.1.1/AndroidManifest.xml:21:5-23:41
+MERGED from [androidx.tracing:tracing:1.0.0] /home/hemang/.gradle/caches/transforms-3/2d7b6193d9ef6546b1b2e6ae18281abd/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.tracing:tracing:1.0.0] /home/hemang/.gradle/caches/transforms-3/2d7b6193d9ef6546b1b2e6ae18281abd/transformed/tracing-1.0.0/AndroidManifest.xml:20:5-22:41
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/hemang/.gradle/caches/transforms-3/dda8c88914dc9107a8d64f021751817b/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.documentfile:documentfile:1.0.0] /home/hemang/.gradle/caches/transforms-3/dda8c88914dc9107a8d64f021751817b/transformed/documentfile-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/hemang/.gradle/caches/transforms-3/24a1f841eb370c273de61eee56123352/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.localbroadcastmanager:localbroadcastmanager:1.0.0] /home/hemang/.gradle/caches/transforms-3/24a1f841eb370c273de61eee56123352/transformed/localbroadcastmanager-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-3/c4a27c683a8b1f680db1ae9e7726cb53/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.print:print:1.0.0] /home/hemang/.gradle/caches/transforms-3/c4a27c683a8b1f680db1ae9e7726cb53/transformed/print-1.0.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/hemang/.gradle/caches/transforms-3/ccf4fee0ca2ae37a26fc4bab3f491bc6/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [androidx.arch.core:core-runtime:2.2.0] /home/hemang/.gradle/caches/transforms-3/ccf4fee0ca2ae37a26fc4bab3f491bc6/transformed/core-runtime-2.2.0/AndroidManifest.xml:20:5-44
+MERGED from [com.alphacephei:vosk-android:0.3.47] /home/hemang/.gradle/caches/transforms-3/023ba1b9aee1838740cdc6b1eda3876b/transformed/vosk-android-0.3.47/AndroidManifest.xml:5:5-44
+MERGED from [com.alphacephei:vosk-android:0.3.47] /home/hemang/.gradle/caches/transforms-3/023ba1b9aee1838740cdc6b1eda3876b/transformed/vosk-android-0.3.47/AndroidManifest.xml:5:5-44
+MERGED from [net.java.dev.jna:jna:5.13.0] /home/hemang/.gradle/caches/transforms-3/ff519bd5ea6563e442d13b745a3b4b64/transformed/jna-5.13.0/AndroidManifest.xml:7:5-47
+MERGED from [net.java.dev.jna:jna:5.13.0] /home/hemang/.gradle/caches/transforms-3/ff519bd5ea6563e442d13b745a3b4b64/transformed/jna-5.13.0/AndroidManifest.xml:7:5-47
 	android:targetSdkVersion
 		INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
 	android:minSdkVersion
 		INJECTED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
 		MERGED from /home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml
+activity#androidx.compose.ui.tooling.PreviewActivity
+ADDED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:23:9-25:39
+	android:exported
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:25:13-36
+	android:name
+		ADDED from [androidx.compose.ui:ui-tooling-android:1.6.1] /home/hemang/.gradle/caches/transforms-3/aab2d2b28d347ed35f4fd782fab567f0/transformed/ui-tooling-release/AndroidManifest.xml:24:13-71
+activity#androidx.activity.ComponentActivity
+ADDED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:23:9-25:39
+	android:exported
+		ADDED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:25:13-36
+	android:name
+		ADDED from [androidx.compose.ui:ui-test-manifest:1.6.1] /home/hemang/.gradle/caches/transforms-3/65d0a13a15fee72cd5bd6923f9d366bc/transformed/ui-test-manifest-1.6.1/AndroidManifest.xml:24:13-63
 provider#androidx.startup.InitializationProvider
-ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
-MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:24:9-32:20
-MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:24:9-32:20
-MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:24:9-32:20
-MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:24:9-32:20
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/d445ab07e0c56993caf9f1818ec7e34d/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
-MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/d445ab07e0c56993caf9f1818ec7e34d/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:24:9-32:20
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/2368be3eb1d7e700514a8c0a8d51948b/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
+MERGED from [androidx.startup:startup-runtime:1.1.1] /home/hemang/.gradle/caches/transforms-3/2368be3eb1d7e700514a8c0a8d51948b/transformed/startup-runtime-1.1.1/AndroidManifest.xml:26:9-30:34
 	tools:node
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:28:13-31
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:28:13-31
 	android:authorities
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
 	android:exported
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
 	android:name
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
 meta-data#androidx.emoji2.text.EmojiCompatInitializer
-ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
 	android:value
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
 	android:name
-		ADDED from [androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+		ADDED from [androidx.emoji2:emoji2:1.3.0] /home/hemang/.gradle/caches/transforms-3/c5f7bc8a1e83e9f1df4ff7d7d6d4bc78/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
 permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
+ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
 	android:protectionLevel
-		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
+		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
 	android:name
-		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
+		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
 permission#com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
+ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
 	android:protectionLevel
-		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
+		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
 	android:name
-		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
+		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
 uses-permission#${applicationId}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
+ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
 	android:name
-		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
+		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
 uses-permission#com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION
-ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
+ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
 	android:name
-		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
+		ADDED from [androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/b0bddd88123ca1d2217b603e6d9c6720/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
 meta-data#androidx.lifecycle.ProcessLifecycleInitializer
-ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
+ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
 	android:value
-		ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
+		ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
 	android:name
-		ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
+		ADDED from [androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/a5585167443d8b31eaec8323d908ddd8/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
 meta-data#androidx.profileinstaller.ProfileInstallerInitializer
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
 	android:value
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
 	android:name
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
 receiver#androidx.profileinstaller.ProfileInstallReceiver
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
 	android:enabled
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
 	android:exported
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
 	android:permission
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
 	android:directBootAware
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
 	android:name
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
 intent-filter#action:name:androidx.profileinstaller.action.INSTALL_PROFILE
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
 action#androidx.profileinstaller.action.INSTALL_PROFILE
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
 	android:name
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
 intent-filter#action:name:androidx.profileinstaller.action.SKIP_FILE
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
 action#androidx.profileinstaller.action.SKIP_FILE
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
 	android:name
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
 intent-filter#action:name:androidx.profileinstaller.action.SAVE_PROFILE
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
 action#androidx.profileinstaller.action.SAVE_PROFILE
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
 	android:name
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
 intent-filter#action:name:androidx.profileinstaller.action.BENCHMARK_OPERATION
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
 action#androidx.profileinstaller.action.BENCHMARK_OPERATION
-ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
+ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
 	android:name
-		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
+		ADDED from [androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/1ad8bd9dd57afa7629d91f8dc132321d/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92

@@ -24,6 +24,13 @@ import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.unit.dp
+
 class AssistantSession(context: Context) : VoiceInteractionSession(context), TextToSpeech.OnInitListener {
 
     private lateinit var overlayView: View
@@ -34,8 +41,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private lateinit var btnMic: ImageButton
     private lateinit var btnOpenApp: Button
     private lateinit var inputControls: View
-    private lateinit var voiceAnimation: VoiceAnimationView
+    private lateinit var voiceAnimation: ComposeView
     private lateinit var ivCenterMic: View
+    private var systemPhaseState = mutableStateOf(SystemPhase.STANDBY)
     private lateinit var svResponse: android.widget.ScrollView
     
     private var lastResponseBuilder = java.lang.StringBuilder()
@@ -81,10 +89,23 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         btnSend = overlayView.findViewById(R.id.btnSend)
         btnMic = overlayView.findViewById(R.id.btnMic)
         btnOpenApp = overlayView.findViewById(R.id.btnOpenApp)
-        voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
         ivCenterMic = overlayView.findViewById(R.id.ivCenterMic)
         svResponse = overlayView.findViewById(R.id.svResponse)
         inputControls = overlayView.findViewById(R.id.inputControlsContainer)
+        
+        voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
+        voiceAnimation.setContent {
+            PureComposeCarAssistant(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                systemPhase = systemPhaseState.value,
+                energy = when(systemPhaseState.value) {
+                    SystemPhase.LISTENING -> 0.4f
+                    SystemPhase.PROCESSING -> 0.8f
+                    SystemPhase.EXECUTING -> 1.4f
+                    SystemPhase.STANDBY -> 0.2f
+                }
+            )
+        }
         
         idleAnimator = android.animation.ObjectAnimator.ofFloat(ivCenterMic, "alpha", 1f, 0.3f, 1f).apply {
             duration = 2000
@@ -127,7 +148,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             override fun onReadyForSpeech(params: Bundle?) {
                 statusText.visibility = View.VISIBLE
                 startDotAnimation("Listening")
-                voiceAnimation.state = VoiceAnimationView.State.LISTENING
+                systemPhaseState.value = SystemPhase.LISTENING
                 ivCenterMic.visibility = View.VISIBLE
                 idleAnimator?.cancel()
                 ivCenterMic.alpha = 1f
@@ -149,7 +170,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 }
                 stopDotAnimation(errorMsg)
                 statusText.visibility = View.VISIBLE
-                voiceAnimation.state = VoiceAnimationView.State.IDLE
+                systemPhaseState.value = SystemPhase.STANDBY
                 ivCenterMic.visibility = View.VISIBLE
                 idleAnimator?.start()
                 
@@ -188,7 +209,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         stopDotAnimation("Hi, how can I help you?")
         responseText.text = ""
         etInput.setText("")
-        voiceAnimation.state = VoiceAnimationView.State.IDLE
+        systemPhaseState.value = SystemPhase.STANDBY
         ivCenterMic.visibility = View.VISIBLE
         idleAnimator?.start()
         
@@ -238,13 +259,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private fun startThinkingAnimation() {
         statusText.visibility = View.VISIBLE
         startDotAnimation("Processing")
-        voiceAnimation.state = VoiceAnimationView.State.THINKING
+        systemPhaseState.value = SystemPhase.PROCESSING
         ivCenterMic.visibility = View.GONE
         idleAnimator?.cancel()
     }
 
     private fun stopThinkingAnimation() {
-        voiceAnimation.state = VoiceAnimationView.State.IDLE
+        systemPhaseState.value = SystemPhase.STANDBY
         ivCenterMic.visibility = View.VISIBLE
         idleAnimator?.start()
         stopDotAnimation()
@@ -442,7 +463,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             }
                             
                             CoroutineScope(Dispatchers.Main).launch {
-                                voiceAnimation.state = VoiceAnimationView.State.SPEAKING
+                                systemPhaseState.value = SystemPhase.EXECUTING
                                 ivCenterMic.visibility = View.GONE
                                 val chunk = message.toString()
                                 lastResponseBuilder.append(chunk)

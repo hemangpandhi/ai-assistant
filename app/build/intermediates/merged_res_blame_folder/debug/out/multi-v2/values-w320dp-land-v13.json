@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.gemininano.app-mergeDebugResources-30:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
+            "outputFile": "com.example.gemininano.app-mergeDebugResources-56:/values-w320dp-land-v13/values-w320dp-land-v13.xml",
             "map": [
                 {
-                    "source": "/home/hemang/.gradle/caches/transforms-3/9d1caa38aaac422d28fcc837e0c74d83/transformed/material-1.11.0/res/values-w320dp-land-v13/values-w320dp-land-v13.xml",
+                    "source": "/home/hemang/.gradle/caches/transforms-3/b3f61dffa74d263504d7517c373d8233/transformed/material-1.11.0/res/values-w320dp-land-v13/values-w320dp-land-v13.xml",
                     "from": {
                         "startLines": "2,3",
                         "startColumns": "4,4",

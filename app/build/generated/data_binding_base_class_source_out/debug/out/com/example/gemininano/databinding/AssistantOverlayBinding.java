@@ -15,10 +15,10 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.cardview.widget.CardView;
+import androidx.compose.ui.platform.ComposeView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
 import com.example.gemininano.R;
-import com.example.gemininano.VoiceAnimationView;
 import java.lang.NullPointerException;
 import java.lang.Override;
 import java.lang.String;
@@ -64,7 +64,7 @@ public final class AssistantOverlayBinding implements ViewBinding {
   public final ScrollView svResponse;
 
   @NonNull
-  public final VoiceAnimationView voiceAnimation;
+  public final ComposeView voiceAnimation;
 
   private AssistantOverlayBinding(@NonNull FrameLayout rootView,
       @NonNull FrameLayout animationContainer, @NonNull TextView assistantResponseText,
@@ -72,7 +72,7 @@ public final class AssistantOverlayBinding implements ViewBinding {
       @NonNull Button btnOpenApp, @NonNull Button btnSend, @NonNull CardView cardPopup,
       @NonNull EditText etInput, @NonNull LinearLayout inputControlsContainer,
       @NonNull ImageView ivCenterMic, @NonNull FrameLayout rootOverlay,
-      @NonNull ScrollView svResponse, @NonNull VoiceAnimationView voiceAnimation) {
+      @NonNull ScrollView svResponse, @NonNull ComposeView voiceAnimation) {
     this.rootView = rootView;
     this.animationContainer = animationContainer;
     this.assistantResponseText = assistantResponseText;
@@ -185,7 +185,7 @@ public final class AssistantOverlayBinding implements ViewBinding {
       }
 
       id = R.id.voiceAnimation;
-      VoiceAnimationView voiceAnimation = ViewBindings.findChildViewById(rootView, id);
+      ComposeView voiceAnimation = ViewBindings.findChildViewById(rootView, id);
       if (voiceAnimation == null) {
         break missingId;
       }
