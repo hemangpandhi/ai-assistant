@@ -756,7 +756,17 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (intent.resolveActivity(packageManager) != null) startActivity(intent)
             } else if (toolCall.startsWith("call")) {
                 val contact = toolCall.substringAfter("(").substringBefore(")")
-                val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${android.net.Uri.encode(contact)}"))
+                
+                // Map common contact names to dummy phone numbers for the demo
+                val phoneNumber = when (contact.lowercase()) {
+                    "mechanic" -> "1-800-555-0199" // Mock Dealership Service Center
+                    "home" -> "555-0100"
+                    "wife" -> "555-0101"
+                    "husband" -> "555-0102"
+                    else -> contact // If it's already a number or an unmapped name, pass it directly
+                }
+                
+                val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${android.net.Uri.encode(phoneNumber)}"))
                 intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                 startActivity(intent)
             } else if (toolCall.startsWith("remember")) {
