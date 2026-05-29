@@ -195,6 +195,22 @@ object VehicleManager {
         }
     }
 
+    fun writeSeatMassagerToVhal(level: Int) {
+        try {
+            // Seat Massage is a hidden API (added in API 33) 
+            Log.i("VehicleManager", "Setting Seat Massager to level $level")
+            val config = carPropertyManager?.getCarPropertyConfig(356519253) // 0x15400D55 (SEAT_MASSAGE)
+            config?.areaIds?.forEach { areaId ->
+                var finalLevel = level
+                if (finalLevel > 3) finalLevel = 3
+                if (finalLevel < 0) finalLevel = 0
+                carPropertyManager?.setIntProperty(356519253, areaId, finalLevel)
+            }
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to write VHAL seat massager. Possibly unsupported by current HAL.", e)
+        }
+    }
+
     fun writeWindowPositionToVhal(percentage: Int) {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS)

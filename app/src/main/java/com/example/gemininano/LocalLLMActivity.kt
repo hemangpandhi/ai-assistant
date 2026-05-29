@@ -710,6 +710,9 @@ class LocalLLMActivity : AppCompatActivity() {
             } else if (toolCall.startsWith("setSeatHeater")) {
                 val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
                 VehicleManager.writeSeatHeaterToVhal(value)
+            } else if (toolCall.startsWith("setSeatMassager")) {
+                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
+                VehicleManager.writeSeatMassagerToVhal(value)
             } else if (toolCall.startsWith("setWindowPosition")) {
                 if (VehicleManager.getRealSpeed() > 70) {
                     android.util.Log.w("SafetyGuardrail", "Speed > 70mph. Ignored setWindowPosition tool.")
