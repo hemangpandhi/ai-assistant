@@ -55,7 +55,11 @@ object VehicleManager {
             carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.HVAC_TEMPERATURE_SET, CarPropertyManager.SENSOR_RATE_ONCHANGE)
             carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.FUEL_LEVEL, CarPropertyManager.SENSOR_RATE_ONCHANGE)
             carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.GEAR_SELECTION, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-            carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.WINDOW_POS, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+            try {
+                carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.WINDOW_POS, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+            } catch (e: Exception) {
+                Log.w("VehicleManager", "Could not register window pos callback")
+            }
             
             currentSpeed = getFloatPropertyQuietly(VehiclePropertyIds.PERF_VEHICLE_SPEED, 0f)
             currentSeatHeaterLevel = getIntPropertyQuietly(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, 0)
@@ -96,6 +100,7 @@ object VehicleManager {
             currentTemperature.toInt()
         }
     }
+    fun getRawTemperature(): Float = currentTemperature
     fun getFuelLevel(): Float = currentFuelLevel
     fun getGearSelection(): String {
         return when (currentGear) {
@@ -127,18 +132,37 @@ object VehicleManager {
             
             areaIds.forEach { areaId ->
                 var finalTemp = temp
-                // If requested temp is clearly in Fahrenheit (e.g., > 50), convert to Celsius
-                if (finalTemp > 50f) {
+                // If requested temp is clearly in Fahrenheit (e.g., > 30), convert to Celsius
+                // Car HVAC max Celsius is usually 28.0C, so anything above 30 is Fahrenheit
+                if (finalTemp > 30f) {
                     finalTemp = (finalTemp - 32f) * 5f / 9f
                 }
                 
                 // Android Automotive HVAC UI strictly requires temperatures to be rounded to the nearest 0.5
                 finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
                 
+                // Clamp to safe limits (16.0C to 28.0C) to prevent VHAL IllegalArgumentException
                 try {
+                    val configArray = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.configArray
+                    if (configArray != null && configArray.size >= 2) {
+                        val minC = configArray[0] / 10f
+                        val maxC = configArray[1] / 10f
+                        if (finalTemp > maxC) finalTemp = maxC
+                        if (finalTemp < minC) finalTemp = minC
+                    } else {
+                        if (finalTemp > 28.0f) finalTemp = 28.0f
+                        if (finalTemp < 16.0f) finalTemp = 16.0f
+                    }
+                } catch (e: Exception) {
+                    if (finalTemp > 28.0f) finalTemp = 28.0f
+                    if (finalTemp < 16.0f) finalTemp = 16.0f
+                }
+
+                try {
+                    Log.d("VehicleManager", "Setting temp for area $areaId to $finalTemp")
                     carPropertyManager?.setFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp)
                 } catch (e: Exception) {
-                    Log.e("VehicleManager", "Failed to set temp for area $areaId", e)
+                    Log.e("VehicleManager", "Failed to set temp for area $areaId (tried $finalTemp)", e)
                 }
             }
             currentTemperature = temp
