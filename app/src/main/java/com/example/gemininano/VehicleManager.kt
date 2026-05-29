@@ -95,9 +95,9 @@ object VehicleManager {
         // VHAL usually stores in Celsius (e.g. 16-32)
         // If it's less than 50, assume Celsius and convert to Fahrenheit for the LLM
         return if (currentTemperature < 50f) {
-            ((currentTemperature * 9f / 5f) + 32f).toInt()
+            Math.round((currentTemperature * 9f / 5f) + 32f)
         } else {
-            currentTemperature.toInt()
+            Math.round(currentTemperature)
         }
     }
     fun getRawTemperature(): Float = currentTemperature

@@ -808,7 +808,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 LLMManager.isFirstMessage = false
                 LLMManager.getSystemPrompt(applicationContext) + "\nUser: " + prompt
             } else {
-                prompt
+                "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}]\nUser: " + prompt
             }
 
             val executedTools = mutableSetOf<String>()
