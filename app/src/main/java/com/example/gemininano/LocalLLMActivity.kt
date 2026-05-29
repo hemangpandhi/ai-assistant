@@ -884,7 +884,23 @@ class LocalLLMActivity : AppCompatActivity() {
                             
                             finalResponse = finalResponse.replace(regex, "").trim()
                             if (finalResponse.isEmpty() && executedTools.isNotEmpty()) {
-                                finalResponse = "Action completed."
+                                finalResponse = executedTools.joinToString("\n") { tool ->
+                                    when {
+                                        tool.startsWith("increaseTemperature") -> "I've increased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
+                                        tool.startsWith("decreaseTemperature") -> "I've decreased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
+                                        tool.startsWith("setTemperature") -> "I've set the temperature to ${tool.substringAfter("(").substringBefore(")")} degrees."
+                                        tool.startsWith("setSeatHeater") -> "I've adjusted the seat heater."
+                                        tool.startsWith("setSeatMassager") -> "I've turned on the seat massager for you."
+                                        tool.startsWith("turnOnDefroster") -> "I've turned on the defroster."
+                                        tool.startsWith("turnOffDefroster") -> "I've turned off the defroster."
+                                        tool.startsWith("setWindowPosition") -> "I've adjusted the windows."
+                                        tool.startsWith("navigate") -> "Routing to ${tool.substringAfter("(").substringBefore(")")}."
+                                        tool.startsWith("playMusic") -> "Playing ${tool.substringAfter("(").substringBefore(")")}."
+                                        tool.startsWith("call") -> "Calling ${tool.substringAfter("(").substringBefore(")")}."
+                                        tool.startsWith("remember") -> "Got it, I've remembered that."
+                                        else -> "Action completed."
+                                    }
+                                }
                             }
                             chatAdapter.replaceLastMessage(finalResponse)
                             chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
