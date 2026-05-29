@@ -43,16 +43,12 @@ class VoiceAnimationView @JvmOverloads constructor(
 
     private val colors = intArrayOf(colorCyan, colorMagenta, colorYellow, colorGreen)
     
-    // Paints for the Ribbon Waveform (Speaking)
-    private val wavePaints = colors.map {
+    // Paints for the Google-style Pulsing Dots (Speaking)
+    private val dotPaints = colors.map {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = it
-            style = Paint.Style.STROKE
-            strokeWidth = 10f
-            strokeCap = Paint.Cap.ROUND
-            strokeJoin = Paint.Join.ROUND
-            // Soft, elegant glow
-            setShadowLayer(18f, 0f, 0f, it)
+            style = Paint.Style.FILL
+            setShadowLayer(16f, 0f, 0f, it)
         }
     }
 
@@ -77,7 +73,6 @@ class VoiceAnimationView @JvmOverloads constructor(
         }
     }
 
-    private val wavePath = Path()
 
     init {
         // Required for setShadowLayer to work properly on paths
@@ -115,7 +110,7 @@ class VoiceAnimationView @JvmOverloads constructor(
         when (state) {
             State.LISTENING -> drawSonarRipple(canvas, cx, cy)
             State.THINKING -> drawInfiniteFlow(canvas, cx, cy)
-            State.SPEAKING -> drawFluidRibbons(canvas, cx, cy)
+            State.SPEAKING -> drawPulsingDots(canvas, cx, cy)
             else -> {}
         }
     }
@@ -172,40 +167,33 @@ class VoiceAnimationView @JvmOverloads constructor(
         }
     }
 
-    private fun drawFluidRibbons(canvas: Canvas, cx: Float, cy: Float) {
-        // 4 elegant, thick intertwined sine waves
-        val maxAmplitude = height * 0.3f
-        val waveWidth = width * 0.8f
-        val startX = cx - waveWidth / 2f
+    private fun drawPulsingDots(canvas: Canvas, cx: Float, cy: Float) {
+        // 4 elegant, clean pulsing dots (Google Assistant style)
+        val numDots = 4
+        val dotSpacing = 80f
+        val startX = cx - (dotSpacing * (numDots - 1)) / 2f
+        val baseRadius = 18f
+        val maxExtraRadius = 16f
         
-        val numRibbons = 4
-        
-        for (i in 0 until numRibbons) {
-            wavePath.reset()
-            val paint = wavePaints[i]
+        for (i in 0 until numDots) {
+            val paint = dotPaints[i]
             
-            val phaseOffset = i * (Math.PI / 2f)
-            val speedMult = 1.5f + (i * 0.2f)
+            // Phase offset for wave effect
+            val phaseOffset = i * (Math.PI / 3f)
             
-            wavePath.moveTo(startX, cy)
+            // Fast smooth sine pulse
+            val pulse = sin(animationPhase * 6f - phaseOffset).toFloat()
+            // Map pulse from [-1, 1] to [0, 1]
+            val normalizedPulse = (pulse + 1f) / 2f
             
-            val steps = 100 // Very smooth curves
-            for (step in 0..steps) {
-                val progress = step.toFloat() / steps
-                val x = startX + progress * waveWidth
-                
-                // Smooth bell curve envelope to taper the ends
-                val envelope = sin(progress * Math.PI).toFloat()
-                
-                // Simple elegant sine wave
-                val wave = sin(progress * Math.PI * 3f + (animationPhase * speedMult) + phaseOffset).toFloat()
-                
-                val y = cy + wave * maxAmplitude * envelope
-                
-                wavePath.lineTo(x, y)
-            }
+            val radius = baseRadius + (normalizedPulse * maxExtraRadius)
             
-            canvas.drawPath(wavePath, paint)
+            // Optional: slight vertical bounce
+            val bounceY = cy - (pulse * 10f)
+            
+            val x = startX + (i * dotSpacing)
+            
+            canvas.drawCircle(x, bounceY, radius, paint)
         }
     }
 }
