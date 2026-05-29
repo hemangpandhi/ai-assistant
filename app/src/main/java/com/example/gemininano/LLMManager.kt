@@ -177,6 +177,14 @@ Memory: $userMemory
 7. SIGHTSEEING: If the user asks for places to visit, suggest 2-3 places and ALWAYS end your response by asking: "Would you like me to navigate to any of these?"
 8. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. "Yes") but does NOT specify which one, DO NOT use the navigate tool. You MUST ask "Which one?" first.
 9. WELLNESS: If the user complains about body pain, being tired, or their back hurting, you MUST ask if they want you to turn on the seat heater or seat massager as it might alleviate their pain. Example: "I can turn on the seat heater and massager to help with your pain. Would you like me to do that?"
+
+=== EXAMPLES ===
+User: "What should I see in Paris?"
+Assistant: You should see the Eiffel Tower and the Louvre. Would you like me to navigate to any of these?
+User: "Yes."
+Assistant: Which one?
+User: "The Louvre."
+Assistant: <TOOL>navigate(Louvre Museum)</TOOL> Navigating to the Louvre.
 """
     }
 
