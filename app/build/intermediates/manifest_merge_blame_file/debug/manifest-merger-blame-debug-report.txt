@@ -8,206 +8,235 @@
 8        android:minSdkVersion="34"
 9        android:targetSdkVersion="34" />
 10
-11    <!-- Permissions required for downloading the model -->
-12    <uses-permission android:name="android.permission.INTERNET" />
-12-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:5:5-67
-12-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:5:22-64
-13    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-13-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:5-79
-13-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:22-76
-14    <uses-permission android:name="android.permission.SET_TIME" />
-14-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:7:5-67
-14-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:7:22-64
-15    <uses-permission android:name="android.permission.RECORD_AUDIO" />
-15-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:8:5-71
-15-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:8:22-68
-16
-17    <!-- Permissions required for Car VHAL -->
-18    <uses-permission android:name="android.car.permission.CONTROL_CAR_CLIMATE" />
-18-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:11:5-82
-18-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:11:22-79
-19    <uses-permission android:name="android.car.permission.CONTROL_CAR_SEATS" />
-19-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:12:5-80
-19-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:12:22-77
-20    <uses-permission android:name="android.car.permission.CAR_SPEED" />
-20-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:13:5-72
-20-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:13:22-69
-21    <uses-permission android:name="android.car.permission.CAR_ENERGY" />
-21-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:14:5-73
-21-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:14:22-70
-22    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
-22-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:15:5-77
-22-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:15:22-74
-23
-24    <!-- Permissions for Vosk Wake Word Background Service -->
-25    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-25-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:18:5-77
-25-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:18:22-74
-26    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
-26-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:19:5-88
-26-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:19:22-85
-27
-28    <permission
-28-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
-29        android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
-29-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
-30        android:protectionLevel="signature" />
-30-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
-31
-32    <uses-permission android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
-32-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
-32-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
-33
-34    <application
-34-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:21:5-62:19
-35        android:allowBackup="true"
-35-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:22:9-35
-36        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
-36-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
-37        android:debuggable="true"
-38        android:extractNativeLibs="false"
-39        android:label="Local AI Assistant"
-39-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:23:9-43
-40        android:supportsRtl="true"
-40-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:24:9-35
-41        android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar" >
-41-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:25:9-79
-42        <activity
-42-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:26:9-33:20
-43            android:name="com.example.gemininano.MainActivity"
-43-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:27:13-41
-44            android:exported="true" >
-44-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:28:13-36
-45
-46            <!--
-47            <intent-filter>
-48                <action android:name="android.intent.action.MAIN" />
-49                <category android:name="android.intent.category.LAUNCHER" />
-50            </intent-filter>
-51            -->
-52        </activity>
-53        <activity
-53-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:35:9-42:20
-54            android:name="com.example.gemininano.LocalLLMActivity"
-54-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:36:13-45
-55            android:exported="true" >
-55-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:37:13-36
-56            <intent-filter>
-56-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:38:13-41:29
-57                <action android:name="android.intent.action.MAIN" />
-57-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:39:17-69
-57-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:39:25-66
-58
-59                <category android:name="android.intent.category.LAUNCHER" />
-59-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:40:17-77
-59-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:40:27-74
-60            </intent-filter>
-61        </activity>
-62
-63        <service
-63-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:44:9-52:19
-64            android:name="com.example.gemininano.AssistantVoiceInteractionService"
-64-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:44:18-66
-65            android:exported="true"
-65-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:46:18-41
-66            android:permission="android.permission.BIND_VOICE_INTERACTION" >
-66-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:45:18-80
-67            <meta-data
-67-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:47:13-48:76
-68                android:name="android.voice_interaction"
-68-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:47:24-64
-69                android:resource="@xml/voice_interaction_service" />
-69-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:48:24-73
-70
-71            <intent-filter>
-71-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:49:13-51:29
-72                <action android:name="android.service.voice.VoiceInteractionService" />
-72-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:50:17-88
-72-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:50:25-85
-73            </intent-filter>
-74        </service>
-75        <service
-75-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:54:9-56:44
-76            android:name="com.example.gemininano.AssistantSessionService"
-76-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:54:18-57
-77            android:exported="true"
-77-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:56:18-41
-78            android:permission="android.permission.BIND_VOICE_INTERACTION" />
-78-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:55:18-80
+11    <!-- Package Visibility for Navigation intents -->
+12    <queries>
+12-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:5:5-15:15
+13        <package android:name="org.chromium.webview_shell" />
+13-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:9-62
+13-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:6:18-59
+14
+15        <intent>
+15-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:7:9-10:18
+16            <action android:name="android.intent.action.VIEW" />
+16-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:8:13-65
+16-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:8:21-62
+17
+18            <data android:scheme="google.navigation" />
+18-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:9:13-56
+18-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:9:19-53
+19        </intent>
+20        <intent>
+20-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:11:9-14:18
+21            <action android:name="android.intent.action.VIEW" />
+21-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:8:13-65
+21-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:8:21-62
+22
+23            <data android:scheme="geo" />
+23-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:9:13-56
+23-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:9:19-53
+24        </intent>
+25    </queries>
+26
+27    <!-- Permissions required for downloading the model -->
+28    <uses-permission android:name="android.permission.INTERNET" />
+28-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:18:5-67
+28-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:18:22-64
+29    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+29-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:19:5-79
+29-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:19:22-76
+30    <uses-permission android:name="android.permission.SET_TIME" />
+30-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:20:5-67
+30-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:20:22-64
+31    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+31-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:21:5-71
+31-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:21:22-68
+32
+33    <!-- Permissions required for Car VHAL -->
+34    <uses-permission android:name="android.car.permission.CONTROL_CAR_CLIMATE" />
+34-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:24:5-82
+34-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:24:22-79
+35    <uses-permission android:name="android.car.permission.CONTROL_CAR_SEATS" />
+35-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:25:5-80
+35-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:25:22-77
+36    <uses-permission android:name="android.car.permission.CAR_SPEED" />
+36-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:26:5-72
+36-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:26:22-69
+37    <uses-permission android:name="android.car.permission.CAR_ENERGY" />
+37-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:27:5-73
+37-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:27:22-70
+38    <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
+38-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:28:5-77
+38-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:28:22-74
+39
+40    <!-- Permissions for Vosk Wake Word Background Service -->
+41    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+41-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:31:5-77
+41-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:31:22-74
+42    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+42-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:32:5-88
+42-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:32:22-85
+43
+44    <permission
+44-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:22:5-24:47
+45        android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+45-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:23:9-81
+46        android:protectionLevel="signature" />
+46-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:24:9-44
+47
+48    <uses-permission android:name="com.example.gemininano.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+48-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:5-97
+48-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:26:22-94
+49
+50    <application
+50-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:34:5-75:19
+51        android:allowBackup="true"
+51-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:35:9-35
+52        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+52-->[androidx.core:core:1.12.0] /home/hemang/.gradle/caches/transforms-3/ccb407f2a7adb1c93bb82f33f57af837/transformed/core-1.12.0/AndroidManifest.xml:28:18-86
+53        android:debuggable="true"
+54        android:extractNativeLibs="false"
+55        android:label="Local AI Assistant"
+55-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:36:9-43
+56        android:supportsRtl="true"
+56-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:37:9-35
+57        android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar" >
+57-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:38:9-79
+58        <activity
+58-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:39:9-46:20
+59            android:name="com.example.gemininano.MainActivity"
+59-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:40:13-41
+60            android:exported="true" >
+60-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:41:13-36
+61
+62            <!--
+63            <intent-filter>
+64                <action android:name="android.intent.action.MAIN" />
+65                <category android:name="android.intent.category.LAUNCHER" />
+66            </intent-filter>
+67            -->
+68        </activity>
+69        <activity
+69-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:48:9-55:20
+70            android:name="com.example.gemininano.LocalLLMActivity"
+70-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:49:13-45
+71            android:exported="true" >
+71-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:50:13-36
+72            <intent-filter>
+72-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:51:13-54:29
+73                <action android:name="android.intent.action.MAIN" />
+73-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:52:17-69
+73-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:52:25-66
+74
+75                <category android:name="android.intent.category.LAUNCHER" />
+75-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:53:17-77
+75-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:53:27-74
+76            </intent-filter>
+77        </activity>
+78
 79        <service
-79-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:58:9-60:45
-80            android:name="com.example.gemininano.WakeWordService"
-80-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:58:18-49
-81            android:exported="false"
-81-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:60:18-42
-82            android:foregroundServiceType="microphone" />
-82-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:59:18-60
-83
-84        <provider
-84-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
-85            android:name="androidx.startup.InitializationProvider"
-85-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
-86            android:authorities="com.example.gemininano.androidx-startup"
-86-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
-87            android:exported="false" >
-87-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
-88            <meta-data
-88-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
-89                android:name="androidx.emoji2.text.EmojiCompatInitializer"
-89-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
-90                android:value="androidx.startup" />
-90-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
-91            <meta-data
-91-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
-92                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
-92-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
-93                android:value="androidx.startup" />
-93-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
-94            <meta-data
-94-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
-95                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
-95-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
-96                android:value="androidx.startup" />
-96-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
-97        </provider>
-98
-99        <receiver
-99-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
-100            android:name="androidx.profileinstaller.ProfileInstallReceiver"
-100-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
-101            android:directBootAware="false"
-101-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
-102            android:enabled="true"
-102-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
-103            android:exported="true"
-103-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
-104            android:permission="android.permission.DUMP" >
-104-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
-105            <intent-filter>
-105-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
-106                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
-106-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
-106-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
-107            </intent-filter>
-108            <intent-filter>
-108-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
-109                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
-109-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
-109-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
-110            </intent-filter>
-111            <intent-filter>
-111-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
-112                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
-112-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
-112-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
-113            </intent-filter>
-114            <intent-filter>
-114-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
-115                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
-115-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
-115-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
-116            </intent-filter>
-117        </receiver>
-118    </application>
-119
-120</manifest>
+79-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:57:9-65:19
+80            android:name="com.example.gemininano.AssistantVoiceInteractionService"
+80-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:57:18-66
+81            android:exported="true"
+81-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:59:18-41
+82            android:permission="android.permission.BIND_VOICE_INTERACTION" >
+82-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:58:18-80
+83            <meta-data
+83-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:60:13-61:76
+84                android:name="android.voice_interaction"
+84-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:60:24-64
+85                android:resource="@xml/voice_interaction_service" />
+85-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:61:24-73
+86
+87            <intent-filter>
+87-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:62:13-64:29
+88                <action android:name="android.service.voice.VoiceInteractionService" />
+88-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:63:17-88
+88-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:63:25-85
+89            </intent-filter>
+90        </service>
+91        <service
+91-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:67:9-69:44
+92            android:name="com.example.gemininano.AssistantSessionService"
+92-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:67:18-57
+93            android:exported="true"
+93-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:69:18-41
+94            android:permission="android.permission.BIND_VOICE_INTERACTION" />
+94-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:68:18-80
+95        <service
+95-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:71:9-73:45
+96            android:name="com.example.gemininano.WakeWordService"
+96-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:71:18-49
+97            android:exported="false"
+97-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:73:18-42
+98            android:foregroundServiceType="microphone" />
+98-->/home/hemang/socllm/AOSP_GeminiNano_Sample/app/src/main/AndroidManifest.xml:72:18-60
+99
+100        <provider
+100-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:24:9-32:20
+101            android:name="androidx.startup.InitializationProvider"
+101-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:25:13-67
+102            android:authorities="com.example.gemininano.androidx-startup"
+102-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:26:13-68
+103            android:exported="false" >
+103-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:27:13-37
+104            <meta-data
+104-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:29:13-31:52
+105                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+105-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:30:17-75
+106                android:value="androidx.startup" />
+106-->[androidx.emoji2:emoji2:1.2.0] /home/hemang/.gradle/caches/transforms-3/b5ba730d7535611287febd8f241ea4cc/transformed/emoji2-1.2.0/AndroidManifest.xml:31:17-49
+107            <meta-data
+107-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:29:13-31:52
+108                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+108-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:30:17-78
+109                android:value="androidx.startup" />
+109-->[androidx.lifecycle:lifecycle-process:2.6.1] /home/hemang/.gradle/caches/transforms-3/7d181d854a7f096c83c6a6d45689378e/transformed/lifecycle-process-2.6.1/AndroidManifest.xml:31:17-49
+110            <meta-data
+110-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:29:13-31:52
+111                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+111-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:30:17-85
+112                android:value="androidx.startup" />
+112-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:31:17-49
+113        </provider>
+114
+115        <receiver
+115-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:34:9-52:20
+116            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+116-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:35:13-76
+117            android:directBootAware="false"
+117-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:36:13-44
+118            android:enabled="true"
+118-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:37:13-35
+119            android:exported="true"
+119-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:38:13-36
+120            android:permission="android.permission.DUMP" >
+120-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:39:13-57
+121            <intent-filter>
+121-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:40:13-42:29
+122                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+122-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:17-91
+122-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:41:25-88
+123            </intent-filter>
+124            <intent-filter>
+124-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:43:13-45:29
+125                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+125-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:17-85
+125-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:44:25-82
+126            </intent-filter>
+127            <intent-filter>
+127-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:46:13-48:29
+128                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+128-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:17-88
+128-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:47:25-85
+129            </intent-filter>
+130            <intent-filter>
+130-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:49:13-51:29
+131                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+131-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:17-95
+131-->[androidx.profileinstaller:profileinstaller:1.3.0] /home/hemang/.gradle/caches/transforms-3/14dbad6856f45f015cb80c3814156821/transformed/profileinstaller-1.3.0/AndroidManifest.xml:50:25-92
+132            </intent-filter>
+133        </receiver>
+134    </application>
+135
+136</manifest>

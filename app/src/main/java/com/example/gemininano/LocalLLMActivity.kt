@@ -729,7 +729,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
                     VehicleManager.writeWindowPositionToVhal(value)
                 }
-            } else if (toolCall.startsWith("navigate")) {
+            } else if (toolCall.lowercase().startsWith("navigate")) {
                 val dest = toolCall.substringAfter("(").substringBefore(")")
                 
                 // On AOSP Emulator, the Maps app silently swallows intents without throwing exceptions.
@@ -854,7 +854,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
 
             val executedTools = mutableSetOf<String>()
-            val regex = "<TOOL>(.*?)</TOOL>".toRegex()
+            val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
             val spokenTextLength = intArrayOf(0)
 
             val startTime = System.currentTimeMillis()

@@ -280,7 +280,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
                     VehicleManager.writeWindowPositionToVhal(value)
                 }
-            } else if (toolCall.startsWith("navigate")) {
+            } else if (toolCall.lowercase().startsWith("navigate")) {
                 val dest = toolCall.substringAfter("(").substringBefore(")")
                 
                 // Show a toast to guarantee visual confirmation to the user
@@ -406,7 +406,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
 
         val executedTools = mutableSetOf<String>()
-        val regex = "<TOOL>(.*?)</TOOL>".toRegex()
+        val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
         val spokenTextLength = intArrayOf(0)
         
         val startTime = System.currentTimeMillis()
