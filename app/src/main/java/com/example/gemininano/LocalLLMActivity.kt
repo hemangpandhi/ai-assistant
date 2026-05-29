@@ -883,6 +883,9 @@ class LocalLLMActivity : AppCompatActivity() {
                             }
                             
                             finalResponse = finalResponse.replace(regex, "").trim()
+                            if (finalResponse.isEmpty() && executedTools.isNotEmpty()) {
+                                finalResponse = "Action completed."
+                            }
                             chatAdapter.replaceLastMessage(finalResponse)
                             chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                             

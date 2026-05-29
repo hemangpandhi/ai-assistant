@@ -461,6 +461,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             }
                             
                             finalMsg = finalMsg.replace(regex, "").trim()
+                            if (finalMsg.isEmpty() && executedTools.isNotEmpty()) {
+                                finalMsg = "Action completed."
+                            }
                             
                             responseText.text = parseMarkdown(finalMsg)
                             
