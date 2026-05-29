@@ -842,7 +842,11 @@ class LocalLLMActivity : AppCompatActivity() {
             LLMManager.conversation?.sendMessageAsync(
                 com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalPrompt)),
                 object : com.google.ai.edge.litertlm.MessageCallback {
+                    var isHallucinating = false
+                    
                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+                        if (isHallucinating) return
+                        
                         if (firstTokenTime == -1L) {
                             firstTokenTime = System.currentTimeMillis()
                             val ttft = firstTokenTime - startTime
@@ -854,7 +858,19 @@ class LocalLLMActivity : AppCompatActivity() {
                             val chunk = message.toString()
                             lastResponseBuilder.append(chunk)
                             
-                            val currentText = lastResponseBuilder.toString()
+                            var currentText = lastResponseBuilder.toString()
+                            
+                            // Prevent the AI from hallucinating the user's response
+                            val userIdx = currentText.indexOf("\nUser:")
+                            if (userIdx != -1) {
+                                isHallucinating = true
+                                currentText = currentText.substring(0, userIdx)
+                                lastResponseBuilder.setLength(userIdx)
+                            } else if (currentText.trim().endsWith("User:")) {
+                                isHallucinating = true
+                                currentText = currentText.substringBeforeLast("User:")
+                                lastResponseBuilder.setLength(currentText.length)
+                            }
                             val matches = regex.findAll(currentText)
                             for (match in matches) {
                                 val toolCall = match.groups[1]?.value ?: continue

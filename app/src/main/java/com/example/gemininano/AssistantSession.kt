@@ -403,19 +403,35 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             LLMManager.conversation!!.sendMessageAsync(
                 Contents.of(Content.Text(finalPrompt)),
                 object : MessageCallback {
-                    override fun onMessage(message: Message) {
-                        if (firstTokenTime == -1L) {
-                            firstTokenTime = System.currentTimeMillis()
-                            val ttft = firstTokenTime - startTime
-                            android.util.Log.i("LLMLatency", "[AssistantSession] Time to First Token (TTFT): ${ttft}ms")
-                        }
+                        var isHallucinating = false
                         
-                        CoroutineScope(Dispatchers.Main).launch {
-                            voiceAnimation.state = VoiceAnimationView.State.SPEAKING
-                            ivCenterMic.visibility = View.GONE
-                            val chunk = message.toString()
-                            lastResponseBuilder.append(chunk)
-                            val currentText = lastResponseBuilder.toString()
+                        override fun onMessage(message: Message) {
+                            if (isHallucinating) return
+                            
+                            if (firstTokenTime == -1L) {
+                                firstTokenTime = System.currentTimeMillis()
+                                val ttft = firstTokenTime - startTime
+                                android.util.Log.i("LLMLatency", "[AssistantSession] Time to First Token (TTFT): ${ttft}ms")
+                            }
+                            
+                            CoroutineScope(Dispatchers.Main).launch {
+                                voiceAnimation.state = VoiceAnimationView.State.SPEAKING
+                                ivCenterMic.visibility = View.GONE
+                                val chunk = message.toString()
+                                lastResponseBuilder.append(chunk)
+                                var currentText = lastResponseBuilder.toString()
+                                
+                                // Prevent the AI from hallucinating the user's response
+                                val userIdx = currentText.indexOf("\nUser:")
+                                if (userIdx != -1) {
+                                    isHallucinating = true
+                                    currentText = currentText.substring(0, userIdx)
+                                    lastResponseBuilder.setLength(userIdx)
+                                } else if (currentText.trim().endsWith("User:")) {
+                                    isHallucinating = true
+                                    currentText = currentText.substringBeforeLast("User:")
+                                    lastResponseBuilder.setLength(currentText.length)
+                                }
                             
                             // Handle Tool Calls (e.g., <TOOL>increaseTemperature(2)</TOOL>)
                             val matches = regex.findAll(currentText)
