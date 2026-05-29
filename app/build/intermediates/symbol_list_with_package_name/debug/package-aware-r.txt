@@ -3294,6 +3294,8 @@ id etAutoFlush
 id etEvBattery
 id etInput
 id etKvCache
+id etMechanicName
+id etMechanicNumber
 id etOutsideTemp
 id etSpeed
 id etSystemPrompt

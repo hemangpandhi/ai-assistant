@@ -29,6 +29,12 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
   public final EditText etKvCache;
 
   @NonNull
+  public final EditText etMechanicName;
+
+  @NonNull
+  public final EditText etMechanicNumber;
+
+  @NonNull
   public final EditText etOutsideTemp;
 
   @NonNull
@@ -39,12 +45,15 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
 
   private DialogTelemetrySettingsBinding(@NonNull LinearLayout rootView,
       @NonNull EditText etAutoFlush, @NonNull EditText etEvBattery, @NonNull EditText etKvCache,
+      @NonNull EditText etMechanicName, @NonNull EditText etMechanicNumber,
       @NonNull EditText etOutsideTemp, @NonNull EditText etSpeed,
       @NonNull EditText etTirePressure) {
     this.rootView = rootView;
     this.etAutoFlush = etAutoFlush;
     this.etEvBattery = etEvBattery;
     this.etKvCache = etKvCache;
+    this.etMechanicName = etMechanicName;
+    this.etMechanicNumber = etMechanicNumber;
     this.etOutsideTemp = etOutsideTemp;
     this.etSpeed = etSpeed;
     this.etTirePressure = etTirePressure;
@@ -95,6 +104,18 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
         break missingId;
       }
 
+      id = R.id.etMechanicName;
+      EditText etMechanicName = ViewBindings.findChildViewById(rootView, id);
+      if (etMechanicName == null) {
+        break missingId;
+      }
+
+      id = R.id.etMechanicNumber;
+      EditText etMechanicNumber = ViewBindings.findChildViewById(rootView, id);
+      if (etMechanicNumber == null) {
+        break missingId;
+      }
+
       id = R.id.etOutsideTemp;
       EditText etOutsideTemp = ViewBindings.findChildViewById(rootView, id);
       if (etOutsideTemp == null) {
@@ -114,7 +135,7 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
       }
 
       return new DialogTelemetrySettingsBinding((LinearLayout) rootView, etAutoFlush, etEvBattery,
-          etKvCache, etOutsideTemp, etSpeed, etTirePressure);
+          etKvCache, etMechanicName, etMechanicNumber, etOutsideTemp, etSpeed, etTirePressure);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

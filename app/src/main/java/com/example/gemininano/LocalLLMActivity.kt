@@ -482,6 +482,11 @@ class LocalLLMActivity : AppCompatActivity() {
         etKvCache.setText(currentKvCache.toString())
         val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)
         etAutoFlush.setText(currentAutoFlush.toString())
+        
+        val etMechanicName = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicName)
+        val etMechanicNumber = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicNumber)
+        etMechanicName.setText(prefs.getString("mechanic_name", "Mechanic"))
+        etMechanicNumber.setText(prefs.getString("mechanic_number", "1-800-555-0199"))
 
         android.app.AlertDialog.Builder(this)
             .setView(dialogView)
@@ -497,13 +502,16 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (newBattery != null) VehicleManager.setMockEvBatteryLevel(newBattery)
                 if (newTire != null) VehicleManager.setMockTirePressure(newTire)
                 if (newTemp != null) VehicleManager.setMockOutsideTemperature(newTemp)
+                
+                prefs.edit().apply {
+                    putString("mechanic_name", etMechanicName.text.toString())
+                    putString("mechanic_number", etMechanicNumber.text.toString())
+                    if (newAutoFlush != null) putInt("auto_flush_interval", newAutoFlush)
+                    apply()
+                }
 
                 updateDashboardUI()
-                Toast.makeText(this, "Telemetry Updated", Toast.LENGTH_SHORT).show()
-                
-                if (newAutoFlush != null) {
-                    prefs.edit().putInt("auto_flush_interval", newAutoFlush).apply()
-                }
+                Toast.makeText(this, "Settings Updated", Toast.LENGTH_SHORT).show()
 
                 if (newKvCache != null && newKvCache != currentKvCache) {
                     prefs.edit().putInt("max_tokens", newKvCache).apply()
@@ -756,10 +764,13 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (intent.resolveActivity(packageManager) != null) startActivity(intent)
             } else if (toolCall.startsWith("call")) {
                 val contact = toolCall.substringAfter("(").substringBefore(")")
+                val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                val mechName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
+                val mechNum = prefs.getString("mechanic_number", "1-800-555-0199") ?: "1-800-555-0199"
                 
                 // Map common contact names to dummy phone numbers for the demo
                 val phoneNumber = when (contact.lowercase()) {
-                    "mechanic" -> "1-800-555-0199" // Mock Dealership Service Center
+                    mechName.lowercase() -> mechNum
                     "home" -> "555-0100"
                     "wife" -> "555-0101"
                     "husband" -> "555-0102"

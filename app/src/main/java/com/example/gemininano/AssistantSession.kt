@@ -318,10 +318,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 if (intent.resolveActivity(context.packageManager) != null) context.startActivity(intent)
             } else if (toolCall.startsWith("call")) {
                 val contact = toolCall.substringAfter("(").substringBefore(")")
+                val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                val mechName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
+                val mechNum = prefs.getString("mechanic_number", "1-800-555-0199") ?: "1-800-555-0199"
                 
                 // Map common contact names to dummy phone numbers for the demo
                 val phoneNumber = when (contact.lowercase()) {
-                    "mechanic" -> "1-800-555-0199" // Mock Dealership Service Center
+                    mechName.lowercase() -> mechNum
                     "home" -> "555-0100"
                     "wife" -> "555-0101"
                     "husband" -> "555-0102"
