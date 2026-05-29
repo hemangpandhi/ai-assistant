@@ -95,7 +95,9 @@ class WakeWordService : Service(), RecognitionListener {
     private fun checkWakeWord(hypothesis: String) {
         if (hypothesis.lowercase().contains(wakeWord)) {
             Log.d("WakeWord", "Wake word detected: $wakeWord")
-            sendBroadcast(Intent("com.example.gemininano.WAKE_WORD_DETECTED"))
+            val intent = Intent("com.example.gemininano.WAKE_WORD_DETECTED")
+            intent.setPackage(packageName)
+            sendBroadcast(intent)
             
             // Briefly pause to prevent self-trigger loop
             speechService?.stop()

@@ -18,6 +18,7 @@ import androidx.cardview.widget.CardView;
 import androidx.viewbinding.ViewBinding;
 import androidx.viewbinding.ViewBindings;
 import com.example.gemininano.R;
+import com.example.gemininano.VoiceAnimationView;
 import java.lang.NullPointerException;
 import java.lang.Override;
 import java.lang.String;
@@ -25,6 +26,9 @@ import java.lang.String;
 public final class AssistantOverlayBinding implements ViewBinding {
   @NonNull
   private final FrameLayout rootView;
+
+  @NonNull
+  public final FrameLayout animationContainer;
 
   @NonNull
   public final TextView assistantResponseText;
@@ -48,13 +52,10 @@ public final class AssistantOverlayBinding implements ViewBinding {
   public final EditText etInput;
 
   @NonNull
-  public final FrameLayout flIconContainer;
-
-  @NonNull
   public final LinearLayout inputControlsContainer;
 
   @NonNull
-  public final ImageView ivAssistantIcon;
+  public final ImageView ivCenterMic;
 
   @NonNull
   public final FrameLayout rootOverlay;
@@ -62,13 +63,18 @@ public final class AssistantOverlayBinding implements ViewBinding {
   @NonNull
   public final ScrollView svResponse;
 
+  @NonNull
+  public final VoiceAnimationView voiceAnimation;
+
   private AssistantOverlayBinding(@NonNull FrameLayout rootView,
-      @NonNull TextView assistantResponseText, @NonNull TextView assistantStatusText,
-      @NonNull ImageButton btnMic, @NonNull Button btnOpenApp, @NonNull Button btnSend,
-      @NonNull CardView cardPopup, @NonNull EditText etInput, @NonNull FrameLayout flIconContainer,
-      @NonNull LinearLayout inputControlsContainer, @NonNull ImageView ivAssistantIcon,
-      @NonNull FrameLayout rootOverlay, @NonNull ScrollView svResponse) {
+      @NonNull FrameLayout animationContainer, @NonNull TextView assistantResponseText,
+      @NonNull TextView assistantStatusText, @NonNull ImageButton btnMic,
+      @NonNull Button btnOpenApp, @NonNull Button btnSend, @NonNull CardView cardPopup,
+      @NonNull EditText etInput, @NonNull LinearLayout inputControlsContainer,
+      @NonNull ImageView ivCenterMic, @NonNull FrameLayout rootOverlay,
+      @NonNull ScrollView svResponse, @NonNull VoiceAnimationView voiceAnimation) {
     this.rootView = rootView;
+    this.animationContainer = animationContainer;
     this.assistantResponseText = assistantResponseText;
     this.assistantStatusText = assistantStatusText;
     this.btnMic = btnMic;
@@ -76,11 +82,11 @@ public final class AssistantOverlayBinding implements ViewBinding {
     this.btnSend = btnSend;
     this.cardPopup = cardPopup;
     this.etInput = etInput;
-    this.flIconContainer = flIconContainer;
     this.inputControlsContainer = inputControlsContainer;
-    this.ivAssistantIcon = ivAssistantIcon;
+    this.ivCenterMic = ivCenterMic;
     this.rootOverlay = rootOverlay;
     this.svResponse = svResponse;
+    this.voiceAnimation = voiceAnimation;
   }
 
   @Override
@@ -110,6 +116,12 @@ public final class AssistantOverlayBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.animationContainer;
+      FrameLayout animationContainer = ViewBindings.findChildViewById(rootView, id);
+      if (animationContainer == null) {
+        break missingId;
+      }
+
       id = R.id.assistantResponseText;
       TextView assistantResponseText = ViewBindings.findChildViewById(rootView, id);
       if (assistantResponseText == null) {
@@ -152,21 +164,15 @@ public final class AssistantOverlayBinding implements ViewBinding {
         break missingId;
       }
 
-      id = R.id.flIconContainer;
-      FrameLayout flIconContainer = ViewBindings.findChildViewById(rootView, id);
-      if (flIconContainer == null) {
-        break missingId;
-      }
-
       id = R.id.inputControlsContainer;
       LinearLayout inputControlsContainer = ViewBindings.findChildViewById(rootView, id);
       if (inputControlsContainer == null) {
         break missingId;
       }
 
-      id = R.id.ivAssistantIcon;
-      ImageView ivAssistantIcon = ViewBindings.findChildViewById(rootView, id);
-      if (ivAssistantIcon == null) {
+      id = R.id.ivCenterMic;
+      ImageView ivCenterMic = ViewBindings.findChildViewById(rootView, id);
+      if (ivCenterMic == null) {
         break missingId;
       }
 
@@ -178,9 +184,15 @@ public final class AssistantOverlayBinding implements ViewBinding {
         break missingId;
       }
 
-      return new AssistantOverlayBinding((FrameLayout) rootView, assistantResponseText,
-          assistantStatusText, btnMic, btnOpenApp, btnSend, cardPopup, etInput, flIconContainer,
-          inputControlsContainer, ivAssistantIcon, rootOverlay, svResponse);
+      id = R.id.voiceAnimation;
+      VoiceAnimationView voiceAnimation = ViewBindings.findChildViewById(rootView, id);
+      if (voiceAnimation == null) {
+        break missingId;
+      }
+
+      return new AssistantOverlayBinding((FrameLayout) rootView, animationContainer,
+          assistantResponseText, assistantStatusText, btnMic, btnOpenApp, btnSend, cardPopup,
+          etInput, inputControlsContainer, ivCenterMic, rootOverlay, svResponse, voiceAnimation);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

@@ -1,9 +1,12 @@
 R_DEF: Internal format may change without notice
 local
 drawable bg_ai_gradient_circle
+drawable bg_assistant_popup
 drawable bg_input_pill
 drawable bg_send_button
+drawable ic_mic_premium
 drawable rounded_bg
+id animationContainer
 id assistantResponseText
 id assistantStatusText
 id btnDownloadModel
@@ -43,11 +46,10 @@ id etSpeed
 id etSystemPrompt
 id etTirePressure
 id etWakeWord
-id flIconContainer
 id generateButton
 id inputControlsContainer
 id inputText
-id ivAssistantIcon
+id ivCenterMic
 id messageText
 id modelSpinner
 id progressBar
@@ -60,6 +62,7 @@ id tabInference
 id tabLayout
 id tabSystemPrompt
 id tabUseCases
+id voiceAnimation
 id voiceButton
 layout activity_main
 layout assistant_overlay

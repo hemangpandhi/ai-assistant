@@ -2969,6 +2969,7 @@ drawable abc_vector_test
 drawable avd_hide_password
 drawable avd_show_password
 drawable bg_ai_gradient_circle
+drawable bg_assistant_popup
 drawable bg_input_pill
 drawable bg_send_button
 drawable btn_checkbox_checked_mtrl
@@ -2997,6 +2998,7 @@ drawable ic_keyboard_black_24dp
 drawable ic_m3_chip_check
 drawable ic_m3_chip_checked_circle
 drawable ic_m3_chip_close
+drawable ic_mic_premium
 drawable ic_mtrl_checked_circle
 drawable ic_mtrl_chip_checked_black
 drawable ic_mtrl_chip_checked_circle
@@ -3156,6 +3158,7 @@ id allStates
 id always
 id animateToEnd
 id animateToStart
+id animationContainer
 id antiClockwise
 id anticipate
 id arc
@@ -3310,7 +3313,6 @@ id fitStart
 id fitToContents
 id fitXY
 id fixed
-id flIconContainer
 id flip
 id floating
 id forever
@@ -3349,7 +3351,7 @@ id invisible
 id inward
 id italic
 id item_touch_helper_previous_elevation
-id ivAssistantIcon
+id ivCenterMic
 id jumpToEnd
 id jumpToStart
 id labeled
@@ -3621,6 +3623,7 @@ id view_tree_saved_state_registry_owner
 id view_tree_view_model_store_owner
 id visible
 id visible_removing_fragment_view_tag
+id voiceAnimation
 id voiceButton
 id west
 id withText
