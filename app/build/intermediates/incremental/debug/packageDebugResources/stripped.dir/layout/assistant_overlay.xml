@@ -1,0 +1,176 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootOverlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#A0000000"
+    android:animateLayoutChanges="true"> <!-- Dark transparent overlay -->
+
+    <!-- Assistant Bottom Sheet -->
+    <!-- Very dark blue/black background for neon glow contrast -->
+    <androidx.cardview.widget.CardView
+        android:id="@+id/cardPopup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:cardBackgroundColor="@android:color/transparent"
+        app:cardElevation="24dp"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginBottom="8dp"
+        android:clickable="true"
+        android:focusable="true">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_assistant_popup"
+            android:animateLayoutChanges="true"
+            android:paddingTop="32dp"
+            android:paddingBottom="24dp"
+            android:paddingHorizontal="24dp">
+
+            <!-- Center container for Animations and Mic -->
+            <FrameLayout
+                android:id="@+id/animationContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                app:layout_constraintTop_toTopOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <com.example.gemininano.VoiceAnimationView
+                    android:id="@+id/voiceAnimation"
+                    android:layout_width="match_parent"
+                    android:layout_height="150dp"
+                    android:visibility="gone" />
+
+                <!-- The mic icon floats exactly in the center of the animation view -->
+                <ImageView
+                    android:id="@+id/ivCenterMic"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_mic_premium"
+                    app:tint="#00E5FF"
+                    android:visibility="gone"
+                    android:contentDescription="Assistant Mic" />
+            </FrameLayout>
+
+            <!-- Status Text directly below animation -->
+            <TextView
+                android:id="@+id/assistantStatusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="How can I help you today?"
+                android:textColor="#E8EAED"
+                android:textSize="22sp"
+                android:fontFamily="sans-serif-medium"
+                android:layout_marginTop="16dp"
+                app:layout_constraintTop_toBottomOf="@id/animationContainer"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent" />
+
+            <!-- Open App Button (Hidden by default) -->
+            <Button
+                android:id="@+id/btnOpenApp"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Open App to Load Model"
+                android:textColor="#FFFFFF"
+                android:backgroundTint="#4285F4"
+                android:layout_marginTop="16dp"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/assistantStatusText"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:cornerRadius="24dp" />
+
+            <!-- Output Text -->
+            <ScrollView
+                android:id="@+id/svResponse"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                app:layout_constrainedHeight="true"
+                app:layout_constraintHeight_max="150dp"
+                android:requiresFadingEdge="vertical"
+                android:fadingEdgeLength="24dp"
+                app:layout_constraintTop_toBottomOf="@id/btnOpenApp"
+                app:layout_constraintBottom_toTopOf="@id/inputControlsContainer"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+                
+                <TextView
+                    android:id="@+id/assistantResponseText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:textColor="#D1D4D9"
+                    android:textSize="24sp"
+                    android:gravity="center_horizontal"
+                    android:lineSpacingExtra="8dp" />
+            </ScrollView>
+
+            <!-- Input Controls Pill Background (Hidden by default to focus on voice) -->
+            <LinearLayout
+                android:id="@+id/inputControlsContainer"
+                android:layout_width="match_parent"
+                android:layout_height="60dp"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="16dp"
+                android:background="@drawable/bg_input_pill"
+                android:paddingHorizontal="10dp"
+                android:visibility="gone"
+                app:layout_constraintTop_toBottomOf="@id/svResponse"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <ImageButton
+                    android:id="@+id/btnMic"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:background="?android:selectableItemBackgroundBorderless"
+                    android:src="@drawable/ic_mic_premium"
+                    android:contentDescription="Voice Input"
+                    app:tint="#A8C7FA" />
+
+                <EditText
+                    android:id="@+id/etInput"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:layout_marginStart="12dp"
+                    android:layout_marginEnd="12dp"
+                    android:background="@null"
+                    android:hint="Ask anything..."
+                    android:textColorHint="#707073"
+                    android:textColor="#FFFFFF"
+                    android:textSize="16sp"
+                    android:inputType="textAutoCorrect|textCapSentences"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+
+                <FrameLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="40dp"
+                    android:background="@drawable/bg_send_button">
+                    <Button
+                        android:id="@+id/btnSend"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:text="SEND"
+                        android:textColor="#FFFFFF"
+                        android:textSize="13sp"
+                        android:textStyle="bold"
+                        android:background="@android:color/transparent"
+                        android:minWidth="0dp"
+                        android:paddingHorizontal="16dp" />
+                </FrameLayout>
+            </LinearLayout>
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
+    </androidx.cardview.widget.CardView>
+</FrameLayout>
