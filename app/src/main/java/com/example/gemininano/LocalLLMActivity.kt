@@ -833,7 +833,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
 
             val executedTools = mutableSetOf<String>()
-            val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
+            val regex = "<TOOL>(.*?)</TOOL>".toRegex()
             val spokenTextLength = intArrayOf(0)
 
             val startTime = System.currentTimeMillis()
