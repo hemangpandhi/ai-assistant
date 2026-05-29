@@ -286,26 +286,35 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 // Show a toast to guarantee visual confirmation to the user
                 android.widget.Toast.makeText(context, "Navigating to: $dest", android.widget.Toast.LENGTH_SHORT).show()
                 
-                // On AOSP Emulator, the Maps app silently swallows intents without throwing exceptions.
-                // We bypass it by trying to explicitly launch the AOSP WebView Shell first.
-                val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=${android.net.Uri.encode(dest)}"))
-                browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                browserIntent.setPackage("org.chromium.webview_shell")
+                // Try explicit Google Maps navigation first (real turn-by-turn)
+                val gMapsIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(dest)}"))
+                gMapsIntent.setPackage("com.google.android.apps.maps")
+                gMapsIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                 
                 try {
-                    context.startActivity(browserIntent)
+                    context.startActivity(gMapsIntent)
                 } catch (e: Exception) {
-                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(dest)}"))
-                    intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                    // Try generic navigation intent
+                    val navIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(dest)}"))
+                    navIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                     try {
-                        context.startActivity(intent)
+                        context.startActivity(navIntent)
                     } catch (e2: Exception) {
-                        val fallbackIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
-                        fallbackIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                        // Fallback to geo intent
+                        val geoIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
+                        geoIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
                         try {
-                            context.startActivity(fallbackIntent)
+                            context.startActivity(geoIntent)
                         } catch (e3: Exception) {
-                            android.util.Log.e("Navigation", "Failed to launch any navigation intents", e3)
+                            // Absolute last resort: WebView Shell web search
+                            val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=${android.net.Uri.encode(dest)}"))
+                            browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                            browserIntent.setPackage("org.chromium.webview_shell")
+                            try {
+                                context.startActivity(browserIntent)
+                            } catch (e4: Exception) {
+                                android.util.Log.e("Navigation", "Failed to launch any navigation intents", e4)
+                            }
                         }
                     }
                 }
