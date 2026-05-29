@@ -480,15 +480,22 @@ class LocalLLMActivity : AppCompatActivity() {
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val currentKvCache = prefs.getInt("max_tokens", 512)
-        val currentAutoFlush = prefs.getInt("auto_flush_interval", 3)
+        val currentAutoFlush = prefs.getInt("auto_flush", 25)
+        val currentMechanicName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
+        val currentMechanicNum = prefs.getString("mechanic_number", "555-0199") ?: "555-0199"
+        val currentDiningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
+
         etKvCache.setText(currentKvCache.toString())
         val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)
         etAutoFlush.setText(currentAutoFlush.toString())
         
         val etMechanicName = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicName)
         val etMechanicNumber = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicNumber)
-        etMechanicName.setText(prefs.getString("mechanic_name", "Mechanic"))
-        etMechanicNumber.setText(prefs.getString("mechanic_number", "1-800-555-0199"))
+        val etDiningPref = dialogView.findViewById<android.widget.EditText>(R.id.etDiningPref)
+        
+        etMechanicName.setText(currentMechanicName)
+        etMechanicNumber.setText(currentMechanicNum)
+        etDiningPref.setText(currentDiningPref)
 
         android.app.AlertDialog.Builder(this)
             .setView(dialogView)
@@ -510,7 +517,9 @@ class LocalLLMActivity : AppCompatActivity() {
                 prefs.edit().apply {
                     putString("mechanic_name", etMechanicName.text.toString())
                     putString("mechanic_number", etMechanicNumber.text.toString())
-                    if (newAutoFlush != null) putInt("auto_flush_interval", newAutoFlush)
+                    putString("dining_pref", etDiningPref.text.toString())
+                    if (newKvCache != null) putInt("max_tokens", newKvCache)
+                    if (newAutoFlush != null) putInt("auto_flush", newAutoFlush)
                     apply()
                 }
 
@@ -518,7 +527,6 @@ class LocalLLMActivity : AppCompatActivity() {
                 Toast.makeText(this, "Settings Updated", Toast.LENGTH_SHORT).show()
 
                 if (newKvCache != null && newKvCache != currentKvCache) {
-                    prefs.edit().putInt("max_tokens", newKvCache).apply()
                     Toast.makeText(this, "Re-initializing LLM with new KV Cache...", Toast.LENGTH_SHORT).show()
                     
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
@@ -856,14 +864,18 @@ class LocalLLMActivity : AppCompatActivity() {
                         chatAdapter.updateLastMessage("\n\n[Model Hang Detected - Restarting]")
                         resetControls()
                     }
-                    initLlm(force = true)
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        initLlm(force = true)
+                    }
                 }
             }
+            val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
             val finalPrompt = if (LLMManager.isFirstMessage) {
                 LLMManager.isFirstMessage = false
                 LLMManager.getSystemPrompt(applicationContext) + "\nUser: " + prompt
             } else {
-                "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}, ADAS_OSE_DOOR_ALERT: ${VehicleManager.getAdasOseDoorAlert()}]\nUser: " + prompt
+                "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}, ADAS_OSE_DOOR_ALERT: ${VehicleManager.getAdasOseDoorAlert()}, User Food Preference: $diningPref]\nUser: " + prompt
             }
 
             val executedTools = mutableSetOf<String>()

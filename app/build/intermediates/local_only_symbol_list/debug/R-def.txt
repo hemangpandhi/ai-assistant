@@ -39,6 +39,7 @@ id dashTemp
 id dashboardLayout
 id etAdasDoor
 id etAutoFlush
+id etDiningPref
 id etEvBattery
 id etInput
 id etKvCache

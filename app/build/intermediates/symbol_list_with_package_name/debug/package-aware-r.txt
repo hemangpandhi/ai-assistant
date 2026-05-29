@@ -3292,6 +3292,7 @@ id enterAlways
 id enterAlwaysCollapsed
 id etAdasDoor
 id etAutoFlush
+id etDiningPref
 id etEvBattery
 id etInput
 id etKvCache

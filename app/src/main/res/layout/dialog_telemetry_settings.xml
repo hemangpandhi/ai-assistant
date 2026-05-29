@@ -62,4 +62,7 @@
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Mechanic Phone Number" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
     <EditText android:id="@+id/etMechanicNumber" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="phone" />
 
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dining / Diet Preference" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etDiningPref" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="text" />
+
 </LinearLayout>
