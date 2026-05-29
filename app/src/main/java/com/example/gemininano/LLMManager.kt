@@ -158,7 +158,7 @@ object LLMManager {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
-        return """You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.
+        val basePrompt = """You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.
         
 === VEHICLE STATE ===
 Speed: ${VehicleManager.getRealSpeed()}mph, Temp: ${VehicleManager.getRealTemperature()}F, Heater: ${VehicleManager.getRealSeatHeaterLevel()}, EV Bat: ${VehicleManager.getEvBatteryLevel()}%, Tire: ${VehicleManager.getTirePressureFrontLeft()}PSI, Ext Temp: ${VehicleManager.getOutsideTemperature()}F, OBD: ${VehicleManager.getObdCodes()}, City: ${LocationManager.getCurrentCity()}
@@ -177,9 +177,7 @@ Memory: $userMemory
 7. SIGHTSEEING: If the user asks for places to visit, suggest 2-3 places and ALWAYS end your response by asking: "Would you like me to navigate to any of these?"
 8. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. "Yes") but does NOT specify which one, DO NOT use the navigate tool. You MUST ask "Which one?" first.
 9. WELLNESS: If the user complains about body pain, being tired, or their back hurting, you MUST ask if they want you to turn on the seat heater or seat massager as it might alleviate their pain. Example: "I can turn on the seat heater and massager to help with your pain. Would you like me to do that?"
-10. DOOR CHECKS: If the user asks about the door status, you MUST read the ADAS_OSE_DOOR_ALERT property from the Current State and answer exactly what it says.
 
-=== EXAMPLES ===
 [Sightseeing - Accept]
 User: "I'm driving through Paris. What are some interesting things I should see?"
 Assistant: Paris is beautiful! You should definitely see the Eiffel Tower and the Louvre Museum. Would you like me to navigate to any of these?
@@ -224,6 +222,18 @@ Assistant: <TOOL>navigate(Home)</TOOL> Navigating home. I noticed it's freezing 
 User: "Yes, please."
 Assistant: <TOOL>setTemperature(72)</TOOL><TOOL>setSeatHeater(3)</TOOL> Heating up the cabin for your commute.
 """
+
+        val customInstructions = VehicleManager.getCustomPropertyInstructions()
+        var finalPrompt = basePrompt
+        if (customInstructions.isNotEmpty()) {
+            finalPrompt = finalPrompt.replace(
+                "[Sightseeing - Accept]",
+                "=== DYNAMIC VEHICLE SENSOR RULES ===\n" +
+                customInstructions.mapIndexed { index, inst -> "${10 + index}. $inst" }.joinToString("\n") + "\n\n[Sightseeing - Accept]"
+            )
+        }
+        
+        return finalPrompt.trimIndent()
     }
 
     fun resetConversation() {

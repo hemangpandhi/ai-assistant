@@ -29,10 +29,16 @@ object VehicleManager {
     private val customPropertyIdToName = mutableMapOf<Int, String>()
     // Maps Property Name -> Latest Value (e.g., "ADAS_OSE_DOOR_ALERT" -> "true")
     private val customPropertyValues = mutableMapOf<String, String>()
+    // Maps Property Name -> AI Instruction
+    private val customPropertyInstructions = mutableListOf<String>()
     
     fun getCustomPropertiesString(): String {
         if (customPropertyValues.isEmpty()) return ""
         return customPropertyValues.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+    }
+    
+    fun getCustomPropertyInstructions(): List<String> {
+        return customPropertyInstructions
     }
     
     fun getObdCodes(): String {
@@ -94,6 +100,9 @@ object VehicleManager {
                     val prop = propertiesArray.getJSONObject(i)
                     val name = prop.getString("name")
                     val id = prop.getInt("id")
+                    if (prop.has("instruction")) {
+                        customPropertyInstructions.add(prop.getString("instruction"))
+                    }
                     customPropertyIdToName[id] = name
                     customPropertyValues[name] = "Unknown" // Initial state
                     
