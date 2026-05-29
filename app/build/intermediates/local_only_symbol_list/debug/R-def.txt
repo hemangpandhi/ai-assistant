@@ -37,6 +37,7 @@ id dashInternet
 id dashSpeed
 id dashTemp
 id dashboardLayout
+id etAdasDoor
 id etAutoFlush
 id etEvBattery
 id etInput

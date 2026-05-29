@@ -20,6 +20,9 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
   private final LinearLayout rootView;
 
   @NonNull
+  public final EditText etAdasDoor;
+
+  @NonNull
   public final EditText etAutoFlush;
 
   @NonNull
@@ -44,11 +47,12 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
   public final EditText etTirePressure;
 
   private DialogTelemetrySettingsBinding(@NonNull LinearLayout rootView,
-      @NonNull EditText etAutoFlush, @NonNull EditText etEvBattery, @NonNull EditText etKvCache,
-      @NonNull EditText etMechanicName, @NonNull EditText etMechanicNumber,
-      @NonNull EditText etOutsideTemp, @NonNull EditText etSpeed,
-      @NonNull EditText etTirePressure) {
+      @NonNull EditText etAdasDoor, @NonNull EditText etAutoFlush, @NonNull EditText etEvBattery,
+      @NonNull EditText etKvCache, @NonNull EditText etMechanicName,
+      @NonNull EditText etMechanicNumber, @NonNull EditText etOutsideTemp,
+      @NonNull EditText etSpeed, @NonNull EditText etTirePressure) {
     this.rootView = rootView;
+    this.etAdasDoor = etAdasDoor;
     this.etAutoFlush = etAutoFlush;
     this.etEvBattery = etEvBattery;
     this.etKvCache = etKvCache;
@@ -86,6 +90,12 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
     // This is done to optimize the compiled bytecode for size and performance.
     int id;
     missingId: {
+      id = R.id.etAdasDoor;
+      EditText etAdasDoor = ViewBindings.findChildViewById(rootView, id);
+      if (etAdasDoor == null) {
+        break missingId;
+      }
+
       id = R.id.etAutoFlush;
       EditText etAutoFlush = ViewBindings.findChildViewById(rootView, id);
       if (etAutoFlush == null) {
@@ -134,8 +144,9 @@ public final class DialogTelemetrySettingsBinding implements ViewBinding {
         break missingId;
       }
 
-      return new DialogTelemetrySettingsBinding((LinearLayout) rootView, etAutoFlush, etEvBattery,
-          etKvCache, etMechanicName, etMechanicNumber, etOutsideTemp, etSpeed, etTirePressure);
+      return new DialogTelemetrySettingsBinding((LinearLayout) rootView, etAdasDoor, etAutoFlush,
+          etEvBattery, etKvCache, etMechanicName, etMechanicNumber, etOutsideTemp, etSpeed,
+          etTirePressure);
     }
     String missingId = rootView.getResources().getResourceName(id);
     throw new NullPointerException("Missing required view with ID: ".concat(missingId));

@@ -23,6 +23,7 @@ object VehicleManager {
     private var currentTirePressureFrontLeft: Float = 28f // Low pressure
     private var currentOutsideTemperature: Float = 32f // Freezing outside
     private var currentObdCodes: String = "P0420"
+    private var currentAdasOseDoorAlert: String = "All Doors Closed" // Mock ADAS door alert property
     
     fun getObdCodes(): String {
         return currentObdCodes
@@ -116,12 +117,14 @@ object VehicleManager {
     fun getEvBatteryLevel(): Float = currentEvBatteryLevel
     fun getTirePressureFrontLeft(): Float = currentTirePressureFrontLeft
     fun getOutsideTemperature(): Float = currentOutsideTemperature
+    fun getAdasOseDoorAlert(): String = currentAdasOseDoorAlert
 
     // Mock Telemetry Setters (for testing)
     fun setMockSpeed(speed: Float) { currentSpeed = speed }
     fun setMockEvBatteryLevel(level: Float) { currentEvBatteryLevel = level }
     fun setMockTirePressure(pressure: Float) { currentTirePressureFrontLeft = pressure }
     fun setMockOutsideTemperature(temp: Float) { currentOutsideTemperature = temp }
+    fun setMockAdasOseDoorAlert(alert: String) { currentAdasOseDoorAlert = alert }
 
     fun writeTemperatureToVhal(temp: Float) {
         try {

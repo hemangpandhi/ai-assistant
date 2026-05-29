@@ -411,7 +411,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             LLMManager.isFirstMessage = false
             LLMManager.getSystemPrompt(context) + "\nUser: " + query
         } else {
-            "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}]\nUser: " + query
+            "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}, ADAS_OSE_DOOR_ALERT: ${VehicleManager.getAdasOseDoorAlert()}]\nUser: " + query
         }
 
         val executedTools = mutableSetOf<String>()
