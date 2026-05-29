@@ -23,7 +23,17 @@ object VehicleManager {
     private var currentTirePressureFrontLeft: Float = 28f // Low pressure
     private var currentOutsideTemperature: Float = 32f // Freezing outside
     private var currentObdCodes: String = "P0420"
-    private var currentAdasOseDoorAlert: String = "All Doors Closed" // Mock ADAS door alert property
+    
+    // Dynamic Custom JSON Properties
+    // Maps integer ID -> Property Name (e.g., 639631617 -> "ADAS_OSE_DOOR_ALERT")
+    private val customPropertyIdToName = mutableMapOf<Int, String>()
+    // Maps Property Name -> Latest Value (e.g., "ADAS_OSE_DOOR_ALERT" -> "true")
+    private val customPropertyValues = mutableMapOf<String, String>()
+    
+    fun getCustomPropertiesString(): String {
+        if (customPropertyValues.isEmpty()) return ""
+        return customPropertyValues.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+    }
     
     fun getObdCodes(): String {
         return currentObdCodes
@@ -31,6 +41,13 @@ object VehicleManager {
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
         override fun onChangeEvent(value: CarPropertyValue<*>) {
+            if (customPropertyIdToName.containsKey(value.propertyId)) {
+                val name = customPropertyIdToName[value.propertyId]!!
+                customPropertyValues[name] = value.value?.toString() ?: "null"
+                Log.d("VehicleManager", "Custom property updated: $name = ${customPropertyValues[name]}")
+                return
+            }
+
             when (value.propertyId) {
                 VehiclePropertyIds.PERF_VEHICLE_SPEED -> currentSpeed = value.value as? Float ?: 0f
                 VehiclePropertyIds.HVAC_SEAT_TEMPERATURE -> currentSeatHeaterLevel = value.value as? Int ?: 0
@@ -60,6 +77,35 @@ object VehicleManager {
                 carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.WINDOW_POS, CarPropertyManager.SENSOR_RATE_ONCHANGE)
             } catch (e: Exception) {
                 Log.w("VehicleManager", "Could not register window pos callback")
+            }
+            
+            // Dynamic JSON Properties
+            try {
+                val inputStream = context.assets.open("custom_properties.json")
+                val size = inputStream.available()
+                val buffer = ByteArray(size)
+                inputStream.read(buffer)
+                inputStream.close()
+                val jsonStr = String(buffer, Charsets.UTF_8)
+                val jsonObject = org.json.JSONObject(jsonStr)
+                val propertiesArray = jsonObject.getJSONArray("properties")
+                
+                for (i in 0 until propertiesArray.length()) {
+                    val prop = propertiesArray.getJSONObject(i)
+                    val name = prop.getString("name")
+                    val id = prop.getInt("id")
+                    customPropertyIdToName[id] = name
+                    customPropertyValues[name] = "Unknown" // Initial state
+                    
+                    try {
+                        carPropertyManager?.registerCallback(carPropertyCallback, id, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+                        Log.i("VehicleManager", "Registered custom JSON property: $name ($id)")
+                    } catch (e: Exception) {
+                        Log.e("VehicleManager", "Failed to register custom property: $name ($id)", e)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("VehicleManager", "Error parsing custom_properties.json", e)
             }
             
             currentSpeed = getFloatPropertyQuietly(VehiclePropertyIds.PERF_VEHICLE_SPEED, 0f)
@@ -117,14 +163,12 @@ object VehicleManager {
     fun getEvBatteryLevel(): Float = currentEvBatteryLevel
     fun getTirePressureFrontLeft(): Float = currentTirePressureFrontLeft
     fun getOutsideTemperature(): Float = currentOutsideTemperature
-    fun getAdasOseDoorAlert(): String = currentAdasOseDoorAlert
 
     // Mock Telemetry Setters (for testing)
     fun setMockSpeed(speed: Float) { currentSpeed = speed }
     fun setMockEvBatteryLevel(level: Float) { currentEvBatteryLevel = level }
     fun setMockTirePressure(pressure: Float) { currentTirePressureFrontLeft = pressure }
     fun setMockOutsideTemperature(temp: Float) { currentOutsideTemperature = temp }
-    fun setMockAdasOseDoorAlert(alert: String) { currentAdasOseDoorAlert = alert }
 
     fun writeTemperatureToVhal(temp: Float) {
         try {

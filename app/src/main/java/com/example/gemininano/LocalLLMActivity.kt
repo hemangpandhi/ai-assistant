@@ -469,14 +469,12 @@ class LocalLLMActivity : AppCompatActivity() {
         val etEvBattery = dialogView.findViewById<android.widget.EditText>(R.id.etEvBattery)
         val etTirePressure = dialogView.findViewById<android.widget.EditText>(R.id.etTirePressure)
         val etOutsideTemp = dialogView.findViewById<android.widget.EditText>(R.id.etOutsideTemp)
-        val etAdasDoor = dialogView.findViewById<android.widget.EditText>(R.id.etAdasDoor)
         val etKvCache = dialogView.findViewById<android.widget.EditText>(R.id.etKvCache)
 
         etSpeed.setText(VehicleManager.getRealSpeed().toString())
         etEvBattery.setText(VehicleManager.getEvBatteryLevel().toString())
         etTirePressure.setText(VehicleManager.getTirePressureFrontLeft().toString())
         etOutsideTemp.setText(VehicleManager.getOutsideTemperature().toString())
-        etAdasDoor.setText(VehicleManager.getAdasOseDoorAlert())
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val currentKvCache = prefs.getInt("max_tokens", 512)
@@ -504,7 +502,6 @@ class LocalLLMActivity : AppCompatActivity() {
                 val newBattery = etEvBattery.text.toString().toFloatOrNull()
                 val newTire = etTirePressure.text.toString().toFloatOrNull()
                 val newTemp = etOutsideTemp.text.toString().toFloatOrNull()
-                val newAdasDoor = etAdasDoor.text.toString()
                 val newKvCache = etKvCache.text.toString().toIntOrNull()
                 val newAutoFlush = etAutoFlush.text.toString().toIntOrNull()
 
@@ -512,7 +509,6 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (newBattery != null) VehicleManager.setMockEvBatteryLevel(newBattery)
                 if (newTire != null) VehicleManager.setMockTirePressure(newTire)
                 if (newTemp != null) VehicleManager.setMockOutsideTemperature(newTemp)
-                if (newAdasDoor.isNotEmpty()) VehicleManager.setMockAdasOseDoorAlert(newAdasDoor)
                 
                 prefs.edit().apply {
                     putString("mechanic_name", etMechanicName.text.toString())
@@ -875,7 +871,9 @@ class LocalLLMActivity : AppCompatActivity() {
                 LLMManager.isFirstMessage = false
                 LLMManager.getSystemPrompt(applicationContext) + "\nUser: " + prompt
             } else {
-                "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}, ADAS_OSE_DOOR_ALERT: ${VehicleManager.getAdasOseDoorAlert()}, User Food Preference: $diningPref]\nUser: " + prompt
+                val customProps = VehicleManager.getCustomPropertiesString()
+                val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
+                "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, User Food Preference: $diningPref]\nUser: " + prompt
             }
 
             val executedTools = mutableSetOf<String>()
