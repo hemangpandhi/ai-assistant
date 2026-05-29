@@ -82,7 +82,7 @@ object LLMManager {
         withContext(Dispatchers.IO) {
             isInitializing = true
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val maxTokens = prefs.getInt("max_tokens", 2048)
+            val maxTokens = prefs.getInt("max_tokens", 8192)
             
             try {
                 try {
