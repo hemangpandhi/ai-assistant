@@ -35,49 +35,49 @@ class VoiceAnimationView @JvmOverloads constructor(
     private var animator: ValueAnimator? = null
     private var animationPhase = 0f
 
-    // Colors: Neon Cyan, Magenta, Deep Blue
-    private val colorCyan = Color.parseColor("#00E5FF")
-    private val colorMagenta = Color.parseColor("#D500F9")
-    private val colorBlue = Color.parseColor("#2979FF")
-    private val colorPurple = Color.parseColor("#7C4DFF")
+    // Colors: Google Assistant / Siri inspired Neon colors
+    private val colorCyan = Color.parseColor("#4285F4") // Google Blue
+    private val colorMagenta = Color.parseColor("#EA4335") // Google Red
+    private val colorYellow = Color.parseColor("#FBBC05") // Google Yellow
+    private val colorGreen = Color.parseColor("#34A853") // Google Green
 
-    private val colors = intArrayOf(colorCyan, colorMagenta, colorBlue, colorPurple)
+    private val colors = intArrayOf(colorCyan, colorMagenta, colorYellow, colorGreen)
     
-    // Paints for the Mesh Waveform
+    // Paints for the Ribbon Waveform (Speaking)
     private val wavePaints = colors.map {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = it
             style = Paint.Style.STROKE
-            strokeWidth = 2.5f
+            strokeWidth = 10f
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
-            // Glow effect
-            setShadowLayer(8f, 0f, 0f, it)
+            // Soft, elegant glow
+            setShadowLayer(18f, 0f, 0f, it)
         }
     }
 
-    // Paints for the Audio Spectrum Ring
-    private val spectrumPaints = colors.map {
+    // Paints for the Sonar Ripple (Listening)
+    private val sonarPaints = colors.map {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = it
             style = Paint.Style.STROKE
-            strokeWidth = 4f
-            strokeCap = Paint.Cap.ROUND
-            setShadowLayer(10f, 0f, 0f, it)
+            strokeWidth = 8f
+            setShadowLayer(12f, 0f, 0f, it)
         }
     }
     
-    private val orbPaints = colors.map {
+    // Paints for the Infinite Flow (Thinking)
+    private val flowPaints = colors.map {
         Paint(Paint.ANTI_ALIAS_FLAG).apply {
             color = it
-            style = Paint.Style.FILL
-            alpha = 150
-            setShadowLayer(20f, 0f, 0f, it)
+            style = Paint.Style.STROKE
+            strokeWidth = 12f
+            strokeCap = Paint.Cap.ROUND
+            setShadowLayer(24f, 0f, 0f, it)
         }
     }
 
     private val wavePath = Path()
-    private val randomArray = FloatArray(100) { (Math.random() * 2f - 1f).toFloat() }
 
     init {
         // Required for setShadowLayer to work properly on paths
@@ -88,7 +88,7 @@ class VoiceAnimationView @JvmOverloads constructor(
         if (animator?.isRunning == true) return
         visibility = VISIBLE
         animator = ValueAnimator.ofFloat(0f, Math.PI.toFloat() * 2f).apply {
-            duration = 2000
+            duration = 3000 // Slowed down for more elegance
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
             addUpdateListener {
@@ -113,56 +113,50 @@ class VoiceAnimationView @JvmOverloads constructor(
         val cy = height / 2f
 
         when (state) {
-            State.LISTENING -> drawSpectrumRing(canvas, cx, cy)
-            State.THINKING -> drawThinkingKnot(canvas, cx, cy)
-            State.SPEAKING -> drawMeshWaveform(canvas, cx, cy)
+            State.LISTENING -> drawSonarRipple(canvas, cx, cy)
+            State.THINKING -> drawInfiniteFlow(canvas, cx, cy)
+            State.SPEAKING -> drawFluidRibbons(canvas, cx, cy)
             else -> {}
         }
     }
 
-    private fun drawSpectrumRing(canvas: Canvas, cx: Float, cy: Float) {
-        val baseRadius = height * 0.25f
-        val maxBarHeight = height * 0.15f
-        val numBars = 60
+    private fun drawSonarRipple(canvas: Canvas, cx: Float, cy: Float) {
+        // Smooth concentric circles pulsing outward
+        val maxRadius = height * 0.45f
+        val numRings = 4
         
-        for (i in 0 until numBars) {
-            val angle = (i.toFloat() / numBars) * Math.PI * 2f
+        for (i in 0 until numRings) {
+            val paint = sonarPaints[i % sonarPaints.size]
             
-            // Generate some pseudo-random but continuous motion
-            val timeOffset = animationPhase * 3f
-            val noise = sin(angle * 5f + timeOffset) * cos(angle * 3f - timeOffset)
-            val barHeight = maxBarHeight * (0.3f + 0.7f * Math.abs(noise).toFloat())
+            // Phase shifted for each ring so they ripple outward
+            val ringPhase = (animationPhase + (i * Math.PI / 2f)) % (Math.PI * 2f)
+            val normalizedProgress = (ringPhase / (Math.PI * 2f)).toFloat()
             
-            val innerRadius = baseRadius
-            val outerRadius = baseRadius + barHeight
+            val radius = maxRadius * normalizedProgress
             
-            val startX = cx + cos(angle).toFloat() * innerRadius
-            val startY = cy + sin(angle).toFloat() * innerRadius
+            // Fade out as it expands
+            val alpha = (255 * (1f - normalizedProgress)).toInt()
+            paint.alpha = alpha
             
-            val endX = cx + cos(angle).toFloat() * outerRadius
-            val endY = cy + sin(angle).toFloat() * outerRadius
-            
-            val paint = spectrumPaints[i % spectrumPaints.size]
-            canvas.drawLine(startX, startY, endX, endY, paint)
+            canvas.drawCircle(cx, cy, radius, paint)
         }
-        
-        // Draw an inner glowing ring
-        canvas.drawCircle(cx, cy, baseRadius - 5f, wavePaints[0])
     }
 
-    private fun drawThinkingKnot(canvas: Canvas, cx: Float, cy: Float) {
-        // Futuristic segmented orbital spinner
-        val maxRadius = height * 0.35f
-        val time = System.currentTimeMillis() / 1000f
+    private fun drawInfiniteFlow(canvas: Canvas, cx: Float, cy: Float) {
+        // Sleek overlapping spinning rings
+        val baseRadius = height * 0.25f
+        val time = animationPhase
         
-        for (i in 0 until 3) {
-            // Use thicker spectrum paints for bold glowing rings
-            val paint = spectrumPaints[i % spectrumPaints.size]
-            val radius = maxRadius - (i * 18f)
+        for (i in 0 until 4) {
+            val paint = flowPaints[i]
             
-            val speed = 120f + (i * 60f) // Outer ring is slowest, inner is fastest
-            val direction = if (i % 2 == 1) -1f else 1f
-            val rotation = (time * speed * direction) % 360f
+            // Dynamic radius and rotation
+            val radiusOffset = sin(time * 2f + i).toFloat() * 15f
+            val radius = baseRadius + radiusOffset
+            
+            val rotationSpeed = 1f + (i * 0.5f)
+            val direction = if (i % 2 == 0) 1f else -1f
+            val rotation = Math.toDegrees((time * rotationSpeed * direction).toDouble()).toFloat()
             
             canvas.save()
             canvas.translate(cx, cy)
@@ -170,61 +164,43 @@ class VoiceAnimationView @JvmOverloads constructor(
             
             val rect = android.graphics.RectF(-radius, -radius, radius, radius)
             
-            // Draw 3 arc segments per ring
-            for (segment in 0 until 3) {
-                val startAngle = segment * 120f
-                // Arcs breathe in length as they spin
-                val sweepAngle = 50f + kotlin.math.sin(time * 4f + i).toFloat() * 25f 
-                canvas.drawArc(rect, startAngle, sweepAngle, false, paint)
-            }
+            // Draw a smooth arc with dynamic length
+            val sweepAngle = 90f + sin(time * 3f + i).toFloat() * 60f
+            canvas.drawArc(rect, i * 90f, sweepAngle, false, paint)
             
             canvas.restore()
         }
-        
-        // Add a subtle, fast-pulsing inner core
-        val pulse = 1f + 0.15f * kotlin.math.sin(animationPhase * 6f).toFloat()
-        canvas.drawCircle(cx, cy, height * 0.08f * pulse, orbPaints[0]) // Cyan glow
-        canvas.drawCircle(cx, cy, height * 0.04f * pulse, orbPaints[1]) // Magenta inner glow
     }
 
-    private fun drawMeshWaveform(canvas: Canvas, cx: Float, cy: Float) {
-        // Extremely dense, overlapping mesh waveform
-        val maxAmplitude = height * 0.4f
-        val waveWidth = width * 0.9f
+    private fun drawFluidRibbons(canvas: Canvas, cx: Float, cy: Float) {
+        // 4 elegant, thick intertwined sine waves
+        val maxAmplitude = height * 0.3f
+        val waveWidth = width * 0.8f
         val startX = cx - waveWidth / 2f
         
-        // We draw 8 layers to make it look dense and meshy
-        val numLayers = 8
+        val numRibbons = 4
         
-        for (i in 0 until numLayers) {
+        for (i in 0 until numRibbons) {
             wavePath.reset()
+            val paint = wavePaints[i]
             
-            // Varing phase, frequency, and speed per layer
-            val phaseOffset = i * (Math.PI / 3f)
-            val freqOffset = 1.5f + (i * 0.25f)
-            val speedMult = 2f + (i * 0.5f)
+            val phaseOffset = i * (Math.PI / 2f)
+            val speedMult = 1.5f + (i * 0.2f)
             
-            val paint = wavePaints[i % wavePaints.size]
-
-            val currentAmplitude = maxAmplitude * (0.4f + 0.6f * sin(animationPhase * speedMult).toFloat())
-
             wavePath.moveTo(startX, cy)
             
-            val steps = 80 // High resolution for smooth curves
+            val steps = 100 // Very smooth curves
             for (step in 0..steps) {
                 val progress = step.toFloat() / steps
                 val x = startX + progress * waveWidth
                 
-                // Hanning window envelope to pinch the ends of the wave
+                // Smooth bell curve envelope to taper the ends
                 val envelope = sin(progress * Math.PI).toFloat()
                 
-                // Complex wave formula combining multiple frequencies
-                val wave1 = sin(progress * Math.PI * 2f * freqOffset + (animationPhase * speedMult) + phaseOffset)
-                val wave2 = cos(progress * Math.PI * 4f * freqOffset - (animationPhase * speedMult * 0.5f))
+                // Simple elegant sine wave
+                val wave = sin(progress * Math.PI * 3f + (animationPhase * speedMult) + phaseOffset).toFloat()
                 
-                val combinedWave = (wave1 + wave2 * 0.5f).toFloat()
-                
-                val y = cy + combinedWave * currentAmplitude * envelope
+                val y = cy + wave * maxAmplitude * envelope
                 
                 wavePath.lineTo(x, y)
             }
