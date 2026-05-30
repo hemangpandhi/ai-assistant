@@ -16,6 +16,45 @@ This project is a fully functional, system-level Android Digital Assistant demon
 ## Architecture
 
 For a detailed breakdown of the system architecture, including the **Eager Streaming Tool Execution** and **Sentence-Boundary Streaming TTS** pipelines, please see the [Architecture Documentation](Architecture.md).
+
+---
+
+## Adding New Hardware Features (Zero-Code Architecture)
+
+This project uses a highly scalable, JSON-driven tool architecture. You can add support for standard Android Automotive VHAL properties without writing any Kotlin code.
+
+### 1. Adding a Context Property (Read-Only)
+To allow the LLM to read a vehicle sensor (e.g., EV Battery Level, Outside Temp):
+1. Open `app/src/main/assets/custom_properties.json`.
+2. Append to the `"properties"` array with the AOSP VHAL ID:
+```json
+{
+  "name": "EV_BATTERY_LEVEL",
+  "id": 291504905,
+  "type": "FLOAT"
+}
+```
+The property will automatically be injected into the LLM's system prompt context.
+
+### 2. Adding an Actuator Command (Generic VHAL Write)
+To allow the LLM to physically control a vehicle feature (e.g., Wipers, Ambient Lights, Trunk):
+1. Open `app/src/main/assets/custom_properties.json`.
+2. Append to the `"tools"` array, using `"handler_type": "GENERIC_VHAL_WRITE"`:
+```json
+{
+  "prompt_string": "<TOOL>setAmbientLight(COLOR_INT)</TOOL>",
+  "handler_type": "GENERIC_VHAL_WRITE",
+  "property_id": 356518835,
+  "data_type": "INT",
+  "area_id": 0,
+  "success_message": "I've changed the ambient lighting color."
+}
+```
+The `ToolManager` engine will dynamically parse the LLM's output (e.g., `<TOOL>setAmbientLight(5)</TOOL>`) and securely write `5` to the VHAL using reflection, with **zero Kotlin code required**.
+
+### 3. Adding Complex Commands (Custom Kotlin)
+If a command requires complex math, area ID iteration, or safety guardrails (e.g., speed limits for windows), use `"handler_type": "CUSTOM_KOTLIN"` and map it to a `"handler_key"`. Then, write the custom execution logic in `ToolManager.kt`.
+
 ---
 
 ## Supported Models & AAOS Hardware Contexts

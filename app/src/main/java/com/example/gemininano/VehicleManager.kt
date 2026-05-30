@@ -18,12 +18,6 @@ object VehicleManager {
     private var currentFuelLevel: Float = 50f
     private var currentGear: Int = 4
     
-    // Expanded Mock Telemetry
-    private var currentEvBatteryLevel: Float = 42f
-    private var currentTirePressureFrontLeft: Float = 28f // Low pressure
-    private var currentOutsideTemperature: Float = 32f // Freezing outside
-    private var currentObdCodes: String = "P0420"
-    
     // Dynamic Custom JSON Properties
     // Maps integer ID -> Property Name (e.g., 639631617 -> "ADAS_OSE_DOOR_ALERT")
     private val customPropertyIdToName = mutableMapOf<Int, String>()
@@ -41,8 +35,13 @@ object VehicleManager {
         return customPropertyInstructions
     }
     
-    fun getObdCodes(): String {
-        return currentObdCodes
+    fun getLLMContextString(context: Context): String {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
+        val customProps = getCustomPropertiesString()
+        val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
+        
+        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Heater: ${getRealSeatHeaterLevel()}, City: ${LocationManager.getCurrentCity()}$customPropsStr, User Food Preference: $diningPref"
     }
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
@@ -71,6 +70,8 @@ object VehicleManager {
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
+            ToolManager.initialize(context)
+
             val car = Car.createCar(context)
             carPropertyManager = car.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
             
@@ -168,16 +169,8 @@ object VehicleManager {
         }
     }
 
-    // Expanded Telemetry Accessors
-    fun getEvBatteryLevel(): Float = currentEvBatteryLevel
-    fun getTirePressureFrontLeft(): Float = currentTirePressureFrontLeft
-    fun getOutsideTemperature(): Float = currentOutsideTemperature
-
     // Mock Telemetry Setters (for testing)
     fun setMockSpeed(speed: Float) { currentSpeed = speed }
-    fun setMockEvBatteryLevel(level: Float) { currentEvBatteryLevel = level }
-    fun setMockTirePressure(pressure: Float) { currentTirePressureFrontLeft = pressure }
-    fun setMockOutsideTemperature(temp: Float) { currentOutsideTemperature = temp }
 
     fun writeTemperatureToVhal(temp: Float) {
         try {
@@ -224,6 +217,22 @@ object VehicleManager {
             currentTemperature = temp
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL temp", e)
+        }
+    }
+    
+    fun setGenericVhalProperty(propertyId: Int, areaId: Int, value: String, dataType: String): Boolean {
+        try {
+            when (dataType.uppercase()) {
+                "INT" -> carPropertyManager?.setIntProperty(propertyId, areaId, value.toFloatOrNull()?.toInt() ?: value.toInt())
+                "FLOAT" -> carPropertyManager?.setFloatProperty(propertyId, areaId, value.toFloat())
+                "BOOLEAN" -> carPropertyManager?.setBooleanProperty(propertyId, areaId, value.toBoolean())
+                "STRING" -> carPropertyManager?.setProperty(Any::class.java, propertyId, areaId, value)
+                else -> return false
+            }
+            return true
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed generic write for property $propertyId", e)
+            return false
         }
     }
     

@@ -466,15 +466,9 @@ class LocalLLMActivity : AppCompatActivity() {
     private fun showTelemetrySettingsDialog() {
         val dialogView = layoutInflater.inflate(R.layout.dialog_telemetry_settings, null)
         val etSpeed = dialogView.findViewById<android.widget.EditText>(R.id.etSpeed)
-        val etEvBattery = dialogView.findViewById<android.widget.EditText>(R.id.etEvBattery)
-        val etTirePressure = dialogView.findViewById<android.widget.EditText>(R.id.etTirePressure)
-        val etOutsideTemp = dialogView.findViewById<android.widget.EditText>(R.id.etOutsideTemp)
         val etKvCache = dialogView.findViewById<android.widget.EditText>(R.id.etKvCache)
 
         etSpeed.setText(VehicleManager.getRealSpeed().toString())
-        etEvBattery.setText(VehicleManager.getEvBatteryLevel().toString())
-        etTirePressure.setText(VehicleManager.getTirePressureFrontLeft().toString())
-        etOutsideTemp.setText(VehicleManager.getOutsideTemperature().toString())
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val currentKvCache = prefs.getInt("max_tokens", 512)
@@ -499,16 +493,10 @@ class LocalLLMActivity : AppCompatActivity() {
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
                 val newSpeed = etSpeed.text.toString().toFloatOrNull()
-                val newBattery = etEvBattery.text.toString().toFloatOrNull()
-                val newTire = etTirePressure.text.toString().toFloatOrNull()
-                val newTemp = etOutsideTemp.text.toString().toFloatOrNull()
                 val newKvCache = etKvCache.text.toString().toIntOrNull()
                 val newAutoFlush = etAutoFlush.text.toString().toIntOrNull()
 
                 if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)
-                if (newBattery != null) VehicleManager.setMockEvBatteryLevel(newBattery)
-                if (newTire != null) VehicleManager.setMockTirePressure(newTire)
-                if (newTemp != null) VehicleManager.setMockOutsideTemperature(newTemp)
                 
                 prefs.edit().apply {
                     putString("mechanic_name", etMechanicName.text.toString())
@@ -707,107 +695,8 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private fun executeToolCall(toolCall: String) {
-        try {
-            if (toolCall.startsWith("increaseTemperature")) {
-                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
-                val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
-            } else if (toolCall.startsWith("decreaseTemperature")) {
-                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
-                val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
-            } else if (toolCall.startsWith("setTemperature")) {
-                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
-                VehicleManager.writeTemperatureToVhal(value.toFloat())
-            } else if (toolCall.startsWith("turnOnDefroster")) {
-                VehicleManager.writeDefrosterToVhal(true)
-            } else if (toolCall.startsWith("turnOffDefroster")) {
-                VehicleManager.writeDefrosterToVhal(false)
-            } else if (toolCall.startsWith("setSeatHeater")) {
-                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
-                VehicleManager.writeSeatHeaterToVhal(value)
-            } else if (toolCall.startsWith("setSeatMassager")) {
-                val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
-                VehicleManager.writeSeatMassagerToVhal(value)
-            } else if (toolCall.startsWith("setWindowPosition")) {
-                if (VehicleManager.getRealSpeed() > 70) {
-                    android.util.Log.w("SafetyGuardrail", "Speed > 70mph. Ignored setWindowPosition tool.")
-                    chatAdapter.addMessage(ChatMessage("System: Safety lockout prevented window action at high speed.", isUser = false))
-                } else {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
-                    VehicleManager.writeWindowPositionToVhal(value)
-                }
-            } else if (toolCall.lowercase().startsWith("navigate")) {
-                val dest = toolCall.substringAfter("(").substringBefore(")")
-                
-                // Try explicit Google Maps navigation first (real turn-by-turn)
-                val gMapsIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(dest)}"))
-                gMapsIntent.setPackage("com.google.android.apps.maps")
-                gMapsIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                
-                try {
-                    applicationContext.startActivity(gMapsIntent)
-                } catch (e: Exception) {
-                    // Try generic navigation intent
-                    val navIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("google.navigation:q=${android.net.Uri.encode(dest)}"))
-                    navIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                    try {
-                        applicationContext.startActivity(navIntent)
-                    } catch (e2: Exception) {
-                        // Fallback to geo intent
-                        val geoIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("geo:0,0?q=${android.net.Uri.encode(dest)}"))
-                        geoIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                        try {
-                            applicationContext.startActivity(geoIntent)
-                        } catch (e3: Exception) {
-                            // Absolute last resort: WebView Shell web search
-                            val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://www.google.com/maps/search/?api=1&query=${android.net.Uri.encode(dest)}"))
-                            browserIntent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                            browserIntent.setPackage("org.chromium.webview_shell")
-                            try {
-                                applicationContext.startActivity(browserIntent)
-                            } catch (e4: Exception) {
-                                android.util.Log.e("LocalLLMActivity", "Failed to launch any navigation intents", e4)
-                            }
-                        }
-                    }
-                }
-            } else if (toolCall.startsWith("playMusic")) {
-                val query = toolCall.substringAfter("(").substringBefore(")")
-                val intent = android.content.Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
-                intent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
-                intent.putExtra(android.app.SearchManager.QUERY, query)
-                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                if (intent.resolveActivity(packageManager) != null) startActivity(intent)
-            } else if (toolCall.startsWith("call")) {
-                val contact = toolCall.substringAfter("(").substringBefore(")")
-                val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                val mechName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
-                val mechNum = prefs.getString("mechanic_number", "1-800-555-0199") ?: "1-800-555-0199"
-                
-                // Map common contact names to dummy phone numbers for the demo
-                val phoneNumber = when (contact.lowercase()) {
-                    mechName.lowercase() -> mechNum
-                    "home" -> "555-0100"
-                    "wife" -> "555-0101"
-                    "husband" -> "555-0102"
-                    else -> contact // If it's already a number or an unmapped name, pass it directly
-                }
-                
-                val intent = android.content.Intent(android.content.Intent.ACTION_DIAL, android.net.Uri.parse("tel:${android.net.Uri.encode(phoneNumber)}"))
-                intent.flags = android.content.Intent.FLAG_ACTIVITY_NEW_TASK
-                startActivity(intent)
-            } else if (toolCall.startsWith("remember")) {
-                val fact = toolCall.substringAfter("(").substringBefore(")")
-                val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                val currentMemory = prefs.getString("user_memory", "") ?: ""
-                val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
-                prefs.edit().putString("user_memory", newMemory).apply()
-            }
-            updateDashboardUI()
-        } catch (e: Exception) {
-            android.util.Log.e("LocalLLMActivity", "Failed to parse tool call: $toolCall", e)
-        }
+        ToolManager.executeToolCall(this, toolCall)
+        updateDashboardUI()
     }
 
     private fun generateText(prompt: String, isVoice: Boolean = false, displayPrompt: String = "") {

@@ -161,11 +161,11 @@ object LLMManager {
         val basePrompt = """You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.
         
 === VEHICLE STATE ===
-Speed: ${VehicleManager.getRealSpeed()}mph, Temp: ${VehicleManager.getRealTemperature()}F, Heater: ${VehicleManager.getRealSeatHeaterLevel()}, EV Bat: ${VehicleManager.getEvBatteryLevel()}%, Tire: ${VehicleManager.getTirePressureFrontLeft()}PSI, Ext Temp: ${VehicleManager.getOutsideTemperature()}F, OBD: ${VehicleManager.getObdCodes()}, City: ${LocationManager.getCurrentCity()}
+${VehicleManager.getLLMContextString(context)}
 Memory: $userMemory
 
 === TOOLS ===
-<TOOL>increaseTemperature(VAL)</TOOL>, <TOOL>decreaseTemperature(VAL)</TOOL>, <TOOL>setTemperature(VAL)</TOOL>, <TOOL>setSeatHeater(LEVEL)</TOOL>, <TOOL>setSeatMassager(LEVEL)</TOOL>, <TOOL>turnOnDefroster()</TOOL>, <TOOL>setWindowPosition(PCT)</TOOL>, <TOOL>navigate(DEST)</TOOL>, <TOOL>playMusic(SONG)</TOOL>, <TOOL>call(NAME)</TOOL>, <TOOL>remember(FACT)</TOOL>
+${ToolManager.getLlmToolsPrompt()}
 
 === STRICT RULES ===
 1. HVAC: To change the temperature, you MUST reply with the EXACT XML tag <TOOL>increaseTemperature(VAL)</TOOL> or <TOOL>decreaseTemperature(VAL)</TOOL> BEFORE any text. Example: "<TOOL>increaseTemperature(5)</TOOL> Temperature is increased by 5 degrees."
