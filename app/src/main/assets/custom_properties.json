@@ -29,16 +29,6 @@
   ],
   "tools": [
     {
-      "prompt_string": "<TOOL>increaseTemperature(VAL)</TOOL>",
-      "handler_key": "increaseTemperature",
-      "handler_type": "CUSTOM_KOTLIN"
-    },
-    {
-      "prompt_string": "<TOOL>decreaseTemperature(VAL)</TOOL>",
-      "handler_key": "decreaseTemperature",
-      "handler_type": "CUSTOM_KOTLIN"
-    },
-    {
       "prompt_string": "<TOOL>setTemperature(VAL)</TOOL>",
       "handler_key": "setTemperature",
       "handler_type": "CUSTOM_KOTLIN"

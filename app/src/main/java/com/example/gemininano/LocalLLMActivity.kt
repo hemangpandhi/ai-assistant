@@ -37,6 +37,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 
 class LocalLLMActivity : AppCompatActivity() {
     companion object {
@@ -214,6 +216,7 @@ class LocalLLMActivity : AppCompatActivity() {
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts.language = Locale.US
+                applyVoiceSettings()
                 tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {}
                     override fun onDone(utteranceId: String?) {
@@ -461,6 +464,21 @@ class LocalLLMActivity : AppCompatActivity() {
                 }
             }
         })
+
+        val filter = IntentFilter("com.example.gemininano.DIAGNOSTICS_DUMP")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(diagnosticReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(diagnosticReceiver, filter)
+        }
+    }
+
+    private fun applyVoiceSettings() {
+        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val rate = prefs.getFloat("voice_rate", 1.0f)
+        val pitch = prefs.getFloat("voice_pitch", 1.0f)
+        tts.setSpeechRate(rate)
+        tts.setPitch(pitch)
     }
 
     private fun showTelemetrySettingsDialog() {
@@ -489,6 +507,27 @@ class LocalLLMActivity : AppCompatActivity() {
         etMechanicNumber.setText(currentMechanicNum)
         etDiningPref.setText(currentDiningPref)
 
+        // Voice Settings
+        val etSpeakingRate = dialogView.findViewById<android.widget.EditText>(R.id.etSpeakingRate)
+        val etPitch = dialogView.findViewById<android.widget.EditText>(R.id.etPitch)
+        val etVolume = dialogView.findViewById<android.widget.EditText>(R.id.etVolume)
+        val etEmotion = dialogView.findViewById<android.widget.EditText>(R.id.etEmotion)
+        val etEmphasis = dialogView.findViewById<android.widget.EditText>(R.id.etEmphasis)
+        val etPauses = dialogView.findViewById<android.widget.EditText>(R.id.etPauses)
+        val etBreath = dialogView.findViewById<android.widget.EditText>(R.id.etBreath)
+        val etIntensity = dialogView.findViewById<android.widget.EditText>(R.id.etIntensity)
+        val etReverb = dialogView.findViewById<android.widget.EditText>(R.id.etReverb)
+
+        etSpeakingRate.setText(prefs.getFloat("voice_rate", 1.0f).toString())
+        etPitch.setText(prefs.getFloat("voice_pitch", 1.0f).toString())
+        etVolume.setText(prefs.getFloat("voice_volume", -1.0f).toString())
+        etEmotion.setText(prefs.getString("voice_emotion", "empathetic"))
+        etEmphasis.setText(prefs.getString("voice_emphasis", "moderate"))
+        etPauses.setText(prefs.getInt("voice_pauses", 200).toString())
+        etBreath.setText(prefs.getInt("voice_breath", 120).toString())
+        etIntensity.setText(prefs.getFloat("voice_intensity", 0.4f).toString())
+        etReverb.setText(prefs.getString("voice_reverb", "none"))
+
         android.app.AlertDialog.Builder(this)
             .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
@@ -504,9 +543,21 @@ class LocalLLMActivity : AppCompatActivity() {
                     putString("dining_pref", etDiningPref.text.toString())
                     if (newKvCache != null) putInt("max_tokens", newKvCache)
                     if (newAutoFlush != null) putInt("auto_flush", newAutoFlush)
+                    
+                    // Save Voice Settings
+                    putFloat("voice_rate", etSpeakingRate.text.toString().toFloatOrNull() ?: 1.0f)
+                    putFloat("voice_pitch", etPitch.text.toString().toFloatOrNull() ?: 1.0f)
+                    putFloat("voice_volume", etVolume.text.toString().toFloatOrNull() ?: -1.0f)
+                    putString("voice_emotion", etEmotion.text.toString())
+                    putString("voice_emphasis", etEmphasis.text.toString())
+                    putInt("voice_pauses", etPauses.text.toString().toIntOrNull() ?: 200)
+                    putInt("voice_breath", etBreath.text.toString().toIntOrNull() ?: 120)
+                    putFloat("voice_intensity", etIntensity.text.toString().toFloatOrNull() ?: 0.4f)
+                    putString("voice_reverb", etReverb.text.toString())
                     apply()
                 }
 
+                applyVoiceSettings()
                 updateDashboardUI()
                 Toast.makeText(this, "Settings Updated", Toast.LENGTH_SHORT).show()
 
@@ -559,6 +610,7 @@ class LocalLLMActivity : AppCompatActivity() {
             Log.e("LocalLLMActivity", "Failed to cleanup VehicleManager", e)
         }
         super.onDestroy()
+        try { unregisterReceiver(diagnosticReceiver) } catch (e: Exception) {}
     }
 
     private fun checkModelExists() {
@@ -700,6 +752,19 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private fun generateText(prompt: String, isVoice: Boolean = false, displayPrompt: String = "") {
+        if (isGenerating) return
+        
+        if (prompt.trim() == "/diagnostics") {
+            chatAdapter.addMessage(ChatMessage("/diagnostics", isUser = true))
+            if (!isVoice) {
+                inputText.setText("")
+            }
+            val report = ToolManager.runSystemDiagnostics(this)
+            chatAdapter.addMessage(ChatMessage(report, isUser = false, isStreaming = false))
+            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+            return
+        }
+        
         generateButton.isEnabled = false
         voiceButton.isEnabled = false
         stopButton.isEnabled = true
@@ -762,7 +827,13 @@ class LocalLLMActivity : AppCompatActivity() {
             } else {
                 val customProps = VehicleManager.getCustomPropertiesString()
                 val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
-                "[Current State: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, User Food Preference: $diningPref]\nUser: " + prompt
+                
+                // If the prompt is short (e.g. "Yes", "Shizuoka palace"), skip telemetry to prevent distracting the LLM from the active conversation flow
+                if (prompt.length < 25) {
+                    "User: " + prompt
+                } else {
+                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, Dining: $diningPref]\nUser: " + prompt
+                }
             }
 
             val executedTools = mutableSetOf<String>()
@@ -1113,6 +1184,12 @@ class LocalLLMActivity : AppCompatActivity() {
                     chatAdapter.addMessage(ChatMessage("Download failed: ${e.message}", isUser = false))
                 }
             }
+        }
+    }
+    private val diagnosticReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
+            android.util.Log.i("AutomatedTest", "\n\n=================== DIAGNOSTIC DUMP ===================\n$report\n========================================================\n\n")
         }
     }
 }

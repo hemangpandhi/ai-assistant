@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#2A2A2A">
+
+<LinearLayout
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="20dp"
-    android:background="#2A2A2A">
+    android:padding="20dp">
 
     <TextView
         android:layout_width="wrap_content"
@@ -18,14 +22,7 @@
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Speed (mph)" android:textColor="#DDDDDD" />
     <EditText android:id="@+id/etSpeed" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal" />
 
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="EV Battery (%)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
-    <EditText android:id="@+id/etEvBattery" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal" />
 
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Tire Pressure (PSI)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
-    <EditText android:id="@+id/etTirePressure" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal" />
-
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Outside Temp (F)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
-    <EditText android:id="@+id/etOutsideTemp" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal" />
 
     <TextView
         android:layout_width="wrap_content"
@@ -62,4 +59,42 @@
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Dining / Diet Preference" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
     <EditText android:id="@+id/etDiningPref" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="text" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Voice AI Settings"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Speaking Rate / Tempo (0.9 - 1.05)" android:textColor="#DDDDDD" />
+    <EditText android:id="@+id/etSpeakingRate" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pitch (-1.5 to +0.5)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etPitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal|numberSigned" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume / Gain (-2.0 to -0.5 dB)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etVolume" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal|numberSigned" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Style / Emotion Label (e.g. empathetic)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etEmotion" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="text" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Emphasis (e.g. moderate)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etEmphasis" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="text" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pauses (ms)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etPauses" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="number" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Breath / Filler (ms)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etBreath" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="number" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Intensity (0.0 - 1.0)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etIntensity" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Reverb / FX" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etReverb" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="text" />
+
 </LinearLayout>
+</ScrollView>

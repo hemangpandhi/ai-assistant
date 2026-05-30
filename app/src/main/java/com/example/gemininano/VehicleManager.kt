@@ -21,6 +21,7 @@ object VehicleManager {
     // Dynamic Custom JSON Properties
     // Maps integer ID -> Property Name (e.g., 639631617 -> "ADAS_OSE_DOOR_ALERT")
     private val customPropertyIdToName = mutableMapOf<Int, String>()
+    private val customPropertyIdToType = mutableMapOf<Int, String>()
     // Maps Property Name -> Latest Value (e.g., "ADAS_OSE_DOOR_ALERT" -> "true")
     private val customPropertyValues = mutableMapOf<String, String>()
     // Maps Property Name -> AI Instruction
@@ -101,10 +102,12 @@ object VehicleManager {
                     val prop = propertiesArray.getJSONObject(i)
                     val name = prop.getString("name")
                     val id = prop.getInt("id")
+                    val type = prop.getString("type")
                     if (prop.has("instruction")) {
                         customPropertyInstructions.add(prop.getString("instruction"))
                     }
                     customPropertyIdToName[id] = name
+                    customPropertyIdToType[id] = type
                     customPropertyValues[name] = "Unknown" // Initial state
                     
                     try {
@@ -176,33 +179,61 @@ object VehicleManager {
         try {
             var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
             if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(17, 49) // Fallback for SEAT_1_LEFT and SEAT_1_RIGHT in AOSP
+                areaIds = intArrayOf(1, 4) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
             }
+            Log.d("VehicleManager", "writeTemperatureToVhal called with $temp. Area IDs: ${areaIds.joinToString()}")
             
             areaIds.forEach { areaId ->
                 var finalTemp = temp
-                // If requested temp is clearly in Fahrenheit (e.g., > 30), convert to Celsius
-                // Car HVAC max Celsius is usually 28.0C, so anything above 30 is Fahrenheit
-                if (finalTemp > 30f) {
-                    finalTemp = (finalTemp - 32f) * 5f / 9f
-                }
                 
-                // Android Automotive HVAC UI strictly requires temperatures to be rounded to the nearest 0.5
-                finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
-                
-                // Clamp to safe limits (16.0C to 28.0C) to prevent VHAL IllegalArgumentException
                 try {
                     val configArray = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.configArray
+                    var isVhalFahrenheit = false
+                    
                     if (configArray != null && configArray.size >= 2) {
-                        val minC = configArray[0] / 10f
-                        val maxC = configArray[1] / 10f
-                        if (finalTemp > maxC) finalTemp = maxC
-                        if (finalTemp < minC) finalTemp = minC
+                        val minTemp = configArray[0] / 10f
+                        val maxTemp = configArray[1] / 10f
+                        
+                        // If max temp is > 50, the VHAL natively expects Fahrenheit
+                        if (maxTemp > 50f) {
+                            isVhalFahrenheit = true
+                        }
+                        
+                        // If requested temp is Fahrenheit but VHAL expects Celsius, convert to Celsius
+                        if (!isVhalFahrenheit && finalTemp > 30f) {
+                            finalTemp = (finalTemp - 32f) * 5f / 9f
+                        }
+                        
+                        // If requested temp is Celsius but VHAL expects Fahrenheit, convert to Fahrenheit
+                        if (isVhalFahrenheit && finalTemp < 30f) {
+                            finalTemp = (finalTemp * 9f / 5f) + 32f
+                        }
+                        
+                        // Rounding rules: Celsius is usually 0.5 steps, Fahrenheit is 1.0 steps
+                        if (isVhalFahrenheit) {
+                            finalTemp = Math.round(finalTemp).toFloat()
+                        } else {
+                            finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
+                        }
+                        
+                        // Clamp
+                        if (finalTemp > maxTemp) finalTemp = maxTemp
+                        if (finalTemp < minTemp) finalTemp = minTemp
                     } else {
+                        // Fallback assuming Celsius
+                        if (finalTemp > 30f) {
+                            finalTemp = (finalTemp - 32f) * 5f / 9f
+                        }
+                        finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
                         if (finalTemp > 28.0f) finalTemp = 28.0f
                         if (finalTemp < 16.0f) finalTemp = 16.0f
                     }
                 } catch (e: Exception) {
+                    // Safety fallback
+                    if (finalTemp > 30f) {
+                        finalTemp = (finalTemp - 32f) * 5f / 9f
+                    }
+                    finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
                     if (finalTemp > 28.0f) finalTemp = 28.0f
                     if (finalTemp < 16.0f) finalTemp = 16.0f
                 }
@@ -222,11 +253,20 @@ object VehicleManager {
     
     fun setGenericVhalProperty(propertyId: Int, areaId: Int, value: String, dataType: String): Boolean {
         try {
+            var targetAreaId = areaId
+            // If areaId is 0 (global/unassigned), try to fetch the first valid areaId from the config
+            if (targetAreaId == 0) {
+                val config = carPropertyManager?.getCarPropertyConfig(propertyId)
+                if (config != null && config.areaIds.isNotEmpty()) {
+                    targetAreaId = config.areaIds.first()
+                }
+            }
+
             when (dataType.uppercase()) {
-                "INT" -> carPropertyManager?.setIntProperty(propertyId, areaId, value.toFloatOrNull()?.toInt() ?: value.toInt())
-                "FLOAT" -> carPropertyManager?.setFloatProperty(propertyId, areaId, value.toFloat())
-                "BOOLEAN" -> carPropertyManager?.setBooleanProperty(propertyId, areaId, value.toBoolean())
-                "STRING" -> carPropertyManager?.setProperty(Any::class.java, propertyId, areaId, value)
+                "INT" -> carPropertyManager?.setIntProperty(propertyId, targetAreaId, value.toFloatOrNull()?.toInt() ?: value.toInt())
+                "FLOAT" -> carPropertyManager?.setFloatProperty(propertyId, targetAreaId, value.toFloat())
+                "BOOLEAN" -> carPropertyManager?.setBooleanProperty(propertyId, targetAreaId, value.toBoolean())
+                "STRING" -> carPropertyManager?.setProperty(Any::class.java, propertyId, targetAreaId, value)
                 else -> return false
             }
             return true
@@ -286,6 +326,41 @@ object VehicleManager {
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL window pos", e)
         }
+    }
+
+    fun runPropertyDiagnostics(): String {
+        val sb = StringBuilder()
+        sb.append("## Telemetry Property Diagnostics\n\n")
+        sb.append("| Property Name | Type | Status | Value / Error |\n")
+        sb.append("|---|---|---|---|\n")
+
+        for ((id, name) in customPropertyIdToName) {
+            val type = customPropertyIdToType[id] ?: "UNKNOWN"
+            var status = "✅ PASS"
+            var note = "N/A"
+            try {
+                val config = carPropertyManager?.getCarPropertyConfig(id)
+                if (config == null) {
+                    status = "⚠️ UNSUPPORTED"
+                    note = "Hardware lacks VHAL support for this property"
+                } else {
+                    val areaId = config.areaIds.firstOrNull() ?: 0
+                    val value = when (type.uppercase()) {
+                        "FLOAT" -> carPropertyManager?.getFloatProperty(id, areaId).toString()
+                        "INT" -> carPropertyManager?.getIntProperty(id, areaId).toString()
+                        "BOOLEAN" -> carPropertyManager?.getBooleanProperty(id, areaId).toString()
+                        "STRING" -> carPropertyManager?.getProperty<Any>(Any::class.java, id, areaId)?.value?.toString() ?: "null"
+                        else -> "Unknown Type"
+                    }
+                    note = "Read successful: $value"
+                }
+            } catch (e: Exception) {
+                status = "❌ CRASH"
+                note = e.message ?: "Exception"
+            }
+            sb.append("| $name | $type | $status | $note |\n")
+        }
+        return sb.toString()
     }
 
     fun cleanup() {

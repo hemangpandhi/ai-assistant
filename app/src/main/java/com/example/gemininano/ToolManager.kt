@@ -80,7 +80,9 @@ object ToolManager {
      * Executes the requested tool call if it is enabled in custom_properties.json.
      * Returns a string summarizing the outcome for the chat UI.
      */
-    fun executeToolCall(context: Context, toolCall: String): String {
+    fun executeToolCall(context: Context, rawToolCall: String): String {
+        val toolCall = rawToolCall.trim()
+        Log.d(TAG, "Executing toolCall: $toolCall")
         try {
             // Check if the requested tool corresponds to an enabled handler
             var matchedTool: ToolDefinition? = null
@@ -96,12 +98,15 @@ object ToolManager {
                 return "System Error: The requested tool is not supported or is disabled by the manufacturer."
             }
 
+            Log.d(TAG, "Matched tool handlerKey: ${matchedTool.handlerKey}, handlerType: ${matchedTool.handlerType}")
+
             if (matchedTool.handlerType == "GENERIC_VHAL_WRITE") {
                 val propId = matchedTool.propertyId ?: return "System Error: Missing property_id"
                 val dataType = matchedTool.dataType ?: return "System Error: Missing data_type"
                 val areaId = matchedTool.areaId ?: 0
                 val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter("(").substringBefore(")")
                 
+                Log.d(TAG, "Executing GENERIC_VHAL_WRITE for propId $propId")
                 val success = VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
                 return if (success) {
                     matchedTool.successMessage ?: "Action completed successfully."
@@ -115,17 +120,20 @@ object ToolManager {
                 "increaseTemperature" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                    Log.d(TAG, "increaseTemperature: parsed value=$value, currentTemp=$currentTemp")
                     VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
                     "I've increased the temperature by $value degrees."
                 }
                 "decreaseTemperature" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                    Log.d(TAG, "decreaseTemperature: parsed value=$value, currentTemp=$currentTemp")
                     VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
                     "I've decreased the temperature by $value degrees."
                 }
                 "setTemperature" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
+                    Log.d(TAG, "setTemperature: parsed value=$value")
                     VehicleManager.writeTemperatureToVhal(value.toFloat())
                     "I've set the temperature to $value degrees."
                 }
@@ -155,22 +163,22 @@ object ToolManager {
                     
                     val gMapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(dest)}"))
                     gMapsIntent.setPackage("com.google.android.apps.maps")
-                    gMapsIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    gMapsIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     try {
                         context.startActivity(gMapsIntent)
                     } catch (e: Exception) {
                         val navIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(dest)}"))
-                        navIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        navIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         try {
                             context.startActivity(navIntent)
                         } catch (e2: Exception) {
                             val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(dest)}"))
-                            geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             try {
                                 context.startActivity(geoIntent)
                             } catch (e3: Exception) {
                                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(dest)}"))
-                                browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                                 browserIntent.setPackage("org.chromium.webview_shell")
                                 try {
                                     context.startActivity(browserIntent)
@@ -222,8 +230,51 @@ object ToolManager {
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse tool call: $toolCall", e)
-            return "Failed to execute action."
+            Log.e(TAG, "Exception during tool execution", e)
+            return "System Error: An exception occurred while executing the tool."
         }
+    }
+
+    /**
+     * Executes a dummy command for every registered tool to verify the VHAL pipeline.
+     */
+    fun runSystemDiagnostics(context: Context): String {
+        val sb = StringBuilder()
+        sb.append("## System Diagnostics Report\n\n")
+        sb.append("| Tool Name | Handler Type | Status | Note |\n")
+        sb.append("|---|---|---|---|\n")
+
+        for ((key, def) in activeTools) {
+            var status = "✅ PASS"
+            var note = "Executed successfully"
+            try {
+                // Generate a dummy tool call string based on the required signature
+                val dummyCall = when {
+                    def.promptString.contains("VAL") -> "$key(72.0)"
+                    def.promptString.contains("LEVEL") -> "$key(1)"
+                    def.promptString.contains("PCT") -> "$key(50)"
+                    def.promptString.contains("DEST") -> "$key(Home)"
+                    def.promptString.contains("SONG") -> "$key(Test)"
+                    def.promptString.contains("NAME") -> "$key(Mechanic)"
+                    def.promptString.contains("FACT") -> "$key(TestFact)"
+                    else -> "$key()" // No args
+                }
+
+                val result = executeToolCall(context, dummyCall)
+                if (result.startsWith("System Error") || result.startsWith("Failed")) {
+                    status = "❌ FAIL"
+                    note = result
+                }
+            } catch (e: Exception) {
+                status = "❌ CRASH"
+                note = e.message ?: "Unknown Exception"
+            }
+            sb.append("| $key | ${def.handlerType} | $status | $note |\n")
+        }
+
+        sb.append("\n")
+        sb.append(VehicleManager.runPropertyDiagnostics())
+        
+        return sb.toString()
     }
 }
