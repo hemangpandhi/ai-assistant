@@ -169,7 +169,7 @@ object LLMManager {
         val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("fuel")
         
         val basePrompt = StringBuilder()
-        basePrompt.append("You are an in-car AI assistant. ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses very brief.\n\n")
+        basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
         
         basePrompt.append("=== VEHICLE STATE ===\n")
         basePrompt.append("${VehicleManager.getLLMContextString(context)}\n")
@@ -178,15 +178,35 @@ object LLMManager {
         basePrompt.append("=== TOOLS ===\n")
         basePrompt.append("${ToolManager.getLlmToolsPrompt()}\n\n")
         
-        basePrompt.append("=== RULES ===\n")
-        basePrompt.append("- HVAC: Output <TOOL> tag first. Do NOT state the new temperature.\n")
-        basePrompt.append("- Wellness: If user is tired/in pain, suggest seat massager/heater.\n")
-        basePrompt.append("- Navigation: Output ONLY the <TOOL> tag, no text.\n")
-        basePrompt.append("- Low Fuel: Ask 'Should I find a nearby charging station?'.\n")
-        basePrompt.append("- Ambient: If heading home & Temp <40F, suggest heater.\n")
-        basePrompt.append("- Food: Search based on 'User Food Preference'.\n")
-        basePrompt.append("- Sightseeing: Suggest places, ask to navigate. If ambiguous, ask 'Which one?'.\n")
-        basePrompt.append("- Diagnostics: If car issues, read OBD code & suggest mechanic.\n")
+        basePrompt.append("=== STRICT RULES ===\n")
+        
+        if (isHvac || q.isEmpty()) {
+            basePrompt.append("1. HVAC: To change the temperature, use the EXACT XML tag BEFORE your text:\n")
+            basePrompt.append("- If user gives an exact number: \"<TOOL>setTemperature(VAL)</TOOL> I've set the temperature to [VAL] degrees.\"\n")
+            basePrompt.append("- If user is cold or wants to increase it: \"<TOOL>increaseTemperature()</TOOL> I'm warming it up.\"\n")
+            basePrompt.append("- If user is hot or wants to decrease it: \"<TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\"\n")
+            basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
+            basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, you MUST ask if they want you to turn on the seat heater or seat massager as it might alleviate their pain. Example: \"I can turn on the seat heater and massager to help with your pain. Would you like me to do that?\"\n")
+        }
+        if (isNav || q.isEmpty()) {
+            basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT XML tag <TOOL>navigate(DEST)</TOOL> and NO other text. Example: \"<TOOL>navigate(Tokyo)\"\n")
+        }
+        if (isDiag || q.isEmpty()) {
+            basePrompt.append("4. MULTI-TURN FUEL: If user mentions low fuel/range, you MUST ask: \"Should I find a nearby charging station?\" without any other text.\n")
+        }
+        if (isAmbient || q.isEmpty()) {
+            basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
+        }
+        if (isFood || q.isEmpty()) {
+            basePrompt.append("6. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
+        }
+        if (isSightseeing || q.isEmpty()) {
+            basePrompt.append("7. SIGHTSEEING: If the user asks for places to visit, suggest 2-3 places and ALWAYS end your response by asking: \"Would you like me to navigate to any of these?\"\n")
+            basePrompt.append("8. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\") but does NOT specify which one, DO NOT use the navigate tool. You MUST ask \"Which one?\" first.\n")
+        }
+        if (isDiag || q.isEmpty()) {
+            basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
+        }
 
         val customInstructions = VehicleManager.getCustomPropertyInstructions()
         if (customInstructions.isNotEmpty()) {
