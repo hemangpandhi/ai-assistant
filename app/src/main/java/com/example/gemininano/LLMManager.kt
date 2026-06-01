@@ -215,47 +215,8 @@ object LLMManager {
         try {
             conversation = engine!!.createConversation(conversationConfig)
             Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
-            val activeContext = context ?: appContext
-            if (activeContext != null) {
-                warmUpSystemPrompt(activeContext)
-            }
         } catch (e: Exception) {
             Log.e("LLMManager", "Failed to reset conversation", e)
         }
     }
-
-    private fun warmUpSystemPrompt(context: Context) {
-        if (engine == null || conversation == null) return
-        
-        kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
-            try {
-                Log.d("LLMManager", "Starting background warmup...")
-                val systemPrompt = getSystemPrompt(context, "")
-                
-                val warmupText = "$systemPrompt\nUser: System initializing. Acknowledge with OK."
-                
-                isFirstMessage = false
-                
-                conversation!!.sendMessageAsync(
-                    Contents.of(Content.Text(warmupText)),
-                    object : com.google.ai.edge.litertlm.MessageCallback {
-                        override fun onMessage(message: com.google.ai.edge.litertlm.Message) { }
-                        override fun onDone() {
-                            Log.d("LLMManager", "Warmup complete. KV cache populated.")
-                        }
-                        override fun onError(e: Throwable) {
-                            Log.e("LLMManager", "Warmup failed", e)
-                            isFirstMessage = true
-                        }
-                    },
-                    emptyMap()
-                )
-            } catch (e: Exception) {
-                Log.e("LLMManager", "Error during warmup", e)
-                isFirstMessage = true
-            }
-        }
-    }
-
-
 }

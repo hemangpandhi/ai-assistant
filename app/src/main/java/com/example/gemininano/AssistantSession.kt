@@ -293,9 +293,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
         
-        val tools = ToolManager.getLlmToolsPrompt()
-        val reminder = "\n(Reminder: To execute car actions or navigation, you MUST include the exact XML tag in your response. Available tools: $tools)"
-        val finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\n" + query
+        val finalPrompt: String
+        if (LLMManager.isFirstMessage) {
+            val sysPrompt = LLMManager.getSystemPrompt(context)
+            finalPrompt = "$sysPrompt\n\nUser Query: $query"
+            LLMManager.isFirstMessage = false
+        } else {
+            val tools = ToolManager.getLlmToolsPrompt()
+            val reminder = "\n(Reminder: To execute car actions or navigation, you MUST include the exact XML tag in your response. Available tools: $tools)"
+            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser Query: $query"
+        }
 
         val executedTools = mutableSetOf<String>()
         val toolFeedbacks = mutableListOf<String>()
