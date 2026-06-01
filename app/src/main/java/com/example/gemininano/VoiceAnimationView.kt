@@ -105,7 +105,7 @@ class VoiceAnimationView @JvmOverloads constructor(
         if (baseAlpha == 0) return
 
         val maxRadius = Math.min(width / 12f, height / 4f)
-        val dotRadius = maxRadius * 0.6f
+        val dotRadius = maxRadius * 0.45f
         val spacing = dotRadius * 3.5f
         val startX = cx - (spacing * 1.5f)
 
