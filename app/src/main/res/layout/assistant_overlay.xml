@@ -44,17 +44,6 @@
                     android:layout_width="match_parent"
                     android:layout_height="80dp"
                     android:visibility="gone" />
-
-                <!-- The mic icon floats exactly in the center of the animation view -->
-                <ImageView
-                    android:id="@+id/ivCenterMic"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_mic_premium"
-                    app:tint="#00E5FF"
-                    android:visibility="gone"
-                    android:contentDescription="Assistant Mic" />
             </FrameLayout>
 
             <!-- Status Text directly below animation -->

@@ -37,13 +37,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private lateinit var btnOpenApp: Button
     private lateinit var inputControls: View
     private lateinit var voiceAnimation: VoiceAnimationView
-    private lateinit var ivCenterMic: View
     private lateinit var svResponse: android.widget.ScrollView
     
     private var lastResponseBuilder = java.lang.StringBuilder()
     private var tts: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
-    private var idleAnimator: android.animation.ObjectAnimator? = null
     private var dotAnimatorJob: kotlinx.coroutines.Job? = null
 
     override fun onInit(status: Int) {
@@ -83,16 +81,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         btnSend = overlayView.findViewById(R.id.btnSend)
         btnMic = overlayView.findViewById(R.id.btnMic)
         btnOpenApp = overlayView.findViewById(R.id.btnOpenApp)
-        ivCenterMic = overlayView.findViewById(R.id.ivCenterMic)
         svResponse = overlayView.findViewById(R.id.svResponse)
         inputControls = overlayView.findViewById(R.id.inputControlsContainer)
-        
         voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
-        
-        idleAnimator = android.animation.ObjectAnimator.ofFloat(ivCenterMic, "alpha", 1f, 0.3f, 1f).apply {
-            duration = 2000
-            repeatCount = android.animation.ValueAnimator.INFINITE
-        }
         
         val rootOverlay = overlayView.findViewById<View>(R.id.rootOverlay)
         rootOverlay.setOnClickListener {
@@ -131,9 +122,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 statusText.visibility = View.VISIBLE
                 startDotAnimation("Listening")
                 voiceAnimation.state = VoiceAnimationView.State.LISTENING
-                ivCenterMic.visibility = View.VISIBLE
-                idleAnimator?.cancel()
-                ivCenterMic.alpha = 1f
             }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
@@ -153,8 +141,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 stopDotAnimation(errorMsg)
                 statusText.visibility = View.VISIBLE
                 voiceAnimation.state = VoiceAnimationView.State.IDLE
-                ivCenterMic.visibility = View.VISIBLE
-                idleAnimator?.start()
                 
                 CoroutineScope(Dispatchers.Main).launch {
                     kotlinx.coroutines.delay(3000)
@@ -192,8 +178,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         responseText.text = ""
         etInput.setText("")
         voiceAnimation.state = VoiceAnimationView.State.IDLE
-        ivCenterMic.visibility = View.VISIBLE
-        idleAnimator?.start()
         
         if (LLMManager.engine == null) {
             statusText.text = "Initializing Model..."
@@ -242,14 +226,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         statusText.visibility = View.VISIBLE
         startDotAnimation("Processing")
         voiceAnimation.state = VoiceAnimationView.State.THINKING
-        ivCenterMic.visibility = View.GONE
-        idleAnimator?.cancel()
     }
 
     private fun stopThinkingAnimation() {
         voiceAnimation.state = VoiceAnimationView.State.IDLE
-        ivCenterMic.visibility = View.VISIBLE
-        idleAnimator?.start()
         stopDotAnimation()
     }
 
@@ -342,7 +322,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             CoroutineScope(Dispatchers.Main).launch {
                                 voiceAnimation.state = VoiceAnimationView.State.SPEAKING
-                                ivCenterMic.visibility = View.GONE
                                 val chunk = message.toString()
                                 lastResponseBuilder.append(chunk)
                                 var currentText = lastResponseBuilder.toString()
@@ -532,7 +511,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         tts?.stop()
         tts?.shutdown()
         speechRecognizer?.destroy()
-        idleAnimator?.cancel()
         dotAnimatorJob?.cancel()
         super.onDestroy()
     }
