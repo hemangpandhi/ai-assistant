@@ -30,6 +30,7 @@ object LLMManager {
         private set
 
     var isFirstMessage = true
+    private var appContext: Context? = null
 
 
     interface InitCallback {
@@ -42,6 +43,7 @@ object LLMManager {
             callback?.onSuccess()
             return
         }
+        appContext = context.applicationContext
 
         withContext(Dispatchers.IO) {
             val internalDir = context.filesDir
@@ -305,8 +307,9 @@ object LLMManager {
         try {
             conversation = engine!!.createConversation(conversationConfig)
             Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
-            if (context != null) {
-                warmUpSystemPrompt(context)
+            val activeContext = context ?: appContext
+            if (activeContext != null) {
+                warmUpSystemPrompt(activeContext)
             }
         } catch (e: Exception) {
             Log.e("LLMManager", "Failed to reset conversation", e)
