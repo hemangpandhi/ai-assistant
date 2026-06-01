@@ -39,10 +39,10 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent">
 
-                <androidx.compose.ui.platform.ComposeView
+                <com.example.gemininano.VoiceAnimationView
                     android:id="@+id/voiceAnimation"
                     android:layout_width="match_parent"
-                    android:layout_height="350dp"
+                    android:layout_height="150dp"
                     android:visibility="gone" />
 
                 <!-- The mic icon floats exactly in the center of the animation view -->

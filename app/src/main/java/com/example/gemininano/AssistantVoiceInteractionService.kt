@@ -20,6 +20,7 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
 
     override fun onReady() {
         super.onReady()
+        VehicleManager.initialize(this) // 'this' is a Service, which is a valid Context for Car Service binding!
         val filter = IntentFilter("com.example.gemininano.WAKE_WORD_DETECTED")
         registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
     }

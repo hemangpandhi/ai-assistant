@@ -1,3 +1,12 @@
 *.litertlm
 *.task
 *.bin
+*.iml
+.gradle
+/local.properties
+/.idea/
+.DS_Store
+build/
+app/build/
+.externalNativeBuild
+.cxx

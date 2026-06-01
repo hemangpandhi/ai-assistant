@@ -118,14 +118,14 @@ object ToolManager {
             // Execute the corresponding Kotlin handler
             return when (matchedTool.handlerKey) {
                 "increaseTemperature" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 2.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
                     Log.d(TAG, "increaseTemperature: parsed value=$value, currentTemp=$currentTemp")
                     VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
                     "I've increased the temperature by $value degrees."
                 }
                 "decreaseTemperature" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 1.0
+                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 2.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
                     Log.d(TAG, "decreaseTemperature: parsed value=$value, currentTemp=$currentTemp")
                     VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
@@ -133,8 +133,10 @@ object ToolManager {
                 }
                 "setTemperature" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
-                    Log.d(TAG, "setTemperature: parsed value=$value")
+                    val currentTemp = VehicleManager.getRealTemperature().toDouble()
+                    Log.d(TAG, "setTemperature: parsed value=$value, currentTemp=$currentTemp")
                     VehicleManager.writeTemperatureToVhal(value.toFloat())
+                    
                     "I've set the temperature to $value degrees."
                 }
                 "setSeatHeater" -> {
@@ -179,7 +181,6 @@ object ToolManager {
                             } catch (e3: Exception) {
                                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(dest)}"))
                                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                browserIntent.setPackage("org.chromium.webview_shell")
                                 try {
                                     context.startActivity(browserIntent)
                                 } catch (e4: Exception) {
@@ -189,6 +190,25 @@ object ToolManager {
                         }
                     }
                     "Routing to $dest."
+                }
+                "search" -> {
+                    val query = toolCall.substringAfter("(").substringBefore(")")
+                    Toast.makeText(context, "Searching map for: $query", Toast.LENGTH_SHORT).show()
+                    val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
+                    geoIntent.setPackage("com.google.android.apps.maps")
+                    geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    try {
+                        context.startActivity(geoIntent)
+                    } catch (e: Exception) {
+                        val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
+                        fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                        try {
+                            context.startActivity(fallbackIntent)
+                        } catch (e2: Exception) {
+                            Log.e(TAG, "No map app found for search")
+                        }
+                    }
+                    "Showing search results for $query on the map."
                 }
                 "playMusic" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")

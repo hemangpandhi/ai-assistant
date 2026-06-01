@@ -257,7 +257,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 val msg = when (error) {
                     SpeechRecognizer.ERROR_NETWORK -> "Network Error"
                     SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network Timeout"
-                    SpeechRecognizer.ERROR_NO_MATCH -> "No match found"
+                    SpeechRecognizer.ERROR_NO_MATCH -> "I didn't quite catch that."
                     SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
                     13 -> "Offline Language Pack Missing"
                     else -> "Voice Error: $error"
@@ -489,7 +489,7 @@ class LocalLLMActivity : AppCompatActivity() {
         etSpeed.setText(VehicleManager.getRealSpeed().toString())
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-        val currentKvCache = prefs.getInt("max_tokens", 512)
+        val currentKvCache = prefs.getInt("max_tokens", 2048)
         val currentAutoFlush = prefs.getInt("auto_flush", 25)
         val currentMechanicName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
         val currentMechanicNum = prefs.getString("mechanic_number", "555-0199") ?: "555-0199"
@@ -789,18 +789,7 @@ class LocalLLMActivity : AppCompatActivity() {
             return
         }
         
-        if (LLMManager.isWarmingUp) {
-            chatAdapter.updateLastMessage("\n\n[Warming up AI context... please wait]")
-            lifecycleScope.launch {
-                while (LLMManager.isWarmingUp) {
-                    delay(500)
-                }
-                chatAdapter.replaceLastMessage("")
-                processQuery(prompt, isVoice, displayPrompt)
-            }
-        } else {
-            processQuery(prompt, isVoice, displayPrompt)
-        }
+        processQuery(prompt, isVoice, displayPrompt)
     }
     
     private fun processQuery(prompt: String, isVoice: Boolean, displayPrompt: String) {
@@ -823,7 +812,7 @@ class LocalLLMActivity : AppCompatActivity() {
             val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
             val finalPrompt = if (LLMManager.isFirstMessage) {
                 LLMManager.isFirstMessage = false
-                LLMManager.getSystemPrompt(applicationContext) + "\nUser: " + prompt
+                LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
             } else {
                 val customProps = VehicleManager.getCustomPropertiesString()
                 val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
@@ -863,6 +852,17 @@ class LocalLLMActivity : AppCompatActivity() {
                             lastResponseBuilder.append(chunk)
                             
                             var currentText = lastResponseBuilder.toString()
+                            
+                            if (currentText.startsWith("Assistant:", ignoreCase = true)) {
+                                currentText = currentText.substring("Assistant:".length).trimStart()
+                                lastResponseBuilder.clear()
+                                lastResponseBuilder.append(currentText)
+                            }
+                            if (currentText.startsWith("User:", ignoreCase = true)) {
+                                currentText = currentText.substring("User:".length).trimStart()
+                                lastResponseBuilder.clear()
+                                lastResponseBuilder.append(currentText)
+                            }
                             
                             // Prevent the AI from hallucinating the user's response
                             val userIdx = currentText.indexOf("\nUser:")
@@ -967,12 +967,9 @@ class LocalLLMActivity : AppCompatActivity() {
                             val errorMsg = throwable.message ?: ""
                             chatAdapter.updateLastMessage("\nError: $errorMsg")
                             resetControls()
-                            LLMManager.isFirstMessage = true
                             
-                            if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
-                                chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
-                                LLMManager.resetConversation()
-                            }
+                            chatAdapter.addMessage(ChatMessage("Model error occurred (likely context full). Clearing history to prevent freeze...", isUser = false))
+                            LLMManager.resetConversation()
                         }
                     }
                 },
@@ -1037,7 +1034,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     val isFirst = LLMManager.isFirstMessage
                     val finalQuery = if (isFirst) {
                         LLMManager.isFirstMessage = false
-                        LLMManager.getSystemPrompt(applicationContext) + "\nUser: " + query
+                        LLMManager.getSystemPrompt(applicationContext, query) + "\nUser: " + query
                     } else {
                         "User: $query"
                     }

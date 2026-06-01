@@ -145,7 +145,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 val errorMsg = when (error) {
                     SpeechRecognizer.ERROR_NETWORK -> "Network Error (No Internet/Language Pack)."
                     SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network Timeout."
-                    SpeechRecognizer.ERROR_NO_MATCH -> "No match found."
+                    SpeechRecognizer.ERROR_NO_MATCH -> "I didn't quite catch that."
                     SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout."
                     13 -> "Offline Language Pack Missing! Type instead."
                     else -> "Voice Error: $error"
@@ -269,18 +269,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         btnSend.isEnabled = false
         isQueryProcessed = false
         
-        if (LLMManager.isWarmingUp) {
-            statusText.text = "Warming up AI context... please wait a moment."
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                while (LLMManager.isWarmingUp) {
-                    kotlinx.coroutines.delay(500)
-                }
-                statusText.visibility = View.GONE
-                processQuery(query)
-            }
-        } else {
-            processQuery(query)
-        }
+        processQuery(query)
     }
     
     private fun processQuery(query: String) {
@@ -314,7 +303,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         val finalPrompt = if (LLMManager.isFirstMessage) {
             LLMManager.isFirstMessage = false
-            LLMManager.getSystemPrompt(context) + "\nUser: " + query
+            LLMManager.getSystemPrompt(context, query) + "\nUser: " + query
         } else {
             "[Current State: ${VehicleManager.getLLMContextString(context)}]\nUser: " + query
         }
@@ -348,6 +337,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 val chunk = message.toString()
                                 lastResponseBuilder.append(chunk)
                                 var currentText = lastResponseBuilder.toString()
+                                
+                                if (currentText.startsWith("Assistant:", ignoreCase = true)) {
+                                    currentText = currentText.substring("Assistant:".length).trimStart()
+                                    lastResponseBuilder.clear()
+                                    lastResponseBuilder.append(currentText)
+                                }
+                                if (currentText.startsWith("User:", ignoreCase = true)) {
+                                    currentText = currentText.substring("User:".length).trimStart()
+                                    lastResponseBuilder.clear()
+                                    lastResponseBuilder.append(currentText)
+                                }
                                 
                                 // Prevent the AI from hallucinating the user's response
                                 val userIdx = currentText.indexOf("\nUser:")
@@ -460,15 +460,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
                             android.util.Log.e("AssistantSession", "LLM Error", throwable)
-                            statusText.text = "Error"
+                            statusText.text = "Memory full. Cleared context. Please try again."
                             stopThinkingAnimation()
-                            responseText.text = throwable.message ?: "An unexpected error occurred."
+                            responseText.text = "The AI context memory was full and has been cleared to prevent freezing."
                             btnSend.isEnabled = true
-                            LLMManager.isFirstMessage = true
+                            LLMManager.resetConversation()
                             isQueryProcessed = true
-                            
-                            kotlinx.coroutines.delay(2000)
-                            finish()
                         }
                     }
                 },

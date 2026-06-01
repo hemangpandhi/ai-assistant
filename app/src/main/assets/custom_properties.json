@@ -34,6 +34,16 @@
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
+      "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
+      "handler_key": "increaseTemperature",
+      "handler_type": "CUSTOM_KOTLIN"
+    },
+    {
+      "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
+      "handler_key": "decreaseTemperature",
+      "handler_type": "CUSTOM_KOTLIN"
+    },
+    {
       "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
       "handler_key": "setSeatHeater",
       "handler_type": "CUSTOM_KOTLIN"
@@ -69,6 +79,11 @@
     {
       "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
       "handler_key": "navigate",
+      "handler_type": "CUSTOM_KOTLIN"
+    },
+    {
+      "prompt_string": "<TOOL>search(QUERY)</TOOL>",
+      "handler_key": "search",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
