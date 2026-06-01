@@ -208,6 +208,76 @@ object LLMManager {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
         }
 
+        basePrompt.append("\n")
+
+        if (isHvac || q.isEmpty()) {
+            basePrompt.append("[HVAC Control]\n")
+            basePrompt.append("Input: \"Increase temperature.\"\n")
+            basePrompt.append("Response: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n")
+            basePrompt.append("Input: \"Set the temperature to 70.\"\n")
+            basePrompt.append("Response: <TOOL>setTemperature(70)</TOOL> I've set the temperature to 70 degrees.\n")
+            basePrompt.append("Input: \"I am feeling cold.\"\n")
+            basePrompt.append("Response: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n")
+            basePrompt.append("Input: \"Decrease temperature.\"\n")
+            basePrompt.append("Response: <TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\n\n")
+        }
+
+        if (isSightseeing || q.isEmpty()) {
+            basePrompt.append("[Sightseeing - Accept]\n")
+            basePrompt.append("Input: \"I'm driving through Paris. What are some interesting things I should see?\"\n")
+            basePrompt.append("Response: Paris is beautiful! You should definitely see the Eiffel Tower and the Louvre Museum. Would you like me to navigate to any of these?\n")
+            basePrompt.append("Input: \"Yes.\"\n")
+            basePrompt.append("Response: Which place do you want to visit?\n")
+            basePrompt.append("Input: \"The Louvre.\"\n")
+            basePrompt.append("Response: <TOOL>navigate(Louvre Museum)</TOOL> Setting destination to the Louvre Museum.\n\n")
+
+            basePrompt.append("[Sightseeing - Decline]\n")
+            basePrompt.append("Input: \"What are some interesting things I should see along the way?\"\n")
+            basePrompt.append("Response: You should definitely see the Eiffel Tower. Would you like me to navigate there?\n")
+            basePrompt.append("Input: \"No\"\n")
+            basePrompt.append("Response: OK, let me know if I can do something else for you.\n\n")
+        }
+
+        if (isNav || q.isEmpty()) {
+            basePrompt.append("[Direct Navigation]\n")
+            basePrompt.append("Input: \"Navigate to Tokyo\"\n")
+            basePrompt.append("Response: <TOOL>navigate(Tokyo)</TOOL>\n\n")
+        }
+
+        if (isDiag || q.isEmpty()) {
+            basePrompt.append("[Smart Fuel/Charging Routing]\n")
+            basePrompt.append("Input: \"I am running out of fuel.\"\n")
+            basePrompt.append("Response: Should I find a nearby charging station?\n")
+            basePrompt.append("Input: \"Yes.\"\n")
+            basePrompt.append("Response: <TOOL>navigate(charging station)</TOOL> Navigating to the nearest charging station.\n\n")
+        }
+            
+        if (isAmbient || q.isEmpty()) {
+            basePrompt.append("[Ambient Routine Confirmation]\n")
+            basePrompt.append("Input: \"I'm heading home.\"\n")
+            basePrompt.append("Response: <TOOL>navigate(Home)</TOOL> Navigating home. I noticed it's freezing outside. Would you like me to turn on the heater and seat warmers for your drive?\n")
+            basePrompt.append("Input: \"Yes, please.\"\n")
+            basePrompt.append("Response: <TOOL>setTemperature(72)</TOOL><TOOL>setSeatHeater(3)</TOOL>\n\n")
+        }
+
+        if (isFood || q.isEmpty()) {
+            basePrompt.append("[Personalized Dining Search]\n")
+            basePrompt.append("Input: \"I'm hungry.\"\n")
+            basePrompt.append("Response: I remember you prefer pure vegetarian food. <TOOL>search(pure vegetarian restaurants nearby)</TOOL> Here are some pure vegetarian restaurants I found on the map.\n\n")
+        }
+
+        if (isDiag || q.isEmpty()) {
+            basePrompt.append("[Contextual Diagnostics & Servicing]\n")
+            basePrompt.append("Input: \"What's wrong with my car?\"\n")
+            basePrompt.append("Response: Your check engine light is on with code P0420 (Catalytic Converter). Would you like me to call your preferred mechanic?\n")
+            basePrompt.append("Input: \"Yes, call the mechanic.\"\n")
+            basePrompt.append("Response: <TOOL>call(Mechanic)</TOOL>\n\n")
+
+            basePrompt.append("[Door Alert Check]\n")
+            basePrompt.append("Input: \"Check if any door is open.\"\n")
+            basePrompt.append("Response: I checked the ADAS_OSE_DOOR_ALERT system. The current status is: All Doors Closed.\n\n")
+        }
+
         val customInstructions = VehicleManager.getCustomPropertyInstructions()
         if (customInstructions.isNotEmpty()) {
             basePrompt.append("\n=== DYNAMIC VEHICLE SENSOR RULES ===\n")
