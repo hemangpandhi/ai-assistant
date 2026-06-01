@@ -305,7 +305,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             LLMManager.isFirstMessage = false
             LLMManager.getSystemPrompt(context, query) + "\nUser: " + query
         } else {
-            "[Current State: ${VehicleManager.getLLMContextString(context)}]\nUser: " + query
+            val q = query.lowercase()
+            var reminder = ""
+            if (q.contains("navigate") || q.contains("go to")) {
+                reminder = "\n(Reminder: To navigate, you MUST reply ONLY with EXACT XML tag <TOOL>navigate(DEST)</TOOL>)"
+            } else if (q.contains("temperature") || q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("ac") || q.contains("heater")) {
+                reminder = "\n(Reminder: Use XML tags like <TOOL>setTemperature(VAL)</TOOL>)"
+            } else {
+                reminder = "\n(Reminder: Use XML <TOOL> tags for physical car actions)"
+            }
+            "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: " + query
         }
 
         val executedTools = mutableSetOf<String>()
