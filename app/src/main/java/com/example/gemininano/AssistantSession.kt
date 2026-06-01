@@ -387,7 +387,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             }
                             
                             // Streaming TTS Logic
-                            var remainingText = displayMsg.substring(spokenTextLength[0])
+                            val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
+                            var remainingText = displayMsg.substring(safeStartIndex)
                             val sentenceRegex = "^(.*?)([.!?]+(?:\\s+|$)|\\n)".toRegex()
                             var match = sentenceRegex.find(remainingText)
                             while (match != null) {
@@ -439,7 +440,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             isQueryProcessed = true
                             
                             if (finalMsg.isNotBlank()) {
-                                val remainingSentence = finalMsg.substring(spokenTextLength[0]).trim()
+                                val safeIndex = Math.min(spokenTextLength[0], finalMsg.length)
+                                val remainingSentence = finalMsg.substring(safeIndex).trim()
                                 if (remainingSentence.isNotEmpty()) {
                                     tts?.speak(remainingSentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
                                 }
