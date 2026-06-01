@@ -80,7 +80,7 @@ object ToolManager {
      * Executes the requested tool call if it is enabled in custom_properties.json.
      * Returns a string summarizing the outcome for the chat UI.
      */
-    fun executeToolCall(context: Context, rawToolCall: String): String {
+    fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
         val toolCall = rawToolCall.trim()
         Log.d(TAG, "Executing toolCall: $toolCall")
         try {
@@ -167,22 +167,22 @@ object ToolManager {
                     gMapsIntent.setPackage("com.google.android.apps.maps")
                     gMapsIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     try {
-                        context.startActivity(gMapsIntent)
+                        if (intentHandler != null) intentHandler(gMapsIntent) else context.startActivity(gMapsIntent)
                     } catch (e: Exception) {
                         val navIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(dest)}"))
                         navIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         try {
-                            context.startActivity(navIntent)
+                            if (intentHandler != null) intentHandler(navIntent) else context.startActivity(navIntent)
                         } catch (e2: Exception) {
                             val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(dest)}"))
                             geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             try {
-                                context.startActivity(geoIntent)
+                                if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)
                             } catch (e3: Exception) {
                                 val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(dest)}"))
                                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                                 try {
-                                    context.startActivity(browserIntent)
+                                    if (intentHandler != null) intentHandler(browserIntent) else context.startActivity(browserIntent)
                                 } catch (e4: Exception) {
                                     Log.e(TAG, "Failed to launch any navigation intents", e4)
                                 }
@@ -198,12 +198,12 @@ object ToolManager {
                     geoIntent.setPackage("com.google.android.apps.maps")
                     geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     try {
-                        context.startActivity(geoIntent)
+                        if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)
                     } catch (e: Exception) {
                         val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
                         fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         try {
-                            context.startActivity(fallbackIntent)
+                            if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
                         } catch (e2: Exception) {
                             Log.e(TAG, "No map app found for search")
                         }
@@ -216,7 +216,9 @@ object ToolManager {
                     intent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
                     intent.putExtra(android.app.SearchManager.QUERY, query)
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    if (intent.resolveActivity(context.packageManager) != null) context.startActivity(intent)
+                    if (intent.resolveActivity(context.packageManager) != null) {
+                        if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
+                    }
                     "Playing $query."
                 }
                 "call" -> {
@@ -234,7 +236,7 @@ object ToolManager {
                     }
                     val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phoneNumber)}"))
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    context.startActivity(intent)
+                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
                     "Calling $contact."
                 }
                 "remember" -> {

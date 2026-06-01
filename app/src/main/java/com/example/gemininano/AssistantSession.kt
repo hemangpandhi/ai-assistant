@@ -234,7 +234,19 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     }
 
     private fun executeToolCall(toolCall: String): String? {
-        return ToolManager.executeToolCall(context, toolCall)
+        return ToolManager.executeToolCall(context, toolCall) { intent ->
+            try {
+                startVoiceActivity(intent)
+            } catch (e: Exception) {
+                android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
+                try {
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(intent)
+                } catch (e2: Exception) {
+                    android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
+                }
+            }
+        }
     }
 
     private fun handleQuery(query: String) {
