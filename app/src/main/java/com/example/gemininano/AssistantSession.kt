@@ -295,11 +295,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         val finalPrompt = if (LLMManager.isFirstMessage) {
             LLMManager.isFirstMessage = false
-            LLMManager.getSystemPrompt(context, query) + "\nUser: " + query
+            LLMManager.getSystemPrompt(context, query) + "\n" + query
         } else {
             val tools = ToolManager.getLlmToolsPrompt()
             val reminder = "\n(Reminder: To execute car actions or navigation, you MUST include the exact XML tag in your response. Available tools: $tools)"
-            "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: " + query
+            "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\n" + query
         }
 
         val executedTools = mutableSetOf<String>()
