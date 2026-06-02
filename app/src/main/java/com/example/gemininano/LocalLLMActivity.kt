@@ -159,6 +159,10 @@ class LocalLLMActivity : AppCompatActivity() {
         AnthropicManager.apiKey = cloudPrefs.getString("anthropic_api_key", "") ?: ""
         GeminiManager.apiKey = cloudPrefs.getString("gemini_api_key", "") ?: ""
         
+        if (GeminiManager.apiKey.isEmpty() && BuildConfig.GEMINI_API_KEY.isNotEmpty()) {
+            GeminiManager.apiKey = BuildConfig.GEMINI_API_KEY
+        }
+        
         etApiKey.addTextChangedListener(object : android.text.TextWatcher {
             override fun afterTextChanged(s: android.text.Editable?) {
                 val key = s.toString()
