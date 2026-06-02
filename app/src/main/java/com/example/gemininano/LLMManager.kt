@@ -98,7 +98,7 @@ object LLMManager {
                 conversation = null
                 engine = null
 
-                val backend = if (useCpu) Backend.CPU() else Backend.GPU()
+                val backend = if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU() else if (useCpu) Backend.CPU() else Backend.GPU()
 
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
