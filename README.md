@@ -65,6 +65,9 @@ Because Android Automotive OS (AAOS) hardware varies significantly, this applica
   - `wget https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task -O SmolLM-135M-Instruct.task`
 - **Mid-Range**: `Qwen2.5-1.5B-Instruct` (1.6GB, **Supports 4K Context**)
   - `wget https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-1.5B-Instruct.litertlm`
+- **Mid-Range / Premium**: `Gemma-4-E2B-IT` (2.5GB)
+  - `wget https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm -O gemma-4-E2B-it.litertlm`
+  - *(Ensure the file is exactly named `gemma-4-E2B-it.litertlm` before pushing to the device via ADB)*
 - **Premium** (Best for SA8295 / Tensor G2):
   - `Gemma-2B-IT GPU INT4` (2.5GB):
     - `wget https://storage.googleapis.com/mediapipe-models/llm/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin`
@@ -76,7 +79,7 @@ Because Android Automotive OS (AAOS) hardware varies significantly, this applica
 
 ### Cloud API Models
 If you prefer to leverage massive cloud models for advanced capabilities while still retaining the exact same in-vehicle tool execution pipeline, you can select these models directly from the debug UI:
-- **Google Gemini 1.5 Flash**: Lightning-fast reasoning and broad world knowledge.
+- **Google Gemini 2.5 Flash**: Lightning-fast reasoning and broad world knowledge.
 - **Anthropic Claude 3.5 Sonnet**: Industry-leading intelligence and conversational prowess.
 > **Note:** To use cloud models, simply select them from the UI dropdown and paste your respective API Key into the dynamically generated text box. Keys are securely saved locally via `SharedPreferences`.
 
@@ -124,10 +127,15 @@ You can use the automated script:
 **Manual Alternative (Multi-User Android Automotive)**:
 In Android Automotive, the active driver is often assigned **User ID 10** instead of 0. If you prefer manual commands, ensure you push as root to the correct User ID space to bypass FUSE permission issues:
 
+> **IMPORTANT**: NEVER commit these massive 2GB+ model files to GitHub, or your push will be permanently rejected! ONLY push them directly to your hardware using ADB.
+
 ```bash
 adb root
 adb shell mkdir -p /data/media/10/Android/data/com.example.gemininano/files/
+# Example for pushing Qwen 2.5:
 adb push Qwen2.5-1.5B-Instruct.litertlm /data/media/10/Android/data/com.example.gemininano/files/
+# Example for pushing Gemma 4 E2B:
+adb push gemma-4-E2B-it.litertlm /data/media/10/Android/data/com.example.gemininano/files/
 ```
 
 ### Step 4: Configuration & Usage
