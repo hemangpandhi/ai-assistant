@@ -161,7 +161,7 @@ object LLMManager {
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
         val q = query.lowercase()
-        val isHvac = q.contains("temperature") || q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("ac") || q.contains("heater") || q.contains("defroster")
+        val isHvac = q.contains("temperature") || q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("ac") || q.contains("heater") || q.contains("defroster") || q.contains("increase") || q.contains("decrease")
         val isSightseeing = q.contains("see") || q.contains("visit") || q.contains("interesting") || q.contains("places")
         val isFood = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant")
         val isNav = (q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route")) && !isSightseeing && !isFood
@@ -169,7 +169,7 @@ object LLMManager {
         val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("fuel")
         
         val basePrompt = StringBuilder()
-        basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using XML <TOOL> tags. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
+        basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the TOOL_CALL: command() | syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
         
         basePrompt.append("=== VEHICLE STATE ===\n")
         basePrompt.append("${VehicleManager.getLLMContextString(context)}\n")
@@ -179,26 +179,27 @@ object LLMManager {
         basePrompt.append("${ToolManager.getLlmToolsPrompt()}\n\n")
         
         basePrompt.append("=== STRICT RULES ===\n")
+        basePrompt.append("IMPORTANT: If you use a tool, YOUR RESPONSE MUST EXACTLY START WITH THE LETTERS 'TOOL_CALL:'. Do NOT omit it.\n")
         
         if (isHvac || q.isEmpty()) {
-            basePrompt.append("1. HVAC: To change the temperature, use the EXACT XML tag BEFORE your text:\n")
-            basePrompt.append("- If user gives an exact number: \"<TOOL>setTemperature(VAL)</TOOL> I've set the temperature to [VAL] degrees.\"\n")
-            basePrompt.append("- If user is cold or wants to increase it: \"<TOOL>increaseTemperature()</TOOL> I'm warming it up.\"\n")
-            basePrompt.append("- If user is hot or wants to decrease it: \"<TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\"\n")
+            basePrompt.append("1. HVAC: To change the temperature, use the EXACT TOOL_CALL syntax BEFORE your text:\n")
+            basePrompt.append("- If user gives an exact number: \"TOOL_CALL: setTemperature(VAL) | I've set the temperature to [VAL] degrees.\"\n")
+            basePrompt.append("- If user is cold or wants to increase it: \"TOOL_CALL: increaseTemperature() | I'm warming it up.\"\n")
+            basePrompt.append("- If user is hot or wants to decrease it: \"TOOL_CALL: decreaseTemperature() | I'm cooling it down.\"\n")
             basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
             basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, you MUST ask if they want you to turn on the seat heater or seat massager as it might alleviate their pain. Example: \"I can turn on the seat heater and massager to help with your pain. Would you like me to do that?\"\n")
         }
         if (isNav || q.isEmpty()) {
-            basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT XML tag <TOOL>navigate(DEST)</TOOL> and NO other text. Example: \"<TOOL>navigate(Tokyo)\"\n")
+            basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT syntax TOOL_CALL: navigate(DEST) | and NO other text. Example: \"TOOL_CALL: navigate(Tokyo)\"\n")
         }
         if (isDiag || q.isEmpty()) {
-            basePrompt.append("4. MULTI-TURN FUEL: If user mentions low fuel/range, you MUST ask: \"Should I find a nearby charging station?\" without any other text.\n")
+            basePrompt.append("4. MULTI-TURN FUEL: If user mentions low fuel/range, you MUST ask: \"Should I find a nearby charging station?\" without any other text. DO NOT use the remember tool for fuel/diagnostics.\n")
         }
         if (isAmbient || q.isEmpty()) {
-            basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
+            basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"TOOL_CALL: navigate(Home) | Should I turn on the heater?\"\n")
         }
         if (isFood || q.isEmpty()) {
-            basePrompt.append("6. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
+            basePrompt.append("6. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"TOOL_CALL: search(pure vegetarian restaurants) |\"\n")
         }
         if (isSightseeing || q.isEmpty()) {
             basePrompt.append("7. SIGHTSEEING: If the user asks for places to visit, suggest 2-3 places and ALWAYS end your response by asking: \"Would you like me to navigate to any of these?\"\n")
@@ -206,6 +207,7 @@ object LLMManager {
         }
         if (isDiag || q.isEmpty()) {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
+            basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, ALWAYS ask first: \"Should I find a nearby gas station?\" DO NOT navigate immediately.\n")
         }
 
         basePrompt.append("\n")
@@ -213,57 +215,53 @@ object LLMManager {
         if (isHvac || q.isEmpty()) {
             basePrompt.append("[HVAC Control]\n")
             basePrompt.append("Input: \"Increase temperature.\"\n")
-            basePrompt.append("Response: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n")
+            basePrompt.append("Response: TOOL_CALL: increaseTemperature() | I'm warming it up.\n")
             basePrompt.append("Input: \"Set the temperature to 70.\"\n")
-            basePrompt.append("Response: <TOOL>setTemperature(70)</TOOL> I've set the temperature to 70 degrees.\n")
+            basePrompt.append("Response: TOOL_CALL: setTemperature(70) | I've set the temperature to 70 degrees.\n")
             basePrompt.append("Input: \"I am feeling cold.\"\n")
-            basePrompt.append("Response: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n")
+            basePrompt.append("Response: TOOL_CALL: increaseTemperature() | I'm warming it up.\n")
             basePrompt.append("Input: \"Decrease temperature.\"\n")
-            basePrompt.append("Response: <TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\n\n")
+            basePrompt.append("Response: TOOL_CALL: decreaseTemperature() | I'm cooling it down.\n\n")
         }
 
         if (isSightseeing || q.isEmpty()) {
-            basePrompt.append("[Sightseeing - Accept]\n")
-            basePrompt.append("Input: \"I'm driving through Paris. What are some interesting things I should see?\"\n")
-            basePrompt.append("Response: Paris is beautiful! You should definitely see the Eiffel Tower and the Louvre Museum. Would you like me to navigate to any of these?\n")
-            basePrompt.append("Input: \"Yes.\"\n")
-            basePrompt.append("Response: Which place do you want to visit?\n")
-            basePrompt.append("Input: \"The Louvre.\"\n")
-            basePrompt.append("Response: <TOOL>navigate(Louvre Museum)</TOOL> Setting destination to the Louvre Museum.\n\n")
+            basePrompt.append("[Sightseeing Query]\n")
+            basePrompt.append("Input: \"What are some interesting things I should see in Paris?\"\n")
+            basePrompt.append("Response: Paris is beautiful! You should definitely see the Eiffel Tower and the Louvre Museum. Would you like me to navigate to any of these?\n\n")
 
             basePrompt.append("[Sightseeing - Decline]\n")
-            basePrompt.append("Input: \"What are some interesting things I should see along the way?\"\n")
-            basePrompt.append("Response: You should definitely see the Eiffel Tower. Would you like me to navigate there?\n")
-            basePrompt.append("Input: \"No\"\n")
+            basePrompt.append("Input: \"No thanks.\"\n")
             basePrompt.append("Response: OK, let me know if I can do something else for you.\n\n")
         }
 
         if (isNav || q.isEmpty()) {
             basePrompt.append("[Direct Navigation]\n")
             basePrompt.append("Input: \"Navigate to Tokyo\"\n")
-            basePrompt.append("Response: <TOOL>navigate(Tokyo)</TOOL>\n\n")
+            basePrompt.append("Response: TOOL_CALL: navigate(Tokyo) |\n\n")
         }
 
         if (isDiag || q.isEmpty()) {
-            basePrompt.append("[Smart Fuel/Charging Routing]\n")
+            basePrompt.append("[Smart Fuel Routing - Ask First]\n")
             basePrompt.append("Input: \"I am running out of fuel.\"\n")
-            basePrompt.append("Response: Should I find a nearby charging station?\n")
-            basePrompt.append("Input: \"Yes.\"\n")
-            basePrompt.append("Response: <TOOL>navigate(charging station)</TOOL> Navigating to the nearest charging station.\n\n")
+            basePrompt.append("Response: Your fuel level is low. Should I navigate you to a nearby gas station?\n\n")
+
+            basePrompt.append("[Smart Fuel Routing - Confirm]\n")
+            basePrompt.append("Input: \"Yes, please.\"\n")
+            basePrompt.append("Response: TOOL_CALL: navigate(gas station) | Navigating to the nearest gas station.\n\n")
         }
             
         if (isAmbient || q.isEmpty()) {
             basePrompt.append("[Ambient Routine Confirmation]\n")
             basePrompt.append("Input: \"I'm heading home.\"\n")
-            basePrompt.append("Response: <TOOL>navigate(Home)</TOOL> Navigating home. I noticed it's freezing outside. Would you like me to turn on the heater and seat warmers for your drive?\n")
+            basePrompt.append("Response: TOOL_CALL: navigate(Home) | Navigating home. I noticed it's freezing outside. Would you like me to turn on the heater and seat warmers for your drive?\n")
             basePrompt.append("Input: \"Yes, please.\"\n")
-            basePrompt.append("Response: <TOOL>setTemperature(72)</TOOL><TOOL>setSeatHeater(3)</TOOL>\n\n")
+            basePrompt.append("Response: TOOL_CALL: setTemperature(72) |TOOL_CALL: setSeatHeater(3) |\n\n")
         }
 
         if (isFood || q.isEmpty()) {
             basePrompt.append("[Personalized Dining Search]\n")
             basePrompt.append("Input: \"I'm hungry.\"\n")
-            basePrompt.append("Response: I remember you prefer pure vegetarian food. <TOOL>search(pure vegetarian restaurants nearby)</TOOL> Here are some pure vegetarian restaurants I found on the map.\n\n")
+            basePrompt.append("Response: TOOL_CALL: search(pure vegetarian restaurants nearby) | I remember you prefer pure vegetarian food. Here are some pure vegetarian restaurants I found on the map.\n\n")
         }
 
         if (isDiag || q.isEmpty()) {
@@ -271,7 +269,7 @@ object LLMManager {
             basePrompt.append("Input: \"What's wrong with my car?\"\n")
             basePrompt.append("Response: Your check engine light is on with code P0420 (Catalytic Converter). Would you like me to call your preferred mechanic?\n")
             basePrompt.append("Input: \"Yes, call the mechanic.\"\n")
-            basePrompt.append("Response: <TOOL>call(Mechanic)</TOOL>\n\n")
+            basePrompt.append("Response: TOOL_CALL: call(Mechanic) |\n\n")
 
             basePrompt.append("[Door Alert Check]\n")
             basePrompt.append("Input: \"Check if any door is open.\"\n")
@@ -287,6 +285,18 @@ object LLMManager {
         }
         
         return basePrompt.toString().trimIndent()
+    }
+
+    fun getNavigationExamples(): String {
+        return """
+            [Sightseeing Selection - Clear]
+            Input: "The Louvre."
+            Response: TOOL_CALL: navigate(Louvre Museum) | Setting destination to the Louvre Museum.
+
+            [Direct Navigation]
+            Input: "Navigate to Tokyo"
+            Response: TOOL_CALL: navigate(Tokyo) |
+        """.trimIndent()
     }
 
     fun resetConversation(context: Context? = null) {

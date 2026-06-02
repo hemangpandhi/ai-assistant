@@ -5,7 +5,7 @@ This project is a fully functional, system-level Android Digital Assistant demon
 ## Features
 
 - **System-Level Digital Assistant**: Registers as a native `VoiceInteractionService`. Set it as your default assistant to summon a modern, glassmorphism overlay popup from any app using the home button.
-- **100% On-Device Inference**: No cloud API keys required. All text generation happens locally on the device's CPU/GPU via a persistent, singleton background engine.
+- **Hybrid AI Engine**: Supports 100% on-device local models via Google's MediaPipe Tasks GenAI for zero-latency offline use, OR connects seamlessly to Cloud APIs like **Google Gemini 1.5 Flash** and **Anthropic Claude 3.5 Sonnet** using dynamic UI selection.
 - **Native VHAL Integration (Read/Write)**: The AI is directly wired into the `CarPropertyManager`. It reads live telemetry (`PERF_VEHICLE_SPEED`, `HVAC_TEMPERATURE_SET`) for prompt context, and can physically alter the vehicle's HVAC system in real-time by intercepting `<TEMP_UP>`/`<TEMP_DOWN>` tags.
 - **Strict Prompt Engineering**: The underlying model is strictly constrained to provide concise, direct, sub-15-word answers with zero hallucination.
 - **Voice Interactions (STT & TTS)**: Fully integrated Speech-to-Text and Android Text-to-Speech (TTS). Talk to the Assistant naturally, and it will speak its precise confirmations aloud.
@@ -65,8 +65,19 @@ Because Android Automotive OS (AAOS) hardware varies significantly, this applica
   - `wget https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task -O SmolLM-135M-Instruct.task`
 - **Mid-Range**: `Qwen2.5-1.5B-Instruct` (1.6GB, **Supports 4K Context**)
   - `wget https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-1.5B-Instruct.litertlm`
-- **Premium**: `Gemma-2B-IT GPU INT4` (2.5GB)
-  - `wget https://storage.googleapis.com/mediapipe-models/llm/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin`
+- **Premium** (Best for SA8295 / Tensor G2):
+  - `Gemma-2B-IT GPU INT4` (2.5GB):
+    - `wget https://storage.googleapis.com/mediapipe-models/llm/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin`
+  - `Llama-3.2-3B-Instruct` (3.2GB):
+    - `wget https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Llama-3.2-3B-Instruct.litertlm`
+  - `Qwen2.5-3B-Instruct` (3.1GB):
+    - `wget https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-3B-Instruct.litertlm`
+
+### Cloud API Models
+If you prefer to leverage massive cloud models for advanced capabilities while still retaining the exact same in-vehicle tool execution pipeline, you can select these models directly from the debug UI:
+- **Google Gemini 1.5 Flash**: Lightning-fast reasoning and broad world knowledge.
+- **Anthropic Claude 3.5 Sonnet**: Industry-leading intelligence and conversational prowess.
+> **Note:** To use cloud models, simply select them from the UI dropdown and paste your respective API Key into the dynamically generated text box. Keys are securely saved locally via `SharedPreferences`.
 
 ---
 

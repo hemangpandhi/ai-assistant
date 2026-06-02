@@ -43,6 +43,8 @@ import android.content.IntentFilter
 class LocalLLMActivity : AppCompatActivity() {
     companion object {
         var isTestRunning = false
+        var isCloudModelActive = false
+        var currentCloudModelName = ""
     }
 
     private lateinit var inputText: EditText
@@ -75,6 +77,10 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var clearButton: Button
     private lateinit var etWakeWord: EditText
     private lateinit var switchWakeWord: com.google.android.material.switchmaterial.SwitchMaterial
+    private lateinit var llApiKeyContainer: android.widget.LinearLayout
+    private lateinit var tvApiKeyLabel: android.widget.TextView
+    private lateinit var etApiKey: android.widget.EditText
+    private lateinit var tvActiveModel: android.widget.TextView
 
 
     
@@ -89,10 +95,16 @@ class LocalLLMActivity : AppCompatActivity() {
         LlmModel("Qwen2.5 1.5B Instruct", "Qwen2.5-1.5B-Instruct.litertlm", "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "1.6GB", "Mid-Range"),
         LlmModel("Gemma 2B INT4", "gemma-2b-it-gpu-int4.bin", "", "1.8GB", "Mid-Range"),
         LlmModel("Gemma 4-E2B IT", "gemma-4-E2B-it.litertlm", "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm", "2.5GB", "Mid-Range"),
-        LlmModel("Phi-4-mini", "Phi-4-mini-instruct.litertlm", "https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.8GB", "Premium")
+        LlmModel("Phi-4-mini", "Phi-4-mini-instruct.litertlm", "https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.8GB", "Premium"),
+        LlmModel("Llama 3.2 3B Instruct", "Llama-3.2-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.2GB", "Premium"),
+        LlmModel("Qwen2.5 3B Instruct", "Qwen2.5-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.1GB", "Premium"),
+        LlmModel("Claude 3.5 Sonnet (Cloud)", "claude-3-5-sonnet", "api", "Cloud", "Premium"),
+        LlmModel("Gemini 1.5 Flash (Cloud)", "gemini-1.5-flash", "api", "Cloud", "Premium")
     )
     
-    private var currentModel = supportedModels[2] 
+    var currentModel = supportedModels[2]
+    
+    // Companion object merged above
 
     private var MODEL_PATH = ""
     private var isGenerating = false
@@ -138,6 +150,29 @@ class LocalLLMActivity : AppCompatActivity() {
         clearButton = findViewById(R.id.clearButton)
         etWakeWord = findViewById(R.id.etWakeWord)
         switchWakeWord = findViewById(R.id.switchWakeWord)
+        llApiKeyContainer = findViewById(R.id.llApiKeyContainer)
+        tvApiKeyLabel = findViewById(R.id.tvApiKeyLabel)
+        etApiKey = findViewById(R.id.etApiKey)
+        tvActiveModel = findViewById(R.id.tvActiveModel)
+        
+        val cloudPrefs = getSharedPreferences("llm_prefs", Context.MODE_PRIVATE)
+        AnthropicManager.apiKey = cloudPrefs.getString("anthropic_api_key", "") ?: ""
+        GeminiManager.apiKey = cloudPrefs.getString("gemini_api_key", "") ?: ""
+        
+        etApiKey.addTextChangedListener(object : android.text.TextWatcher {
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val key = s.toString()
+                if (currentModel.name.contains("Claude")) {
+                    AnthropicManager.apiKey = key
+                    cloudPrefs.edit().putString("anthropic_api_key", key).apply()
+                } else if (currentModel.name.contains("Gemini")) {
+                    GeminiManager.apiKey = key
+                    cloudPrefs.edit().putString("gemini_api_key", key).apply()
+                }
+            }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+        })
 
         // Re-use test logic when intent action matches
         val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
@@ -306,7 +341,7 @@ class LocalLLMActivity : AppCompatActivity() {
         
         btnSavePrompt.setOnClickListener {
             val newPrompt = etSystemPrompt.text.toString()
-            prefs.edit().putString("custom_system_prompt", newPrompt).apply()
+            cloudPrefs.edit().putString("custom_system_prompt", newPrompt).apply()
             LLMManager.resetConversation()
             Toast.makeText(this, "System Prompt Saved & Applied!", Toast.LENGTH_SHORT).show()
         }
@@ -331,6 +366,27 @@ class LocalLLMActivity : AppCompatActivity() {
         modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 currentModel = supportedModels[position]
+                if (currentModel.url == "api") {
+                    isCloudModelActive = true
+                    currentCloudModelName = currentModel.name
+                    llApiKeyContainer.visibility = View.VISIBLE
+                    if (currentModel.name.contains("Claude")) {
+                        tvApiKeyLabel.text = "Anthropic API Key:"
+                        etApiKey.setText(AnthropicManager.apiKey)
+                    } else if (currentModel.name.contains("Gemini")) {
+                        tvApiKeyLabel.text = "Gemini API Key:"
+                        etApiKey.setText(GeminiManager.apiKey)
+                    }
+                    updateActiveModelUI()
+                    btnDownloadModel.isEnabled = false
+                    btnLoadModel.isEnabled = true
+                } else {
+                    isCloudModelActive = false
+                    currentCloudModelName = ""
+                    llApiKeyContainer.visibility = View.GONE
+                    btnDownloadModel.isEnabled = true
+                    btnLoadModel.isEnabled = true
+                }
                 checkModelExists()
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
@@ -457,7 +513,7 @@ class LocalLLMActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
-                prefs.edit().putString("wake_word", s.toString().lowercase()).apply()
+                cloudPrefs.edit().putString("wake_word", s.toString().lowercase()).apply()
                 if (switchWakeWord.isChecked) {
                     val intent = Intent(this@LocalLLMActivity, WakeWordService::class.java)
                     startForegroundService(intent)
@@ -595,6 +651,25 @@ class LocalLLMActivity : AppCompatActivity() {
         alarmJob = null
     }
 
+
+    override fun onResume() {
+        super.onResume()
+        updateActiveModelUI()
+    }
+
+    private fun updateActiveModelUI() {
+        if (isCloudModelActive) {
+            tvActiveModel.text = "Active Model: $currentCloudModelName *"
+            generateButton.isEnabled = true
+        } else if (LLMManager.engine != null && LLMManager.currentModelPath.isNotEmpty()) {
+            val loadedModelName = supportedModels.find { LLMManager.currentModelPath.endsWith(it.filename) }?.name ?: LLMManager.currentModelPath.substringAfterLast("/")
+            tvActiveModel.text = "Active Model: $loadedModelName *"
+            generateButton.isEnabled = true
+        } else {
+            tvActiveModel.text = "Active Model: None"
+        }
+    }
+
     override fun onDestroy() {
         stopEmergencyAlarm()
         if (::tts.isInitialized) {
@@ -614,6 +689,21 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private fun checkModelExists() {
+        if (isCloudModelActive) {
+            MODEL_PATH = "cloud_api"
+            chatAdapter.addMessage(ChatMessage("Cloud API selected.\nEnsure you have entered a valid API Key and have internet access.", isUser = false))
+            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+            
+            generateButton.isEnabled = false
+            btnLoadModel.isEnabled = true
+            btnLoadModel.text = "Connect to Cloud"
+            btnDownloadModel.isEnabled = false
+            return
+        }
+
+        btnLoadModel.text = "Load Model"
+        btnDownloadModel.isEnabled = true
+
         val internalDir = applicationContext.filesDir
         val externalDir = applicationContext.getExternalFilesDir(null)
         val tmpDir = java.io.File("/data/local/tmp/")
@@ -697,6 +787,14 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private suspend fun initLlm(force: Boolean = false) = withContext(Dispatchers.Main) {
+        if (isCloudModelActive) {
+            chatAdapter.addMessage(ChatMessage("Connected to Cloud API: ${currentModel.name}. Ready for inference.", isUser = false))
+            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+            generateButton.isEnabled = true
+            btnLoadModel.isEnabled = false
+            return@withContext
+        }
+
         val useCpu = switchCpuBackend.isChecked
         
         // Save to SharedPreferences for AssistantSession (Voice Overlay)
@@ -783,7 +881,7 @@ class LocalLLMActivity : AppCompatActivity() {
         chatAdapter.addMessage(ChatMessage("", isUser = false, isStreaming = true))
         chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
         
-        if (LLMManager.conversation == null) {
+        if (LLMManager.conversation == null && !isCloudModelActive) {
             chatAdapter.replaceLastMessage("System: Please click 'Load Model' before sending a prompt.")
             resetControls()
             return
@@ -831,13 +929,11 @@ class LocalLLMActivity : AppCompatActivity() {
 
             val startTime = System.currentTimeMillis()
             var firstTokenTime = -1L
-
-            LLMManager.conversation?.sendMessageAsync(
-                com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalPrompt)),
-                object : com.google.ai.edge.litertlm.MessageCallback {
-                    var isHallucinating = false
-                    
-                    override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+            
+            val callback = object : com.google.ai.edge.litertlm.MessageCallback {
+                var isHallucinating = false
+                
+                override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
                         if (isHallucinating) return
                         
                         if (firstTokenTime == -1L) {
@@ -961,20 +1057,49 @@ class LocalLLMActivity : AppCompatActivity() {
                         }
                     }
                     
-                    override fun onError(throwable: Throwable) {
-                        runOnUiThread {
-                            timeoutJob?.cancel()
-                            val errorMsg = throwable.message ?: ""
-                            chatAdapter.updateLastMessage("\nError: $errorMsg")
-                            resetControls()
-                            
-                            chatAdapter.addMessage(ChatMessage("Model error occurred (likely context full). Clearing history to prevent freeze...", isUser = false))
+                override fun onError(throwable: Throwable) {
+                    runOnUiThread {
+                        timeoutJob?.cancel()
+                        val errorMsg = throwable.message ?: ""
+                        chatAdapter.updateLastMessage("\nError: $errorMsg")
+                        resetControls()
+                        
+                        chatAdapter.addMessage(ChatMessage("Model error occurred (likely context full). Clearing history to prevent freeze...", isUser = false))
+                        if (LocalLLMActivity.isCloudModelActive) {
+                            if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) GeminiManager.resetConversation()
+                            else AnthropicManager.resetConversation()
+                        } else {
                             LLMManager.resetConversation()
                         }
                     }
-                },
-                emptyMap()
-            )
+                }
+            }
+            
+
+            val cloudCallback = object : CloudMessageCallback {
+                override fun onMessage(chunkText: String) {
+                    runOnUiThread {
+                        val chunk = chunkText
+                        lastResponseBuilder.append(chunk)
+                        chatAdapter.updateLastMessage(lastResponseBuilder.toString())
+                        chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                    }
+                }
+                override fun onDone() { callback.onDone() }
+                override fun onError(throwable: Throwable) { callback.onError(throwable) }
+            }
+            if (LocalLLMActivity.isCloudModelActive) {
+                lifecycleScope.launch {
+                    val systemPrompt = LLMManager.getSystemPrompt(applicationContext)
+                    AnthropicManager.sendMessageAsync(systemPrompt, prompt, cloudCallback)
+                }
+            } else {
+                LLMManager.conversation?.sendMessageAsync(
+                    com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalPrompt)),
+                    callback,
+                    emptyMap()
+                )
+            }
         } catch (e: Exception) {
             timeoutJob?.cancel()
             val errorMsg = e.message ?: ""

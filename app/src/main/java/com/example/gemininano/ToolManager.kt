@@ -48,7 +48,7 @@ object ToolManager {
                     val handlerType = if (toolObj.has("handler_type")) toolObj.getString("handler_type") else "CUSTOM_KOTLIN"
                     val handlerKey = if (toolObj.has("handler_key")) toolObj.getString("handler_key") else null
                     
-                    val commandName = handlerKey ?: promptString.substringAfter("<TOOL>").substringBefore("(").substringBefore(">")
+                    val commandName = handlerKey ?: promptString.substringAfter("TOOL_CALL: ").substringBefore("(").substringBefore(" |")
                     
                     val propertyId = if (toolObj.has("property_id")) toolObj.getInt("property_id") else null
                     val dataType = if (toolObj.has("data_type")) toolObj.getString("data_type") else null
@@ -246,6 +246,12 @@ object ToolManager {
                     val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
                     prefs.edit().putString("user_memory", newMemory).apply()
                     "Got it, I've remembered that."
+                }
+                "getWeather" -> {
+                    val city = toolCall.substringAfter("(").substringBefore(")")
+                    val temp = (60..85).random()
+                    val conditions = listOf("Sunny", "Cloudy", "Rainy", "Partly Cloudy", "Clear").random()
+                    "The current weather in $city is $temp°F and $conditions."
                 }
                 else -> {
                     "System Error: Handler found but logic is missing."

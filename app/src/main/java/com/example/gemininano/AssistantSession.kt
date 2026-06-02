@@ -312,13 +312,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val startTime = System.currentTimeMillis()
         var firstTokenTime = -1L
 
-        try {
-            LLMManager.conversation!!.sendMessageAsync(
-                Contents.of(Content.Text(finalPrompt)),
-                object : MessageCallback {
+        val callback = object : MessageCallback, CloudMessageCallback {
                         var isHallucinating = false
                         
                         override fun onMessage(message: Message) {
+                            handleChunk(message.toString())
+                        }
+                        
+                        override fun onMessage(chunkText: String) {
+                            handleChunk(chunkText)
+                        }
+
+                        private fun handleChunk(chunkText: String) {
                             if (isHallucinating) return
                             
                             if (firstTokenTime == -1L) {
@@ -329,7 +334,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             CoroutineScope(Dispatchers.Main).launch {
                                 voiceAnimation.state = VoiceAnimationView.State.SPEAKING
-                                val chunk = message.toString()
+                                val chunk = chunkText
                                 lastResponseBuilder.append(chunk)
                                 var currentText = lastResponseBuilder.toString()
                                 
@@ -465,10 +470,26 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             isQueryProcessed = true
                         }
                     }
-                },
-                emptyMap()
-            )
-        } catch (e: Exception) {
+                }
+            
+        try {
+            if (LocalLLMActivity.isCloudModelActive) {
+                CoroutineScope(Dispatchers.IO).launch {
+                    val systemPrompt = LLMManager.getSystemPrompt(context)
+                    if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
+                        GeminiManager.sendMessageAsync(systemPrompt, query, callback)
+                    } else {
+                        AnthropicManager.sendMessageAsync(systemPrompt, query, callback)
+                    }
+                }
+            } else {
+                LLMManager.conversation!!.sendMessageAsync(
+                    Contents.of(Content.Text(finalPrompt)),
+                    callback,
+                    emptyMap()
+                )
+            }
+        } catch (e: Exception) {     } catch (e: Exception) {
             statusText.text = "Error"
             stopThinkingAnimation()
             responseText.text = "An unexpected error occurred."
