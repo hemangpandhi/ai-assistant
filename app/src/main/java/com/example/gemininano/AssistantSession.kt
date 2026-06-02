@@ -296,11 +296,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
             val sysPrompt = LLMManager.getSystemPrompt(context, query)
-            finalPrompt = "$sysPrompt\n\nUser Query: $query"
+            finalPrompt = "$sysPrompt\n\nUser: $query"
             LLMManager.isFirstMessage = false
         } else {
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser Query: $query"
+            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: $query"
         }
 
         val executedTools = mutableSetOf<String>()
@@ -371,7 +371,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 }
                             }
                             
-                            val displayMsg = currentText.replace(regex, "").trim()
+                            var displayMsg = currentText.replace(regex, "").trim()
+                            
+                            if (displayMsg.startsWith("Assistant:", ignoreCase = true)) {
+                                displayMsg = displayMsg.substring("Assistant:".length).trimStart()
+                            }
+                            if (displayMsg.startsWith("Response:", ignoreCase = true)) {
+                                displayMsg = displayMsg.substring("Response:".length).trimStart()
+                            }
                             
                             if (displayMsg.isNotEmpty() && statusText.visibility == View.VISIBLE) {
                                 statusText.visibility = View.GONE
@@ -425,6 +432,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 if (guardrailMessages.isNotEmpty()) {
                                     finalMsg += "\n\n" + guardrailMessages.joinToString("\n")
                                 }
+                            }
+                            
+                            if (finalMsg.startsWith("Assistant:", ignoreCase = true)) {
+                                finalMsg = finalMsg.substring("Assistant:".length).trimStart()
+                            }
+                            if (finalMsg.startsWith("Response:", ignoreCase = true)) {
+                                finalMsg = finalMsg.substring("Response:".length).trimStart()
                             }
                             
                             responseText.text = parseMarkdown(finalMsg)

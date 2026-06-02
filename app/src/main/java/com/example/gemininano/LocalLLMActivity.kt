@@ -954,6 +954,11 @@ class LocalLLMActivity : AppCompatActivity() {
                                 lastResponseBuilder.clear()
                                 lastResponseBuilder.append(currentText)
                             }
+                            if (currentText.startsWith("Response:", ignoreCase = true)) {
+                                currentText = currentText.substring("Response:".length).trimStart()
+                                lastResponseBuilder.clear()
+                                lastResponseBuilder.append(currentText)
+                            }
                             if (currentText.startsWith("User:", ignoreCase = true)) {
                                 currentText = currentText.substring("User:".length).trimStart()
                                 lastResponseBuilder.clear()
