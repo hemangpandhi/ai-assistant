@@ -99,47 +99,11 @@ object LLMManager {
                 conversation = null
                 engine = null
 
-                try {
-                    Os.setenv("ADSP_LIBRARY_PATH", "/vendor/lib/rfsa/adsp;/vendor/dsp;/system/vendor/lib/rfsa/adsp", true)
-                } catch (e: Exception) {
-                    Log.w("LLMManager", "Failed to set ADSP_LIBRARY_PATH", e)
-                }
-
-                // Find QNN libraries for NPU backend
-                var qnnDir = context.applicationInfo.nativeLibraryDir
-                var qnnFound = File(qnnDir, "libQnnHtp.so").exists()
-
-                if (!qnnFound) {
-                    val vendorPaths = listOf(
-                        "/vendor/lib64",
-                        "/system/vendor/lib64",
-                        "/vendor/lib",
-                        "/system/vendor/lib",
-                        "/vendor/dsp",
-                        "/vendor/lib64/rfsa/adsp"
-                    )
-                    for (path in vendorPaths) {
-                        if (File(path, "libQnnHtp.so").exists() || File(path, "libqnn_hexagon.so").exists()) {
-                            qnnDir = path
-                            qnnFound = true
-                            Log.i("LLMManager", "Found QNN libraries in system partition: $path")
-                            break
-                        }
-                    }
-                }
-
-                if (!qnnFound && (backendChoice == "NPU" || modelPath.contains("qualcomm", ignoreCase = true))) {
-                    Log.i("LLMManager", "QNN libraries not explicitly found in search paths, but proceeding with NPU via FastRPC.")
-                }
-
                 val backend = when (backendChoice) {
-                    "NPU" -> Backend.NPU(qnnDir)
+                    "NPU" -> Backend.NPU()
                     "GPU" -> Backend.GPU()
                     "CPU" -> Backend.CPU()
-                    else -> {
-                        // "Auto" logic
-                        if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU(qnnDir) else Backend.GPU()
-                    }
+                    else -> Backend.GPU() // Auto defaults to GPU
                 }
 
                 val engineConfig = EngineConfig(
