@@ -198,8 +198,11 @@ object LLMManager {
         if (isAmbient || q.isEmpty()) {
             basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
         }
+        if (isSightseeing || q.isEmpty()) {
+            basePrompt.append("6. SIGHTSEEING: When suggesting places to visit, you MUST end your response by asking if the user would like you to navigate to any of them.\n")
+        }
         if (isFood || q.isEmpty()) {
-            basePrompt.append("6. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
+            basePrompt.append("7. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
         }
         if (isSightseeing || q.isEmpty()) {
             basePrompt.append("7. SIGHTSEEING: If the user asks for places to visit, suggest 2-3 places and ALWAYS end your response by asking: \"Would you like me to navigate to any of these?\"\n")
