@@ -68,8 +68,9 @@ Because Android Automotive OS (AAOS) hardware varies significantly, this applica
 - **Premium** (Best for SA8295 / Tensor G2):
   - `Gemma-2B-IT GPU INT4` (2.5GB):
     - `wget https://storage.googleapis.com/mediapipe-models/llm/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin`
-  - `Llama-3.2-3B-Instruct` (3.2GB):
-    - `wget https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Llama-3.2-3B-Instruct.litertlm`
+  - `Llama-3.2-3B-Instruct` (3.2GB, **Gated Model - Requires HF Token**):
+    - *Note: Meta requires you to accept the license on HuggingFace first. You must pass your token to download.*
+    - `wget --header="Authorization: Bearer YOUR_HF_TOKEN" https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Llama-3.2-3B-Instruct.litertlm`
   - `Qwen2.5-3B-Instruct` (3.1GB):
     - `wget https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-3B-Instruct.litertlm`
 

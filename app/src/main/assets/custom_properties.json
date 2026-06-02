@@ -29,32 +29,32 @@
   ],
   "tools": [
     {
-      "prompt_string": "TOOL_CALL: setTemperature(VAL) |",
+      "prompt_string": "<TOOL>setTemperature(VAL)</TOOL>",
       "handler_key": "setTemperature",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: increaseTemperature() |",
+      "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
       "handler_key": "increaseTemperature",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: decreaseTemperature() |",
+      "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
       "handler_key": "decreaseTemperature",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: setSeatHeater(LEVEL) |",
+      "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
       "handler_key": "setSeatHeater",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: setSeatMassager(LEVEL) |",
+      "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
       "handler_key": "setSeatMassager",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: turnOnDefroster() |",
+      "prompt_string": "<TOOL>turnOnDefroster()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -63,7 +63,7 @@
       "success_message": "I've turned on the defroster."
     },
     {
-      "prompt_string": "TOOL_CALL: turnOffDefroster() |",
+      "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -72,37 +72,37 @@
       "success_message": "I've turned off the defroster."
     },
     {
-      "prompt_string": "TOOL_CALL: setWindowPosition(PCT) |",
+      "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
       "handler_key": "setWindowPosition",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: navigate(DEST) |",
+      "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
       "handler_key": "navigate",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: search(QUERY) |",
+      "prompt_string": "<TOOL>search(QUERY)</TOOL>",
       "handler_key": "search",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: playMusic(SONG) |",
+      "prompt_string": "<TOOL>playMusic(SONG)</TOOL>",
       "handler_key": "playMusic",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: call(NAME) |",
+      "prompt_string": "<TOOL>call(NAME)</TOOL>",
       "handler_key": "call",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: remember(FACT) |",
+      "prompt_string": "<TOOL>remember(FACT)</TOOL>",
       "handler_key": "remember",
       "handler_type": "CUSTOM_KOTLIN"
     },
     {
-      "prompt_string": "TOOL_CALL: getWeather(CITY) |",
+      "prompt_string": "<TOOL>getWeather(CITY)</TOOL>",
       "handler_key": "getWeather",
       "handler_type": "CUSTOM_KOTLIN"
     }

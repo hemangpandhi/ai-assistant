@@ -48,7 +48,7 @@ object ToolManager {
                     val handlerType = if (toolObj.has("handler_type")) toolObj.getString("handler_type") else "CUSTOM_KOTLIN"
                     val handlerKey = if (toolObj.has("handler_key")) toolObj.getString("handler_key") else null
                     
-                    val commandName = handlerKey ?: promptString.substringAfter("TOOL_CALL: ").substringBefore("(").substringBefore(" |")
+                    val commandName = handlerKey ?: promptString.substringAfter("<TOOL>").substringBefore("</TOOL>").substringBefore("(")
                     
                     val propertyId = if (toolObj.has("property_id")) toolObj.getInt("property_id") else null
                     val dataType = if (toolObj.has("data_type")) toolObj.getString("data_type") else null

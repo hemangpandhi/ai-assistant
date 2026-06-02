@@ -295,12 +295,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
-            val sysPrompt = LLMManager.getSystemPrompt(context)
+            val sysPrompt = LLMManager.getSystemPrompt(context, query)
             finalPrompt = "$sysPrompt\n\nUser Query: $query"
             LLMManager.isFirstMessage = false
         } else {
-            val tools = ToolManager.getLlmToolsPrompt()
-            val reminder = "\n(Reminder: To execute car actions or navigation, you MUST include the exact XML tag in your response. Available tools: $tools)"
+            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser Query: $query"
         }
 
@@ -475,7 +474,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         try {
             if (LocalLLMActivity.isCloudModelActive) {
                 CoroutineScope(Dispatchers.IO).launch {
-                    val systemPrompt = LLMManager.getSystemPrompt(context)
+                    val systemPrompt = LLMManager.getSystemPrompt(context, query)
                     if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
                         GeminiManager.sendMessageAsync(systemPrompt, query, callback)
                     } else {

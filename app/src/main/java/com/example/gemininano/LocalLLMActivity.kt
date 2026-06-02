@@ -1090,7 +1090,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
             if (LocalLLMActivity.isCloudModelActive) {
                 lifecycleScope.launch {
-                    val systemPrompt = LLMManager.getSystemPrompt(applicationContext)
+                    val systemPrompt = LLMManager.getSystemPrompt(applicationContext, prompt)
                     AnthropicManager.sendMessageAsync(systemPrompt, prompt, cloudCallback)
                 }
             } else {
