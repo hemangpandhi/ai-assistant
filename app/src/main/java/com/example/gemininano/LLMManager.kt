@@ -100,7 +100,7 @@ object LLMManager {
                 engine = null
 
                 try {
-                    Os.setenv("ADSP_LIBRARY_PATH", "/vendor/lib/rfsa/adsp:/vendor/dsp:/system/vendor/lib/rfsa/adsp", true)
+                    Os.setenv("ADSP_LIBRARY_PATH", "/vendor/lib/rfsa/adsp;/vendor/dsp;/system/vendor/lib/rfsa/adsp", true)
                 } catch (e: Exception) {
                     Log.w("LLMManager", "Failed to set ADSP_LIBRARY_PATH", e)
                 }
