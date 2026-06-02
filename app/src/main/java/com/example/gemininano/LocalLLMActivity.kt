@@ -949,20 +949,18 @@ class LocalLLMActivity : AppCompatActivity() {
                             
                             var currentText = lastResponseBuilder.toString()
                             
-                            if (currentText.startsWith("Assistant:", ignoreCase = true)) {
-                                currentText = currentText.substring("Assistant:".length).trimStart()
-                                lastResponseBuilder.clear()
-                                lastResponseBuilder.append(currentText)
-                            }
-                            if (currentText.startsWith("Response:", ignoreCase = true)) {
-                                currentText = currentText.substring("Response:".length).trimStart()
-                                lastResponseBuilder.clear()
-                                lastResponseBuilder.append(currentText)
-                            }
-                            if (currentText.startsWith("User:", ignoreCase = true)) {
-                                currentText = currentText.substring("User:".length).trimStart()
-                                lastResponseBuilder.clear()
-                                lastResponseBuilder.append(currentText)
+                            var stripped = true
+                            while (stripped) {
+                                stripped = false
+                                val prefixes = listOf("Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :", "System:", "System :")
+                                for (prefix in prefixes) {
+                                    if (currentText.startsWith(prefix, ignoreCase = true)) {
+                                        currentText = currentText.substring(prefix.length).trimStart()
+                                        lastResponseBuilder.clear()
+                                        lastResponseBuilder.append(currentText)
+                                        stripped = true
+                                    }
+                                }
                             }
                             
                             // Prevent the AI from hallucinating the user's response
