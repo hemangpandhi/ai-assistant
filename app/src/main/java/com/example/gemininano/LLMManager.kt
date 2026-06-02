@@ -10,6 +10,7 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.tool
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Content
+import android.system.Os
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -98,13 +99,20 @@ object LLMManager {
                 conversation = null
                 engine = null
 
+                try {
+                    Os.setenv("ADSP_LIBRARY_PATH", "/vendor/lib/rfsa/adsp:/vendor/dsp:/system/vendor/lib/rfsa/adsp", true)
+                } catch (e: Exception) {
+                    Log.w("LLMManager", "Failed to set ADSP_LIBRARY_PATH", e)
+                }
+
+                val nativeLibDir = context.applicationInfo.nativeLibraryDir
                 val backend = when (backendChoice) {
-                    "NPU" -> Backend.NPU()
+                    "NPU" -> Backend.NPU(nativeLibDir)
                     "GPU" -> Backend.GPU()
                     "CPU" -> Backend.CPU()
                     else -> {
                         // "Auto" logic
-                        if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU() else Backend.GPU()
+                        if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU(nativeLibDir) else Backend.GPU()
                     }
                 }
 
