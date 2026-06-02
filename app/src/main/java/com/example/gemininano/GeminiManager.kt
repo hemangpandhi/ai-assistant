@@ -10,7 +10,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object GeminiManager {
-    private const val CLOUD_MODEL = "gemini-1.5-flash"
+    private const val CLOUD_MODEL = "gemini-2.5-flash"
     var apiKey: String = ""
     
     private val conversationHistory = mutableListOf<JSONObject>()

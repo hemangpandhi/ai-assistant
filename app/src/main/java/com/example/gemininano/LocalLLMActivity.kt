@@ -99,7 +99,7 @@ class LocalLLMActivity : AppCompatActivity() {
         LlmModel("Llama 3.2 3B Instruct", "Llama-3.2-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.2GB", "Premium"),
         LlmModel("Qwen2.5 3B Instruct", "Qwen2.5-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.1GB", "Premium"),
         LlmModel("Claude 3.5 Sonnet (Cloud)", "claude-3-5-sonnet", "api", "Cloud", "Premium"),
-        LlmModel("Gemini 1.5 Flash (Cloud)", "gemini-1.5-flash", "api", "Cloud", "Premium")
+        LlmModel("Gemini 2.5 Flash (Cloud)", "gemini-2.5-flash", "api", "Cloud", "Premium")
     )
     
     var currentModel = supportedModels[2]
@@ -1098,7 +1098,11 @@ class LocalLLMActivity : AppCompatActivity() {
             if (LocalLLMActivity.isCloudModelActive) {
                 lifecycleScope.launch {
                     val systemPrompt = LLMManager.getSystemPrompt(applicationContext, prompt)
-                    AnthropicManager.sendMessageAsync(systemPrompt, prompt, cloudCallback)
+                    if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
+                        GeminiManager.sendMessageAsync(systemPrompt, prompt, cloudCallback)
+                    } else {
+                        AnthropicManager.sendMessageAsync(systemPrompt, prompt, cloudCallback)
+                    }
                 }
             } else {
                 LLMManager.conversation?.sendMessageAsync(
