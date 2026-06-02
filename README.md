@@ -66,8 +66,11 @@ Because Android Automotive OS (AAOS) hardware varies significantly, this applica
 - **Mid-Range**: `Qwen2.5-1.5B-Instruct` (1.6GB, **Supports 4K Context**)
   - `wget https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm -O Qwen2.5-1.5B-Instruct.litertlm`
 - **Mid-Range / Premium**: `Gemma-4-E2B-IT` (2.5GB)
-  - `wget https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm -O gemma-4-E2B-it.litertlm`
-  - *(Ensure the file is exactly named `gemma-4-E2B-it.litertlm` before pushing to the device via ADB)*
+  - Generic Android:
+    - `wget https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm -O gemma-4-E2B-it.litertlm`
+  - Qualcomm SA8255/SA8275 (Highly Optimized for Hexagon NPU):
+    - `wget https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_qualcomm_qcs8275.litertlm -O gemma-4-E2B-it_qualcomm_qcs8275.litertlm`
+  - *(Ensure you select the exact matching model name in the app UI after pushing via ADB)*
 - **Premium** (Best for SA8295 / Tensor G2):
   - `Gemma-2B-IT GPU INT4` (2.5GB):
     - `wget https://storage.googleapis.com/mediapipe-models/llm/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin`
@@ -134,8 +137,8 @@ adb root
 adb shell mkdir -p /data/media/10/Android/data/com.example.gemininano/files/
 # Example for pushing Qwen 2.5:
 adb push Qwen2.5-1.5B-Instruct.litertlm /data/media/10/Android/data/com.example.gemininano/files/
-# Example for pushing Gemma 4 E2B:
-adb push gemma-4-E2B-it.litertlm /data/media/10/Android/data/com.example.gemininano/files/
+# Example for pushing Gemma 4 E2B (Qualcomm SA8255):
+adb push gemma-4-E2B-it_qualcomm_qcs8275.litertlm /data/media/10/Android/data/com.example.gemininano/files/
 ```
 
 ### Step 4: Configuration & Usage
