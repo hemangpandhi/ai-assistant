@@ -232,6 +232,14 @@ object LLMManager {
             basePrompt.append("[Sightseeing - Decline]\n")
             basePrompt.append("User: \"No thanks.\"\n")
             basePrompt.append("Assistant: OK, let me know if I can do something else for you.\n\n")
+
+            basePrompt.append("[Sightseeing - Accept without specifying]\n")
+            basePrompt.append("User: \"Yes please.\"\n")
+            basePrompt.append("Assistant: Which destination would you like to navigate to?\n\n")
+
+            basePrompt.append("[Sightseeing - Accept specific]\n")
+            basePrompt.append("User: \"The Eiffel Tower.\"\n")
+            basePrompt.append("Assistant: <TOOL>navigate(Eiffel Tower)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {
