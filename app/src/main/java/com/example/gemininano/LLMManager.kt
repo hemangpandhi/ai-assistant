@@ -129,16 +129,16 @@ object LLMManager {
                 }
 
                 if (!qnnFound && (backendChoice == "NPU" || modelPath.contains("qualcomm", ignoreCase = true))) {
-                    Log.w("LLMManager", "QNN libraries (libQnnHtp.so) not found in APK or system. NPU initialization will likely crash. Falling back to GPU.")
+                    Log.i("LLMManager", "QNN libraries not explicitly found in search paths, but proceeding with NPU via FastRPC.")
                 }
 
                 val backend = when (backendChoice) {
-                    "NPU" -> if (qnnFound) Backend.NPU(qnnDir) else Backend.GPU()
+                    "NPU" -> Backend.NPU(qnnDir)
                     "GPU" -> Backend.GPU()
                     "CPU" -> Backend.CPU()
                     else -> {
                         // "Auto" logic
-                        if (modelPath.contains("qualcomm", ignoreCase = true) && qnnFound) Backend.NPU(qnnDir) else Backend.GPU()
+                        if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU(qnnDir) else Backend.GPU()
                     }
                 }
 
