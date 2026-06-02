@@ -105,14 +105,40 @@ object LLMManager {
                     Log.w("LLMManager", "Failed to set ADSP_LIBRARY_PATH", e)
                 }
 
-                val nativeLibDir = context.applicationInfo.nativeLibraryDir
+                // Find QNN libraries for NPU backend
+                var qnnDir = context.applicationInfo.nativeLibraryDir
+                var qnnFound = File(qnnDir, "libQnnHtp.so").exists()
+
+                if (!qnnFound) {
+                    val vendorPaths = listOf(
+                        "/vendor/lib64",
+                        "/system/vendor/lib64",
+                        "/vendor/lib",
+                        "/system/vendor/lib",
+                        "/vendor/dsp",
+                        "/vendor/lib64/rfsa/adsp"
+                    )
+                    for (path in vendorPaths) {
+                        if (File(path, "libQnnHtp.so").exists() || File(path, "libqnn_hexagon.so").exists()) {
+                            qnnDir = path
+                            qnnFound = true
+                            Log.i("LLMManager", "Found QNN libraries in system partition: $path")
+                            break
+                        }
+                    }
+                }
+
+                if (!qnnFound && (backendChoice == "NPU" || modelPath.contains("qualcomm", ignoreCase = true))) {
+                    Log.w("LLMManager", "QNN libraries (libQnnHtp.so) not found in APK or system. NPU initialization will likely crash. Falling back to GPU.")
+                }
+
                 val backend = when (backendChoice) {
-                    "NPU" -> Backend.NPU(nativeLibDir)
+                    "NPU" -> if (qnnFound) Backend.NPU(qnnDir) else Backend.GPU()
                     "GPU" -> Backend.GPU()
                     "CPU" -> Backend.CPU()
                     else -> {
                         // "Auto" logic
-                        if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU(nativeLibDir) else Backend.GPU()
+                        if (modelPath.contains("qualcomm", ignoreCase = true) && qnnFound) Backend.NPU(qnnDir) else Backend.GPU()
                     }
                 }
 
