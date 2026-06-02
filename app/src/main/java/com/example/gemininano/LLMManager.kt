@@ -238,6 +238,9 @@ object LLMManager {
             basePrompt.append("[Direct Navigation]\n")
             basePrompt.append("User: \"Navigate to Tokyo\"\n")
             basePrompt.append("Assistant: <TOOL>navigate(Tokyo)</TOOL>\n\n")
+            basePrompt.append("[Gas Station Navigation]\n")
+            basePrompt.append("User: \"Navigate to the nearest gas station\"\n")
+            basePrompt.append("Assistant: <TOOL>navigate(gas station)</TOOL>\n\n")
         }
 
         if (isDiag || q.isEmpty()) {
@@ -247,7 +250,7 @@ object LLMManager {
 
             basePrompt.append("[Smart Fuel Routing - Confirm]\n")
             basePrompt.append("User: \"Yes, please.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(gas station)</TOOL> Navigating to the nearest gas station.\n\n")
+            basePrompt.append("Assistant: <TOOL>navigate(gas station)</TOOL>\n\n")
         }
             
         if (isAmbient || q.isEmpty()) {

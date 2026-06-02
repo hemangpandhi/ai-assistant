@@ -958,8 +958,8 @@ class LocalLLMActivity : AppCompatActivity() {
                                 stripped = false
                                 val prefixes = listOf("Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :", "System:", "System :")
                                 for (prefix in prefixes) {
-                                    if (currentText.startsWith(prefix, ignoreCase = true)) {
-                                        currentText = currentText.substring(prefix.length).trimStart()
+                                    if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
+                                        currentText = currentText.trimStart().substring(prefix.length).trimStart()
                                         lastResponseBuilder.clear()
                                         lastResponseBuilder.append(currentText)
                                         stripped = true
