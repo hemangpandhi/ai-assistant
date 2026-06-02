@@ -72,7 +72,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private lateinit var btnLoadModel: Button
     private lateinit var progressBar: android.widget.ProgressBar
     private lateinit var modelSpinner: Spinner
-    private lateinit var switchCpuBackend: com.google.android.material.switchmaterial.SwitchMaterial
+    private lateinit var spinnerBackend: Spinner
     private lateinit var stopButton: Button
     private lateinit var clearButton: Button
     private lateinit var etWakeWord: EditText
@@ -146,7 +146,11 @@ class LocalLLMActivity : AppCompatActivity() {
         btnLoadModel = findViewById(R.id.btnLoadModel)
         progressBar = findViewById(R.id.progressBar)
         modelSpinner = findViewById(R.id.modelSpinner)
-        switchCpuBackend = findViewById(R.id.switchCpuBackend)
+        spinnerBackend = findViewById(R.id.spinnerBackend)
+        
+        val backendOptions = arrayOf("Auto", "NPU", "GPU", "CPU")
+        val backendAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, backendOptions)
+        spinnerBackend.adapter = backendAdapter
         stopButton = findViewById(R.id.stopButton)
         clearButton = findViewById(R.id.clearButton)
         etWakeWord = findViewById(R.id.etWakeWord)
@@ -800,19 +804,19 @@ class LocalLLMActivity : AppCompatActivity() {
             return@withContext
         }
 
-        val useCpu = switchCpuBackend.isChecked
+        val backendChoice = spinnerBackend.selectedItem.toString()
         
         // Save to SharedPreferences for AssistantSession (Voice Overlay)
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("selected_model", MODEL_PATH)
-            .putBoolean("use_cpu", useCpu)
+            .putString("backend_choice", backendChoice)
             .apply()
             
-        chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH...\nBackend: ${if (useCpu) "CPU" else "GPU"}\nThis may take a minute.", isUser = false))
+        chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH...\nBackend: $backendChoice\nThis may take a minute.", isUser = false))
         generateButton.isEnabled = false
 
-        LLMManager.initialize(applicationContext, MODEL_PATH, force, useCpu, object : LLMManager.InitCallback {
+        LLMManager.initialize(applicationContext, MODEL_PATH, force, backendChoice, object : LLMManager.InitCallback {
             override fun onSuccess() {
                 chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Ready for inference.", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)

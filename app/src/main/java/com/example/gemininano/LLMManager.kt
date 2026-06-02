@@ -38,7 +38,7 @@ object LLMManager {
         fun onError(e: Exception)
     }
 
-    suspend fun autoInitialize(context: Context, force: Boolean = false, useCpu: Boolean = false, callback: InitCallback? = null) {
+    suspend fun autoInitialize(context: Context, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
         if (!force && engine != null) {
             callback?.onSuccess()
             return
@@ -57,7 +57,7 @@ object LLMManager {
             
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val savedModelPath = prefs.getString("selected_model", null)
-            val savedUseCpu = prefs.getBoolean("use_cpu", false)
+            val savedBackendChoice = prefs.getString("backend_choice", "Auto") ?: "Auto"
             
             var modelFile: File? = null
             if (savedModelPath != null) {
@@ -70,14 +70,14 @@ object LLMManager {
             }
 
             if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
-                initialize(context, modelFile.absolutePath, force, useCpu || savedUseCpu, callback)
+                initialize(context, modelFile.absolutePath, force, if (backendChoice != "Auto") backendChoice else savedBackendChoice, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
             }
         }
     }
 
-    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, useCpu: Boolean = false, callback: InitCallback? = null) {
+    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
         if (!force && engine != null && currentModelPath == modelPath) {
             callback?.onSuccess()
             return
@@ -98,7 +98,15 @@ object LLMManager {
                 conversation = null
                 engine = null
 
-                val backend = if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU() else if (useCpu) Backend.CPU() else Backend.GPU()
+                val backend = when (backendChoice) {
+                    "NPU" -> Backend.NPU()
+                    "GPU" -> Backend.GPU()
+                    "CPU" -> Backend.CPU()
+                    else -> {
+                        // "Auto" logic
+                        if (modelPath.contains("qualcomm", ignoreCase = true)) Backend.NPU() else Backend.GPU()
+                    }
+                }
 
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
@@ -118,7 +126,7 @@ object LLMManager {
                 }
             } catch (e: Exception) {
                 Log.e("LLMManager", "Error initializing model", e)
-                if (!useCpu) {
+                if (backendChoice != "CPU") {
                     Log.i("LLMManager", "Attempting fallback to CPU backend...")
                     try {
                         val engineConfigFallback = EngineConfig(
