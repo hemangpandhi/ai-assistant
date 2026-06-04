@@ -6,6 +6,8 @@ import android.car.hardware.CarPropertyValue
 import android.car.hardware.property.CarPropertyManager
 import android.content.Context
 import android.util.Log
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 object VehicleManager {
     private var carPropertyManager: CarPropertyManager? = null
@@ -175,7 +177,7 @@ object VehicleManager {
     // Mock Telemetry Setters (for testing)
     fun setMockSpeed(speed: Float) { currentSpeed = speed }
 
-    fun writeTemperatureToVhal(temp: Float) {
+    suspend fun writeTemperatureToVhalVerified(temp: Float): Boolean {
         try {
             var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
             if (areaIds == null || areaIds.isEmpty()) {
@@ -240,7 +242,8 @@ object VehicleManager {
 
                 try {
                     Log.d("VehicleManager", "Setting temp for area $areaId to $finalTemp")
-                    carPropertyManager?.setFloatProperty(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp)
+                    val success = setPropertyVerified(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp.toString(), "FLOAT")
+                    if (!success) return false
                 } catch (e: Exception) {
                     Log.e("VehicleManager", "Failed to set temp for area $areaId (tried $finalTemp)", e)
                 }
@@ -248,7 +251,9 @@ object VehicleManager {
             currentTemperature = temp
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL temp", e)
+            return false
         }
+        return true
     }
     
     fun setGenericVhalProperty(propertyId: Int, areaId: Int, value: String, dataType: String): Boolean {
@@ -276,31 +281,37 @@ object VehicleManager {
         }
     }
     
-    fun writeDefrosterToVhal(on: Boolean) {
+    suspend fun writeDefrosterToVhalVerified(on: Boolean): Boolean {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_DEFROSTER)
             val areaId = config?.areaIds?.firstOrNull() ?: 0
-            carPropertyManager?.setBooleanProperty(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on)
+            val success = setPropertyVerified(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on.toString(), "BOOLEAN")
+            if (!success) return false
+            return true
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL defroster", e)
+            return false
         }
     }
 
-    fun writeSeatHeaterToVhal(level: Int) {
+    suspend fun writeSeatHeaterToVhalVerified(level: Int): Boolean {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
             config?.areaIds?.forEach { areaId ->
                 var finalLevel = level
                 if (finalLevel > 3) finalLevel = 3
                 if (finalLevel < 0) finalLevel = 0
-                carPropertyManager?.setIntProperty(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel)
+                val success = setPropertyVerified(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel.toString(), "INT")
+                if (!success) return false
             }
+            return true
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL seat heater", e)
+            return false
         }
     }
 
-    fun writeSeatMassagerToVhal(level: Int) {
+    suspend fun writeSeatMassagerToVhalVerified(level: Int): Boolean {
         try {
             // Seat Massage is a hidden API (added in API 33) 
             Log.i("VehicleManager", "Setting Seat Massager to level $level")
@@ -309,22 +320,28 @@ object VehicleManager {
                 var finalLevel = level
                 if (finalLevel > 3) finalLevel = 3
                 if (finalLevel < 0) finalLevel = 0
-                carPropertyManager?.setIntProperty(356519253, areaId, finalLevel)
+                val success = setPropertyVerified(356519253, areaId, finalLevel.toString(), "INT")
+                if (!success) return false
             }
+            return true
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL seat massager. Possibly unsupported by current HAL.", e)
+            return false
         }
     }
 
-    fun writeWindowPositionToVhal(percentage: Int) {
+    suspend fun writeWindowPositionToVhalVerified(percentage: Int): Boolean {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS)
             config?.areaIds?.forEach { areaId ->
                 // Assuming percentage is 0-100
-                carPropertyManager?.setIntProperty(VehiclePropertyIds.WINDOW_POS, areaId, percentage)
+                val success = setPropertyVerified(VehiclePropertyIds.WINDOW_POS, areaId, percentage.toString(), "INT")
+                if (!success) return false
             }
+            return true
         } catch (e: Exception) {
-            Log.e("VehicleManager", "Failed to write VHAL window pos", e)
+            Log.e("VehicleManager", "Failed to write window position", e)
+            return false
         }
     }
 
@@ -361,6 +378,91 @@ object VehicleManager {
             sb.append("| $name | $type | $status | $note |\n")
         }
         return sb.toString()
+    }
+
+
+    suspend fun setPropertyVerified(propertyId: Int, targetAreaId: Int, value: String, dataType: String, timeoutMs: Long = 1500, maxRetries: Int = 3): Boolean {
+        // Pre-check if the value is already set to avoid VHAL timeout (VHAL doesn't fire onChange if value didn't change)
+        try {
+            val currentValue = when (dataType.uppercase()) {
+                "INT" -> carPropertyManager?.getIntProperty(propertyId, targetAreaId)?.toString()
+                "FLOAT" -> carPropertyManager?.getFloatProperty(propertyId, targetAreaId)?.toString()
+                "BOOLEAN" -> carPropertyManager?.getBooleanProperty(propertyId, targetAreaId)?.toString()
+                "STRING" -> carPropertyManager?.getProperty<Any>(Any::class.java, propertyId, targetAreaId)?.value?.toString()
+                else -> null
+            }
+            
+            val matches = when (dataType.uppercase()) {
+                "INT" -> currentValue?.toFloatOrNull()?.toInt() == value.toFloatOrNull()?.toInt()
+                "FLOAT" -> currentValue?.toFloatOrNull() == value.toFloatOrNull()
+                "BOOLEAN" -> currentValue?.toBoolean() == value.toBoolean()
+                else -> currentValue == value
+            }
+            
+            if (matches) {
+                Log.d("VehicleManager", "Property $propertyId area $targetAreaId is already $value. Skipping write.")
+                return true
+            }
+        } catch (e: Exception) {
+            Log.w("VehicleManager", "Failed pre-check for property $propertyId", e)
+        }
+
+        var currentDelay = 500L
+        repeat(maxRetries) { attempt ->
+            val success = kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+                kotlinx.coroutines.suspendCancellableCoroutine<Boolean> { continuation ->
+                    val callback = object : CarPropertyManager.CarPropertyEventCallback {
+                        override fun onChangeEvent(valueRecord: CarPropertyValue<*>) {
+                            if (valueRecord.propertyId == propertyId && valueRecord.areaId == targetAreaId) {
+                                val newValue = valueRecord.value
+                                val matches = when (dataType.uppercase()) {
+                                    "INT" -> newValue == value.toFloatOrNull()?.toInt() ?: value.toIntOrNull()
+                                    "FLOAT" -> newValue == value.toFloatOrNull()
+                                    "BOOLEAN" -> newValue == value.toBoolean()
+                                    else -> newValue.toString() == value
+                                }
+                                if (matches) {
+                                    carPropertyManager?.unregisterCallback(this, propertyId)
+                                    if (continuation.isActive) continuation.resume(true)
+                                }
+                            }
+                        }
+                        override fun onErrorEvent(propId: Int, zone: Int) {
+                            if (propId == propertyId && zone == targetAreaId) {
+                                carPropertyManager?.unregisterCallback(this, propertyId)
+                                if (continuation.isActive) continuation.resume(false)
+                            }
+                        }
+                    }
+                    
+                    carPropertyManager?.registerCallback(callback, propertyId, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+                    
+                    try {
+                        val writeSuccess = setGenericVhalProperty(propertyId, targetAreaId, value, dataType)
+                        if (!writeSuccess) {
+                            carPropertyManager?.unregisterCallback(callback, propertyId)
+                            if (continuation.isActive) continuation.resume(false)
+                        }
+                    } catch (e: Exception) {
+                        carPropertyManager?.unregisterCallback(callback, propertyId)
+                        if (continuation.isActive) continuation.resumeWithException(e)
+                    }
+
+                    continuation.invokeOnCancellation {
+                        carPropertyManager?.unregisterCallback(callback, propertyId)
+                    }
+                }
+            } ?: false
+            
+            if (success) return true
+            
+            if (attempt < maxRetries - 1) {
+                Log.w("VehicleManager", "Hardware command failed for property $propertyId. Retrying in ${currentDelay}ms (Attempt ${attempt + 1}/$maxRetries)...")
+                kotlinx.coroutines.delay(currentDelay)
+                currentDelay *= 2
+            }
+        }
+        return false
     }
 
     fun cleanup() {

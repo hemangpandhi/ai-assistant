@@ -13,10 +13,10 @@ object GeminiManager {
     private const val CLOUD_MODEL = "gemini-2.5-flash"
     var apiKey: String = ""
     
-    private val conversationHistory = mutableListOf<JSONObject>()
+
     
     fun resetConversation() {
-        conversationHistory.clear()
+        MemoryManager.clearMemory()
     }
 
     suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, callback: CloudMessageCallback) {
@@ -27,13 +27,10 @@ object GeminiManager {
                 return@withContext
             }
 
-            conversationHistory.add(JSONObject().apply {
-                put("role", "user")
-                put("parts", JSONArray().put(JSONObject().put("text", userMessage)))
-            })
+
 
             val jsonBody = JSONObject().apply {
-                put("contents", JSONArray(conversationHistory))
+                put("contents", JSONArray(MemoryManager.getGeminiHistory()))
                 put("systemInstruction", JSONObject().apply {
                     put("parts", JSONArray().put(JSONObject().put("text", systemPrompt)))
                 })
@@ -44,7 +41,7 @@ object GeminiManager {
             }
 
             try {
-                val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$CLOUD_MODEL:generateContent?key=$apiKey")
+                val url = URL("https://generativelanguage.googleapis.com/v1beta/models/$CLOUD_MODEL:streamGenerateContent?alt=sse&key=$apiKey")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "POST"
                 connection.setRequestProperty("Content-Type", "application/json")
@@ -58,27 +55,37 @@ object GeminiManager {
                 val responseCode = connection.responseCode
                 val stream = if (responseCode in 200..299) connection.inputStream else connection.errorStream
                 
-                val responseString = stream.bufferedReader().use { it.readText() }
-                
                 if (responseCode in 200..299) {
-                    val jsonResponse = JSONObject(responseString)
-                    val candidates = jsonResponse.optJSONArray("candidates")
-                    if (candidates != null && candidates.length() > 0) {
-                        val content = candidates.getJSONObject(0).getJSONObject("content")
-                        val parts = content.getJSONArray("parts")
-                        val assistantText = parts.getJSONObject(0).getString("text")
-                        
-                        conversationHistory.add(JSONObject().apply {
-                            put("role", "model")
-                            put("parts", JSONArray().put(JSONObject().put("text", assistantText)))
-                        })
-                        
-                        callback.onMessage(assistantText)
-                    } else {
-                        callback.onMessage("Error: Empty response from Gemini API.")
+                    val reader = stream.bufferedReader()
+                    var line: String?
+                    while (reader.readLine().also { line = it } != null) {
+                        if (line!!.startsWith("data: ")) {
+                            val dataStr = line!!.substring(6).trim()
+                            if (dataStr.isNotEmpty() && dataStr != "[DONE]") {
+                                try {
+                                    val jsonResponse = JSONObject(dataStr)
+                                    val candidates = jsonResponse.optJSONArray("candidates")
+                                    if (candidates != null && candidates.length() > 0) {
+                                        val content = candidates.getJSONObject(0).optJSONObject("content")
+                                        if (content != null) {
+                                            val parts = content.optJSONArray("parts")
+                                            if (parts != null && parts.length() > 0) {
+                                                val text = parts.getJSONObject(0).optString("text", "")
+                                                if (text.isNotEmpty()) {
+                                                    callback.onMessage(text)
+                                                }
+                                            }
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("GeminiManager", "Error parsing chunk: $dataStr", e)
+                                }
+                            }
+                        }
                     }
                     callback.onDone()
                 } else {
+                    val responseString = stream.bufferedReader().use { it.readText() }
                     callback.onMessage("API Error: $responseCode - $responseString")
                     callback.onDone()
                 }

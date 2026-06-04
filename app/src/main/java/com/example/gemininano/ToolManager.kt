@@ -11,6 +11,13 @@ import org.json.JSONObject
 object ToolManager {
     private val TAG = "ToolManager"
     
+    data class Constraint(
+        val propertyId: Int,
+        val operator: String,
+        val value: Double,
+        val errorMsg: String
+    )
+    
     data class ToolDefinition(
         val handlerType: String,
         val promptString: String,
@@ -19,7 +26,11 @@ object ToolManager {
         val dataType: String?,
         val areaId: Int?,
         val valueToWrite: String?,
-        val successMessage: String?
+        val successMessage: String?,
+        val keywords: List<String>?,
+        val constraints: List<Constraint>?,
+        val requiresConfirmation: Boolean = false,
+        val confirmationMessage: String? = null
     )
     
     // Maps command prefix -> ToolDefinition
@@ -55,9 +66,33 @@ object ToolManager {
                     val areaId = if (toolObj.has("area_id")) toolObj.getInt("area_id") else null
                     val valueToWrite = if (toolObj.has("value_to_write")) toolObj.getString("value_to_write") else null
                     val successMessage = if (toolObj.has("success_message")) toolObj.getString("success_message") else null
+
+                    val keywordsList = mutableListOf<String>()
+                    if (toolObj.has("keywords")) {
+                        val arr = toolObj.getJSONArray("keywords")
+                        for (j in 0 until arr.length()) keywordsList.add(arr.getString(j).lowercase())
+                    }
                     
+                    val constraintsList = mutableListOf<Constraint>()
+                    if (toolObj.has("constraints")) {
+                        val arr = toolObj.getJSONArray("constraints")
+                        for (j in 0 until arr.length()) {
+                            val cObj = arr.getJSONObject(j)
+                            constraintsList.add(Constraint(
+                                propertyId = cObj.getInt("property_id"),
+                                operator = cObj.getString("operator"),
+                                value = cObj.getDouble("value"),
+                                errorMsg = cObj.getString("error_msg")
+                            ))
+                        }
+                    }
+
                     activeTools[commandName] = ToolDefinition(
-                        handlerType, promptString, handlerKey, propertyId, dataType, areaId, valueToWrite, successMessage
+                        handlerType, promptString, handlerKey, propertyId, dataType, areaId, valueToWrite, successMessage,
+                        if (keywordsList.isNotEmpty()) keywordsList else null,
+                        if (constraintsList.isNotEmpty()) constraintsList else null,
+                        requiresConfirmation = if (toolObj.has("requires_confirmation")) toolObj.getBoolean("requires_confirmation") else false,
+                        confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null
                     )
                     Log.i(TAG, "Registered Tool: $commandName ($handlerType) -> $promptString")
                 }
@@ -66,21 +101,45 @@ object ToolManager {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse tools from custom_properties.json", e)
         }
+        
+        // Initialize Semantic Search RAG asynchronously
+        SemanticSearchManager.initialize(context)
+        SemanticSearchManager.buildToolEmbeddingsCache()
+    }
+
+    /**
+     * Primitive Tool RAG Engine.
+     * Evaluates the user query against the tool keywords.
+     * Returns the top matching tools (plus any default generic ones).
+     */
+    fun getRelevantTools(query: String): List<ToolDefinition> {
+        if (query.isBlank()) return activeTools.values.toList()
+        return SemanticSearchManager.search(query, 30)
     }
 
     /**
      * Returns the comma-separated list of tool prompts for the LLM System Prompt.
      */
-    fun getLlmToolsPrompt(): String {
-        if (activeTools.isEmpty()) return ""
-        return activeTools.values.map { it.promptString }.joinToString(", ")
+
+
+    fun getToolDefinition(toolCall: String): ToolDefinition? {
+        val commandName = toolCall.substringBefore("(").trim()
+        return activeTools[commandName]
+    }
+    
+    fun getAllTools(): Map<String, ToolDefinition> = activeTools
+
+    fun getLlmToolsPrompt(query: String = ""): String {
+        val relevantTools = getRelevantTools(query)
+        if (relevantTools.isEmpty()) return ""
+        return relevantTools.map { it.promptString }.joinToString("\n")
     }
 
     /**
      * Executes the requested tool call if it is enabled in custom_properties.json.
      * Returns a string summarizing the outcome for the chat UI.
      */
-    fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
+    suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
         val toolCall = rawToolCall.trim()
         Log.d(TAG, "Executing toolCall: $toolCall")
         try {
@@ -107,11 +166,11 @@ object ToolManager {
                 val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter("(").substringBefore(")")
                 
                 Log.d(TAG, "Executing GENERIC_VHAL_WRITE for propId $propId")
-                val success = VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
+                val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
                 return if (success) {
                     matchedTool.successMessage ?: "Action completed successfully."
                 } else {
-                    "Failed to execute action."
+                    "I sent the command, but the vehicle hardware didn't confirm the change. Please check your system."
                 }
             }
 
@@ -121,47 +180,29 @@ object ToolManager {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 2.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
                     Log.d(TAG, "increaseTemperature: parsed value=$value, currentTemp=$currentTemp")
-                    VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
-                    "I've increased the temperature by $value degrees."
+                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat())
+                    if (success) "I've increased the temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "decreaseTemperature" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 2.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
                     Log.d(TAG, "decreaseTemperature: parsed value=$value, currentTemp=$currentTemp")
-                    VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
-                    "I've decreased the temperature by $value degrees."
+                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat())
+                    if (success) "I've decreased the temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "setTemperature" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
-                    val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                    Log.d(TAG, "setTemperature: parsed value=$value, currentTemp=$currentTemp")
-                    VehicleManager.writeTemperatureToVhal(value.toFloat())
-                    
-                    "I've set the temperature to $value degrees."
+                    val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat())
+                    if (success) "I've set the temperature to $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
-                "setSeatHeater" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
-                    VehicleManager.writeSeatHeaterToVhal(value)
-                    "I've adjusted the seat heater."
-                }
-                "setSeatMassager" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 1
-                    VehicleManager.writeSeatMassagerToVhal(value)
-                    "I've turned on the seat massager for you."
-                }
-                "setWindowPosition" -> {
-                    if (VehicleManager.getRealSpeed() > 70) {
-                        Log.w(TAG, "Speed > 70mph. Ignored setWindowPosition tool.")
-                        "Safety Warning: Speed is too high to safely open the windows."
-                    } else {
-                        val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull()?.toInt() ?: 50
-                        VehicleManager.writeWindowPositionToVhal(value)
-                        "I've adjusted the windows."
-                    }
-                }
+
+
+
                 "navigate" -> {
                     val dest = toolCall.substringAfter("(").substringBefore(")")
-                    Toast.makeText(context, "Navigating to: $dest", Toast.LENGTH_SHORT).show()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        Toast.makeText(context, "Navigating to: $dest", Toast.LENGTH_SHORT).show()
+                    }
                     
                     val gMapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(dest)}"))
                     gMapsIntent.setPackage("com.google.android.apps.maps")
@@ -193,7 +234,9 @@ object ToolManager {
                 }
                 "search" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")
-                    Toast.makeText(context, "Searching map for: $query", Toast.LENGTH_SHORT).show()
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        Toast.makeText(context, "Searching map for: $query", Toast.LENGTH_SHORT).show()
+                    }
                     val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
                     geoIntent.setPackage("com.google.android.apps.maps")
                     geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
@@ -288,7 +331,7 @@ object ToolManager {
                     else -> "$key()" // No args
                 }
 
-                val result = executeToolCall(context, dummyCall)
+                val result = kotlinx.coroutines.runBlocking { executeToolCall(context, dummyCall) }
                 if (result.startsWith("System Error") || result.startsWith("Failed")) {
                     status = "❌ FAIL"
                     note = result

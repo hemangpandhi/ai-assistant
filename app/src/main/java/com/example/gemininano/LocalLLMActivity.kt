@@ -854,8 +854,12 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private fun executeToolCall(toolCall: String) {
-        ToolManager.executeToolCall(this, toolCall)
-        updateDashboardUI()
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            ToolManager.executeToolCall(this@LocalLLMActivity, toolCall)
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                updateDashboardUI()
+            }
+        }
     }
 
     private fun generateText(prompt: String, isVoice: Boolean = false, displayPrompt: String = "") {

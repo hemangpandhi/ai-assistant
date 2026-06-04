@@ -173,6 +173,7 @@ object LLMManager {
         val isNav = (q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route")) && !isSightseeing && !isFood
         val isAmbient = q.contains("home") || q.contains("work")
         val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("fuel")
+        val isWellness = q.contains("pain") || q.contains("hurt") || q.contains("tired") || q.contains("sore") || q.contains("ache")
         
         val basePrompt = StringBuilder()
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
@@ -182,7 +183,7 @@ object LLMManager {
         basePrompt.append("Memory: $userMemory\n\n")
         
         basePrompt.append("=== TOOLS ===\n")
-        basePrompt.append("${ToolManager.getLlmToolsPrompt()}\n\n")
+        basePrompt.append("${ToolManager.getLlmToolsPrompt(query)}\n\n")
         
         basePrompt.append("=== STRICT RULES ===\n")
         basePrompt.append("IMPORTANT: If you use a tool, YOUR RESPONSE MUST EXACTLY START WITH THE XML TAG '<TOOL>'. Do NOT omit it.\n")
@@ -193,10 +194,12 @@ object LLMManager {
             basePrompt.append("- If user is cold or wants to increase it: \"<TOOL>increaseTemperature()</TOOL> I'm warming it up.\"\n")
             basePrompt.append("- If user is hot or wants to decrease it: \"<TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\"\n")
             basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
-            basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, you MUST ask if they want you to turn on the seat heater or seat massager as it might alleviate their pain. Example: \"I can turn on the seat heater and massager to help with your pain. Would you like me to do that?\"\n")
+        }
+        if (isWellness || q.isEmpty()) {
+            basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, you MUST ask if they want you to turn on the seat heater and massager. If the user says yes, you MUST output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL> and <TOOL>setSeatMassager(2)</TOOL> to activate them.\n")
         }
         if (isNav || q.isEmpty()) {
-            basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT syntax <TOOL>navigate(DEST)</TOOL> and NO other text. Example: \"TOOL_CALL: navigate(Tokyo)\"\n")
+            basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT syntax <TOOL>navigate(DEST)</TOOL> and NO other text. Example: \"<TOOL>navigate(Tokyo)</TOOL>\"\n")
         }
         if (isDiag || q.isEmpty()) {
             basePrompt.append("4. MULTI-TURN FUEL: If user mentions low fuel/range, you MUST ask: \"Should I find a nearby charging station?\" without any other text. DO NOT use the remember tool for fuel/diagnostics.\n")
@@ -205,7 +208,7 @@ object LLMManager {
             basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
         }
         if (isSightseeing || q.isEmpty()) {
-            basePrompt.append("6. SIGHTSEEING: When suggesting places to visit, you MUST end your response by asking if the user would like you to navigate to any of them.\n")
+            basePrompt.append("6. SIGHTSEEING: When suggesting places to visit, you MUST end your response by explicitly asking: \"Would you like me to navigate you there?\". If the user says yes, you MUST output the EXACT syntax <TOOL>navigate(DEST)</TOOL> to start navigation.\n")
         }
         if (isFood || q.isEmpty()) {
             basePrompt.append("7. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")

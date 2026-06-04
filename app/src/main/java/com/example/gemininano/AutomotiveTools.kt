@@ -13,7 +13,7 @@ class AutomotiveTools : ToolSet {
     ): Map<String, String> {
         Log.d("AutomotiveTools", "increaseTemperature: $value")
         val currentTemp = VehicleManager.getRealTemperature().toDouble()
-        VehicleManager.writeTemperatureToVhal((currentTemp + value).toFloat())
+        kotlinx.coroutines.runBlocking { VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat()) }
         return mapOf("result" to "success")
     }
 
@@ -23,7 +23,7 @@ class AutomotiveTools : ToolSet {
     ): Map<String, String> {
         Log.d("AutomotiveTools", "decreaseTemperature: $value")
         val currentTemp = VehicleManager.getRealTemperature().toDouble()
-        VehicleManager.writeTemperatureToVhal((currentTemp - value).toFloat())
+        kotlinx.coroutines.runBlocking { VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat()) }
         return mapOf("result" to "success")
     }
 
@@ -32,21 +32,21 @@ class AutomotiveTools : ToolSet {
         @ToolParam(description = "The target temperature in Fahrenheit.") value: Double
     ): Map<String, String> {
         Log.d("AutomotiveTools", "setTemperature: $value")
-        VehicleManager.writeTemperatureToVhal(value.toFloat())
+        kotlinx.coroutines.runBlocking { VehicleManager.writeTemperatureToVhalVerified(value.toFloat()) }
         return mapOf("result" to "success")
     }
 
     @Tool(description = "Turns on the windshield defroster.")
     fun turnOnDefroster(): Map<String, String> {
         Log.d("AutomotiveTools", "turnOnDefroster")
-        VehicleManager.writeDefrosterToVhal(true)
+        kotlinx.coroutines.runBlocking { VehicleManager.writeDefrosterToVhalVerified(true) }
         return mapOf("result" to "success", "message" to "Defroster is now on.")
     }
 
     @Tool(description = "Turns off the windshield defroster.")
     fun turnOffDefroster(): Map<String, String> {
         Log.d("AutomotiveTools", "turnOffDefroster")
-        VehicleManager.writeDefrosterToVhal(false)
+        kotlinx.coroutines.runBlocking { VehicleManager.writeDefrosterToVhalVerified(false) }
         return mapOf("result" to "success", "message" to "Defroster is now off.")
     }
 }

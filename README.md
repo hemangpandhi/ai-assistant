@@ -6,8 +6,14 @@ This project is a fully functional, system-level Android Digital Assistant demon
 
 - **System-Level Digital Assistant**: Registers as a native `VoiceInteractionService`. Set it as your default assistant to summon a modern, glassmorphism overlay popup from any app using the home button.
 - **Hybrid AI Engine**: Supports 100% on-device local models via Google's MediaPipe Tasks GenAI for zero-latency offline use, OR connects seamlessly to Cloud APIs like **Google Gemini 1.5 Flash** and **Anthropic Claude 3.5 Sonnet** using dynamic UI selection.
-- **Native VHAL Integration (Read/Write)**: The AI is directly wired into the `CarPropertyManager`. It reads live telemetry (`PERF_VEHICLE_SPEED`, `HVAC_TEMPERATURE_SET`) for prompt context, and can physically alter the vehicle's HVAC system in real-time by intercepting `<TEMP_UP>`/`<TEMP_DOWN>` tags.
-- **Strict Prompt Engineering**: The underlying model is strictly constrained to provide concise, direct, sub-15-word answers with zero hallucination.
+- **Native VHAL Integration (Read/Write)**: The AI is directly wired into the `CarPropertyManager`. It reads live telemetry for prompt context, and can physically alter the vehicle's HVAC system in real-time.
+- **Advanced Architecture Updates (V2)**:
+  - 🛡️ **Native Security Guardrails**: High-risk vehicle commands (e.g., unlocking doors) are intercepted natively before execution, forcing the LLM to pause and await explicit user confirmation.
+  - 🧠 **On-Device Semantic Search (RAG)**: Replaces primitive keyword matching with a MediaPipe Universal Sentence Encoder (TFLite) to intelligently route complex intents to over 200+ vehicle properties using mathematical vector mapping.
+  - 💾 **Infinite Memory Management**: A sliding-window algorithm tracks conversation states across both Local and Cloud models, automatically truncating context to prevent catastrophic KV Cache overflows and conversational amnesia.
+  - ⚙️ **Automated Hardware Retries**: Features an Exponential Backoff engine ensuring that if the CAN bus or VHAL drops a command, the system automatically retries in the background transparently.
+  - 📱 **Visual Feedback Widgets**: Uses custom native Android UI overlays to confirm vehicle actions (like AC or Windows) instead of relying solely on LLM text responses.
+- **Strict Prompt Engineering**: The underlying model is strictly constrained to provide concise, direct answers with zero hallucination.
 - **Voice Interactions (STT & TTS)**: Fully integrated Speech-to-Text and Android Text-to-Speech (TTS). Talk to the Assistant naturally, and it will speak its precise confirmations aloud.
 - **Multiple Model Support**: Includes a dynamic fallback scanner to load any supported LiteRT model (SmolLM, Gemma, Qwen, Phi) placed in the external storage directory.
 

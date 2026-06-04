@@ -111,11 +111,10 @@ classDiagram
 
 ## Main Components & Classes
 
-### 1. `LLMManager.kt` (Singleton Inference Engine)
-The heart of the AI processing. It encapsulates the Google LiteRT (TensorFlow Lite) engine.
-*   **Role**: Handles model loading from disk, fallback mechanisms (GPU -> CPU), and token streaming.
-*   **Optimization**: Features a `warmUpSystemPrompt()` method that runs immediately upon initialization. It pre-computes the massive 1,000+ token System Prompt into the KV Cache in the background, eliminating the "first-time prefill" latency when the user issues their first command.
-*   **State Management**: Maintains the `conversation` context so that both the Main App and the System UI overlay share the same KV Cache state.
+### 1. `LLMManager.kt` & `GeminiManager.kt` (Inference Engines)
+- **Local Model (`LLMManager`)**: Manages the `LiteRT` (`litertlm`) execution for on-device inference (e.g. Gemma, Qwen). Uses a native persistent Key-Value (KV) cache to maintain conversation history across multi-turn interactions. By selectively injecting only the incremental user queries (and avoiding prompt bloat of the system instructions on follow-up turns), it achieves a Time-To-First-Token (TTFT) of **~2.5 seconds** completely offline.
+- **Cloud Model (`GeminiManager`)**: Manages cloud-based LLM inference (e.g. Gemini 1.5 Flash). Optimized for real-time responsiveness using **Server-Sent Events (SSE) Streaming API** (`streamGenerateContent?alt=sse`). This custom network layer reads raw TCP socket buffers in real-time to bypass HTTP sync blocks, dropping TTFT latency to **< 1.5 seconds**.
+- **Context Auto-Clearing**: Employs heuristic-based recovery blocks. If the LLM generates a suspicious error (e.g., "busy", "invoke") or hits the absolute KV cache ceiling, the engines execute a graceful sliding window reset, purging old turns while preserving the `[Current Vehicle State]`.
 
 ### 2. `LocalLLMActivity.kt` (Main Application UI)
 A traditional Android Activity serving as the comprehensive dashboard.
@@ -129,15 +128,18 @@ A highly optimized Android Foreground Service (Type: Microphone).
 *   **Trigger**: When it detects the configured wake word (e.g., "hey auto"), it broadcasts an internal intent `com.example.gemininano.WAKE_WORD_DETECTED`.
 
 ### 4. `AssistantVoiceInteractionService.kt` & `AssistantSession.kt` (System UI Overlay)
-Implements Android's `VoiceInteractionService` API to act as the default device assistant.
-*   **Role (`AssistantVoiceInteractionService`)**: A headless service that listens for the WakeWord broadcast and forcefully triggers the assistant overlay via `showSession()`.
-*   **Role (`AssistantSession`)**: The actual UI (glassmorphism overlay) that pops up over any app (e.g., Maps, Spotify).
-*   **Features**: Uses aggressive `SpeechRecognizer` settings (omitting `EXTRA_PARTIAL_RESULTS`) to ensure instant trailing silence detection. It streams tokens directly from `LLMManager`, executes parsed tools, and streams chunked audio to TTS.
+- `AssistantVoiceInteractionService` extends the Android OS framework to register the application as the default Digital Assistant, overriding Google Assistant.
+- `AssistantSession` generates the transparent UI overlay (bottom sheet) over active applications (e.g., Maps).
+- **Lifecycle Hardening (`setKeepAwake`)**: Wraps asynchronous LLM inference and long-running hardware actuation callbacks with `VoiceInteractionSession.setKeepAwake(true)` to prevent the Android System Voice Watchdog from prematurely killing the UI overlay during dense AI tasks.
+- **Streaming TTS Engine**: Parses AI output dynamically on-the-fly and feeds chunks directly to `TextToSpeech` via `QUEUE_ADD`.
 
-### 5. `VehicleManager.kt` (VHAL Integration)
-The bridge between the LLM's generated text and the car's physical hardware.
-*   **Role**: Connects to the AAOS `CarPropertyManager`.
-*   **Execution**: When the LLM outputs a tag like `<TOOL>setTemperature(72)</TOOL>`, the UI strips it from the display text and forwards it to `VehicleManager`, which synchronously injects the command into the car's CAN bus/VHAL.
+### 5. `ToolManager.kt` (RAG Engine)
+- Contains definitions for all 20+ Automotive Voice actions.
+- Features a **Semantic Search Engine** to extract relevant tools via sentence embedding similarity. For the Cloud Model, limits context to top-K tools. For the Local Model, bypasses the limit to statically inject all tools, ensuring the KV cache never loses track of available capabilities on follow-up turns.
+
+### 6. `VehicleManager.kt` (VHAL Integration)
+- Connects directly to the Android `CarPropertyManager` to translate logical XML tool calls (`<TOOL>setTemperature(22)</TOOL>`) into raw automotive hardware arrays.
+- Implements **Hardware Write Pre-Checks**: Evaluates the current state of physical properties (e.g., HVAC temperature) prior to executing writes. If the target value matches the current state, it suppresses the redundant write, mitigating 6-second VHAL watchdog timeouts and ensuring seamless multi-tool orchestration.
 
 ## Tool Command Parsing & Navigation Logic
 The application employs a regex-based stream interception mechanism to handle tool calls dynamically as the LLM generates tokens, without waiting for the full response to finish.

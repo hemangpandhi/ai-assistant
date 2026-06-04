@@ -1,4 +1,5 @@
 package com.example.gemininano
+import kotlinx.coroutines.*
 
 import android.content.Context
 import android.content.Intent
@@ -43,6 +44,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var tts: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var dotAnimatorJob: kotlinx.coroutines.Job? = null
+    private var pendingConfirmationTool: String? = null
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
@@ -62,9 +64,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 }
 
                 override fun onError(utteranceId: String?) {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        finish()
-                    }
+                    android.util.Log.e("AssistantSession", "TTS Error: " + utteranceId)
                 }
             })
         }
@@ -233,7 +233,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         stopDotAnimation()
     }
 
-    private fun executeToolCall(toolCall: String): String? {
+    private suspend fun executeToolCall(toolCall: String): String? {
         return ToolManager.executeToolCall(context, toolCall) { intent ->
             try {
                 startVoiceActivity(intent)
@@ -261,10 +261,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         btnSend.isEnabled = false
         isQueryProcessed = false
         
-        processQuery(query)
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+            processQuery(query)
+        }
     }
     
-    private fun processQuery(query: String) {
+    private suspend fun processQuery(query: String) {
         // Timeout watchdog
         timeoutJob?.cancel()
         timeoutJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
@@ -293,18 +295,45 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
         
+        var interceptedQuery = query
+        
+        // Security: Native User Validation
+        if (pendingConfirmationTool != null) {
+            val q = query.lowercase()
+            if (q.contains("yes") || q.contains("yeah") || q.contains("sure") || q.contains("do it") || q.contains("ok")) {
+                val toolToExecute = pendingConfirmationTool!!
+                pendingConfirmationTool = null
+                val feedback = executeToolCall(toolToExecute)
+                interceptedQuery = "System: Executed $toolToExecute. Result: $feedback. User originally said 'yes'."
+            } else {
+                pendingConfirmationTool = null
+                interceptedQuery = "System: Action aborted by user. User originally said: $query"
+            }
+        }
+        
+        MemoryManager.addTurn("User", interceptedQuery)
+        val slidingHistory = MemoryManager.getSlidingWindowContext(3000)
+        
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
-            val sysPrompt = LLMManager.getSystemPrompt(context, query)
-            finalPrompt = "$sysPrompt\n\nUser: $query"
+            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
+            
+            // If we have sliding history, we must be recovering from a KV Cache wipe or it's a new turn after a wipe.
+            if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
+                finalPrompt = "$sysPrompt\n$reminder\n\n[Conversation History]\n$slidingHistory\nAssistant:"
+            } else {
+                finalPrompt = "$sysPrompt\n$reminder\n\nUser: $interceptedQuery"
+            }
             LLMManager.isFirstMessage = false
         } else {
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: $query"
+            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: $interceptedQuery"
         }
 
         val executedTools = mutableSetOf<String>()
         val toolFeedbacks = mutableListOf<String>()
+        val pendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
         val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
         val spokenTextLength = intArrayOf(0)
         
@@ -369,8 +398,19 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 val toolCall = match.groups[1]?.value?.trim() ?: continue
                                 if (executedTools.add(toolCall)) {
                                     android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")
-                                    val feedback = executeToolCall(toolCall)
-                                    if (feedback != null) toolFeedbacks.add(feedback)
+                                    val toolDef = ToolManager.getToolDefinition(toolCall)
+                                    if (toolDef?.requiresConfirmation == true) {
+                                        pendingConfirmationTool = toolCall
+                                        val confirmMsg = toolDef.confirmationMessage ?: "Warning: Are you sure you want to do this?"
+                                        lastResponseBuilder.clear()
+                                        lastResponseBuilder.append(confirmMsg)
+                                        isHallucinating = true // Force stop further output processing
+                                    } else {
+                                        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async {
+                                            executeToolCall(toolCall)
+                                        }
+                                        pendingTools.add(job)
+                                    }
                                 }
                             }
                             
@@ -411,24 +451,35 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
+                            
+                            if (pendingTools.isNotEmpty()) {
+                                setKeepAwake(true)
+                                stopThinkingAnimation()
+                                voiceAnimation.state = VoiceAnimationView.State.LISTENING
+                                val feedbacks = kotlinx.coroutines.awaitAll(*pendingTools.toTypedArray()).filterNotNull()
+                                toolFeedbacks.addAll(feedbacks)
+                                setKeepAwake(false)
+                            }
+                            
                             var finalMsg = lastResponseBuilder.toString()
                             
                             // Auto-Context Clearing Hack for silent KV Cache overflows
                             if (finalMsg.trim().length <= 3) {
-                                android.util.Log.w("AssistantSession", "Suspiciously short response. KV Cache full. Resetting...")
+                                android.util.Log.w("AssistantSession", "Suspiciously short response. KV Cache full. Graceful Sliding Window Reset initiated...")
                                 LLMManager.resetConversation()
+                                // The query has already been added to MemoryManager as User turn, so we just retry.
+                                // The next handleQuery will pull the SlidingWindowContext automatically!
                                 handleQuery(query)
                                 return@launch
                             }
+                            
+                            MemoryManager.addTurn("Assistant", finalMsg.trim())
                             
                             finalMsg = finalMsg.replace(regex, "").trim()
                             if (finalMsg.isEmpty() && toolFeedbacks.isNotEmpty()) {
                                 finalMsg = toolFeedbacks.joinToString("\n")
                             } else if (toolFeedbacks.isNotEmpty()) {
-                                val guardrailMessages = toolFeedbacks.filter { it.startsWith("Safety Warning:") }
-                                if (guardrailMessages.isNotEmpty()) {
-                                    finalMsg += "\n\n" + guardrailMessages.joinToString("\n")
-                                }
+                                finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
                             }
                             
                             
@@ -479,11 +530,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         try {
             if (LocalLLMActivity.isCloudModelActive) {
                 CoroutineScope(Dispatchers.IO).launch {
-                    val systemPrompt = LLMManager.getSystemPrompt(context, query)
+                    var systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+                    systemPrompt += "\n\n[Current State: ${VehicleManager.getLLMContextString(context)}]"
+                    
                     if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
-                        GeminiManager.sendMessageAsync(systemPrompt, query, callback)
+                        GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback)
                     } else {
-                        AnthropicManager.sendMessageAsync(systemPrompt, query, callback)
+                        AnthropicManager.sendMessageAsync(systemPrompt, interceptedQuery, callback)
                     }
                 }
             } else {

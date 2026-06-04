@@ -20,10 +20,10 @@ object AnthropicManager {
     private const val CLAUDE_MODEL = "claude-3-5-sonnet-20241022"
     var apiKey: String = ""
     
-    private val conversationHistory = mutableListOf<JSONObject>()
+
     
     fun resetConversation() {
-        conversationHistory.clear()
+        MemoryManager.clearMemory()
     }
 
     suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, callback: CloudMessageCallback) {
@@ -34,16 +34,13 @@ object AnthropicManager {
                 return@withContext
             }
 
-            conversationHistory.add(JSONObject().apply {
-                put("role", "user")
-                put("content", userMessage)
-            })
+            // MemoryManager tracks the user message in AssistantSession.kt
 
             val jsonBody = JSONObject().apply {
                 put("model", CLAUDE_MODEL)
                 put("max_tokens", 1024)
                 put("system", systemPrompt)
-                put("messages", JSONArray(conversationHistory))
+                put("messages", JSONArray(MemoryManager.getAnthropicHistory()))
             }
 
             try {
@@ -70,10 +67,7 @@ object AnthropicManager {
                     val contentArray = jsonResponse.getJSONArray("content")
                     val assistantText = contentArray.getJSONObject(0).getString("text")
                     
-                    conversationHistory.add(JSONObject().apply {
-                        put("role", "assistant")
-                        put("content", assistantText)
-                    })
+                    // MemoryManager tracks the response in AssistantSession.kt
                     
                     callback.onMessage(assistantText)
                     callback.onDone()
