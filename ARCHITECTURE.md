@@ -1,10 +1,12 @@
-# Local AI Assistant: Architecture Details
+# Automotive AI Assistant Architecture
 
-This document outlines the internal architecture of the Android Automotive Local AI Assistant. The system is designed to provide ultra-low latency, 100% offline conversational capabilities with direct read/write access to vehicle hardware.
+This document outlines the architecture, components, and data flow of the Android Automotive AI Assistant. The application is designed to provide ultra-low latency, completely offline, LLM-powered voice assistance with deep, dynamic integration into the Android Automotive OS (AAOS) VHAL (Vehicle Hardware Abstraction Layer).
 
-## System Block Diagram
+## Core Architecture Overview
 
-The following diagram illustrates the data flow from user input through the inference engine, and out to the vehicle's hardware actuators and speech interfaces.
+The system is built on a split architecture: a primary User Interface (`LocalLLMActivity`) for configuration and extended interactions, and a lightweight System UI Overlay (`AssistantSession`) for persistent, system-wide access. Both rely on a shared Singleton inference engine (`LLMManager`) to ensure rapid response times and consistent state.
+
+### High-Level Component Diagram
 
 ```mermaid
 graph TD
@@ -16,9 +18,8 @@ graph TD
     classDef model fill:#006064,stroke:#00BCD4,stroke-width:2px,color:#FFF;
 
     %% User Inputs
-    UserVoice(🗣️ User Voice) --> |Microphone| STT[🎤 VoskManager<br>Offline Speech-to-Text]:::ui
-    UserText(⌨️ User Text) --> UI
-
+    UserVoice(🗣️ User Voice) --> |Microphone| STT[🎤 VoskManager<br>Offline STT]:::ui
+    
     %% Core UI
     STT --> |Text Query| UI[📱 LocalLLMActivity / AssistantSession<br>Android UI & Session State]:::ui
     
@@ -49,62 +50,6 @@ graph TD
     TM --> |Launch Apps| Intents[📱 Android Intents<br>Maps, Dialer, Music]:::hardware
 ```
 
-## Component Breakdown
-
-### 1. Input Layer
-- **VoskManager**: Handles 100% offline Speech-to-Text (STT) conversion. It listens to microphone input when triggered and converts spoken words into a text query, ensuring privacy and zero latency.
-- **LocalLLMActivity / AssistantSession**: The primary user interface. It manages the conversational state, displays the animated pulsing UI, and handles user interactions (text or voice).
-
-### 2. Orchestration Layer
-- **LLMManager**: The brain of the application. It takes the user's query, fetches live vehicle telemetry from the `VehicleManager`, retrieves user preferences from `SharedPreferences`, and dynamically constructs a massive **System Prompt**. This prompt instructs the AI on current conditions, available tools, and strict formatting rules.
-
-### 3. Hardware / Telemetry Layer
-- **VehicleManager**: A critical component that directly binds to the Android Automotive `CarPropertyManager`.
-  - **Read**: Subscribes to VHAL (Vehicle Hardware Abstraction Layer) properties like HVAC temperature, door status, gear selection, and fuel level.
-  - **Write**: Exposes setter methods to physically change vehicle state (e.g., turning on seat heaters, adjusting AC).
-
-### 4. Inference Engine
-- **LiteRT-LM / Cloud API**: The execution environment. 
-  - For local execution, it uses the LiteRT-LM (formerly TensorFlow Lite) C++ backend via JNI to run highly optimized `.litertlm` models directly on the device's CPU or GPU. 
-  - For cloud execution, it routes the query to Google Gemini or Anthropic Claude APIs using REST.
-
-### 5. Execution Layer
-- **ToolManager**: Parses the raw output from the LLM. If it detects the `<TOOL>` syntax (e.g., `<TOOL>setSeatHeater(2)</TOOL>`), it intercepts the command and executes the corresponding native Android function rather than showing the raw tag to the user.
-- **Android Intents**: Used by the `ToolManager` to launch external applications like Google Maps for navigation or the Dialer for phone calls.
-- **Android TTS**: Cleans the LLM's response (removing tool tags) and reads the conversational reply aloud to the driver.
-# Automotive AI Assistant Architecture
-
-This document outlines the architecture, components, and data flow of the Android Automotive AI Assistant. The application is designed to provide ultra-low latency, completely offline, LLM-powered voice assistance with deep integration into Android Automotive OS (AAOS) VHAL (Vehicle Hardware Abstraction Layer).
-
-## Core Architecture Overview
-
-The system is built on a split architecture: a primary User Interface (`LocalLLMActivity`) for configuration and extended interactions, and a lightweight System UI Overlay (`AssistantSession`) for persistent, system-wide access. Both rely on a shared Singleton inference engine (`LLMManager`) to ensure rapid response times and consistent state.
-
-### High-Level Component Diagram
-
-```mermaid
-graph TD
-    A[Microphone] -->|Continuous Audio| B("WakeWordService<br/>Vosk Offline STT")
-    B -->|Broadcast WAKE_WORD_DETECTED| C(AssistantVoiceInteractionService)
-    C -->|Trigger showSession| D("AssistantSession<br/>System UI Overlay")
-    A -->|On-Demand Audio| D
-    
-    A -->|On-Demand Audio| E("LocalLLMActivity<br/>Main App UI")
-    
-    D <-->|Prompt / Streaming Tokens| F{"LLMManager<br/>Singleton Inference Engine"}
-    E <-->|Prompt / Streaming Tokens| F
-    
-    F -->|Model Initialization| G[("LiteRT / TensorFlow Lite")]
-    
-    D -->|Parsed <TOOL> Tags| H(VehicleManager)
-    E -->|Parsed <TOOL> Tags| H
-    
-    H -->|CarPropertyManager| I[AAOS VHAL\nHardware Actuation]
-    
-    D -->|Streaming Chunks| J(TextToSpeech TTS)
-    E -->|Streaming Chunks| J
-```
-
 ### Class & Structural Block Diagram
 
 The following diagram illustrates the class relationships, dependencies, and interfaces between the core components of the application.
@@ -114,7 +59,6 @@ classDiagram
     class LocalLLMActivity {
         -SharedPreferences prefs
         -TextToSpeech tts
-        -ChatAdapter chatAdapter
         +onCreate()
         +initLlm()
         -processQuery(prompt, isVoice)
@@ -136,10 +80,7 @@ classDiagram
         -LlmInference engine
         -Conversation conversation
         +isFirstMessage: Boolean
-        +isWarmingUp: Boolean
-        +initialize(context, modelPath, useCpu)
-        +warmUpSystemPrompt(context)
-        +resetConversation()
+        +initialize(context, modelPath, backendChoice)
         +getSystemPrompt(context): String
     }
 
@@ -150,147 +91,110 @@ classDiagram
         -wakeWord: String
         +onCreate()
         +recognizerSetup()
-        -checkWakeWord(hypothesis)
     }
 
-    class AssistantVoiceInteractionService {
-        -BroadcastReceiver receiver
-        +onReady()
-        +onShutdown()
+    class ToolManager {
+        <<Singleton>>
+        -Map activeTools
+        +initialize(context)
+        +executeToolCall(context, toolCall)
+        +getLlmToolsPrompt(query): String
     }
 
     class VehicleManager {
-        <<Object>>
+        <<Singleton>>
         -CarPropertyManager carPropertyManager
         +init(context)
-        +setHVACTemperature(temp)
-        +setDefroster(enabled)
-        +setSeatHeater(level)
+        +getSensorContext(): String
+        +writeProperty(propertyId, value, areaId)
     }
     
     %% Relationships
     LocalLLMActivity --> LLMManager : Initializes and Queries
     AssistantSession --> LLMManager : Queries
-    LocalLLMActivity --> VehicleManager : Injects Tool Actions
-    AssistantSession --> VehicleManager : Injects Tool Actions
-    LocalLLMActivity --> WakeWordService : Starts and Stops
-    WakeWordService ..> AssistantVoiceInteractionService : Broadcasts Intent
-    AssistantVoiceInteractionService --> AssistantSession : Triggers showSession
-    
-    %% Hardware bindings
-    VehicleManager ..> CarPropertyManager : AAOS VHAL
-    WakeWordService ..> AudioRecord : Vosk Mic Stream
-    AssistantSession ..> SpeechRecognizer : Android STT
+    LocalLLMActivity --> ToolManager : Injects Tool Actions
+    AssistantSession --> ToolManager : Injects Tool Actions
+    ToolManager --> VehicleManager : Executes Hardware Actions
+    LLMManager --> VehicleManager : Reads Sensor Context
+    WakeWordService ..> AssistantSession : Triggers showSession via AVIS
 ```
 
-## Main Components & Classes
+## Zero-Code Dynamic AOSP Property & Tool Handling
 
-### 1. `LLMManager.kt` & `GeminiManager.kt` (Inference Engines)
-- **Local Model (`LLMManager`)**: Manages the `LiteRT` (`litertlm`) execution for on-device inference (e.g. Gemma, Qwen). Uses a native persistent Key-Value (KV) cache to maintain conversation history across multi-turn interactions. By selectively injecting only the incremental user queries (and avoiding prompt bloat of the system instructions on follow-up turns), it achieves a Time-To-First-Token (TTFT) of **~2.5 seconds** completely offline.
-- **Cloud Model (`GeminiManager`)**: Manages cloud-based LLM inference (e.g. Gemini 1.5 Flash). Optimized for real-time responsiveness using **Server-Sent Events (SSE) Streaming API** (`streamGenerateContent?alt=sse`). This custom network layer reads raw TCP socket buffers in real-time to bypass HTTP sync blocks, dropping TTFT latency to **< 1.5 seconds**.
-- **Context Auto-Clearing**: Employs heuristic-based recovery blocks. If the LLM generates a suspicious error (e.g., "busy", "invoke") or hits the absolute KV cache ceiling, the engines execute a graceful sliding window reset, purging old turns while preserving the `[Current Vehicle State]`.
+One of the most powerful features of this architecture is its **JSON-driven Zero-Code engine**. The application dynamically handles AOSP (Android Open Source Project) and OEM-specific Vendor Properties without requiring you to write or compile Kotlin code for every new feature.
 
-### 2. `LocalLLMActivity.kt` (Main Application UI)
-A traditional Android Activity serving as the comprehensive dashboard.
-*   **Role**: Allows users to load specific `.bin`/`.task` models, toggle the wake word, configure system prompts, and interact via a standard chat interface.
-*   **Features**: Manages SharedPreferences to ensure settings (like the Wake Word toggle state) persist across app updates and automotive reboots.
+At startup, the `ToolManager` and `VehicleManager` parse the `assets/custom_properties.json` file. This file acts as the bridge between the LLM's natural language capabilities and the car's native VHAL network.
 
-### 3. `WakeWordService.kt` (Continuous Background Listener)
-A highly optimized Android Foreground Service (Type: Microphone).
-*   **Role**: Runs continuously in the background, analyzing microphone input purely offline.
-*   **Library**: Utilizes the **Vosk API** (`com.alphacephei:vosk-android`) to provide highly accurate, offline acoustic model matching without requiring Google Cloud or network access.
-*   **Trigger**: When it detects the configured wake word (e.g., "hey auto"), it broadcasts an internal intent `com.example.gemininano.WAKE_WORD_DETECTED`.
+### 1. Dynamic Sensor Reading (Properties)
+When the LLM needs context (e.g., "What is the battery level?"), `VehicleManager` automatically iterates through all objects defined in the `"properties"` JSON array. It subscribes to these `property_id` values via the `CarPropertyManager` and dynamically translates them into human-readable strings injected into the LLM's System Prompt.
 
-### 4. `AssistantVoiceInteractionService.kt` & `AssistantSession.kt` (System UI Overlay)
-- `AssistantVoiceInteractionService` extends the Android OS framework to register the application as the default Digital Assistant, overriding Google Assistant.
-- `AssistantSession` generates the transparent UI overlay (bottom sheet) over active applications (e.g., Maps).
-- **Lifecycle Hardening (`setKeepAwake`)**: Wraps asynchronous LLM inference and long-running hardware actuation callbacks with `VoiceInteractionSession.setKeepAwake(true)` to prevent the Android System Voice Watchdog from prematurely killing the UI overlay during dense AI tasks.
-- **Streaming TTS Engine**: Parses AI output dynamically on-the-fly and feeds chunks directly to `TextToSpeech` via `QUEUE_ADD`.
+**Example: AOSP vs Vendor Properties**
+- **AOSP Standard:** `291504905` (EV Battery Level). Android natively knows what this is.
+- **Vendor Custom:** `555000123` (OEM Custom Sensor). Even though Android doesn't natively map this ID to a name, the app will blindly read it and pass the raw `FLOAT`/`INT` to the LLM based on how you define it in the JSON.
 
-### 5. `ToolManager.kt` (RAG Engine)
-- Contains definitions for all 20+ Automotive Voice actions.
-- Features a **Semantic Search Engine** to extract relevant tools via sentence embedding similarity. For the Cloud Model, limits context to top-K tools. For the Local Model, bypasses the limit to statically inject all tools, ensuring the KV cache never loses track of available capabilities on follow-up turns.
+### 2. Dynamic Hardware Actuation (Tools)
+When the LLM generates a tool call (e.g., `<TOOL>setAmbientLight(5)</TOOL>`), the `ToolManager` cross-references the command against the `"tools"` JSON array.
+If it finds a matching `GENERIC_VHAL_WRITE` handler, the `ToolManager` uses reflection to securely inject the specified data payload directly into the target `property_id` on the CAN bus via `CarPropertyManager.setProperty()`.
 
-### 6. `VehicleManager.kt` (VHAL Integration)
-- Connects directly to the Android `CarPropertyManager` to translate logical XML tool calls (`<TOOL>setTemperature(22)</TOOL>`) into raw automotive hardware arrays.
-- Implements **Hardware Write Pre-Checks**: Evaluates the current state of physical properties (e.g., HVAC temperature) prior to executing writes. If the target value matches the current state, it suppresses the redundant write, mitigating 6-second VHAL watchdog timeouts and ensuring seamless multi-tool orchestration.
+---
 
-## Tool Command Parsing & Navigation Logic
-The application employs a regex-based stream interception mechanism to handle tool calls dynamically as the LLM generates tokens, without waiting for the full response to finish.
+## How to Add a New Action and Property
 
-1.  **System Prompt Instruction**: The LLM is instructed via its system prompt to wrap any hardware commands in XML-like tags, for example: `<TOOL>setTemperature(72)</TOOL>`.
-2.  **Stream Interception**: As tokens stream into the `onMessage` callback from LiteRT, the UI appends them to a `lastResponseBuilder`.
-3.  **Regex Matching**: On every new token chunk, the app runs the regex `<TOOL>(.*?)</TOOL>` against the accumulated string.
-4.  **Execution & UI Stripping**: If a match is found:
-    *   The command string (e.g., `setTemperature(72)`) is extracted and passed to `VehicleManager.kt`.
-    *   The `VehicleManager` parses the command name and arguments, mapping them directly to `CarPropertyManager` properties (like `VehiclePropertyIds.HVAC_TEMPERATURE_SET`).
-    *   The `<TOOL>...</TOOL>` block is immediately replaced with an empty string in the display buffer, ensuring the user never sees the raw code on the screen.
-5.  **Deduplication**: A `Set` tracks executed commands to prevent the same tool call from firing multiple times during the streaming process.
+Adding a new feature to the assistant is a simple two-step process using `custom_properties.json` and, optionally, `LLMManager.kt` if you want to explicitly guide the AI's behavior.
 
-## Speech and Audio Engines
+### Scenario: Adding Control for the Sunroof
 
-To provide a seamless, automotive-grade voice experience, the application splits audio responsibilities across distinct engines based on the specific lifecycle of the interaction.
+#### Step 1: Update `custom_properties.json`
+To give the AI the ability to open the sunroof, define a new tool in the JSON array. You need the exact AOSP or Vendor VHAL Property ID (e.g., `320865540` for `WINDOW_POS`).
 
-### 1. Wake Word STT Engine: Vosk API (Offline)
-*   **Purpose**: Continuous, passive background listening for the "hey auto" trigger.
-*   **Why Vosk?**: Android's built-in `SpeechRecognizer` emits an invasive "beep" sound every time it starts listening, which makes it unusable for silent, continuous background monitoring. Vosk (`com.alphacephei:vosk-android`) uses a lightweight acoustic model (under 50MB) loaded into RAM that runs entirely offline. It processes audio directly from the microphone buffer via `AudioRecord`, avoiding all system-level UI interruptions.
+```json
+{
+  "prompt_string": "<TOOL>openSunroof()</TOOL>",
+  "handler_type": "GENERIC_VHAL_WRITE",
+  "property_id": 320865540,
+  "data_type": "INT",
+  "area_id": 16, 
+  "value_to_write": "100",
+  "success_message": "Opening the sunroof now."
+}
+```
+* **`prompt_string`**: The exact syntax you want the LLM to output.
+* **`handler_type`**: `GENERIC_VHAL_WRITE` tells the `ToolManager` to bypass custom Kotlin logic and automatically write the value to the VHAL.
+* **`property_id`**: The target VHAL ID.
+* **`area_id`**: The specific zone (e.g., `16` represents the roof zone in AOSP).
+* **`value_to_write`**: The payload (e.g., `100` means 100% open).
 
-### 2. Active Command STT Engine: Android SpeechRecognizer
-*   **Purpose**: High-fidelity transcription of the user's actual command once the assistant overlay is visible.
-*   **Why Android API?**: Once the overlay (`AssistantSession`) pops up, the app switches to the system's native `SpeechRecognizer` (`android.speech.SpeechRecognizer`). This engine is highly optimized for complex sentences and intent parsing.
-*   **Optimization**: The app explicitly omits the `EXTRA_PARTIAL_RESULTS` flag from the intent. This forces the STT engine to trigger its "end of speech" callback immediately upon trailing silence, cutting out artificial timeout delays and passing the text to the LLM instantly.
+#### Step 2: (Optional) Guide the AI in `LLMManager.kt`
+While the JSON injects the tool definition into the prompt automatically, you can add a strict rule in `LLMManager.getSystemPrompt()` to ensure the LLM understands *when* to use it, especially if the prompt length is constrained.
 
-### 3. Text-to-Speech (TTS) Engine: Android Native TTS
-*   **Purpose**: Speaking the AI's generated response back to the driver.
-*   **Streaming Implementation**: The LLM output is streamed, but TTS engines cannot speak half a word. The application uses a custom regex sentence boundary chunker (`"^(.*?)([.!?]+(?:\\s+|$)|\\n)".toRegex()`). 
-*   **Behavior**: As tokens arrive, the regex looks for punctuation (`.`, `!`, `?`) or newlines (`\n`). When a complete sentence or list item is formed, it is sliced off and pushed to the TTS `QUEUE_ADD` buffer. This allows the car to start speaking the first sentence while the LLM is still generating the second sentence, significantly reducing perceived latency.
+Open `LLMManager.kt` and locate the `getSystemPrompt()` method. Add a new contextual rule:
 
-## Sequence Diagram: Wake Word to Hardware Actuation
+```kotlin
+val isSunroof = q.contains("sunroof") || q.contains("roof") || q.contains("sky")
 
-The following sequence details the ultra-low latency loop from the moment the user speaks the wake word to the moment the hardware reacts.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User
-    participant V as WakeWordService (Vosk)
-    participant AVIS as AssistantVoiceInteractionService
-    participant AS as AssistantSession (Overlay)
-    participant STT as SpeechRecognizer
-    participant LLM as LLMManager (LiteRT)
-    participant VM as VehicleManager (VHAL)
-    participant TTS as TextToSpeech
-
-    User->>V: Speaks "Hey auto"
-    V->>AVIS: Broadcasts WAKE_WORD_DETECTED
-    V->>V: Pauses listening (prevents loops)
-    AVIS->>AS: Calls showSession()
-    AS-->>User: Pops up UI Overlay
-    AS->>STT: Starts listening automatically
-    
-    User->>STT: Speaks "Set temperature to 72"
-    STT-->>AS: Returns text "Set temperature to 72"
-    
-    AS->>LLM: sendMessageAsync("Set temperature to 72")
-    Note over LLM: KV Cache is pre-warmed.<br/>Prefill takes under 50ms.
-    
-    LLM-->>AS: Streams tokens: "<TOOL>"
-    LLM-->>AS: Streams tokens: "setTemperature(72)"
-    LLM-->>AS: Streams tokens: "</TOOL> Sure!"
-    
-    AS->>AS: Regex captures <TOOL> tags
-    AS->>VM: executeToolCall("setTemperature(72)")
-    VM->>VM: Actuates HVAC hardware
-    
-    LLM-->>AS: Streams tokens: " The cabin is "
-    LLM-->>AS: Streams tokens: "now heating up.\n"
-    
-    AS->>AS: Regex chunks sentence by '\n' or '.'
-    AS->>TTS: Sends chunk to speak ("Sure! The cabin is now heating up.")
-    TTS-->>User: Plays audio response
+if (isSunroof || q.isEmpty()) {
+    basePrompt.append("8. SUNROOF: If the user asks to open the sunroof or see the sky, you MUST output the EXACT syntax <TOOL>openSunroof()</TOOL>.\n")
+}
 ```
 
-## Third-Party Libraries
+That's it! Restart the app, and the AI will now securely actuate the sunroof when asked, without you needing to manually implement `CarPropertyManager` callbacks.
 
-*   **LiteRT (TensorFlow Lite)**: Google's edge inference engine. Enables running multi-billion parameter quantized models (Gemma, Qwen) directly on the automotive Snapdragon SOC without internet access.
-*   **Vosk API**: Provides offline, silent speech recognition for continuous background wake-word listening.
+## Main Components Detail
+
+### 1. `LLMManager.kt` (Orchestration Engine)
+- **Role**: Manages the `LiteRT` (`litertlm`) execution for on-device inference (e.g. Gemma, Qwen). Uses a native persistent Key-Value (KV) cache to maintain conversation history across multi-turn interactions.
+- **Dynamic Context**: Constructs the System Prompt by combining the base persona, live `VehicleManager` sensor strings, and the dynamically loaded `ToolManager` JSON constraints.
+
+### 2. `ToolManager.kt` (Execution Engine)
+- **Role**: Parses the JSON configuration file (`custom_properties.json`) into active `ToolDefinition` objects.
+- **RAG Execution**: Employs a semantic similarity engine. When the user asks a question, `ToolManager.getLlmToolsPrompt(query)` filters the available tools based on relevance to ensure the LLM is not overwhelmed with irrelevant tools, improving Time-To-First-Token (TTFT) latency.
+- **Regex Interception**: Evaluates the LLM's streaming token output using a `<TOOL>(.*?)</TOOL>` Regex. If a match is found, it strips it from the UI, executes the JSON-defined action, and pushes the `success_message` to the TTS buffer.
+
+### 3. `VehicleManager.kt` (Hardware Bridge)
+- **Role**: Connects directly to the Android Automotive `CarPropertyManager`.
+- **Read**: Translates raw VHAL float/int arrays (like `22.5` from `HVAC_TEMPERATURE_SET`) into human-readable strings (e.g., "The Driver side temperature is 22.5 degrees") and exposes them via `getSensorContext()`.
+- **Write**: Translates `ToolManager` intents into hardware actuation via `carPropertyManager.setProperty(PropertyId, AreaId, Value)`.
+
+### 4. `AssistantSession.kt` & `WakeWordService.kt` (UI and Audio)
+- **WakeWordService**: Uses `Vosk` (Offline Acoustic Models) to constantly listen for "Hey Auto" without draining the battery or emitting system "beeps".
+- **AssistantSession**: The transparent bottom-sheet overlay. It orchestrates the Android `SpeechRecognizer` for transcription, pushes the text to `LLMManager`, and streams the resulting tokens through a sentence-boundary regex to Android `TextToSpeech` (`TTS`).
