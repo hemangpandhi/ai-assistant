@@ -19,6 +19,7 @@ graph TD
 
     %% User Inputs
     UserVoice(🗣️ User Voice) --> |Microphone| STT[🎤 VoskManager<br>Offline STT]:::ui
+    UserText(⌨️ User Text) --> |Direct Input| UI
     
     %% Core UI
     STT --> |Text Query| UI[📱 LocalLLMActivity / AssistantSession<br>Android UI & Session State]:::ui
@@ -111,6 +112,12 @@ classDiagram
         +init(context)
         +getSensorContext(): String
         +writeProperty(propertyId, value, areaId)
+    }
+    
+    class custom_properties_json {
+        <<JSON Config File>>
+        +properties: Array
+        +tools: Array
     }
     
     %% Relationships
