@@ -21,7 +21,26 @@ This project is a fully functional, system-level Android Digital Assistant demon
 
 ## Architecture
 
-For a detailed breakdown of the system architecture, including the **Eager Streaming Tool Execution** and **Sentence-Boundary Streaming TTS** pipelines, please see the [Architecture Documentation](Architecture.md).
+This project is built on a highly modular architecture that seamlessly bridges offline speech recognition, local LLM inference, and native Android Automotive hardware APIs. 
+
+For a comprehensive component breakdown and block diagram, see the [Architecture Details](architecture_details.md) document.
+
+```mermaid
+graph TD
+    UserVoice(🗣️ Voice) --> |STT| UI[📱 LocalLLMActivity]
+    UserText(⌨️ Text) --> UI
+    UI --> |Query| SM[🧠 LLMManager]
+    SM --> |Sensor Data| VM[🚗 VehicleManager]
+    VM -.-> SM
+    SM --> |Prompt| Engine{⚙️ LiteRT-LM / Cloud API}
+    Engine -.-> |Response| SM
+    SM --> |&lt;TOOL&gt;| TM[🛠️ ToolManager]
+    SM --> |Text| TTS[🔊 Android TTS]
+    TM --> VM
+    TM --> Intents[📱 Apps]
+```
+
+For a detailed breakdown of the system architecture, including the **Eager Streaming Tool Execution** and **Sentence-Boundary Streaming TTS** pipelines, please see the original [Architecture Documentation](Architecture.md) and the new [Architecture Details](architecture_details.md).
 
 ---
 
