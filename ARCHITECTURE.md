@@ -30,6 +30,10 @@ graph TD
     SM --> |Get Sensor Data| VM[🚗 VehicleManager<br>Android VHAL / CarPropertyManager]:::hardware
     VM -.-> |Live Telemetry| SM
     SM --> |Get Memory| Prefs[(💾 SharedPreferences<br>User Preferences)]:::hardware
+    
+    %% Dynamic Configuration
+    JSON[📄 custom_properties.json<br>Zero-Code Tool/Sensor Config]:::hardware -.-> |Loads Tool Routes| TM
+    JSON -.-> |Loads VHAL Property IDs| VM
 
     %% Inference Engine
     SM --> |System Prompt + Query| Engine{⚙️ LiteRT-LM Engine / Cloud API<br>Inference Backend}:::model
@@ -117,6 +121,10 @@ classDiagram
     ToolManager --> VehicleManager : Executes Hardware Actions
     LLMManager --> VehicleManager : Reads Sensor Context
     WakeWordService ..> AssistantSession : Triggers showSession via AVIS
+    
+    %% Dynamic Loading
+    custom_properties_json ..> ToolManager : Parsed on Init
+    custom_properties_json ..> VehicleManager : Parsed on Init
 ```
 
 ## Zero-Code Dynamic AOSP Property & Tool Handling

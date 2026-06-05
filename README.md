@@ -36,6 +36,10 @@ graph TD
     Engine -.-> |Response| SM
     SM --> |&lt;TOOL&gt;| TM[🛠️ ToolManager]
     SM --> |Text| TTS[🔊 Android TTS]
+    
+    JSON[📄 custom_properties.json] -.-> |Loads Tool Routes| TM
+    JSON -.-> |Loads VHAL Properties| VM
+
     TM --> VM
     TM --> Intents[📱 Apps]
 ```
