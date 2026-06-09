@@ -248,7 +248,6 @@ object VehicleManager {
                     Log.e("VehicleManager", "Failed to set temp for area $areaId (tried $finalTemp)", e)
                 }
             }
-            currentTemperature = temp
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL temp", e)
             return false
