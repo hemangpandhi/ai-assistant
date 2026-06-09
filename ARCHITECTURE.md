@@ -41,13 +41,16 @@ flowchart TD
         CLOUD[/"☁️ Cloud APIs<br/>(Gemini, Claude)"/]:::ai
     end
 
-    subgraph Output ["5. AOSP Output & Vehicle Hardware Abstraction"]
+    subgraph Output ["5. AOSP Output & System Execution"]
         TTS["🔊 android.speech.tts.TextToSpeech<br/>(Audio Feedback)"]:::aospAPI
         CPM["⚙️ android.car.hardware.property.CarPropertyManager<br/>(Vehicle API)"]:::aospAPI
         CARSERVICE["🛠️ com.android.car.CarService<br/>(Binder IPC)"]:::aospAPI
         VHAL["🌉 Vehicle HAL<br/>(Hardware Abstraction)"]:::hardware
         CAN["🚗 CAN Bus / Physical ECUs"]:::hardware
         SPK([🔈 Speakers])
+        INTENTS["📱 Android Framework<br/>(ActivityManager / AudioManager)"]:::aospAPI
+        MEDIA["🎵 Media & Browser Apps<br/>(ACTION_VIEW, KEYCODE_MEDIA_*)"]:::sysApp
+        PHONE["📞 Telecom App<br/>(ACTION_DIAL)"]:::sysApp
     end
 
     %% Flow Mapping
@@ -72,10 +75,14 @@ flowchart TD
     TTS -->|"Synthesized Audio"| SPK
     
     LLM -->|"<TOOL> Execution Tag"| TM
-    TM -->|"Parsed Action Payload"| CPM
+    TM -->|"VHAL Payload"| CPM
     CPM -->|"Cross-Process IPC"| CARSERVICE
     CARSERVICE -->|"HIDL / AIDL"| VHAL
     VHAL -->|"Electrical Actuation"| CAN
+
+    TM -->|"Standard Android Intent"| INTENTS
+    INTENTS -->|"Launch & Media Routing"| MEDIA
+    INTENTS -->|"Launch Dialer"| PHONE
 ```
 
 ### AOSP Integration Stack Diagram
@@ -97,15 +104,22 @@ flowchart TD
     
     CS["🛠️ Android Framework<br/>(com.android.car.CarService)"]:::framework
     
+    AM["📱 Android Framework<br/>(ActivityManager, AudioManager)"]:::framework
+    
     VHAL["🌉 Hardware Abstraction<br/>(Vehicle HAL)"]:::hal
     
     CAN["🚗 Hardware Layer<br/>(CAN Bus & ECUs)"]:::hw
+    
+    SYSTEM_APPS["🎵 System Apps<br/>(Media, Dialer, Browser)"]:::app
 
     %% Data flow mapping
-    APP_LLM ==>|"1. Tool Execution (Write) / Telemetry (Read)"| CPM
-    CPM ==>|"2. Cross-Process Binder IPC"| CS
-    CS ==>|"3. Hardware Interface (HIDL / AIDL)"| VHAL
-    VHAL ==>|"4. Raw CAN Payload / Electrical Signals"| CAN
+    APP_LLM ==>|"1a. Tool Execution (Write) / Telemetry (Read)"| CPM
+    CPM ==>|"2a. Cross-Process Binder IPC"| CS
+    CS ==>|"3a. Hardware Interface (HIDL / AIDL)"| VHAL
+    VHAL ==>|"4a. Raw CAN Payload / Electrical Signals"| CAN
+    
+    APP_LLM ==>|"1b. Standard Intents (Play, Pause, Call)"| AM
+    AM ==>|"2b. Dispatch Intent / Media Key Event"| SYSTEM_APPS
 ```
 
 ### Vertical Layer Stack
@@ -120,13 +134,15 @@ flowchart TD
     classDef hw fill:#0F172A,stroke:#FB923C,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px,font-weight:bold;
 
     APP["📱 1. Application Layer<br/>(LocalLLMActivity, ToolManager)"]:::app
-    FW["🛠️ 2. Framework Layer<br/>(CarPropertyManager)"]:::fw
+    FW["🛠️ 2. Framework Layer<br/>(CarPropertyManager, ActivityManager)"]:::fw
     HAL["🌉 3. Hardware Abstraction<br/>(Vehicle HAL - VHAL)"]:::hal
     HW["🚗 4. Hardware Layer<br/>(CAN Bus, ECUs)"]:::hw
+    SYS_APP["📱 OS Applications<br/>(Media, Dialer, Apps)"]:::app
 
     APP ==>|"Binder IPC"| FW
     FW ==>|"HIDL / AIDL"| HAL
     HAL ==>|"Electrical"| HW
+    FW ==>|"Intents"| SYS_APP
 ```
 
 ### Class & Structural Block Diagram
@@ -155,12 +171,20 @@ classDiagram
     class ToolManager {
         <<Singleton>>
         +executeToolCall()
+        -dispatchIntent()
+        -dispatchMediaKeyEvent()
     }
 
     class VehicleManager {
         <<Singleton>>
         +getSensorContext()
         +writeProperty()
+    }
+
+    class AndroidFramework {
+        <<System>>
+        +ActivityManager
+        +AudioManager
     }
 
     class custom_properties_json {
@@ -174,7 +198,8 @@ classDiagram
     AssistantSession ..> LLMManager : Queries
     LocalLLMActivity ..> ToolManager : Executes Tools
     AssistantSession ..> ToolManager : Executes Tools
-    ToolManager --> VehicleManager : Actuates Hardware
+    ToolManager --> VehicleManager : Actuates Hardware (VHAL)
+    ToolManager --> AndroidFramework : Dispatches Intents (Media/Phone)
     LLMManager --> VehicleManager : Reads Telemetry
     custom_properties_json ..> ToolManager : Parsed dynamically
     custom_properties_json ..> VehicleManager : Parsed dynamically
