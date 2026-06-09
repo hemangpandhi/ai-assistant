@@ -447,6 +447,29 @@ object VehicleManager {
             
             if (success) return true
             
+            // Manual verification fallback: emulator/HAL may not fire onChangeEvent
+            val manuallyVerified = try {
+                val currentCheck = when (dataType.uppercase()) {
+                    "INT" -> carPropertyManager?.getIntProperty(propertyId, targetAreaId)?.toString()
+                    "FLOAT" -> carPropertyManager?.getFloatProperty(propertyId, targetAreaId)?.toString()
+                    "BOOLEAN" -> carPropertyManager?.getBooleanProperty(propertyId, targetAreaId)?.toString()
+                    "STRING" -> carPropertyManager?.getProperty<Any>(Any::class.java, propertyId, targetAreaId)?.value?.toString()
+                    else -> null
+                }
+                
+                when (dataType.uppercase()) {
+                    "INT" -> currentCheck?.toFloatOrNull()?.toInt() == value.toFloatOrNull()?.toInt()
+                    "FLOAT" -> currentCheck?.toFloatOrNull() == value.toFloatOrNull()
+                    "BOOLEAN" -> currentCheck?.toBoolean() == value.toBoolean()
+                    else -> currentCheck == value
+                }
+            } catch (e: Exception) { false }
+
+            if (manuallyVerified) {
+                Log.d("VehicleManager", "Property $propertyId area $targetAreaId manually verified as $value after timeout.")
+                return true
+            }
+            
             if (attempt < maxRetries - 1) {
                 Log.w("VehicleManager", "Hardware command failed for property $propertyId. Retrying in ${currentDelay}ms (Attempt ${attempt + 1}/$maxRetries)...")
                 kotlinx.coroutines.delay(currentDelay)
