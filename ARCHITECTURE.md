@@ -69,25 +69,25 @@ graph TD
     classDef hal fill:#D84315,stroke:#FF9800,stroke-width:2px,color:#FFF;
     classDef hw fill:#5D4037,stroke:#795548,stroke-width:2px,color:#FFF;
 
-    subgraph Application Layer [📱 Application Layer / System Apps]
+    subgraph Application_Layer [📱 Application Layer / System Apps]
         UI[LocalLLMActivity / AssistantSession<br>Android UI Components]:::app
         LLM[🧠 LLM Engine Orchestrator<br>LLMManager & ToolManager]:::app
         UI <--> |Queries / Responses| LLM
     end
 
-    subgraph Car API Layer [⚙️ Car API Layer]
+    subgraph Car_API_Layer [⚙️ Car API Layer]
         CPM[CarPropertyManager<br>android.car.hardware.property]:::api
     end
 
-    subgraph Framework Layer [🛠️ Framework Layer]
+    subgraph Framework_Layer [🛠️ Framework Layer]
         CS[Car Service<br>com.android.car]:::fw
     end
 
-    subgraph HAL Layer [🌉 Hardware Abstraction Layer]
+    subgraph HAL_Layer [🌉 Hardware Abstraction Layer]
         VHAL[Vehicle HAL / VHAL<br>android.hardware.automotive.vehicle]:::hal
     end
 
-    subgraph Hardware Layer [🚗 Vehicle Hardware Layer]
+    subgraph Hardware_Layer [🚗 Vehicle Hardware Layer]
         CAN[CAN Bus / Vehicle Network]:::hw
         Sensors[Sensors & Actuators<br>HVAC, Windows, Telemetry]:::hw
         CAN <--> |Physical Signals| Sensors
@@ -99,11 +99,11 @@ graph TD
     CS -- "3. HIDL/AIDL IPC" --> VHAL
     VHAL -- "4. CAN Message" --> CAN
 
-    class Application Layer app;
-    class Car API Layer api;
-    class Framework Layer fw;
-    class HAL Layer hal;
-    class Hardware Layer hw;
+    class Application_Layer app;
+    class Car_API_Layer api;
+    class Framework_Layer fw;
+    class HAL_Layer hal;
+    class Hardware_Layer hw;
 ```
 
 ### Vertical Layer Stack
