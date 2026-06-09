@@ -413,6 +413,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     android.util.Log.w("AssistantSession", "Intercepted hallucinatory tool call: $toolCall")
                                     continue
                                 }
+                                
+                                val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
+                                val isGenericMusic = musicQuery.length <= 2 && q.contains("play") && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
+                                if (toolName == "playMusic" && isGenericMusic) {
+                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory music tool call: $toolCall")
+                                    continue
+                                }
 
                                 if (executedTools.add(toolCall)) {
                                     android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")

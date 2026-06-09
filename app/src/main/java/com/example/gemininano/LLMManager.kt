@@ -222,6 +222,7 @@ object LLMManager {
         val isAmbient = q.contains("home") || q.contains("work")
         val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("fuel")
         val isWellness = q.contains("pain") || q.contains("hurt") || q.contains("tired") || q.contains("sore") || q.contains("ache")
+        val isMusic = q.contains("music") || q.contains("play") || q.contains("song") || q.contains("pause") || q.contains("stop") || q.contains("next") || q.contains("previous")
         
         val basePrompt = StringBuilder()
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
@@ -274,6 +275,15 @@ object LLMManager {
             } else {
                 basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
                 basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, ALWAYS ask first: \"Should I find a nearby gas station?\" DO NOT navigate immediately.\n")
+            }
+        }
+        if (isMusic || q.isEmpty()) {
+            val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
+            val isSpecific = musicQuery.length > 2 && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
+            if (isSpecific) {
+                basePrompt.append("11. MUSIC CHOICES: The user has specified what to play. Use the EXACT syntax <TOOL>playMusic($musicQuery)</TOOL> to play it.\n")
+            } else if (q.contains("play") && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")) {
+                basePrompt.append("11. MUSIC CHOICES: If the user generally asks to play music, DO NOT use tools. You MUST reply EXACTLY with: \"What kind of music would you like to listen to? For example, Bollywood, Rock, Jazz, or a specific song?\" and NO OTHER TEXT.\n")
             }
         }
 
