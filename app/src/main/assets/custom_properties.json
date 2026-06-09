@@ -174,36 +174,24 @@
         "directions",
         "route",
         "drive",
-        "sightseeing",
-        "tourist",
-        "attractions",
         "restaurant",
         "food",
         "dining",
-        "suggestion",
-        "places",
-        "nearby",
-        "recommend"
+        "nearby"
       ]
     },
     {
-      "prompt_string": "<TOOL>search(QUERY)</TOOL>",
+      "prompt_string": "<TOOL>search(search_term)</TOOL>",
       "handler_key": "search",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "search",
         "find",
         "look up",
-        "sightseeing",
-        "tourist",
-        "attractions",
         "restaurant",
         "food",
         "dining",
-        "suggestion",
-        "places",
-        "nearby",
-        "recommend"
+        "nearby"
       ]
     },
     {
