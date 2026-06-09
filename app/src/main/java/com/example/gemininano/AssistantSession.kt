@@ -124,7 +124,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 statusText.visibility = View.VISIBLE
-                startDotAnimation("Listening")
+                startDotAnimation("")
                 voiceAnimation.state = VoiceAnimationView.State.LISTENING
             }
             override fun onBeginningOfSpeech() {}
@@ -228,7 +228,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     private fun startThinkingAnimation() {
         statusText.visibility = View.VISIBLE
-        startDotAnimation("Processing")
+        startDotAnimation("")
         voiceAnimation.state = VoiceAnimationView.State.THINKING
     }
 
@@ -560,6 +560,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     private fun startDotAnimation(baseText: String) {
         dotAnimatorJob?.cancel()
+        if (baseText.isEmpty()) {
+            statusText.text = ""
+            return
+        }
         dotAnimatorJob = CoroutineScope(Dispatchers.Main).launch {
             var dotCount = 0
             while (isActive) {
