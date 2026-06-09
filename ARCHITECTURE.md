@@ -22,6 +22,7 @@ flowchart TD
         MIC([🎙️ Microphone])
         TXT([⌨️ Keyboard])
         STT["🎤 android.speech.SpeechRecognizer<br/>(Cloud / On-Device)"]:::aospAPI
+        VOSK["🗣️ Vosk WakeWord<br/>(Offline Acoustic Model)"]:::sysApp
     end
 
     subgraph AppUI ["2. System UI Application Layer"]
@@ -32,6 +33,7 @@ flowchart TD
     subgraph Orchestration ["3. Core AI Orchestration (Kotlin Singleton)"]
         LLM{"🧠 LLMManager<br/>(Prompt & State Control)"}:::logic
         TM["🛠️ ToolManager<br/>(Semantic Router)"]:::logic
+        MEM["🧠 MemoryManager<br/>(Sliding Window Context)"]:::logic
         JSON[("📄 custom_properties.json<br/>(Zero-Code Definitions)")]:::config
         PREFS[("💾 SharedPreferences<br/>(Persistent Memory)")]:::config
     end
@@ -56,11 +58,14 @@ flowchart TD
 
     %% Flow Mapping
     MIC -->|Audio Stream| STT
+    MIC -->|Continuous Stream| VOSK
+    VOSK -->|"Hey Auto" Trigger| SESSION
     STT -->|Transcribed Text| SESSION
     TXT -->|Raw String| ACT
     
-    SESSION <==>|User Query| LLM
-    ACT <==>|User Query| LLM
+    SESSION <==>|User Query| MEM
+    ACT <==>|User Query| MEM
+    MEM <==>|Context Window| LLM
     
     JSON -.->|Injects Available Tools| TM
     JSON -.->|Maps VHAL IDs| CPM
@@ -179,6 +184,12 @@ classDiagram
         -dispatchMediaKeyEvent()
     }
 
+    class MemoryManager {
+        <<Singleton>>
+        +addTurn()
+        +getSlidingWindowContext()
+    }
+
     class VehicleManager {
         <<Singleton>>
         +getSensorContext()
@@ -200,6 +211,9 @@ classDiagram
     
     %% Relationships
     LocalLLMActivity ..> LLMManager : Initializes
+    AssistantSession ..> MemoryManager : Logs Query
+    LocalLLMActivity ..> MemoryManager : Logs Query
+    MemoryManager --> LLMManager : Feeds Context
     AssistantSession ..> LLMManager : Queries
     LocalLLMActivity ..> ToolManager : Executes Tools
     AssistantSession ..> ToolManager : Executes Tools
