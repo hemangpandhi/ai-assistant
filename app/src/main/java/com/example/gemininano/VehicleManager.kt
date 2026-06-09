@@ -158,7 +158,9 @@ object VehicleManager {
         if (currentTemperature >= 50f) {
             return Math.round(currentTemperature)
         }
-        return Math.round((currentTemperature * 9f / 5f) + 32f)
+        
+        // Empirically verified AOSP System UI mapping for this VHAL: F = 2C + 29
+        return Math.round(currentTemperature * 2.0f + 29.0f)
     }
     fun getRawTemperature(): Float = currentTemperature
     fun getFuelLevel(): Float = currentFuelLevel
@@ -201,7 +203,8 @@ object VehicleManager {
                         
                         // If requested temp is Fahrenheit but VHAL expects Celsius, convert to Celsius
                         if (!isVhalFahrenheit && finalTemp > 30f) {
-                            finalTemp = (finalTemp - 32f) * 5f / 9f
+                            // Empirically verified System UI reverse mapping: C = (F - 29) / 2
+                            finalTemp = (finalTemp - 29.0f) / 2.0f
                         }
                         
                         if (isVhalFahrenheit) {
@@ -214,7 +217,7 @@ object VehicleManager {
                     } else {
                         // Fallback assuming Celsius
                         if (finalTemp > 30f) {
-                            finalTemp = (finalTemp - 32f) * 5f / 9f
+                            finalTemp = (finalTemp - 29.0f) / 2.0f
                         }
                         if (finalTemp > 28.0f) finalTemp = 28.0f
                         if (finalTemp < 16.0f) finalTemp = 16.0f
