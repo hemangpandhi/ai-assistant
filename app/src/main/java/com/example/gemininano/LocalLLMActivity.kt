@@ -293,13 +293,13 @@ class LocalLLMActivity : AppCompatActivity() {
 
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
-                inputText.setText("Listening...")
+                inputText.setText("")
             }
             override fun onBeginningOfSpeech() {}
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
-                inputText.setText("Processing Voice...")
+                inputText.setText("")
             }
             override fun onError(error: Int) {
                 val msg = when (error) {
