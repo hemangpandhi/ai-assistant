@@ -7,6 +7,8 @@ import android.provider.MediaStore
 import android.util.Log
 import android.widget.Toast
 import org.json.JSONObject
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 object ToolManager {
     private val TAG = "ToolManager"
@@ -265,20 +267,98 @@ object ToolManager {
                 }
                 "playMusic" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")
-                    val intent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
-                    intent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
-                    intent.putExtra(android.app.SearchManager.QUERY, query)
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    if (intent.resolveActivity(context.packageManager) != null) {
-                        if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    } else {
+                    var mediaSearchSuccess = false
+                    try {
+                        val pm = context.packageManager
+                        val browseIntent = Intent("android.media.browse.MediaBrowserService")
+                        val resolveInfos = pm.queryIntentServices(browseIntent, 0)
+                        
+                        // Prefer Spotify Automotive if available
+                        val targetInfo = resolveInfos.find { it.serviceInfo.packageName.contains("spotify") } 
+                            ?: resolveInfos.firstOrNull()
+                            
+                        if (targetInfo != null) {
+                            val componentName = android.content.ComponentName(targetInfo.serviceInfo.packageName, targetInfo.serviceInfo.name)
+                            Log.i(TAG, "Connecting to MediaBrowserService: ${componentName.flattenToString()}")
+                            
+                            mediaSearchSuccess = kotlin.coroutines.suspendCoroutine { continuation ->
+                                var hasResumed = false
+                                lateinit var browser: android.media.browse.MediaBrowser
+                                browser = android.media.browse.MediaBrowser(context, componentName, object : android.media.browse.MediaBrowser.ConnectionCallback() {
+                                    override fun onConnected() {
+                                        try {
+                                            val sessionToken = browser.sessionToken
+                                            val controller = android.media.session.MediaController(context, sessionToken)
+                                            controller.transportControls.playFromSearch(query, null)
+                                            Log.i(TAG, "Dispatched playFromSearch for: $query via MediaController")
+                                            if (!hasResumed) {
+                                                hasResumed = true
+                                                continuation.resumeWith(Result.success(true))
+                                            }
+                                            browser.disconnect()
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "Failed to dispatch playFromSearch", e)
+                                            if (!hasResumed) {
+                                                hasResumed = true
+                                                continuation.resumeWith(Result.success(false))
+                                            }
+                                        }
+                                    }
+                                    override fun onConnectionSuspended() {
+                                        if (!hasResumed) {
+                                            hasResumed = true
+                                            continuation.resumeWith(Result.success(false))
+                                        }
+                                    }
+                                    override fun onConnectionFailed() {
+                                        if (!hasResumed) {
+                                            hasResumed = true
+                                            continuation.resumeWith(Result.success(false))
+                                        }
+                                    }
+                                }, null)
+                                browser.connect()
+                                
+                                // Timeout fallback
+                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                    kotlinx.coroutines.delay(2000)
+                                    if (!hasResumed) {
+                                        hasResumed = true
+                                        try { browser.disconnect() } catch (e: Exception) {}
+                                        continuation.resumeWith(Result.success(false))
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "MediaBrowserService connection failed", e)
+                    }
+
+                    if (mediaSearchSuccess) {
+                        // Launch the app UI to show the playing track
                         val fallbackIntent = Intent(Intent.ACTION_MAIN)
                         fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
                         fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         try {
                             if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "No music app found to handle request")
+                        } catch (e: Exception) {}
+                    } else {
+                        // Fallback to standard intents if MediaBrowser failed
+                        val intent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
+                        intent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
+                        intent.putExtra(android.app.SearchManager.QUERY, query)
+                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        if (intent.resolveActivity(context.packageManager) != null) {
+                            if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
+                        } else {
+                            val fallbackIntent = Intent(Intent.ACTION_MAIN)
+                            fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
+                            fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            try {
+                                if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                            } catch (e: Exception) {
+                                Log.e(TAG, "No music app found to handle request")
+                            }
                         }
                     }
                     
