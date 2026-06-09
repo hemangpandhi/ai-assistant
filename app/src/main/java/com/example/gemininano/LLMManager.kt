@@ -173,9 +173,6 @@ object LLMManager {
                 if (isFuel) {
                     searchQuery = if (q.contains("charging")) "EV charging station" else "gas station"
                 } else {
-                    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                    val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
-                    
                     if (q.contains("italian")) searchQuery = "Italian restaurant"
                     else if (q.contains("mexican")) searchQuery = "Mexican restaurant"
                     else if (q.contains("chinese")) searchQuery = "Chinese restaurant"
@@ -185,7 +182,7 @@ object LLMManager {
                     else if (q.contains("indian")) searchQuery = "Indian restaurant"
                     else if (q.contains("thai")) searchQuery = "Thai restaurant"
                     else if (q.contains("vegetarian") || q.contains("vegan")) searchQuery = "Vegetarian restaurant"
-                    else searchQuery = "$diningPref restaurant"
+                    else return "" // Generic query, don't search yet
                 }
 
                 val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&format=json&limit=3&viewbox=139.30,35.60,139.45,35.50&bounded=1")
@@ -266,6 +263,8 @@ object LLMManager {
             val dyn = getDynamicContext(context, query)
             if (dyn.isNotEmpty()) {
                 basePrompt.append("8. FOOD CHOICES: $dyn\n")
+            } else {
+                basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT use tools. You MUST ask them what cuisine they prefer (e.g. Italian, Indian, Japanese, American, Pizza).\n")
             }
         }
         if (isDiag || q.isEmpty()) {
@@ -313,9 +312,11 @@ object LLMManager {
         if (isFood || q.isEmpty()) {
             basePrompt.append("[Food Selection]\n")
             basePrompt.append("User: \"I'm hungry.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. Mario's, 2. Luigi's. Which one would you like to navigate to?\n")
+            basePrompt.append("Assistant: Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\n")
+            basePrompt.append("User: \"Italian.\"\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. Olive Garden, 2. Mario's. Which one would you like to navigate to?\n")
             basePrompt.append("User: \"1.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Mario's)</TOOL>\n\n")
+            basePrompt.append("Assistant: <TOOL>navigate(Olive Garden)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {
