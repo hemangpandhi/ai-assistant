@@ -301,14 +301,6 @@ object LLMManager {
             basePrompt.append("[Food Query]\n")
             basePrompt.append("User: \"I'm hungry.\"\n")
             basePrompt.append("Assistant: What kind of food are you in the mood for?\n\n")
-
-            basePrompt.append("[Food - Follow-up]\n")
-            basePrompt.append("User: \"Italian.\"\n")
-            basePrompt.append("Assistant: Here are some Italian places nearby: 1. Luigi's Trattoria, 2. Bella Roma. Which one would you like to navigate to?\n\n")
-            
-            basePrompt.append("[Food - Selection]\n")
-            basePrompt.append("User: \"Luigi's Trattoria.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Luigi's Trattoria)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {

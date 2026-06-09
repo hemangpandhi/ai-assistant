@@ -936,9 +936,9 @@ class LocalLLMActivity : AppCompatActivity() {
                 
                 // If the prompt is short (e.g. "Yes", "Shizuoka palace"), skip telemetry to prevent distracting the LLM from the active conversation flow
                 if (prompt.length < 25) {
-                    "User: " + prompt + additionalContext
+                    additionalContext + "\nUser: " + prompt
                 } else {
-                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, Dining: $diningPref]\nUser: " + prompt + additionalContext
+                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, Dining: $diningPref]" + additionalContext + "\nUser: " + prompt
                 }
             }
 
