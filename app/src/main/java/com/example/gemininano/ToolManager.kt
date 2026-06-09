@@ -353,12 +353,47 @@ object ToolManager {
                         if (intent.resolveActivity(context.packageManager) != null) {
                             if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
                         } else {
-                            // Demo Workaround: Open YouTube Music in the browser for the search query
-                            val webIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://music.youtube.com/search?q=${android.net.Uri.encode(query)}"))
-                            webIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            var videoId: String? = null
                             try {
-                                if (intentHandler != null) intentHandler(webIntent) else context.startActivity(webIntent)
+                                val url = java.net.URL("https://www.youtube.com/results?search_query=${android.net.Uri.encode(query)}")
+                                val connection = url.openConnection() as java.net.HttpURLConnection
+                                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
+                                val response = connection.inputStream.bufferedReader().use { it.readText() }
+                                val regex = "\"videoId\":\"([a-zA-Z0-9_-]{11})\"".toRegex()
+                                val match = regex.find(response)
+                                if (match != null) {
+                                    videoId = match.groupValues[1]
+                                }
                             } catch (e: Exception) {
+                                Log.e(TAG, "YouTube scrape failed", e)
+                            }
+
+                            if (videoId != null) {
+                                // Demo Workaround: Open YouTube Music directly to the watch URL to force auto-play
+                                val webIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://music.youtube.com/watch?v=$videoId"))
+                                webIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                try {
+                                    if (intentHandler != null) intentHandler(webIntent) else context.startActivity(webIntent)
+                                } catch (e: Exception) {
+                                    // Ultimate Fallback: Just open the default music app
+                                    val fallbackIntent = Intent(Intent.ACTION_MAIN)
+                                    fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
+                                    fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                    try {
+                                        if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                                        // Dispatch a global Media Play event to resume playback in the background or newly launched app
+                                        try {
+                                            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                                            val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
+                                            val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
+                                            audioManager.dispatchMediaKeyEvent(eventDown)
+                                            audioManager.dispatchMediaKeyEvent(eventUp)
+                                        } catch (e: Exception) {}
+                                    } catch (e2: Exception) {
+                                        Log.e(TAG, "No music app found to handle request")
+                                    }
+                                }
+                            } else {
                                 // Ultimate Fallback: Just open the default music app
                                 val fallbackIntent = Intent(Intent.ACTION_MAIN)
                                 fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
@@ -373,7 +408,7 @@ object ToolManager {
                                         audioManager.dispatchMediaKeyEvent(eventDown)
                                         audioManager.dispatchMediaKeyEvent(eventUp)
                                     } catch (e: Exception) {}
-                                } catch (e2: Exception) {
+                                } catch (e: Exception) {
                                     Log.e(TAG, "No music app found to handle request")
                                 }
                             }
