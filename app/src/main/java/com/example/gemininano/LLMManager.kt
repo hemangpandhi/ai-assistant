@@ -283,7 +283,7 @@ object LLMManager {
             if (isSpecific) {
                 basePrompt.append("11. MUSIC CHOICES: The user has specified what to play. Use the EXACT syntax <TOOL>playMusic($musicQuery)</TOOL> to play it.\n")
             } else {
-                basePrompt.append("11. MUSIC CHOICES: The user generally asked to play music. YOU MUST NOT USE THE playMusic TOOL. You MUST reply EXACTLY with: \"What kind of music would you like to listen to? For example, Bollywood, Rock, Jazz, or a specific song?\" and NO OTHER TEXT.\n")
+                basePrompt.append("11. MUSIC CHOICES: The user asked to play music but didn't specify what. DO NOT USE ANY TOOLS. Just ask them naturally and politely what kind of music, genre, or artist they want to listen to.\n")
             }
         }
 
