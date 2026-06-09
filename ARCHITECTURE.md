@@ -12,63 +12,82 @@ The following diagram illustrates the high-level boundaries and logical domains 
 block-beta
   columns 1
 
-  block:VEA["VehicleEdgeAssistant"]
+  block:SLIDE
     columns 1
     
-    block:L1["1. Application Layer"]
-      columns 3
-      ACT["📱 Config UI"]
-      SESSION["🎤 Voice Overlay"]
-      APPS["🎵 Target Apps"]
+    block:VEA
+      columns 1
+      VEA_TITLE["<span style='font-size:20px; font-weight:bold; color:#FFFFFF;'>🚀 VehicleEdgeAssistant Package</span>"]
+      
+      block:L1["<span style='font-weight:bold; color:#FFFFFF;'>1. Application Layer</span>"]
+        columns 3
+        ACT["<span style='color:#FFFFFF'>📱 Config UI</span>"]
+        SESSION["<span style='color:#FFFFFF'>🎤 Voice Overlay</span>"]
+        APPS["<span style='color:#FFFFFF'>🎵 Target Apps</span>"]
+      end
+      
+      space
+      
+      block:L2["<span style='font-weight:bold; color:#FFFFFF;'>2. GenAI Orchestrator Engine</span>"]
+        columns 4
+        VOSK["<span style='color:#FFFFFF'>🗣️ Vosk WakeWord</span>"]
+        LLM["<span style='color:#FFFFFF'>🧠 LiteRT Edge LLM</span>"]
+        TM["<span style='color:#FFFFFF'>🛠️ ToolManager RAG</span>"]
+        MEM["<span style='color:#FFFFFF'>💾 Context Memory</span>"]
+      end
     end
     
     space
     
-    block:L2["2. GenAI Orchestrator Engine"]
-      columns 4
-      VOSK["🗣️ Vosk WakeWord"]
-      LLM["🧠 LiteRT Edge LLM"]
-      TM["🛠️ ToolManager RAG"]
-      MEM["💾 Context Memory"]
+    block:L3["<span style='font-weight:bold; color:#FFFFFF;'>3. AOSP Framework</span>"]
+      columns 3
+      CPM["<span style='color:#FFFFFF'>⚙️ Car Property Mgr</span>"]
+      AM["<span style='color:#FFFFFF'>📱 Activity Mgrs</span>"]
+      TTS["<span style='color:#FFFFFF'>🔊 Text-to-Speech</span>"]
     end
-  end
-  
-  space
-  
-  block:L3["3. AOSP Framework"]
-    columns 3
-    CPM["⚙️ Car Property Mgr"]
-    AM["📱 Activity Mgrs"]
-    TTS["🔊 Text-to-Speech"]
-  end
-  
-  space
-  
-  block:L4["4. Vehicle Hardware Layer"]
-    columns 2
-    VHAL["🌉 Vehicle HAL (CAN)"]
-    AUDIO["🔈 Audio HAL"]
+    
+    space
+    
+    block:L4["<span style='font-weight:bold; color:#FFFFFF;'>4. Vehicle Hardware Layer</span>"]
+      columns 2
+      VHAL["<span style='color:#FFFFFF'>🌉 Vehicle HAL (CAN)</span>"]
+      AUDIO["<span style='color:#FFFFFF'>🔈 Audio HAL</span>"]
+    end
   end
 
   %% Connections
-  L1 -- "Display Updates / Android Intents" --> L2
-  L2 -- "Cross-Process Binder IPC / Intents" --> L3
-  L3 -- "Hardware Bridge (HIDL / AIDL)" --> L4
+  L1 -- "<span style='color:#FFFFFF; font-weight:bold;'>Display Updates / Android Intents</span>" --> L2
+  L2 -- "<span style='color:#FFFFFF; font-weight:bold;'>Cross-Process Binder IPC / Intents</span>" --> L3
+  L3 -- "<span style='color:#FFFFFF; font-weight:bold;'>Hardware Bridge (HIDL / AIDL)</span>" --> L4
 
-  %% Theme-agnostic styling (relying on strokes for color, letting GitHub handle text contrast)
-  classDef appBox stroke:#6366F1,stroke-width:2px;
-  classDef genaiBox stroke:#0EA5E9,stroke-width:2px;
-  classDef aospBox stroke:#F59E0B,stroke-width:2px;
-  classDef halBox stroke:#10B981,stroke-width:2px;
-  classDef veaBox fill:transparent,stroke:#8B5CF6,stroke-width:3px,stroke-dasharray:5 5;
-  classDef layer fill:none,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:5 5;
+  %% Professional Dark Theme Styling
+  classDef appBox fill:#0F172A,stroke:#818CF8,stroke-width:2px;
+  classDef genaiBox fill:#0F172A,stroke:#38BDF8,stroke-width:2px;
+  classDef aospBox fill:#0F172A,stroke:#FBBF24,stroke-width:2px;
+  classDef halBox fill:#0F172A,stroke:#34D399,stroke-width:2px;
+  
+  classDef layer1 fill:#000000,stroke:#818CF8,stroke-width:2px,stroke-dasharray:5 5;
+  classDef layer2 fill:#000000,stroke:#38BDF8,stroke-width:2px,stroke-dasharray:5 5;
+  classDef layer3 fill:#000000,stroke:#FBBF24,stroke-width:2px,stroke-dasharray:5 5;
+  classDef layer4 fill:#000000,stroke:#34D399,stroke-width:2px,stroke-dasharray:5 5;
+  
+  classDef veaWrapper fill:#111118,stroke:#A855F7,stroke-width:3px;
+  classDef titleBox fill:transparent,stroke-width:0px;
+  classDef slideBox fill:#09090B,stroke-width:0px;
 
   class ACT,SESSION,APPS appBox
   class VOSK,LLM,TM,MEM genaiBox
   class CPM,AM,TTS aospBox
   class VHAL,AUDIO halBox
-  class L1,L2,L3,L4 layer
-  class VEA veaBox
+  
+  class L1 layer1
+  class L2 layer2
+  class L3 layer3
+  class L4 layer4
+  
+  class VEA veaWrapper
+  class VEA_TITLE titleBox
+  class SLIDE slideBox
 ```
 
 ### Detailed Data & Execution Flow
