@@ -330,11 +330,7 @@ object LLMManager {
             basePrompt.append("Assistant: <TOOL>setTemperature(72)</TOOL><TOOL>setSeatHeater(3)</TOOL>\n\n")
         }
 
-        if (isFood || q.isEmpty()) {
-            basePrompt.append("[Personalized Dining Search]\n")
-            basePrompt.append("User: \"I'm hungry.\"\n")
-            basePrompt.append("Assistant: <TOOL>search(pure vegetarian restaurants nearby)</TOOL> I remember you prefer pure vegetarian food. Here are some pure vegetarian restaurants I found on the map.\n\n")
-        }
+
 
         if (isDiag || q.isEmpty()) {
             basePrompt.append("[Contextual Diagnostics & Servicing]\n")
