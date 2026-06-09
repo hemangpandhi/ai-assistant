@@ -195,6 +195,16 @@ object ToolManager {
                     val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat())
                     if (success) "I've set the temperature to $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
+                "setSeatHeater" -> {
+                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
+                    val success = VehicleManager.writeSeatHeaterToVhalVerified(value)
+                    if (success) "I've adjusted the seat heater." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
+                "setSeatMassager" -> {
+                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
+                    val success = VehicleManager.writeSeatMassagerToVhalVerified(value)
+                    if (success) "I've turned on the seat massager for you." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
 
 
 

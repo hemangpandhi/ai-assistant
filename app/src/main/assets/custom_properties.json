@@ -76,7 +76,7 @@
     {
       "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
       "handler_key": "setSeatHeater",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "seat",
         "heater",
@@ -93,7 +93,7 @@
     {
       "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
       "handler_key": "setSeatMassager",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "seat",
         "massage",
