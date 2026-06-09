@@ -155,12 +155,18 @@ object VehicleManager {
     fun getRealSeatHeaterLevel(): Int = currentSeatHeaterLevel
     fun getRealTemperature(): Int {
         // VHAL usually stores in Celsius (e.g. 16-32)
-        // If it's less than 50, assume Celsius and convert to Fahrenheit for the LLM
-        return if (currentTemperature < 50f) {
-            Math.round((currentTemperature * 9f / 5f) + 32f)
-        } else {
-            Math.round(currentTemperature)
+        if (currentTemperature >= 50f) {
+            return Math.round(currentTemperature)
         }
+        
+        // AOSP Automotive Linear Mapping for Fahrenheit (16C-28C to 60F-90F)
+        if (currentTemperature in 16.0f..28.0f) {
+            val fRaw = 60.0f + (currentTemperature - 16.0f) * 2.5f
+            return Math.round(fRaw)
+        }
+        
+        // Boundaries outside the lookup table
+        return Math.round((currentTemperature * 9f / 5f) + 32f)
     }
     fun getRawTemperature(): Float = currentTemperature
     fun getFuelLevel(): Float = currentFuelLevel
@@ -203,7 +209,11 @@ object VehicleManager {
                         
                         // If requested temp is Fahrenheit but VHAL expects Celsius, convert to Celsius
                         if (!isVhalFahrenheit && finalTemp > 30f) {
-                            finalTemp = (finalTemp - 32f) * 5f / 9f
+                            if (finalTemp in 60f..90f) {
+                                finalTemp = 16.0f + (finalTemp - 60.0f) / 2.5f
+                            } else {
+                                finalTemp = (finalTemp - 32f) * 5f / 9f
+                            }
                         }
                         
                         // If requested temp is Celsius but VHAL expects Fahrenheit, convert to Fahrenheit
@@ -222,9 +232,13 @@ object VehicleManager {
                         if (finalTemp > maxTemp) finalTemp = maxTemp
                         if (finalTemp < minTemp) finalTemp = minTemp
                     } else {
-                        // Fallback assuming Celsius
+                        // Fallback assuming Celsius (AOSP Mapping)
                         if (finalTemp > 30f) {
-                            finalTemp = (finalTemp - 32f) * 5f / 9f
+                            if (finalTemp in 60f..90f) {
+                                finalTemp = 16.0f + (finalTemp - 60.0f) / 2.5f
+                            } else {
+                                finalTemp = (finalTemp - 32f) * 5f / 9f
+                            }
                         }
                         finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
                         if (finalTemp > 28.0f) finalTemp = 28.0f
