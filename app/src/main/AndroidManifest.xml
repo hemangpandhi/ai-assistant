@@ -40,7 +40,7 @@
 
     <application
         android:allowBackup="true"
-        android:label="Local AI Assistant"
+        android:label="VehicleEdgeAssistant"
         android:supportsRtl="true"
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
         

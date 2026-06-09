@@ -1,6 +1,6 @@
-# Automotive AI Assistant Architecture
+# VehicleEdgeAssistant Architecture
 
-This document outlines the architecture, components, and data flow of the Android Automotive AI Assistant. The application is designed to provide ultra-low latency, completely offline, LLM-powered voice assistance with deep, dynamic integration into the Android Automotive OS (AAOS) VHAL (Vehicle Hardware Abstraction Layer).
+This document outlines the architecture, components, and data flow of the **VehicleEdgeAssistant**. The application is designed to provide ultra-low latency, completely offline, LLM-powered voice assistance with deep, dynamic integration into the Android Automotive OS (AAOS) VHAL (Vehicle Hardware Abstraction Layer).
 
 ## Core Architecture Overview
 
@@ -108,7 +108,7 @@ flowchart TD
 
     subgraph L1 ["📱 1. Application Layer"]
         direction LR
-        APP_LLM["🚀 AI System Apps<br/>(ToolManager, AssistantSession)"]:::app
+        APP_LLM["🚀 VehicleEdgeAssistant<br/>(ToolManager, AssistantSession)"]:::app
         SYSTEM_APPS["🎵 OS Applications<br/>(Media, Dialer, Maps)"]:::app
     end
     
