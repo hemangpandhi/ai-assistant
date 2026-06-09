@@ -55,6 +55,81 @@ graph TD
     TM --> |Launch Apps| Intents[📱 Android Intents<br>Maps, Dialer, Music]:::hardware
 ```
 
+### AOSP Integration Stack Diagram
+
+The following diagram illustrates exactly where the LLM Engine Orchestrator resides within the Android Open Source Project (AOSP) architecture stack, and how natural language commands are translated down to the vehicle hardware via the Car API and Vehicle HAL.
+
+```mermaid
+graph TD
+    %% Styling
+    classDef default fill:#1E1E1E,stroke:#333,stroke-width:2px,color:#FFF;
+    classDef app fill:#4B2E83,stroke:#9C27B0,stroke-width:2px,color:#FFF;
+    classDef api fill:#006064,stroke:#00BCD4,stroke-width:2px,color:#FFF;
+    classDef fw fill:#2A3F54,stroke:#4CAF50,stroke-width:2px,color:#FFF;
+    classDef hal fill:#D84315,stroke:#FF9800,stroke-width:2px,color:#FFF;
+    classDef hw fill:#5D4037,stroke:#795548,stroke-width:2px,color:#FFF;
+
+    subgraph Application Layer [📱 Application Layer / System Apps]
+        UI[LocalLLMActivity / AssistantSession<br>Android UI Components]:::app
+        LLM[🧠 LLM Engine Orchestrator<br>LLMManager & ToolManager]:::app
+        UI <--> |Queries / Responses| LLM
+    end
+
+    subgraph Car API Layer [⚙️ Car API Layer]
+        CPM[CarPropertyManager<br>android.car.hardware.property]:::api
+    end
+
+    subgraph Framework Layer [🛠️ Framework Layer]
+        CS[Car Service<br>com.android.car]:::fw
+    end
+
+    subgraph HAL Layer [🌉 Hardware Abstraction Layer]
+        VHAL[Vehicle HAL / VHAL<br>android.hardware.automotive.vehicle]:::hal
+    end
+
+    subgraph Hardware Layer [🚗 Vehicle Hardware Layer]
+        CAN[CAN Bus / Vehicle Network]:::hw
+        Sensors[Sensors & Actuators<br>HVAC, Windows, Telemetry]:::hw
+        CAN <--> |Physical Signals| Sensors
+    end
+
+    %% Connections showing data flow
+    LLM -- "1. Read/Write Property (Tool/Sensor execution)" --> CPM
+    CPM -- "2. Binder IPC" --> CS
+    CS -- "3. HIDL/AIDL IPC" --> VHAL
+    VHAL -- "4. CAN Message" --> CAN
+
+    class Application Layer app;
+    class Car API Layer api;
+    class Framework Layer fw;
+    class HAL Layer hal;
+    class Hardware Layer hw;
+```
+
+### Vertical Layer Stack
+
+For a simplified view of the system architecture from a pure software-stack perspective:
+
+```mermaid
+flowchart TD
+    %% Define Classes for the Stack
+    classDef layerApp fill:#4B2E83,stroke:#9C27B0,stroke-width:2px,color:#FFF,font-weight:bold;
+    classDef layerFw fill:#2A3F54,stroke:#4CAF50,stroke-width:2px,color:#FFF,font-weight:bold;
+    classDef layerHal fill:#D84315,stroke:#FF9800,stroke-width:2px,color:#FFF,font-weight:bold;
+    classDef layerHw fill:#5D4037,stroke:#795548,stroke-width:2px,color:#FFF,font-weight:bold;
+
+    %% Nodes as full-width blocks
+    APP["1. Application Layer<br/>(LocalLLMActivity, AssistantSession, ToolManager)"]:::layerApp
+    FW["2. Android Framework Layer<br/>(CarPropertyManager, CarService)"]:::layerFw
+    HAL["3. Hardware Abstraction Layer<br/>(Vehicle HAL - VHAL)"]:::layerHal
+    HW["4. Vehicle Hardware Layer<br/>(CAN Bus, ECUs, HVAC Sensors)"]:::layerHw
+
+    %% Stack Connections
+    APP ==>|"Car API (Binder IPC)"| FW
+    FW ==>|"HIDL / AIDL IPC"| HAL
+    HAL ==>|"CAN Bus Signals"| HW
+```
+
 ### Class & Structural Block Diagram
 
 The following diagram illustrates the class relationships, dependencies, and interfaces between the core components of the application.
