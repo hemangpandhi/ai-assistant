@@ -374,6 +374,17 @@ object ToolManager {
                                 webIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                                 try {
                                     if (intentHandler != null) intentHandler(webIntent) else context.startActivity(webIntent)
+                                    // Dispatch a global Media Play event after a short delay to ensure auto-play in the native app or browser
+                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                        kotlinx.coroutines.delay(2500)
+                                        try {
+                                            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                                            val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
+                                            val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
+                                            audioManager.dispatchMediaKeyEvent(eventDown)
+                                            audioManager.dispatchMediaKeyEvent(eventUp)
+                                        } catch (e: Exception) {}
+                                    }
                                 } catch (e: Exception) {
                                     // Ultimate Fallback: Just open the default music app
                                     val fallbackIntent = Intent(Intent.ACTION_MAIN)
