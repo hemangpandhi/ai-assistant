@@ -44,7 +44,7 @@ object ToolManager {
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
-            val inputStream = context.assets.open("custom_properties.json")
+            val inputStream = context.assets.open("vehicle_skills_registry.json")
             val size = inputStream.available()
             val buffer = ByteArray(size)
             inputStream.read(buffer)
@@ -101,7 +101,7 @@ object ToolManager {
             }
             isInitialized = true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse tools from custom_properties.json", e)
+            Log.e(TAG, "Failed to parse tools from vehicle_skills_registry.json", e)
         }
         
         // Initialize Semantic Search RAG asynchronously
@@ -138,7 +138,7 @@ object ToolManager {
     }
 
     /**
-     * Executes the requested tool call if it is enabled in custom_properties.json.
+     * Executes the requested tool call if it is enabled in vehicle_skills_registry.json.
      * Returns a string summarizing the outcome for the chat UI.
      */
     suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {

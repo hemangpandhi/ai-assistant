@@ -91,7 +91,7 @@ object VehicleManager {
             
             // Dynamic JSON Properties
             try {
-                val inputStream = context.assets.open("custom_properties.json")
+                val inputStream = context.assets.open("vehicle_skills_registry.json")
                 val size = inputStream.available()
                 val buffer = ByteArray(size)
                 inputStream.read(buffer)
@@ -120,7 +120,7 @@ object VehicleManager {
                     }
                 }
             } catch (e: Exception) {
-                Log.e("VehicleManager", "Error parsing custom_properties.json", e)
+                Log.e("VehicleManager", "Error parsing vehicle_skills_registry.json", e)
             }
             
             currentSpeed = getFloatPropertyQuietly(VehiclePropertyIds.PERF_VEHICLE_SPEED, 0f)

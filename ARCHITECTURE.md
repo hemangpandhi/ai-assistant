@@ -34,7 +34,7 @@ flowchart TD
         LLM{"🧠 LLMManager<br/>(Prompt & State Control)"}:::logic
         TM["🛠️ ToolManager<br/>(Semantic Router & RAG)"]:::logic
         MEM["🧠 MemoryManager<br/>(Short-Term Context Window)"]:::logic
-        JSON[("📄 custom_properties.json<br/>(Zero-Code Definitions)")]:::config
+        JSON[("📄 vehicle_skills_registry.json<br/>(Zero-Code Definitions)")]:::config
         PREFS[("💾 SharedPreferences<br/>(Long-Term User Memory)")]:::config
     end
 
@@ -203,7 +203,7 @@ classDiagram
         +MediaBrowserService
     }
 
-    class custom_properties_json {
+    class vehicle_skills_registry.json {
         <<Zero-Code Config>>
         +properties: Array
         +tools: Array
@@ -220,15 +220,15 @@ classDiagram
     ToolManager --> VehicleManager : Actuates Hardware (VHAL)
     ToolManager --> AndroidFramework : Dispatches Intents (Media/Phone)
     LLMManager --> VehicleManager : Reads Telemetry
-    custom_properties_json ..> ToolManager : Parsed dynamically
-    custom_properties_json ..> VehicleManager : Parsed dynamically
+    vehicle_skills_registry.json ..> ToolManager : Parsed dynamically
+    vehicle_skills_registry.json ..> VehicleManager : Parsed dynamically
 ```
 
 ## Zero-Code Dynamic AOSP Property & Tool Handling
 
 One of the most powerful features of this architecture is its **JSON-driven Zero-Code engine**. The application dynamically handles AOSP (Android Open Source Project) and OEM-specific Vendor Properties without requiring you to write or compile Kotlin code for every new feature.
 
-At startup, the `ToolManager` and `VehicleManager` parse the `assets/custom_properties.json` file. This file acts as the bridge between the LLM's natural language capabilities and the car's native VHAL network.
+At startup, the `ToolManager` and `VehicleManager` parse the `assets/vehicle_skills_registry.json` file. This file acts as the bridge between the LLM's natural language capabilities and the car's native VHAL network.
 
 ### 1. Dynamic Sensor Reading (Properties)
 When the LLM needs context (e.g., "What is the battery level?"), `VehicleManager` automatically iterates through all objects defined in the `"properties"` JSON array. It subscribes to these `property_id` values via the `CarPropertyManager` and dynamically translates them into human-readable strings injected into the LLM's System Prompt.
@@ -245,11 +245,11 @@ If it finds a matching `GENERIC_VHAL_WRITE` handler, the `ToolManager` uses refl
 
 ## How to Add a New Action and Property
 
-Adding a new feature to the assistant is a simple two-step process using `custom_properties.json` and, optionally, `LLMManager.kt` if you want to explicitly guide the AI's behavior.
+Adding a new feature to the assistant is a simple two-step process using `vehicle_skills_registry.json` and, optionally, `LLMManager.kt` if you want to explicitly guide the AI's behavior.
 
 ### Scenario: Adding Control for the Sunroof
 
-#### Step 1: Update `custom_properties.json`
+#### Step 1: Update `vehicle_skills_registry.json`
 To give the AI the ability to open the sunroof, define a new tool in the JSON array. You need the exact AOSP or Vendor VHAL Property ID (e.g., `320865540` for `WINDOW_POS`).
 
 ```json
@@ -301,7 +301,7 @@ The core local intelligence of the application is powered by **Google's LiteRT**
 - **Dynamic Context**: Constructs the System Prompt by combining the base persona, live `VehicleManager` sensor strings, and the dynamically loaded `ToolManager` JSON constraints.
 
 ### 2. `ToolManager.kt` (Execution Engine)
-- **Role**: Parses the JSON configuration file (`custom_properties.json`) into active `ToolDefinition` objects.
+- **Role**: Parses the JSON configuration file (`vehicle_skills_registry.json`) into active `ToolDefinition` objects.
 - **RAG Execution**: Employs a semantic similarity engine. When the user asks a question, `ToolManager.getLlmToolsPrompt(query)` filters the available tools based on relevance to ensure the LLM is not overwhelmed with irrelevant tools, improving Time-To-First-Token (TTFT) latency.
 - **Regex Interception**: Evaluates the LLM's streaming token output using a `<TOOL>(.*?)</TOOL>` Regex. If a match is found, it strips it from the UI, executes the JSON-defined action, and pushes the `success_message` to the TTS buffer.
 
@@ -355,7 +355,7 @@ While this architecture serves as a highly capable foundation, transitioning thi
 Currently, the application declares dangerous `android.car.permission.*` permissions in its manifest. In a production build, this APK must be placed in the `/system/priv-app/` directory and signed with the OEM's platform certificate. This grants the `VehicleManager` silent, unrestricted access to the `CarPropertyManager` without triggering Android permission pop-ups or security rejections from the SELinux policies.
 
 ### 2. Strict Payload Validation & Safety Bounds
-The `custom_properties.json` currently allows the LLM to write raw integers and floats directly to the CAN bus via the VHAL. Production requires a rigid validation layer (a middleware firewall) to ensure the AI cannot hallucinate out-of-bounds values (e.g., attempting to set the HVAC temperature to 500 degrees or triggering diagnostic routines while the vehicle is in motion).
+The `vehicle_skills_registry.json` currently allows the LLM to write raw integers and floats directly to the CAN bus via the VHAL. Production requires a rigid validation layer (a middleware firewall) to ensure the AI cannot hallucinate out-of-bounds values (e.g., attempting to set the HVAC temperature to 500 degrees or triggering diagnostic routines while the vehicle is in motion).
 
 ### 3. Native Media Integrations (Replacing Scrapers)
 The current `ToolManager` implements workarounds (like web-scraping YouTube HTML and dispatching global `KEYCODE_MEDIA_PLAY` events) to handle media playback due to third-party app constraints. In production, this must be replaced by deep integration with the OEM's unified Media Center Service or via official API partnerships (e.g., Spotify SDK), using authenticated `MediaBrowserService` connections to guarantee seamless background routing.
@@ -364,7 +364,7 @@ The current `ToolManager` implements workarounds (like web-scraping YouTube HTML
 The current `WakeWordService` runs a continuous `Vosk` acoustic model in a standard Foreground Service. While functional, this drains the primary SoC battery. Production requires migrating the Hotword detector down to the hardware **Always-On Compute (AOC) domain** or a low-power DSP (Digital Signal Processor). The SoC should remain asleep until the DSP detects "Hey Auto" and fires a hardware interrupt to wake the Android Application Processor (AP) and launch the `VoiceInteractionSession`.
 
 ### 5. Over-The-Air (OTA) Model & Context Delivery
-The LLM weights (`.litertlm`) and the `custom_properties.json` map are currently statically loaded. A production architecture must include a dynamic synchronization engine (via a Telematics Control Unit or OTA daemon). This allows the manufacturer to update the AI's behavioral rules, patch hallucination vectors, or deliver highly compressed LoRA weights without requiring a full Android System Update.
+The LLM weights (`.litertlm`) and the `vehicle_skills_registry.json` map are currently statically loaded. A production architecture must include a dynamic synchronization engine (via a Telematics Control Unit or OTA daemon). This allows the manufacturer to update the AI's behavioral rules, patch hallucination vectors, or deliver highly compressed LoRA weights without requiring a full Android System Update.
 
 ## Future Scaling Plan
 
