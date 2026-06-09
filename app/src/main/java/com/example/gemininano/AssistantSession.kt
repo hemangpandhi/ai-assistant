@@ -329,7 +329,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             stopThinkingAnimation()
             MemoryManager.addTurn("Assistant", responseTextStr)
             btnSend.isEnabled = true
-            tts?.speak(responseTextStr, TextToSpeech.QUEUE_FLUSH, null, "music_clarify")
+            tts?.speak(responseTextStr, TextToSpeech.QUEUE_FLUSH, null, "QUESTION_FINAL")
             return
         }
         
