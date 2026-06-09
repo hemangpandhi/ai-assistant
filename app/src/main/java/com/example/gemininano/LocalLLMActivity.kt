@@ -526,7 +526,7 @@ class LocalLLMActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
-                cloudPrefs.edit().putString("wake_word", s.toString().lowercase()).apply()
+                prefs.edit().putString("wake_word", s.toString().lowercase()).apply()
                 if (switchWakeWord.isChecked) {
                     val intent = Intent(this@LocalLLMActivity, WakeWordService::class.java)
                     startForegroundService(intent)
