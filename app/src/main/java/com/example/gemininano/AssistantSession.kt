@@ -320,6 +320,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         // Anti-Hallucination Music Interceptor logic has been moved to the streaming loop
         // to allow the LLM to naturally generate a response.
+        val qStr = interceptedQuery.lowercase()
+        val musicQuery = qStr.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
+        val isGenericMusic = musicQuery.length <= 2 && qStr.contains("play") && !qStr.contains("pause") && !qStr.contains("stop") && !qStr.contains("next") && !qStr.contains("previous")
+        val expectFollowup = isGenericMusic
         
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
@@ -537,10 +541,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 if (remainingSentence.isNotEmpty()) {
                                     tts?.speak(remainingSentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
                                 }
-                                val finalUtterance = if (finalMsg.trim().endsWith("?")) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
+                                val finalUtterance = if (expectFollowup || finalMsg.trim().endsWith("?")) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
                                 tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
                             } else {
-                                if (finalMsg.trim().endsWith("?")) {
+                                if (expectFollowup || finalMsg.trim().endsWith("?")) {
                                     btnMic.performClick()
                                 } else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) {
                                     kotlinx.coroutines.delay(2000)
