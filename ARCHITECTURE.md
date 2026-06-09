@@ -12,21 +12,25 @@ The following diagram illustrates the high-level boundaries and logical domains 
 block-beta
   columns 1
 
-  block:L1["1. Application Layer"]
-    columns 3
-    ACT["📱 Config UI"]
-    SESSION["🎤 Voice Overlay"]
-    APPS["🎵 Target Apps"]
-  end
-  
-  space
-  
-  block:L2["2. GenAI Orchestrator Engine"]
-    columns 4
-    VOSK["🗣️ Vosk WakeWord"]
-    LLM["🧠 LiteRT Edge LLM"]
-    TM["🛠️ ToolManager RAG"]
-    MEM["💾 Context Memory"]
+  block:VEA["VehicleEdgeAssistant"]
+    columns 1
+    
+    block:L1["1. Application Layer"]
+      columns 3
+      ACT["📱 Config UI"]
+      SESSION["🎤 Voice Overlay"]
+      APPS["🎵 Target Apps"]
+    end
+    
+    space
+    
+    block:L2["2. GenAI Orchestrator Engine"]
+      columns 4
+      VOSK["🗣️ Vosk WakeWord"]
+      LLM["🧠 LiteRT Edge LLM"]
+      TM["🛠️ ToolManager RAG"]
+      MEM["💾 Context Memory"]
+    end
   end
   
   space
@@ -56,6 +60,7 @@ block-beta
   classDef genaiBox stroke:#0EA5E9,stroke-width:2px;
   classDef aospBox stroke:#F59E0B,stroke-width:2px;
   classDef halBox stroke:#10B981,stroke-width:2px;
+  classDef veaBox fill:transparent,stroke:#8B5CF6,stroke-width:3px,stroke-dasharray:5 5;
   classDef layer fill:none,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:5 5;
 
   class ACT,SESSION,APPS appBox
@@ -63,6 +68,7 @@ block-beta
   class CPM,AM,TTS aospBox
   class VHAL,AUDIO halBox
   class L1,L2,L3,L4 layer
+  class VEA veaBox
 ```
 
 ### Detailed Data & Execution Flow
