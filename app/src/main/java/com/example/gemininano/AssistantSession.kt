@@ -56,8 +56,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     CoroutineScope(Dispatchers.Main).launch {
                         if (utteranceId == "QUESTION_FINAL") {
                             btnMic.performClick()
-                        } else if (utteranceId == "STATEMENT_FINAL") {
-                            kotlinx.coroutines.delay(500)
+                        } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
+                            kotlinx.coroutines.delay(2000)
                             finish()
                         }
                     }
@@ -253,7 +253,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
     }
 
-    private fun handleQuery(query: String) {
+    private fun handleQuery(query: String, retryCount: Int = 0) {
         if (LLMManager.engine == null || LLMManager.conversation == null) return
         
         startThinkingAnimation()
@@ -266,11 +266,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         isQueryProcessed = false
         
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-            processQuery(query)
+            processQuery(query, retryCount)
         }
     }
     
-    private suspend fun processQuery(query: String) {
+    private suspend fun processQuery(query: String, retryCount: Int) {
         // Timeout watchdog
         timeoutJob?.cancel()
         timeoutJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
@@ -469,11 +469,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             // Auto-Context Clearing Hack for silent KV Cache overflows
                             if (finalMsg.trim().length <= 3) {
+                                if (retryCount >= 2) {
+                                    statusText.text = "Error"
+                                    stopThinkingAnimation()
+                                    responseText.text = "The request was too large to process. Please try a simpler command."
+                                    btnSend.isEnabled = true
+                                    isQueryProcessed = true
+                                    return@launch
+                                }
                                 android.util.Log.w("AssistantSession", "Suspiciously short response. KV Cache full. Graceful Sliding Window Reset initiated...")
                                 LLMManager.resetConversation()
-                                // The query has already been added to MemoryManager as User turn, so we just retry.
-                                // The next handleQuery will pull the SlidingWindowContext automatically!
-                                handleQuery(query)
+                                handleQuery(query, retryCount + 1)
                                 return@launch
                             }
                             
@@ -504,12 +510,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 if (remainingSentence.isNotEmpty()) {
                                     tts?.speak(remainingSentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
                                 }
-                                val finalUtterance = if (finalMsg.trim().endsWith("?")) "QUESTION_FINAL" else "STATEMENT_FINAL"
+                                val finalUtterance = if (finalMsg.trim().endsWith("?")) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
                                 tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
                             } else {
                                 if (finalMsg.trim().endsWith("?")) {
                                     btnMic.performClick()
-                                } else {
+                                } else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) {
                                     kotlinx.coroutines.delay(2000)
                                     finish()
                                 }

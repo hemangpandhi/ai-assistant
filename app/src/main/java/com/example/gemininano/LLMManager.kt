@@ -165,20 +165,25 @@ object LLMManager {
     fun getDynamicContext(prompt: String): String {
         val q = prompt.lowercase()
         val isFood = q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese")
+        val isFuel = q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")
         
-        if (isFood && prompt.length < 50) {
+        if ((isFood || isFuel) && prompt.length < 50) {
             try {
-                var cuisine = "restaurant"
-                if (q.contains("italian")) cuisine = "Italian restaurant"
-                else if (q.contains("mexican")) cuisine = "Mexican restaurant"
-                else if (q.contains("chinese")) cuisine = "Chinese restaurant"
-                else if (q.contains("pizza")) cuisine = "Pizza"
-                else if (q.contains("burger")) cuisine = "Burger"
-                else if (q.contains("sushi") || q.contains("japanese")) cuisine = "Sushi"
-                else if (q.contains("indian")) cuisine = "Indian restaurant"
-                else if (q.contains("thai")) cuisine = "Thai restaurant"
+                var searchQuery = "restaurant"
+                if (isFuel) {
+                    searchQuery = if (q.contains("charging")) "EV charging station" else "gas station"
+                } else {
+                    if (q.contains("italian")) searchQuery = "Italian restaurant"
+                    else if (q.contains("mexican")) searchQuery = "Mexican restaurant"
+                    else if (q.contains("chinese")) searchQuery = "Chinese restaurant"
+                    else if (q.contains("pizza")) searchQuery = "Pizza"
+                    else if (q.contains("burger")) searchQuery = "Burger"
+                    else if (q.contains("sushi") || q.contains("japanese")) searchQuery = "Sushi"
+                    else if (q.contains("indian")) searchQuery = "Indian restaurant"
+                    else if (q.contains("thai")) searchQuery = "Thai restaurant"
+                }
 
-                val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(cuisine, "UTF-8")}&format=json&limit=3&viewbox=139.30,35.60,139.45,35.50&bounded=1")
+                val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&format=json&limit=3&viewbox=139.30,35.60,139.45,35.50&bounded=1")
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
                 connection.requestMethod = "GET"
@@ -261,8 +266,13 @@ object LLMManager {
             }
         }
         if (isDiag || q.isEmpty()) {
-            basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
-            basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, ALWAYS ask first: \"Should I find a nearby gas station?\" DO NOT navigate immediately.\n")
+            val dynFuel = getDynamicContext(query)
+            if (dynFuel.isNotEmpty() && (q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging"))) {
+                basePrompt.append("9. FUEL/CHARGING CHOICES: $dynFuel\n")
+            } else {
+                basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
+                basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, ALWAYS ask first: \"Should I find a nearby gas station?\" DO NOT navigate immediately.\n")
+            }
         }
 
         basePrompt.append("\n")
@@ -312,7 +322,7 @@ object LLMManager {
             basePrompt.append("Assistant: <TOOL>navigate(gas station)</TOOL>\n\n")
         }
 
-        if (isDiag || q.isEmpty()) {
+        if ((isDiag || q.isEmpty()) && getDynamicContext(query).isEmpty()) {
             basePrompt.append("[Smart Fuel Routing - Ask First]\n")
             basePrompt.append("User: \"I am running out of fuel.\"\n")
             basePrompt.append("Assistant: Your fuel level is low. Should I navigate you to a nearby gas station?\n\n")
