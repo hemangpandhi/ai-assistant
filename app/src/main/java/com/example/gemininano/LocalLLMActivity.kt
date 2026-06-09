@@ -908,8 +908,9 @@ class LocalLLMActivity : AppCompatActivity() {
     }
     
     private fun processQuery(prompt: String, isVoice: Boolean, displayPrompt: String) {
-        try {
-            var alarmTriggered = false
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                var alarmTriggered = false
             timeoutJob?.cancel()
             timeoutJob = lifecycleScope.launch {
                 delay(180000) // 3 minutes max (First-time GPU Shader Compilation can take up to 2-3 mins on AAOS)
@@ -929,14 +930,15 @@ class LocalLLMActivity : AppCompatActivity() {
                 LLMManager.isFirstMessage = false
                 LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
             } else {
+                val additionalContext = LLMManager.getDynamicContext(prompt)
                 val customProps = VehicleManager.getCustomPropertiesString()
                 val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
                 
                 // If the prompt is short (e.g. "Yes", "Shizuoka palace"), skip telemetry to prevent distracting the LLM from the active conversation flow
                 if (prompt.length < 25) {
-                    "User: " + prompt
+                    "User: " + prompt + additionalContext
                 } else {
-                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, Dining: $diningPref]\nUser: " + prompt
+                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, Dining: $diningPref]\nUser: " + prompt + additionalContext
                 }
             }
 
@@ -1125,16 +1127,19 @@ class LocalLLMActivity : AppCompatActivity() {
                 )
             }
         } catch (e: Exception) {
-            timeoutJob?.cancel()
-            val errorMsg = e.message ?: ""
-            chatAdapter.updateLastMessage("\nError: $errorMsg")
-            resetControls()
-            LLMManager.isFirstMessage = true
-            
-            if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
-                chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
-                LLMManager.resetConversation()
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                timeoutJob?.cancel()
+                val errorMsg = e.message ?: ""
+                chatAdapter.updateLastMessage("\nError: $errorMsg")
+                resetControls()
+                LLMManager.isFirstMessage = true
+                
+                if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
+                    chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
+                    LLMManager.resetConversation()
+                }
             }
+        }
         }
     }
 

@@ -162,6 +162,37 @@ object LLMManager {
         return getDefaultSystemPrompt(context, query)
     }
     
+    fun getDynamicContext(prompt: String): String {
+        val q = prompt.lowercase()
+        val isFood = q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese")
+        
+        if (isFood && prompt.length < 50) {
+            try {
+                val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(prompt + " restaurant near Sagamihara", "UTF-8")}&format=json&limit=3")
+                val connection = url.openConnection() as java.net.HttpURLConnection
+                connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
+                connection.requestMethod = "GET"
+                
+                if (connection.responseCode == 200) {
+                    val response = connection.inputStream.bufferedReader().use { it.readText() }
+                    val jsonArray = org.json.JSONArray(response)
+                    val places = mutableListOf<String>()
+                    for (i in 0 until jsonArray.length()) {
+                        val name = jsonArray.getJSONObject(i).optString("name", "")
+                        if (name.isNotEmpty()) places.add(name)
+                    }
+                    if (places.isNotEmpty()) {
+                        val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
+                        return "\n\n[System Note: Based on the user's location, you MUST suggest exactly these options: $placesStr. End your response with 'Which one would you like to navigate to?']"
+                    }
+                }
+            } catch(e: Exception) {
+                e.printStackTrace()
+            }
+        }
+        return ""
+    }
+    
     fun getDefaultSystemPrompt(context: android.content.Context, query: String = ""): String {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
@@ -212,19 +243,12 @@ object LLMManager {
             basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\"), DO NOT use the navigate tool immediately. You MUST ask \"Which one?\" first.\n")
         }
         if (isFood || q.isEmpty()) {
-            val genericRestaurants = listOf("The Daily Grill", "City Diner", "Town Square Kitchen", "Main Street Eatery", "The Rusty Spoon").shuffled().take(3)
-            var selectedPlaces = genericRestaurants
-            
-            if (q.contains("italian")) selectedPlaces = listOf("Luigi's Trattoria", "Bella Roma", "Pasta Bella", "Gino's Pizzeria", "Il Forno").shuffled().take(3)
-            else if (q.contains("mexican")) selectedPlaces = listOf("El Camino", "La Fiesta", "Tacos El Gordo", "Los Amigos", "Casa Blanca").shuffled().take(3)
-            else if (q.contains("chinese")) selectedPlaces = listOf("Golden Dragon", "Jade Garden", "Wok This Way", "China Palace", "Ming's").shuffled().take(3)
-            else if (q.contains("pizza")) selectedPlaces = listOf("Joe's Pizza", "Slice of Life", "Brick Oven Pizza", "Mama's Pizzeria").shuffled().take(3)
-            else if (q.contains("burger")) selectedPlaces = listOf("Burger Joint", "Smashburger", "The Grill", "Classic Burgers").shuffled().take(3)
-            else if (q.contains("sushi") || q.contains("japanese")) selectedPlaces = listOf("Sakura Sushi", "Tokyo Diner", "Zen Sushi", "Oishii").shuffled().take(3)
-
-            val placesStr = selectedPlaces.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-            
-            basePrompt.append("8. FOOD CHOICES: If the user asks for a specific cuisine, DO NOT use the search tool. Instead, list these specific restaurants from your map data: $placesStr and ALWAYS end with: \"Which one would you like to navigate to?\".\n")
+            val dyn = getDynamicContext(query)
+            if (dyn.isNotEmpty()) {
+                basePrompt.append("8. FOOD CHOICES: $dyn\n")
+            } else {
+                basePrompt.append("8. FOOD CHOICES: If the user asks for a specific cuisine, DO NOT use the search tool. Instead, list 2-3 nearby options and ALWAYS end with: \"Which one would you like to navigate to?\".\n")
+            }
         }
         if (isDiag || q.isEmpty()) {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
