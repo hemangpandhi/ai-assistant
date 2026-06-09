@@ -9,54 +9,73 @@ The system is built on a split architecture: a primary User Interface (`LocalLLM
 ### High-Level Component Diagram
 
 ```mermaid
-flowchart LR
+flowchart TD
     %% Professional Enterprise Theme
-    classDef default fill:#1E293B,stroke:#334155,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px,font-family:Inter;
-    classDef interface fill:#0EA5E9,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
-    classDef orchestrator fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef sysApp fill:#1E293B,stroke:#334155,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px;
+    classDef aospAPI fill:#0EA5E9,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef logic fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
     classDef ai fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
     classDef hardware fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef config fill:#64748B,stroke:#475569,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
 
-    subgraph Input ["User Interfaces & Input"]
-        direction TB
-        V([🗣️ Voice Input]):::interface
-        T([⌨️ Text Input]):::interface
-        STT[🎤 Android SpeechRecognizer]:::interface
-        UI[📱 Assistant UI Overlay]:::interface
+    subgraph Input ["1. User Input & AOSP Audio Framework"]
+        MIC([🎙️ Microphone])
+        TXT([⌨️ Keyboard])
+        STT["🎤 android.speech.SpeechRecognizer<br/>(Cloud / On-Device)"]:::aospAPI
     end
 
-    subgraph Core ["Orchestration Engine"]
-        direction TB
-        SM{🧠 LLM Manager}:::orchestrator
-        TM[🛠️ Tool Manager]:::orchestrator
+    subgraph AppUI ["2. System UI Application Layer"]
+        SESSION["📱 AssistantSession<br/>(Voice Overlay Window)"]:::sysApp
+        ACT["📱 LocalLLMActivity<br/>(Configuration UI)"]:::sysApp
     end
 
-    subgraph Models ["Edge Intelligence"]
-        direction TB
-        ENG[⚙️ LiteRT Engine]:::ai
-        LM[(📱 Local Models)]:::ai
-        CM[(☁️ Cloud APIs)]:::ai
+    subgraph Orchestration ["3. Core AI Orchestration (Kotlin Singleton)"]
+        LLM{"🧠 LLMManager<br/>(Prompt & State Control)"}:::logic
+        TM["🛠️ ToolManager<br/>(Semantic Router)"]:::logic
+        JSON[("📄 custom_properties.json<br/>(Zero-Code Definitions)")]:::config
     end
 
-    subgraph Auto ["Vehicle Hardware Abstraction"]
-        direction TB
-        VM[🚗 Vehicle Manager]:::hardware
-        JSON[📄 custom_properties.json]:::hardware
+    subgraph Inference ["4. ML Edge Execution (C++ / GPU / NPU)"]
+        LITERT["⚙️ Google LiteRT Engine<br/>(liblitertlm_jni.so)"]:::ai
+        LOCAL[/"📱 Local LLMs<br/>(Gemma, Qwen)"/]:::ai
+        CLOUD[/"☁️ Cloud APIs<br/>(Gemini, Claude)"/]:::ai
     end
 
-    %% Data Flow
-    V --> STT
-    STT & T --> UI
-    UI <==>|Context State| SM
+    subgraph Output ["5. AOSP Output & Vehicle Hardware Abstraction"]
+        TTS["🔊 android.speech.tts.TextToSpeech<br/>(Audio Feedback)"]:::aospAPI
+        CPM["⚙️ android.car.hardware.property.CarPropertyManager<br/>(Vehicle API)"]:::aospAPI
+        CARSERVICE["🛠️ com.android.car.CarService<br/>(Binder IPC)"]:::aospAPI
+        VHAL["🌉 Vehicle HAL<br/>(Hardware Abstraction)"]:::hardware
+        CAN["🚗 CAN Bus / Physical ECUs"]:::hardware
+        SPK([🔈 Speakers])
+    end
+
+    %% Flow Mapping
+    MIC -->|Audio Stream| STT
+    STT -->|Transcribed Text| SESSION
+    TXT -->|Raw String| ACT
     
-    SM ==>|Prompt Gen| ENG
-    ENG --> LM & CM
-    ENG -.->|Token Stream| SM
+    SESSION <==>|User Query| LLM
+    ACT <==>|User Query| LLM
     
-    JSON -.->|Zero-Code Inject| TM & VM
-    VM -->|Telemetry| SM
-    SM -->|Parsed Action| TM
-    TM ==>|CarProperty API| VM
+    JSON -.->|Injects Available Tools| TM
+    JSON -.->|Maps VHAL IDs| CPM
+    
+    LLM ==>|"Context + Tools + History"| LITERT
+    LITERT -->|"Hardware Delegate"| LOCAL
+    LITERT -->|"SSE Socket"| CLOUD
+    
+    LOCAL & CLOUD -->|"Token Stream"| LITERT
+    LITERT ==>|"Response Stream"| LLM
+    
+    LLM -->|"Cleaned Text Stream"| TTS
+    TTS -->|"Synthesized Audio"| SPK
+    
+    LLM -->|"<TOOL> Execution Tag"| TM
+    TM -->|"Parsed Action Payload"| CPM
+    CPM -->|"Cross-Process IPC"| CARSERVICE
+    CARSERVICE -->|"HIDL / AIDL"| VHAL
+    VHAL -->|"Electrical Actuation"| CAN
 ```
 
 ### AOSP Integration Stack Diagram
