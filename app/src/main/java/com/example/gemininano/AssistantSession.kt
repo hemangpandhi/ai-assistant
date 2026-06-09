@@ -425,9 +425,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 val isGenericMusic = musicQuery.length <= 2 && q.contains("play") && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
                                 if (toolName == "playMusic" && isGenericMusic) {
                                     android.util.Log.w("AssistantSession", "Intercepted hallucinatory music tool call: $toolCall")
-                                    if (lastResponseBuilder.isEmpty()) {
-                                        lastResponseBuilder.append("What kind of music would you like to listen to? For example, Bollywood, Rock, Jazz, or a specific song?")
-                                    }
                                     continue
                                 }
 

@@ -372,6 +372,13 @@ object ToolManager {
                                 // Demo Workaround: Open YouTube Music directly to the watch URL to force auto-play
                                 val webIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://music.youtube.com/watch?v=$videoId&autoplay=1"))
                                 webIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                
+                                // Force intent to open in the default web browser to ensure &autoplay=1 works (preventing native app hijack)
+                                val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://www.google.com"))
+                                val resolveInfo = context.packageManager.resolveActivity(browserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
+                                if (resolveInfo != null) {
+                                    webIntent.setPackage(resolveInfo.activityInfo.packageName)
+                                }
                                 try {
                                     if (intentHandler != null) intentHandler(webIntent) else context.startActivity(webIntent)
                                     // Dispatch a global Media Play event after a short delay to ensure auto-play in the native app or browser
