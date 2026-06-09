@@ -21,12 +21,10 @@ block-beta
       
       block:L1["<span style='font-weight:bold; color:#FFFFFF;'>1. Application Layer</span>"]
         columns 3
-        ACT["<span style='color:#FFFFFF'>📱 Config UI</span>"]
+        ACT["<span style='color:#FFFFFF'>📱 Configuration UI</span>"]
         SESSION["<span style='color:#FFFFFF'>🎤 Voice Overlay</span>"]
         APPS["<span style='color:#FFFFFF'>🎵 Target Apps</span>"]
       end
-      
-      space
       
       block:L2["<span style='font-weight:bold; color:#FFFFFF;'>2. GenAI Orchestrator Engine</span>"]
         columns 4
@@ -37,16 +35,14 @@ block-beta
       end
     end
     
-    space
-    
     block:L3["<span style='font-weight:bold; color:#FFFFFF;'>3. AOSP Framework</span>"]
-      columns 3
-      CPM["<span style='color:#FFFFFF'>⚙️ Car Property Mgr</span>"]
-      AM["<span style='color:#FFFFFF'>📱 Activity Mgrs</span>"]
-      TTS["<span style='color:#FFFFFF'>🔊 Text-to-Speech</span>"]
+      columns 5
+      CPM["<span style='color:#FFFFFF'>⚙️ CarPropertyManager</span>"]
+      AM["<span style='color:#FFFFFF'>📱 ActivityManager</span>"]
+      MEDIA["<span style='color:#FFFFFF'>🎵 MediaBrowser /<br/>MediaController</span>"]
+      TTS["<span style='color:#FFFFFF'>🔊 TextToSpeech<br/>(TTS)</span>"]
+      STT["<span style='color:#FFFFFF'>🎤 SpeechRecognizer<br/>(STT)</span>"]
     end
-    
-    space
     
     block:L4["<span style='font-weight:bold; color:#FFFFFF;'>4. Vehicle Hardware Layer</span>"]
       columns 2
@@ -77,7 +73,7 @@ block-beta
 
   class ACT,SESSION,APPS appBox
   class VOSK,LLM,TM,MEM genaiBox
-  class CPM,AM,TTS aospBox
+  class CPM,AM,MEDIA,TTS,STT aospBox
   class VHAL,AUDIO halBox
   
   class L1 layer1
