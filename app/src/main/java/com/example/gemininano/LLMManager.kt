@@ -208,14 +208,11 @@ object LLMManager {
             basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
         }
         if (isSightseeing || q.isEmpty()) {
-            basePrompt.append("6. SIGHTSEEING: When suggesting places to visit, you MUST end your response by explicitly asking: \"Would you like me to navigate you there?\". If the user says yes, you MUST output the EXACT syntax <TOOL>navigate(DEST)</TOOL> to start navigation.\n")
+            basePrompt.append("6. SIGHTSEEING: If the user asks for sightseeing or tourist attractions, DO NOT use the search tool. Instead, use your own knowledge to suggest 2-3 specific places and ALWAYS end your response by explicitly asking: \"Would you like me to navigate to any of these?\".\n")
+            basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\") but does NOT specify which one, DO NOT use the navigate tool. You MUST ask \"Which one?\" first.\n")
         }
         if (isFood || q.isEmpty()) {
-            basePrompt.append("7. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
-        }
-        if (isSightseeing || q.isEmpty()) {
-            basePrompt.append("7. SIGHTSEEING: If the user asks for places to visit, suggest 2-3 places and ALWAYS end your response by asking: \"Would you like me to navigate to any of these?\"\n")
-            basePrompt.append("8. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\") but does NOT specify which one, DO NOT use the navigate tool. You MUST ask \"Which one?\" first.\n")
+            basePrompt.append("8. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
         }
         if (isDiag || q.isEmpty()) {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
