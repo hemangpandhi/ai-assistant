@@ -295,6 +295,16 @@ The core local intelligence of the application is powered by **Google's LiteRT**
 - **WakeWordService**: Uses `Vosk` (Offline Acoustic Models) to constantly listen for "Hey Auto" without draining the battery or emitting system "beeps".
 - **AssistantSession**: The transparent bottom-sheet overlay. It orchestrates the Android `SpeechRecognizer` for transcription, pushes the text to `LLMManager`, and streams the resulting tokens through a sentence-boundary regex to Android `TextToSpeech` (`TTS`).
 
+## AOSP Framework Dependencies
+
+While the diagrams highlight the major flow, this project heavily relies on several native Android Open Source Project (AOSP) framework components to achieve deep system integration without requiring root access:
+
+1. **`android.service.voice.VoiceInteractionService`**: This is the core pillar of the UI. By extending this service, the application registers itself as the default OS Assistant. This grants it the power to be invoked globally via the physical steering wheel microphone button, hotwords, or the system navigation bar, drawing a `VoiceInteractionSession` overlay on top of any active app (like Google Maps) without dismissing it.
+2. **`android.content.SharedPreferences`**: Used as a persistent, lightweight memory bank. When the LLM triggers the `<TOOL>remember()</TOOL>` action, the `ToolManager` writes the user's preferences here. This context is subsequently injected into the system prompt on boot.
+3. **`android.media.browse.MediaBrowser` & `MediaController`**: For deep audio integration, the `ToolManager` uses these APIs to bind to active media sessions (like Spotify or YouTube Music) in the background. This allows the assistant to pause, play, or skip tracks seamlessly without having to visually launch the music app via standard intents.
+4. **`android.speech.SpeechRecognizer` & `TextToSpeech`**: The project strictly uses the native on-device implementations of these APIs. This ensures zero-latency audio processing and guarantees that the user's voice data never leaves the vehicle.
+5. **Android `<queries>` & Standard Intents**: The `AndroidManifest.xml` explicitly defines package visibility queries for `android.media.action.MEDIA_PLAY_FROM_SEARCH`, `geo:`, and `org.chromium.webview_shell`. This is required in modern Android (API 30+) to allow the `ToolManager`'s `ACTION_VIEW` and `ACTION_DIAL` intents to successfully resolve and launch third-party applications.
+
 ## Performance & Latency Optimizations
 
 To achieve highly responsive execution on an automotive SoC, the architecture implements several aggressive latency optimizations:
