@@ -332,7 +332,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             LLMManager.isFirstMessage = false
         } else {
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: $interceptedQuery"
+            val dynamicContext = LLMManager.getDynamicContext(interceptedQuery)
+            val dynStr = if (dynamicContext.isNotEmpty()) "\n$dynamicContext" else ""
+            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$dynStr$reminder\nUser: $interceptedQuery"
         }
 
         val executedTools = mutableSetOf<String>()
