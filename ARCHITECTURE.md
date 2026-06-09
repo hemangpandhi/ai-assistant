@@ -32,10 +32,10 @@ flowchart TD
 
     subgraph Orchestration ["3. Core AI Orchestration (Kotlin Singleton)"]
         LLM{"🧠 LLMManager<br/>(Prompt & State Control)"}:::logic
-        TM["🛠️ ToolManager<br/>(Semantic Router)"]:::logic
-        MEM["🧠 MemoryManager<br/>(Sliding Window Context)"]:::logic
+        TM["🛠️ ToolManager<br/>(Semantic Router & RAG)"}:::logic
+        MEM["🧠 MemoryManager<br/>(Short-Term Context Window)"}:::logic
         JSON[("📄 custom_properties.json<br/>(Zero-Code Definitions)")]:::config
-        PREFS[("💾 SharedPreferences<br/>(Persistent Memory)")]:::config
+        PREFS[("💾 SharedPreferences<br/>(Long-Term User Memory)")]:::config
     end
 
     subgraph Inference ["4. ML Edge Execution (C++ / GPU / NPU)"]
