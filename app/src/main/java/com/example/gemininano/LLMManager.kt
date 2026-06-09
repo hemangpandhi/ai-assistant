@@ -212,7 +212,7 @@ object LLMManager {
             basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\"), DO NOT use the navigate tool immediately. You MUST ask \"Which one?\" first.\n")
         }
         if (isFood || q.isEmpty()) {
-            basePrompt.append("8. FOOD SEARCH: If the user asks for food, a restaurant, or a specific cuisine (like Italian or Mexican), you MUST automatically search the map for that type of food using the EXACT syntax. Example: \"<TOOL>search(italian restaurants)</TOOL>\"\n")
+            basePrompt.append("8. FOOD CHOICES: If the user asks for a specific cuisine (like Italian or Mexican), DO NOT use the search tool. Instead, list 2-3 specific restaurants from your knowledge and ALWAYS end with: \"Which one would you like to navigate to?\".\n")
         }
         if (isDiag || q.isEmpty()) {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
@@ -258,7 +258,11 @@ object LLMManager {
 
             basePrompt.append("[Food - Follow-up]\n")
             basePrompt.append("User: \"Italian.\"\n")
-            basePrompt.append("Assistant: <TOOL>search(Italian restaurants)</TOOL>\n\n")
+            basePrompt.append("Assistant: Here are some Italian places nearby: 1. Olive Garden, 2. Mario's. Which one would you like to navigate to?\n\n")
+            
+            basePrompt.append("[Food - Selection]\n")
+            basePrompt.append("User: \"Mario's.\"\n")
+            basePrompt.append("Assistant: <TOOL>navigate(Mario's)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {
