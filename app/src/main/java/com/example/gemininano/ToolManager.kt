@@ -353,13 +353,21 @@ object ToolManager {
                         if (intent.resolveActivity(context.packageManager) != null) {
                             if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
                         } else {
-                            val fallbackIntent = Intent(Intent.ACTION_MAIN)
-                            fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
-                            fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            // Demo Workaround: Open YouTube Music in the browser for the search query
+                            val webIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://music.youtube.com/search?q=${android.net.Uri.encode(query)}"))
+                            webIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                             try {
-                                if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                                if (intentHandler != null) intentHandler(webIntent) else context.startActivity(webIntent)
                             } catch (e: Exception) {
-                                Log.e(TAG, "No music app found to handle request")
+                                // Ultimate Fallback: Just open the default music app
+                                val fallbackIntent = Intent(Intent.ACTION_MAIN)
+                                fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
+                                fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                try {
+                                    if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                                } catch (e2: Exception) {
+                                    Log.e(TAG, "No music app found to handle request")
+                                }
                             }
                         }
                     }
