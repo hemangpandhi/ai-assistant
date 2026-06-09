@@ -318,6 +318,21 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         MemoryManager.addTurn("User", interceptedQuery)
         val slidingHistory = MemoryManager.getSlidingWindowContext(3000)
         
+        // Anti-Hallucination Hard Short-Circuit for Music
+        val qStr = interceptedQuery.lowercase()
+        val musicQuery = qStr.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
+        val isGenericMusic = musicQuery.length <= 2 && qStr.contains("play") && !qStr.contains("pause") && !qStr.contains("stop") && !qStr.contains("next") && !qStr.contains("previous")
+        
+        if (isGenericMusic) {
+            val responseTextStr = "What kind of music would you like to listen to? For example, Bollywood, Rock, Jazz, or a specific song?"
+            responseText.text = responseTextStr
+            stopThinkingAnimation()
+            MemoryManager.addTurn("Assistant", responseTextStr)
+            btnSend.isEnabled = true
+            tts?.speak(responseTextStr, TextToSpeech.QUEUE_FLUSH, null, "music_clarify")
+            return
+        }
+        
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
