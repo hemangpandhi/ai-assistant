@@ -17,10 +17,11 @@ flowchart LR
     classDef ai fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
     classDef hardware fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
 
-    subgraph Input ["User Interfaces"]
+    subgraph Input ["User Interfaces & Input"]
         direction TB
         V([🗣️ Voice Input]):::interface
         T([⌨️ Text Input]):::interface
+        STT[🎤 Android SpeechRecognizer]:::interface
         UI[📱 Assistant UI Overlay]:::interface
     end
 
@@ -44,7 +45,8 @@ flowchart LR
     end
 
     %% Data Flow
-    V & T --> UI
+    V --> STT
+    STT & T --> UI
     UI <==>|Context State| SM
     
     SM ==>|Prompt Gen| ENG
