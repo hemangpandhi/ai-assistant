@@ -168,7 +168,17 @@ object LLMManager {
         
         if (isFood && prompt.length < 50) {
             try {
-                val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(prompt + " restaurant", "UTF-8")}&format=json&limit=3&viewbox=139.30,35.60,139.45,35.50&bounded=1")
+                var cuisine = "restaurant"
+                if (q.contains("italian")) cuisine = "Italian restaurant"
+                else if (q.contains("mexican")) cuisine = "Mexican restaurant"
+                else if (q.contains("chinese")) cuisine = "Chinese restaurant"
+                else if (q.contains("pizza")) cuisine = "Pizza"
+                else if (q.contains("burger")) cuisine = "Burger"
+                else if (q.contains("sushi") || q.contains("japanese")) cuisine = "Sushi"
+                else if (q.contains("indian")) cuisine = "Indian restaurant"
+                else if (q.contains("thai")) cuisine = "Thai restaurant"
+
+                val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(cuisine, "UTF-8")}&format=json&limit=3&viewbox=139.30,35.60,139.45,35.50&bounded=1")
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
                 connection.requestMethod = "GET"
