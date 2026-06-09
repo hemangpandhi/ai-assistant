@@ -938,7 +938,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (prompt.length < 25) {
                     additionalContext + "\nUser: " + prompt
                 } else {
-                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr, Dining: $diningPref]" + additionalContext + "\nUser: " + prompt
+                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]" + additionalContext + "\nUser: " + prompt
                 }
             }
 

@@ -44,7 +44,7 @@ object VehicleManager {
         val customProps = getCustomPropertiesString()
         val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
         
-        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Heater: ${getRealSeatHeaterLevel()}, City: ${LocationManager.getCurrentCity()}$customPropsStr, User Food Preference: $diningPref"
+        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Heater: ${getRealSeatHeaterLevel()}, City: ${LocationManager.getCurrentCity()}$customPropsStr"
     }
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
