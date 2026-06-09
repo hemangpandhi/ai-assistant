@@ -17,45 +17,42 @@ flowchart TD
     classDef halBox fill:#022C22,stroke:#34D399,stroke-width:2px,color:#D1FAE5,rx:4px,ry:4px;
     classDef layer fill:transparent,stroke-width:0px;
 
-    subgraph L1 ["Application Layer"]
+    subgraph L1 ["1. Application Layer"]
         direction LR
-        UI["System UI + Voice<br/>Chrome animation"]:::appBox
-        NAV["Navigation"]:::appBox
-        MEDIA["Media<br/>Apps"]:::appBox
-        HVAC["HVAC"]:::appBox
-        SET["Settings"]:::appBox
-        THIRD["3rd Party Apps"]:::appBox
-        OEM["OEM Apps"]:::appBox
-        GAS["GAS"]:::appBox
+        ACT["📱 Configuration UI<br/>(LocalLLMActivity)"]:::appBox
+        SESSION["🎤 Voice Overlay<br/>(AssistantSession)"]:::appBox
+        APPS["🎵 Target Apps<br/>(Media, Dialer, Maps)"]:::appBox
+        ACT ~~~ SESSION ~~~ APPS
     end
 
-    subgraph L2 ["GenAI Orchestrator Engine – LiteRT"]
+    subgraph L2 ["2. GenAI Orchestrator Engine"]
         direction LR
-        STT["Audio to text"]:::genaiBox
-        LLM["Large Language<br/>Model"]:::genaiBox
-        RAG["Local RAG"]:::genaiBox
+        VOSK["🗣️ Offline WakeWord<br/>(Vosk Model)"]:::genaiBox
+        LLM["🧠 Large Language Model<br/>(LiteRT Edge)"]:::genaiBox
+        TM["🛠️ Semantic Router<br/>(ToolManager)"]:::genaiBox
+        MEM["💾 Context Memory<br/>(MemoryManager)"]:::genaiBox
+        VOSK ~~~ LLM ~~~ TM ~~~ MEM
     end
 
-    subgraph L3 ["AOSP Framework"]
+    subgraph L3 ["3. AOSP Framework"]
         direction LR
-        CPM["Car Property<br/>Manager"]:::aospBox
-        CAS["Car Audio<br/>Service"]:::aospBox
-        LOC["Location<br/>Manager"]:::aospBox
-        VPROP["Vendor<br/>Property"]:::aospBox
+        CPM["⚙️ Car Property<br/>Manager"]:::aospBox
+        AM["📱 Activity & Media<br/>Managers"]:::aospBox
+        TTS["🔊 Text-to-Speech<br/>Engine"]:::aospBox
+        CPM ~~~ AM ~~~ TTS
     end
 
-    subgraph L4 ["Vehicle Hardware Abstraction Layer"]
+    subgraph L4 ["4. Vehicle Hardware Layer"]
         direction LR
-        CAM["Camera HAL"]:::halBox
-        BT["Bluetooth"]:::halBox
-        AHAL["Audio<br/>HAL"]:::halBox
-        VHAL["Vehicle HAL (CAN<br/>Bus router)"]:::halBox
+        VHAL["🌉 Vehicle HAL<br/>(CAN Bus Router)"]:::halBox
+        AUDIO["🔈 Audio HAL<br/>(Mic & Speakers)"]:::halBox
+        VHAL ~~~ AUDIO
     end
 
     %% Connections
-    L1 <==> L2
-    L2 <==> L3
-    L3 <==> L4
+    L1 ==>|"Queries / Display"| L2
+    L2 ==>|"Intents / IPC"| L3
+    L3 ==>|"Hardware Bridge"| L4
     
     class L1,L2,L3,L4 layer;
 ```
