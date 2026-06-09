@@ -94,64 +94,49 @@ flowchart TD
     INTENTS -->|"Launch Dialer"| PHONE
 ```
 
-### AOSP Integration Stack Diagram
+### AOSP Vertical Integration Stack
 
-The following diagram illustrates exactly where the LLM Engine Orchestrator resides within the Android Open Source Project (AOSP) architecture stack, and how natural language commands are translated down to the vehicle hardware via the Car API and Vehicle HAL.
+The following diagram illustrates exactly where the LLM Engine Orchestrator resides within the Android Open Source Project (AOSP) architecture stack. It combines the high-level software layers (Application -> Framework -> HAL -> Hardware) with the specific APIs used to translate natural language commands down to the vehicle hardware.
 
 ```mermaid
 flowchart TD
     %% Professional Styling
-    classDef app fill:#0F172A,stroke:#38BDF8,stroke-width:3px,color:#F8FAFC,rx:8px,ry:8px,font-weight:bold;
-    classDef api fill:#1E293B,stroke:#94A3B8,stroke-width:2px,color:#CBD5E1,rx:8px,ry:8px;
+    classDef app fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px,font-weight:bold;
     classDef framework fill:#1E293B,stroke:#A78BFA,stroke-width:2px,color:#E6D5B8,rx:8px,ry:8px;
     classDef hal fill:#1E293B,stroke:#34D399,stroke-width:2px,color:#A7F3D0,rx:8px,ry:8px;
     classDef hw fill:#1E293B,stroke:#FB923C,stroke-width:2px,color:#FED7AA,rx:8px,ry:8px;
 
-    APP_LLM["🚀 AI System Apps<br/>(LocalLLMActivity, ToolManager)"]:::app
+    subgraph L1 ["📱 1. Application Layer"]
+        direction LR
+        APP_LLM["🚀 AI System Apps<br/>(ToolManager, AssistantSession)"]:::app
+        SYSTEM_APPS["🎵 OS Applications<br/>(Media, Dialer, Maps)"]:::app
+    end
     
-    CPM["⚙️ Car API Layer<br/>(CarPropertyManager)"]:::api
+    subgraph L2 ["🛠️ 2. Android Framework Layer"]
+        direction LR
+        CPM["⚙️ Car API Layer<br/>(CarPropertyManager)"]:::framework
+        AM["📱 OS Framework<br/>(ActivityManager, MediaBrowser)"]:::framework
+        CS["🛠️ Core Services<br/>(com.android.car.CarService)"]:::framework
+    end
     
-    CS["🛠️ Android Framework<br/>(com.android.car.CarService)"]:::framework
+    subgraph L3 ["🌉 3. Hardware Abstraction Layer (HAL)"]
+        VHAL["🌉 Vehicle HAL<br/>(Hardware Interface)"]:::hal
+    end
     
-    AM["📱 Android Framework<br/>(ActivityManager, AudioManager)"]:::framework
-    
-    VHAL["🌉 Hardware Abstraction<br/>(Vehicle HAL)"]:::hal
-    
-    CAN["🚗 Hardware Layer<br/>(CAN Bus & ECUs)"]:::hw
-    
-    SYSTEM_APPS["🎵 System Apps<br/>(Media, Dialer, Browser)"]:::app
+    subgraph L4 ["🚗 4. Physical Hardware Layer"]
+        CAN["🚗 CAN Bus & Physical ECUs"]:::hw
+    end
 
     %% Data flow mapping
-    APP_LLM ==>|"1a. Tool Execution (Write) / Telemetry (Read)"| CPM
-    CPM ==>|"2a. Cross-Process Binder IPC"| CS
-    CS ==>|"3a. Hardware Interface (HIDL / AIDL)"| VHAL
-    VHAL ==>|"4a. Raw CAN Payload / Electrical Signals"| CAN
+    APP_LLM ==>|"1a. Actuation & Telemetry (Write/Read)"| CPM
+    APP_LLM ==>|"1b. Standard Intents (Play, Call)"| AM
     
-    APP_LLM ==>|"1b. Standard Intents (Play, Pause, Call)"| AM
+    CPM ==>|"2a. Cross-Process Binder IPC"| CS
+    CS ==>|"3. Hardware Bridge (HIDL / AIDL)"| VHAL
+    
     AM ==>|"2b. Dispatch Intent / Media Key Event"| SYSTEM_APPS
-```
-
-### Vertical Layer Stack
-
-For a simplified view of the system architecture from a pure software-stack perspective:
-
-```mermaid
-flowchart TD
-    classDef app fill:#0F172A,stroke:#38BDF8,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px,font-weight:bold;
-    classDef fw fill:#0F172A,stroke:#A78BFA,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px,font-weight:bold;
-    classDef hal fill:#0F172A,stroke:#34D399,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px,font-weight:bold;
-    classDef hw fill:#0F172A,stroke:#FB923C,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px,font-weight:bold;
-
-    APP["📱 1. Application Layer<br/>(LocalLLMActivity, ToolManager)"]:::app
-    FW["🛠️ 2. Framework Layer<br/>(CarPropertyManager, ActivityManager)"]:::fw
-    HAL["🌉 3. Hardware Abstraction<br/>(Vehicle HAL - VHAL)"]:::hal
-    HW["🚗 4. Hardware Layer<br/>(CAN Bus, ECUs)"]:::hw
-    SYS_APP["📱 OS Applications<br/>(Media, Dialer, Apps)"]:::app
-
-    APP ==>|"Binder IPC"| FW
-    FW ==>|"HIDL / AIDL"| HAL
-    HAL ==>|"Electrical"| HW
-    FW ==>|"Intents"| SYS_APP
+    
+    VHAL ==>|"4. Raw CAN Payload / Electrical Signals"| CAN
 ```
 
 ### Class & Structural Block Diagram
