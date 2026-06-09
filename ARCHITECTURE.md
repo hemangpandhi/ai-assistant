@@ -14,36 +14,36 @@ block-beta
 
   block:L1["1. Application Layer"]
     columns 3
-    ACT["📱 Configuration UI<br/>(LocalLLMActivity)"]
-    SESSION["🎤 Voice Overlay<br/>(AssistantSession)"]
-    APPS["🎵 Target Apps<br/>(Media, Dialer, Maps)"]
+    ACT["📱 Config UI"]
+    SESSION["🎤 Voice Overlay"]
+    APPS["🎵 Target Apps"]
   end
   
   space
   
   block:L2["2. GenAI Orchestrator Engine"]
     columns 4
-    VOSK["🗣️ Offline WakeWord<br/>(Vosk Model)"]
-    LLM["🧠 Large Language Model<br/>(LiteRT Edge)"]
-    TM["🛠️ Semantic Router<br/>(ToolManager)"]
-    MEM["💾 Context Memory<br/>(MemoryManager)"]
+    VOSK["🗣️ Vosk WakeWord"]
+    LLM["🧠 LiteRT Edge LLM"]
+    TM["🛠️ ToolManager RAG"]
+    MEM["💾 Context Memory"]
   end
   
   space
   
   block:L3["3. AOSP Framework"]
     columns 3
-    CPM["⚙️ Car Property<br/>Manager"]
-    AM["📱 Activity & Media<br/>Managers"]
-    TTS["🔊 Text-to-Speech<br/>Engine"]
+    CPM["⚙️ Car Property Mgr"]
+    AM["📱 Activity Mgrs"]
+    TTS["🔊 Text-to-Speech"]
   end
   
   space
   
   block:L4["4. Vehicle Hardware Layer"]
     columns 2
-    VHAL["🌉 Vehicle HAL<br/>(CAN Bus Router)"]
-    AUDIO["🔈 Audio HAL<br/>(Mic & Speakers)"]
+    VHAL["🌉 Vehicle HAL (CAN)"]
+    AUDIO["🔈 Audio HAL"]
   end
 
   %% Connections
@@ -51,12 +51,12 @@ block-beta
   L2 -- "Cross-Process Binder IPC / Intents" --> L3
   L3 -- "Hardware Bridge (HIDL / AIDL)" --> L4
 
-  %% Styling
-  classDef appBox fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#E0E7FF;
-  classDef genaiBox fill:#082F49,stroke:#38BDF8,stroke-width:2px,color:#E0F2FE;
-  classDef aospBox fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#FEF3C7;
-  classDef halBox fill:#022C22,stroke:#34D399,stroke-width:2px,color:#D1FAE5;
-  classDef layer fill:transparent,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:5 5;
+  %% Theme-agnostic styling (relying on strokes for color, letting GitHub handle text contrast)
+  classDef appBox stroke:#6366F1,stroke-width:2px;
+  classDef genaiBox stroke:#0EA5E9,stroke-width:2px;
+  classDef aospBox stroke:#F59E0B,stroke-width:2px;
+  classDef halBox stroke:#10B981,stroke-width:2px;
+  classDef layer fill:none,stroke:#94A3B8,stroke-width:2px,stroke-dasharray:5 5;
 
   class ACT,SESSION,APPS appBox
   class VOSK,LLM,TM,MEM genaiBox
