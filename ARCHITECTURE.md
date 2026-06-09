@@ -4,9 +4,63 @@ This document outlines the architecture, components, and data flow of the **Vehi
 
 ## Core Architecture Overview
 
-The system is built on a split architecture: a primary User Interface (`LocalLLMActivity`) for configuration and extended interactions, and a lightweight System UI Overlay (`AssistantSession`) for persistent, system-wide access. Both rely on a shared Singleton inference engine (`LLMManager`) to ensure rapid response times and consistent state.
+### High-Level Architecture Stack
 
-### High-Level Component Diagram
+The following diagram illustrates the high-level boundaries and logical domains of the automotive AI stack, from the user-facing application layer down to the CAN bus hardware.
+
+```mermaid
+flowchart TD
+    %% Styling to match modern dark-mode automotive interfaces
+    classDef appBox fill:#1E1B4B,stroke:#818CF8,stroke-width:2px,color:#E0E7FF,rx:4px,ry:4px;
+    classDef genaiBox fill:#082F49,stroke:#38BDF8,stroke-width:2px,color:#E0F2FE,rx:4px,ry:4px;
+    classDef aospBox fill:#451A03,stroke:#FBBF24,stroke-width:2px,color:#FEF3C7,rx:4px,ry:4px;
+    classDef halBox fill:#022C22,stroke:#34D399,stroke-width:2px,color:#D1FAE5,rx:4px,ry:4px;
+    classDef layer fill:transparent,stroke-width:0px;
+
+    subgraph L1 ["Application Layer"]
+        direction LR
+        UI["System UI + Voice<br/>Chrome animation"]:::appBox
+        NAV["Navigation"]:::appBox
+        MEDIA["Media<br/>Apps"]:::appBox
+        HVAC["HVAC"]:::appBox
+        SET["Settings"]:::appBox
+        THIRD["3rd Party Apps"]:::appBox
+        OEM["OEM Apps"]:::appBox
+        GAS["GAS"]:::appBox
+    end
+
+    subgraph L2 ["GenAI Orchestrator Engine – LiteRT"]
+        direction LR
+        STT["Audio to text"]:::genaiBox
+        LLM["Large Language<br/>Model"]:::genaiBox
+        RAG["Local RAG"]:::genaiBox
+    end
+
+    subgraph L3 ["AOSP Framework"]
+        direction LR
+        CPM["Car Property<br/>Manager"]:::aospBox
+        CAS["Car Audio<br/>Service"]:::aospBox
+        LOC["Location<br/>Manager"]:::aospBox
+        VPROP["Vendor<br/>Property"]:::aospBox
+    end
+
+    subgraph L4 ["Vehicle Hardware Abstraction Layer"]
+        direction LR
+        CAM["Camera HAL"]:::halBox
+        BT["Bluetooth"]:::halBox
+        AHAL["Audio<br/>HAL"]:::halBox
+        VHAL["Vehicle HAL (CAN<br/>Bus router)"]:::halBox
+    end
+
+    %% Connections
+    L1 <==> L2
+    L2 <==> L3
+    L3 <==> L4
+    
+    class L1,L2,L3,L4 layer;
+```
+
+### Detailed Data & Execution Flow
 
 ```mermaid
 flowchart TD
