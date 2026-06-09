@@ -273,16 +273,11 @@ object ToolManager {
                         val browseIntent = Intent("android.media.browse.MediaBrowserService")
                         val resolveInfos = pm.queryIntentServices(browseIntent, 0)
                         
-                        // Prefer Spotify Automotive if available, then YouTube Music, then others
-                        val sortedInfos = resolveInfos.sortedByDescending { 
-                            when {
-                                it.serviceInfo.packageName.contains("spotify") -> 2
-                                it.serviceInfo.packageName.contains("youtube") -> 1
-                                else -> 0
-                            }
-                        }
+                        // Prefer Spotify Automotive if available
+                        val targetInfo = resolveInfos.find { it.serviceInfo.packageName.contains("spotify") } 
+                            ?: resolveInfos.firstOrNull()
                             
-                        for (targetInfo in sortedInfos) {
+                        if (targetInfo != null) {
                             val componentName = android.content.ComponentName(targetInfo.serviceInfo.packageName, targetInfo.serviceInfo.name)
                             Log.i(TAG, "Connecting to MediaBrowserService: ${componentName.flattenToString()}")
                             
@@ -296,7 +291,7 @@ object ToolManager {
                                                 val sessionToken = browser.sessionToken
                                                 val controller = android.media.session.MediaController(context, sessionToken)
                                                 controller.transportControls.playFromSearch(query, null)
-                                                Log.i(TAG, "Dispatched playFromSearch for: $query via MediaController to ${targetInfo.serviceInfo.packageName}")
+                                                Log.i(TAG, "Dispatched playFromSearch for: $query via MediaController")
                                                 if (!hasResumed) {
                                                     hasResumed = true
                                                     continuation.resumeWith(Result.success(true))
@@ -336,24 +331,20 @@ object ToolManager {
                                     }
                                 }
                             }
-                            
-                            if (mediaSearchSuccess) {
-                                // Bring the successful app to the foreground
-                                val launchIntent = pm.getLaunchIntentForPackage(targetInfo.serviceInfo.packageName)
-                                if (launchIntent != null) {
-                                    launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    try {
-                                        if (intentHandler != null) intentHandler(launchIntent) else context.startActivity(launchIntent)
-                                    } catch (e: Exception) {}
-                                }
-                                break
-                            }
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "MediaBrowserService connection failed", e)
                     }
 
-                    if (!mediaSearchSuccess) {
+                    if (mediaSearchSuccess) {
+                        // Launch the app UI to show the playing track
+                        val fallbackIntent = Intent(Intent.ACTION_MAIN)
+                        fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
+                        fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        try {
+                            if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                        } catch (e: Exception) {}
+                    } else {
                         // Fallback to standard intents if MediaBrowser failed
                         val intent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
                         intent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
