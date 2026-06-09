@@ -271,6 +271,15 @@ object ToolManager {
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                     if (intent.resolveActivity(context.packageManager) != null) {
                         if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
+                    } else {
+                        val fallbackIntent = Intent(Intent.ACTION_MAIN)
+                        fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
+                        fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        try {
+                            if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "No music app found to handle request")
+                        }
                     }
                     "Playing $query."
                 }

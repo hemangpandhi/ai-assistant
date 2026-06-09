@@ -18,11 +18,19 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
         }
     }
 
+    override fun onCreate() {
+        super.onCreate()
+        val filter = IntentFilter("com.example.gemininano.WAKE_WORD_DETECTED")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(receiver, filter)
+        }
+    }
+
     override fun onReady() {
         super.onReady()
         VehicleManager.initialize(this) // 'this' is a Service, which is a valid Context for Car Service binding!
-        val filter = IntentFilter("com.example.gemininano.WAKE_WORD_DETECTED")
-        registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onShutdown() {

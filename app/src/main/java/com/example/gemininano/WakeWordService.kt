@@ -93,7 +93,11 @@ class WakeWordService : Service(), RecognitionListener {
     }
     
     private fun checkWakeWord(hypothesis: String) {
-        if (hypothesis.lowercase().contains(wakeWord)) {
+        val lowerHypothesis = hypothesis.lowercase()
+        if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
+            Log.d("WakeWord", "Vosk heard: $hypothesis")
+        }
+        if (lowerHypothesis.contains(wakeWord)) {
             Log.d("WakeWord", "Wake word detected: $wakeWord")
             val intent = Intent("com.example.gemininano.WAKE_WORD_DETECTED")
             intent.setPackage(packageName)
