@@ -347,6 +347,25 @@ Originally, injecting the massive 1,500-token System Prompt (containing all the 
 *   **Mid-Range Local** (e.g., Qwen 2.5 1.5B): `1.5s - 2.5s` (GPU)
 *   **Premium Local** (e.g., Gemma 4 E2B): `2.5s - 3.5s` (GPU/NPU)
 
+## Path to Production (OEM Deployment)
+
+While this architecture serves as a highly capable foundation, transitioning this from an AOSP sample into a **Tier-1 Production Vehicle** requires several critical system-level upgrades:
+
+### 1. Platform Signing & Privileged Execution (`priv-app`)
+Currently, the application declares dangerous `android.car.permission.*` permissions in its manifest. In a production build, this APK must be placed in the `/system/priv-app/` directory and signed with the OEM's platform certificate. This grants the `VehicleManager` silent, unrestricted access to the `CarPropertyManager` without triggering Android permission pop-ups or security rejections from the SELinux policies.
+
+### 2. Strict Payload Validation & Safety Bounds
+The `custom_properties.json` currently allows the LLM to write raw integers and floats directly to the CAN bus via the VHAL. Production requires a rigid validation layer (a middleware firewall) to ensure the AI cannot hallucinate out-of-bounds values (e.g., attempting to set the HVAC temperature to 500 degrees or triggering diagnostic routines while the vehicle is in motion).
+
+### 3. Native Media Integrations (Replacing Scrapers)
+The current `ToolManager` implements workarounds (like web-scraping YouTube HTML and dispatching global `KEYCODE_MEDIA_PLAY` events) to handle media playback due to third-party app constraints. In production, this must be replaced by deep integration with the OEM's unified Media Center Service or via official API partnerships (e.g., Spotify SDK), using authenticated `MediaBrowserService` connections to guarantee seamless background routing.
+
+### 4. Low-Power Acoustic WakeWord (Always-On Compute)
+The current `WakeWordService` runs a continuous `Vosk` acoustic model in a standard Foreground Service. While functional, this drains the primary SoC battery. Production requires migrating the Hotword detector down to the hardware **Always-On Compute (AOC) domain** or a low-power DSP (Digital Signal Processor). The SoC should remain asleep until the DSP detects "Hey Auto" and fires a hardware interrupt to wake the Android Application Processor (AP) and launch the `VoiceInteractionSession`.
+
+### 5. Over-The-Air (OTA) Model & Context Delivery
+The LLM weights (`.litertlm`) and the `custom_properties.json` map are currently statically loaded. A production architecture must include a dynamic synchronization engine (via a Telematics Control Unit or OTA daemon). This allows the manufacturer to update the AI's behavioral rules, patch hallucination vectors, or deliver highly compressed LoRA weights without requiring a full Android System Update.
+
 ## Future Scaling Plan
 
 As the underlying automotive hardware and edge-AI models evolve, the architecture is designed to scale in the following directions:
