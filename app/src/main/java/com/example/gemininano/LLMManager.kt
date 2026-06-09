@@ -263,7 +263,7 @@ object LLMManager {
             if (dyn.isNotEmpty()) {
                 basePrompt.append("8. FOOD CHOICES: $dyn\n")
             } else {
-                basePrompt.append("8. FOOD CHOICES: If the user asks for a specific cuisine, DO NOT use the search tool. Instead, list 2-3 nearby options and ALWAYS end with: \"Which one would you like to navigate to?\".\n")
+                basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT navigate immediately! You MUST ask them what kind of food they want or if they want their preferred cuisine. NEVER use the navigate tool before they choose a specific restaurant.\n")
             }
         }
         if (isDiag || q.isEmpty()) {
