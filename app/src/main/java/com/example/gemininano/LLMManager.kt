@@ -169,7 +169,7 @@ object LLMManager {
         val q = query.lowercase()
         val isHvac = q.contains("temperature") || q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("ac") || q.contains("heater") || q.contains("defroster") || q.contains("increase") || q.contains("decrease")
         val isSightseeing = q.contains("see") || q.contains("visit") || q.contains("interesting") || q.contains("places") || q.contains("sightseeing") || q.contains("tourist")
-        val isFood = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant")
+        val isFood = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai")
         val isNav = (q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route")) && !isSightseeing && !isFood
         val isAmbient = q.contains("home") || q.contains("work")
         val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("fuel")
@@ -212,7 +212,7 @@ object LLMManager {
             basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\"), DO NOT use the navigate tool immediately. You MUST ask \"Which one?\" first.\n")
         }
         if (isFood || q.isEmpty()) {
-            basePrompt.append("8. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
+            basePrompt.append("8. FOOD SEARCH: If the user asks for food, a restaurant, or a specific cuisine (like Italian or Mexican), you MUST automatically search the map for that type of food using the EXACT syntax. Example: \"<TOOL>search(italian restaurants)</TOOL>\"\n")
         }
         if (isDiag || q.isEmpty()) {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
@@ -249,6 +249,16 @@ object LLMManager {
             basePrompt.append("[Sightseeing - Accept specific]\n")
             basePrompt.append("User: \"The Eiffel Tower.\"\n")
             basePrompt.append("Assistant: <TOOL>navigate(Eiffel Tower)</TOOL>\n\n")
+        }
+
+        if (isFood || q.isEmpty()) {
+            basePrompt.append("[Food Query]\n")
+            basePrompt.append("User: \"I'm hungry.\"\n")
+            basePrompt.append("Assistant: What kind of food are you in the mood for?\n\n")
+
+            basePrompt.append("[Food - Follow-up]\n")
+            basePrompt.append("User: \"Italian.\"\n")
+            basePrompt.append("Assistant: <TOOL>search(Italian restaurants)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {
