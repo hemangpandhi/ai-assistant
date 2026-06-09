@@ -168,7 +168,7 @@ object LLMManager {
         
         val q = query.lowercase()
         val isHvac = q.contains("temperature") || q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("ac") || q.contains("heater") || q.contains("defroster") || q.contains("increase") || q.contains("decrease")
-        val isSightseeing = q.contains("see") || q.contains("visit") || q.contains("interesting") || q.contains("places")
+        val isSightseeing = q.contains("see") || q.contains("visit") || q.contains("interesting") || q.contains("places") || q.contains("sightseeing") || q.contains("tourist")
         val isFood = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant")
         val isNav = (q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route")) && !isSightseeing && !isFood
         val isAmbient = q.contains("home") || q.contains("work")
@@ -208,8 +208,8 @@ object LLMManager {
             basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
         }
         if (isSightseeing || q.isEmpty()) {
-            basePrompt.append("6. SIGHTSEEING: If the user asks for sightseeing or tourist attractions, DO NOT use the search tool. Instead, use your own knowledge to suggest 2-3 specific places and ALWAYS end your response by explicitly asking: \"Would you like me to navigate to any of these?\".\n")
-            basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\") but does NOT specify which one, DO NOT use the navigate tool. You MUST ask \"Which one?\" first.\n")
+            basePrompt.append("6. SIGHTSEEING: If asked about places to visit or sightseeing, YOU MUST suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Would you like me to navigate to any of these?\". Do NOT forget to ask this question!\n")
+            basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\"), DO NOT use the navigate tool immediately. You MUST ask \"Which one?\" first.\n")
         }
         if (isFood || q.isEmpty()) {
             basePrompt.append("8. MEMORY: If asked for food, check User Food Preference in the Current State and automatically search the map for that type of food. Example: \"<TOOL>search(pure vegetarian restaurants)</TOOL>\"\n")
@@ -235,8 +235,8 @@ object LLMManager {
 
         if (isSightseeing || q.isEmpty()) {
             basePrompt.append("[Sightseeing Query]\n")
-            basePrompt.append("User: \"What are some interesting things I should see in Paris?\"\n")
-            basePrompt.append("Assistant: Paris is beautiful! You should definitely see the Eiffel Tower and the Louvre Museum. Would you like me to navigate to any of these?\n\n")
+            basePrompt.append("User: \"What are some sightseeing places to visit?\"\n")
+            basePrompt.append("Assistant: There are many great places to visit around here! You should definitely see the Central Park and the Art Museum. Would you like me to navigate to any of these?\n\n")
 
             basePrompt.append("[Sightseeing - Decline]\n")
             basePrompt.append("User: \"No thanks.\"\n")
