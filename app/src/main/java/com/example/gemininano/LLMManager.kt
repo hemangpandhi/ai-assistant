@@ -162,9 +162,9 @@ object LLMManager {
         return getDefaultSystemPrompt(context, query)
     }
     
-    fun getDynamicContext(prompt: String): String {
+    fun getDynamicContext(context: android.content.Context, prompt: String): String {
         val q = prompt.lowercase()
-        val isFood = q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan")
+        val isFood = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan")
         val isFuel = q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")
         
         if ((isFood || isFuel) && prompt.length < 50) {
@@ -173,6 +173,9 @@ object LLMManager {
                 if (isFuel) {
                     searchQuery = if (q.contains("charging")) "EV charging station" else "gas station"
                 } else {
+                    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                    val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
+                    
                     if (q.contains("italian")) searchQuery = "Italian restaurant"
                     else if (q.contains("mexican")) searchQuery = "Mexican restaurant"
                     else if (q.contains("chinese")) searchQuery = "Chinese restaurant"
@@ -182,6 +185,7 @@ object LLMManager {
                     else if (q.contains("indian")) searchQuery = "Indian restaurant"
                     else if (q.contains("thai")) searchQuery = "Thai restaurant"
                     else if (q.contains("vegetarian") || q.contains("vegan")) searchQuery = "Vegetarian restaurant"
+                    else searchQuery = "$diningPref restaurant"
                 }
 
                 val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&format=json&limit=3&viewbox=139.30,35.60,139.45,35.50&bounded=1")
@@ -259,15 +263,13 @@ object LLMManager {
             basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\"), DO NOT use the navigate tool immediately. You MUST ask \"Which one?\" first.\n")
         }
         if (isFood || q.isEmpty()) {
-            val dyn = getDynamicContext(query)
+            val dyn = getDynamicContext(context, query)
             if (dyn.isNotEmpty()) {
                 basePrompt.append("8. FOOD CHOICES: $dyn\n")
-            } else {
-                basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT navigate immediately! You MUST ask them what kind of food they want or if they want their preferred cuisine. NEVER use the navigate tool before they choose a specific restaurant.\n")
             }
         }
         if (isDiag || q.isEmpty()) {
-            val dynFuel = getDynamicContext(query)
+            val dynFuel = getDynamicContext(context, query)
             if (dynFuel.isNotEmpty() && (q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging"))) {
                 basePrompt.append("9. FUEL/CHARGING CHOICES: $dynFuel\n")
             } else {
@@ -309,10 +311,11 @@ object LLMManager {
         }
 
         if (isFood || q.isEmpty()) {
-            val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
-            basePrompt.append("[Food Query]\n")
+            basePrompt.append("[Food Selection]\n")
             basePrompt.append("User: \"I'm hungry.\"\n")
-            basePrompt.append("Assistant: I remember you like $diningPref food. Would you like me to find a $diningPref restaurant, or are you craving something else?\n\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. Mario's, 2. Luigi's. Which one would you like to navigate to?\n")
+            basePrompt.append("User: \"1.\"\n")
+            basePrompt.append("Assistant: <TOOL>navigate(Mario's)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {
@@ -324,7 +327,7 @@ object LLMManager {
             basePrompt.append("Assistant: <TOOL>navigate(gas station)</TOOL>\n\n")
         }
 
-        if ((isDiag || q.isEmpty()) && getDynamicContext(query).isEmpty()) {
+        if ((isDiag || q.isEmpty()) && getDynamicContext(context, query).isEmpty()) {
             basePrompt.append("[Smart Fuel Routing - Ask First]\n")
             basePrompt.append("User: \"I am running out of fuel.\"\n")
             basePrompt.append("Assistant: Your fuel level is low. Should I navigate you to a nearby gas station?\n\n")

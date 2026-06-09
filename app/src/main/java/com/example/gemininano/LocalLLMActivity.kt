@@ -930,7 +930,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 LLMManager.isFirstMessage = false
                 LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
             } else {
-                val additionalContext = LLMManager.getDynamicContext(prompt)
+                val additionalContext = LLMManager.getDynamicContext(applicationContext, prompt)
                 val customProps = VehicleManager.getCustomPropertiesString()
                 val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
                 

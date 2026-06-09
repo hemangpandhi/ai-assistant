@@ -332,7 +332,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             LLMManager.isFirstMessage = false
         } else {
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            val dynamicContext = LLMManager.getDynamicContext(interceptedQuery)
+            val dynamicContext = LLMManager.getDynamicContext(context, interceptedQuery)
             val dynStr = if (dynamicContext.isNotEmpty()) "\n$dynamicContext" else ""
             finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$dynStr$reminder\nUser: $interceptedQuery"
         }
@@ -402,18 +402,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             val matches = regex.findAll(currentText)
                             for (match in matches) {
                                 val toolCall = match.groups[1]?.value?.trim() ?: continue
-                                
-                                // Anti-Hallucination Hack: Prevent direct navigation on generic food queries
-                                val toolName = toolCall.substringBefore("(").trim()
-                                val q = interceptedQuery.lowercase()
-                                val isGenericFood = (q.contains("hungry") || q.contains("food")) && 
-                                                    !(q.contains("italian") || q.contains("mexican") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("vegetarian") || q.contains("vegan") || q.contains("indian") || q.contains("thai") || q.contains("japanese"))
-                                
-                                if ((toolName == "navigate" || toolName == "search") && isGenericFood) {
-                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory tool call: $toolCall")
-                                    continue
-                                }
-                                
                                 if (executedTools.add(toolCall)) {
                                     android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")
                                     val toolDef = ToolManager.getToolDefinition(toolCall)
