@@ -83,10 +83,10 @@ flowchart TD
     CAN["🚗 Hardware Layer<br/>(CAN Bus & ECUs)"]:::hw
 
     %% Data flow mapping
-    APP_LLM ==>|1. Tool Execution (Write) / Telemetry (Read)| CPM
-    CPM ==>|2. Cross-Process Binder IPC| CS
-    CS ==>|3. Hardware Interface (HIDL / AIDL)| VHAL
-    VHAL ==>|4. Raw CAN Payload / Electrical Signals| CAN
+    APP_LLM ==>|"1. Tool Execution (Write) / Telemetry (Read)"| CPM
+    CPM ==>|"2. Cross-Process Binder IPC"| CS
+    CS ==>|"3. Hardware Interface (HIDL / AIDL)"| VHAL
+    VHAL ==>|"4. Raw CAN Payload / Electrical Signals"| CAN
 ```
 
 ### Vertical Layer Stack
