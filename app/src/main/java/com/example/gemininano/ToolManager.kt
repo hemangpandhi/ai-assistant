@@ -365,22 +365,19 @@ object ToolManager {
                                 fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                                 try {
                                     if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                                    // Dispatch a global Media Play event to resume playback in the background or newly launched app
+                                    try {
+                                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
+                                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
+                                        audioManager.dispatchMediaKeyEvent(eventDown)
+                                        audioManager.dispatchMediaKeyEvent(eventUp)
+                                    } catch (e: Exception) {}
                                 } catch (e2: Exception) {
                                     Log.e(TAG, "No music app found to handle request")
                                 }
                             }
                         }
-                    }
-                    
-                    // Dispatch a global Media Play event to resume playback in the background or newly launched app
-                    try {
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                        audioManager.dispatchMediaKeyEvent(eventDown)
-                        audioManager.dispatchMediaKeyEvent(eventUp)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to dispatch media play key event")
                     }
                     
                     "Playing $query."
