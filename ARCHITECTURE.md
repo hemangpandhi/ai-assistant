@@ -33,6 +33,7 @@ flowchart TD
         LLM{"🧠 LLMManager<br/>(Prompt & State Control)"}:::logic
         TM["🛠️ ToolManager<br/>(Semantic Router)"]:::logic
         JSON[("📄 custom_properties.json<br/>(Zero-Code Definitions)")]:::config
+        PREFS[("💾 SharedPreferences<br/>(Persistent Memory)")]:::config
     end
 
     subgraph Inference ["4. ML Edge Execution (C++ / GPU / NPU)"]
@@ -48,7 +49,7 @@ flowchart TD
         VHAL["🌉 Vehicle HAL<br/>(Hardware Abstraction)"]:::hardware
         CAN["🚗 CAN Bus / Physical ECUs"]:::hardware
         SPK([🔈 Speakers])
-        INTENTS["📱 Android Framework<br/>(ActivityManager / AudioManager)"]:::aospAPI
+        INTENTS["📱 Android Framework<br/>(ActivityManager, AudioManager, MediaBrowser)"]:::aospAPI
         MEDIA["🎵 Media & Browser Apps<br/>(ACTION_VIEW, KEYCODE_MEDIA_*)"]:::sysApp
         PHONE["📞 Telecom App<br/>(ACTION_DIAL)"]:::sysApp
     end
@@ -63,6 +64,9 @@ flowchart TD
     
     JSON -.->|Injects Available Tools| TM
     JSON -.->|Maps VHAL IDs| CPM
+    
+    PREFS <==>|Reads/Writes Preferences| TM
+    PREFS -.->|Injects Memory| LLM
     
     LLM ==>|"Context + Tools + History"| LITERT
     LITERT -->|"Hardware Delegate"| LOCAL
@@ -185,6 +189,7 @@ classDiagram
         <<System>>
         +ActivityManager
         +AudioManager
+        +MediaBrowserService
     }
 
     class custom_properties_json {
