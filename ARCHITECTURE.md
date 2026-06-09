@@ -9,50 +9,64 @@ The system is built on a split architecture: a primary User Interface (`LocalLLM
 ### High-Level Component Diagram
 
 ```mermaid
-graph TD
-    %% Styling
-    classDef default fill:#1E1E1E,stroke:#333,stroke-width:2px,color:#FFF;
-    classDef ui fill:#2A3F54,stroke:#4CAF50,stroke-width:2px,color:#FFF;
-    classDef logic fill:#4B2E83,stroke:#9C27B0,stroke-width:2px,color:#FFF;
-    classDef hardware fill:#D84315,stroke:#FF9800,stroke-width:2px,color:#FFF;
-    classDef model fill:#006064,stroke:#00BCD4,stroke-width:2px,color:#FFF;
+flowchart TD
+    %% Professional Styling
+    classDef input fill:#f8f9fa,stroke:#dee2e6,stroke-width:2px,color:#495057,rx:5px,ry:5px;
+    classDef ui fill:#e7f5ff,stroke:#74c0fc,stroke-width:2px,color:#1864ab,rx:5px,ry:5px;
+    classDef orchestrator fill:#f3f0ff,stroke:#b197fc,stroke-width:2px,color:#5f3dc4,rx:5px,ry:5px;
+    classDef model fill:#ebfbee,stroke:#69db7c,stroke-width:2px,color:#2b8a3e,rx:5px,ry:5px;
+    classDef hardware fill:#fff5f5,stroke:#ffa8a8,stroke-width:2px,color:#e03131,rx:5px,ry:5px;
+    classDef config fill:#fff9db,stroke:#fcc419,stroke-width:2px,color:#e67700,rx:5px,ry:5px;
 
-    %% User Inputs
-    UserVoice(🗣️ User Voice) --> |Microphone| STT[🎤 VoskManager<br>Offline STT]:::ui
-    UserText(⌨️ User Text) --> |Direct Input| UI
-    
-    %% Core UI
-    STT --> |Text Query| UI[📱 LocalLLMActivity / AssistantSession<br>Android UI & Session State]:::ui
-    
-    %% Session Manager
-    UI --> |Process Query| SM[🧠 LLMManager<br>Orchestration & Context]:::logic
-    
-    %% Context Providers
-    SM --> |Get Sensor Data| VM[🚗 VehicleManager<br>Android VHAL / CarPropertyManager]:::hardware
-    VM -.-> |Live Telemetry| SM
-    SM --> |Get Memory| Prefs[(💾 SharedPreferences<br>User Preferences)]:::hardware
-    
-    %% Dynamic Configuration
-    JSON[📄 custom_properties.json<br>Zero-Code Tool/Sensor Config]:::hardware -.-> |Loads Tool Routes| TM
-    JSON -.-> |Loads VHAL Property IDs| VM
+    subgraph User_Interaction [User Interaction]
+        V([🗣️ Voice Input]):::input
+        T([⌨️ Text Input]):::input
+    end
 
-    %% Inference Engine
-    SM --> |System Prompt + Query| Engine{⚙️ LiteRT-LM Engine / Cloud API<br>Inference Backend}:::model
-    
-    %% Models
-    Engine -.-> |Local Inference| LocalModel[📱 Local Models<br>Gemma, Qwen, SmolLM]:::model
-    Engine -.-> |Network API| CloudModel[☁️ Cloud Models<br>Gemini, Claude]:::model
+    subgraph Interface_Audio [Interface & Audio]
+        STT[🎤 Offline STT<br>VoskManager]:::ui
+        UI[📱 System UI<br>LocalLLMActivity / AssistantSession]:::ui
+        TTS[🔊 Android TTS<br>Text-to-Speech Engine]:::ui
+    end
 
-    %% Output Loop
-    Engine --> |Generated Response| SM
-    
-    %% Execution & TTS
-    SM --> |Detect &lt;TOOL&gt; Tags| TM[🛠️ ToolManager<br>Tool Execution Engine]:::logic
-    SM --> |Clean Text| TTS[🔊 Android TTS<br>Text-to-Speech]:::ui
+    subgraph AI_Orchestration [AI Orchestration Layer]
+        SM[🧠 LLM Manager<br>Inference Orchestration]:::orchestrator
+        TM[🛠️ Tool Manager<br>Semantic Tool Execution]:::orchestrator
+    end
 
-    %% Tool Actions
-    TM --> |HVAC/Hardware Control| VM
-    TM --> |Launch Apps| Intents[📱 Android Intents<br>Maps, Dialer, Music]:::hardware
+    subgraph Edge_Intelligence [Edge Intelligence]
+        Engine{⚙️ LiteRT Engine}:::model
+        L_Model[(📱 Local Models<br>Gemma, Qwen)]:::model
+        C_Model[(☁️ Cloud APIs<br>Gemini, Claude)]:::model
+    end
+
+    subgraph Vehicle_Abstraction [Vehicle Abstraction]
+        VM[🚗 Vehicle Manager<br>CarPropertyManager API]:::hardware
+        JSON[📄 custom_properties.json<br>Zero-Code Config]:::config
+        Intents[📱 Android Intents<br>Maps, Dialer, Music]:::hardware
+    end
+
+    %% Flows
+    V -->|Audio Stream| STT
+    T -->|Direct String| UI
+    STT -->|Transcribed Text| UI
+
+    UI <-->|Manage State| SM
+    
+    SM -->|Generate Prompt| Engine
+    Engine -->|Hardware Delegate| L_Model
+    Engine -->|Network Socket| C_Model
+    Engine -->|Stream Response| SM
+
+    JSON -.->|Inject Tool Definitions| TM
+    JSON -.->|Inject Sensor IDs| VM
+
+    VM -->|Live Telemetry Context| SM
+    SM -->|Tool Execution Tag| TM
+    SM -->|Cleaned Text Stream| TTS
+
+    TM -->|Write Property| VM
+    TM -->|Launch App| Intents
 ```
 
 ### AOSP Integration Stack Diagram
@@ -60,50 +74,43 @@ graph TD
 The following diagram illustrates exactly where the LLM Engine Orchestrator resides within the Android Open Source Project (AOSP) architecture stack, and how natural language commands are translated down to the vehicle hardware via the Car API and Vehicle HAL.
 
 ```mermaid
-graph TD
-    %% Styling
-    classDef default fill:#1E1E1E,stroke:#333,stroke-width:2px,color:#FFF;
-    classDef app fill:#4B2E83,stroke:#9C27B0,stroke-width:2px,color:#FFF;
-    classDef api fill:#006064,stroke:#00BCD4,stroke-width:2px,color:#FFF;
-    classDef fw fill:#2A3F54,stroke:#4CAF50,stroke-width:2px,color:#FFF;
-    classDef hal fill:#D84315,stroke:#FF9800,stroke-width:2px,color:#FFF;
-    classDef hw fill:#5D4037,stroke:#795548,stroke-width:2px,color:#FFF;
+flowchart TD
+    %% Professional Styling
+    classDef sysApp fill:#e7f5ff,stroke:#74c0fc,stroke-width:2px,color:#1864ab,rx:5px,ry:5px;
+    classDef api fill:#f8f9fa,stroke:#dee2e6,stroke-width:2px,color:#495057,rx:5px,ry:5px;
+    classDef framework fill:#f3f0ff,stroke:#b197fc,stroke-width:2px,color:#5f3dc4,rx:5px,ry:5px;
+    classDef hal fill:#ebfbee,stroke:#69db7c,stroke-width:2px,color:#2b8a3e,rx:5px,ry:5px;
+    classDef hw fill:#fff5f5,stroke:#ffa8a8,stroke-width:2px,color:#e03131,rx:5px,ry:5px;
 
     subgraph Application_Layer [📱 Application Layer / System Apps]
-        UI[LocalLLMActivity / AssistantSession<br>Android UI Components]:::app
-        LLM[🧠 LLM Engine Orchestrator<br>LLMManager & ToolManager]:::app
-        UI <--> |Queries / Responses| LLM
+        APP_UI[LocalLLMActivity & AssistantSession<br>System UI Overlay]:::sysApp
+        APP_LLM[LLM Engine Orchestrator<br>LLMManager & ToolManager]:::sysApp
+        APP_UI <-->|Queries & Responses| APP_LLM
     end
 
     subgraph Car_API_Layer [⚙️ Car API Layer]
-        CPM[CarPropertyManager<br>android.car.hardware.property]:::api
+        CPM[android.car.hardware.property.CarPropertyManager]:::api
     end
 
-    subgraph Framework_Layer [🛠️ Framework Layer]
-        CS[Car Service<br>com.android.car]:::fw
+    subgraph Framework_Layer [🛠️ Android Framework Layer]
+        CS[com.android.car.CarService]:::framework
     end
 
     subgraph HAL_Layer [🌉 Hardware Abstraction Layer]
-        VHAL[Vehicle HAL / VHAL<br>android.hardware.automotive.vehicle]:::hal
+        VHAL[android.hardware.automotive.vehicle / VHAL]:::hal
     end
 
     subgraph Hardware_Layer [🚗 Vehicle Hardware Layer]
-        CAN[CAN Bus / Vehicle Network]:::hw
-        Sensors[Sensors & Actuators<br>HVAC, Windows, Telemetry]:::hw
-        CAN <--> |Physical Signals| Sensors
+        CAN[Vehicle Network / CAN Bus]:::hw
+        SENSORS[Physical ECUs & HVAC Actuators]:::hw
+        CAN <-->|Electrical Signals| SENSORS
     end
 
-    %% Connections showing data flow
-    LLM -- "1. Read/Write Property (Tool/Sensor execution)" --> CPM
-    CPM -- "2. Binder IPC" --> CS
-    CS -- "3. HIDL/AIDL IPC" --> VHAL
-    VHAL -- "4. CAN Message" --> CAN
-
-    class Application_Layer app;
-    class Car_API_Layer api;
-    class Framework_Layer fw;
-    class HAL_Layer hal;
-    class Hardware_Layer hw;
+    %% Data flow mapping
+    APP_LLM -- "1. Tool Execution (Write) / Telemetry (Read)" --> CPM
+    CPM -- "2. Cross-Process Binder IPC" --> CS
+    CS -- "3. Hardware Interface (HIDL / AIDL)" --> VHAL
+    VHAL -- "4. Raw CAN Payload" --> CAN
 ```
 
 ### Vertical Layer Stack
@@ -112,19 +119,18 @@ For a simplified view of the system architecture from a pure software-stack pers
 
 ```mermaid
 flowchart TD
-    %% Define Classes for the Stack
-    classDef layerApp fill:#4B2E83,stroke:#9C27B0,stroke-width:2px,color:#FFF,font-weight:bold;
-    classDef layerFw fill:#2A3F54,stroke:#4CAF50,stroke-width:2px,color:#FFF,font-weight:bold;
-    classDef layerHal fill:#D84315,stroke:#FF9800,stroke-width:2px,color:#FFF,font-weight:bold;
-    classDef layerHw fill:#5D4037,stroke:#795548,stroke-width:2px,color:#FFF,font-weight:bold;
+    classDef app fill:#e7f5ff,stroke:#74c0fc,stroke-width:2px,color:#1864ab,rx:8px,ry:8px,font-weight:bold;
+    classDef fw fill:#f3f0ff,stroke:#b197fc,stroke-width:2px,color:#5f3dc4,rx:8px,ry:8px,font-weight:bold;
+    classDef hal fill:#ebfbee,stroke:#69db7c,stroke-width:2px,color:#2b8a3e,rx:8px,ry:8px,font-weight:bold;
+    classDef hw fill:#fff5f5,stroke:#ffa8a8,stroke-width:2px,color:#e03131,rx:8px,ry:8px,font-weight:bold;
 
-    %% Nodes as full-width blocks
-    APP["1. Application Layer<br/>(LocalLLMActivity, AssistantSession, ToolManager)"]:::layerApp
-    FW["2. Android Framework Layer<br/>(CarPropertyManager, CarService)"]:::layerFw
-    HAL["3. Hardware Abstraction Layer<br/>(Vehicle HAL - VHAL)"]:::layerHal
-    HW["4. Vehicle Hardware Layer<br/>(CAN Bus, ECUs, HVAC Sensors)"]:::layerHw
+    %% Nodes
+    APP["1. Application Layer<br/>(System App: LocalLLMActivity, ToolManager)"]:::app
+    FW["2. Android Framework Layer<br/>(CarPropertyManager, CarService)"]:::fw
+    HAL["3. Hardware Abstraction Layer<br/>(Vehicle HAL - VHAL)"]:::hal
+    HW["4. Vehicle Hardware Layer<br/>(CAN Bus, ECUs, HVAC Sensors)"]:::hw
 
-    %% Stack Connections
+    %% Connections
     APP ==>|"Car API (Binder IPC)"| FW
     FW ==>|"HIDL / AIDL IPC"| HAL
     HAL ==>|"CAN Bus Signals"| HW
@@ -138,75 +144,51 @@ The following diagram illustrates the class relationships, dependencies, and int
 classDiagram
     class LocalLLMActivity {
         -SharedPreferences prefs
-        -TextToSpeech tts
-        +onCreate()
         +initLlm()
-        -processQuery(prompt, isVoice)
         -executeToolCall(toolCall)
     }
 
     class AssistantSession {
-        -TextToSpeech tts
         -SpeechRecognizer speechRecognizer
-        +onCreate()
         +onShow(args, showFlags)
         -handleQuery(query)
-        -processQuery(query, prefixSpan)
-        -executeToolCall(toolCall)
     }
 
     class LLMManager {
         <<Singleton>>
         -LlmInference engine
-        -Conversation conversation
-        +isFirstMessage: Boolean
-        +initialize(context, modelPath, backendChoice)
-        +getSystemPrompt(context): String
-    }
-
-    class WakeWordService {
-        <<ForegroundService>>
-        -SpeechService speechService
-        -Model voskModel
-        -wakeWord: String
-        +onCreate()
-        +recognizerSetup()
+        +initialize()
+        +getSystemPrompt()
     }
 
     class ToolManager {
         <<Singleton>>
         -Map activeTools
-        +initialize(context)
-        +executeToolCall(context, toolCall)
-        +getLlmToolsPrompt(query): String
+        +executeToolCall()
     }
 
     class VehicleManager {
         <<Singleton>>
         -CarPropertyManager carPropertyManager
-        +init(context)
-        +getSensorContext(): String
-        +writeProperty(propertyId, value, areaId)
+        +getSensorContext()
+        +writeProperty()
     }
-    
+
     class custom_properties_json {
-        <<JSON Config File>>
+        <<JSON Config>>
         +properties: Array
         +tools: Array
     }
     
     %% Relationships
-    LocalLLMActivity --> LLMManager : Initializes and Queries
-    AssistantSession --> LLMManager : Queries
-    LocalLLMActivity --> ToolManager : Injects Tool Actions
-    AssistantSession --> ToolManager : Injects Tool Actions
-    ToolManager --> VehicleManager : Executes Hardware Actions
-    LLMManager --> VehicleManager : Reads Sensor Context
-    WakeWordService ..> AssistantSession : Triggers showSession via AVIS
-    
-    %% Dynamic Loading
-    custom_properties_json ..> ToolManager : Parsed on Init
-    custom_properties_json ..> VehicleManager : Parsed on Init
+    LocalLLMActivity ..> LLMManager : Initializes
+    AssistantSession ..> LLMManager : Queries
+    LocalLLMActivity ..> ToolManager : Executes Tools
+    AssistantSession ..> ToolManager : Executes Tools
+    ToolManager --> VehicleManager : Actuates Hardware
+    LLMManager --> VehicleManager : Reads Telemetry
+    custom_properties_json ..> ToolManager : Parsed dynamically
+    custom_properties_json ..> VehicleManager : Parsed dynamically
 ```
 
 ## Zero-Code Dynamic AOSP Property & Tool Handling
