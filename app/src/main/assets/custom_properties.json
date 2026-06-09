@@ -208,6 +208,39 @@
       ]
     },
     {
+      "prompt_string": "<TOOL>pauseMusic()</TOOL>",
+      "handler_key": "pauseMusic",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "music",
+        "pause",
+        "stop",
+        "halt"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>nextTrack()</TOOL>",
+      "handler_key": "nextTrack",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "music",
+        "next",
+        "skip",
+        "forward"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>prevTrack()</TOOL>",
+      "handler_key": "prevTrack",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "music",
+        "previous",
+        "back",
+        "rewind"
+      ]
+    },
+    {
       "prompt_string": "<TOOL>call(NAME)</TOOL>",
       "handler_key": "call",
       "handler_type": "CUSTOM_KOTLIN",

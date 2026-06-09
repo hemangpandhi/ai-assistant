@@ -295,6 +295,42 @@ object ToolManager {
                     
                     "Playing $query."
                 }
+                "pauseMusic" -> {
+                    try {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
+                        audioManager.dispatchMediaKeyEvent(eventDown)
+                        audioManager.dispatchMediaKeyEvent(eventUp)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to dispatch media pause key event")
+                    }
+                    "Music paused."
+                }
+                "nextTrack" -> {
+                    try {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
+                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
+                        audioManager.dispatchMediaKeyEvent(eventDown)
+                        audioManager.dispatchMediaKeyEvent(eventUp)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to dispatch media next key event")
+                    }
+                    "Skipping to the next track."
+                }
+                "prevTrack" -> {
+                    try {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS)
+                        audioManager.dispatchMediaKeyEvent(eventDown)
+                        audioManager.dispatchMediaKeyEvent(eventUp)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to dispatch media previous key event")
+                    }
+                    "Playing the previous track."
+                }
                 "call" -> {
                     val contact = toolCall.substringAfter("(").substringBefore(")")
                     val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
