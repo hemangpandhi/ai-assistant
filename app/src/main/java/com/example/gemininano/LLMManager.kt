@@ -264,7 +264,7 @@ object LLMManager {
             if (dyn.isNotEmpty()) {
                 basePrompt.append("8. FOOD CHOICES: $dyn\n")
             } else {
-                basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT use tools. You MUST ask them what cuisine they prefer (e.g. Italian, Indian, Japanese, American, Pizza).\n")
+                basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT use tools. You MUST reply EXACTLY with: \"Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\" and NO OTHER TEXT.\n")
             }
         }
         if (isDiag || q.isEmpty()) {
