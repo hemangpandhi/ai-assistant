@@ -290,8 +290,14 @@ object VehicleManager {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
             config?.areaIds?.forEach { areaId ->
                 var finalLevel = level
-                if (finalLevel > 3) finalLevel = 3
-                if (finalLevel < 0) finalLevel = 0
+                var maxLvl = 3
+                var minLvl = -3
+                try {
+                    maxLvl = config.getMaxValue(areaId) as? Int ?: 3
+                    minLvl = config.getMinValue(areaId) as? Int ?: -3
+                } catch (e: Exception) { }
+                if (finalLevel > maxLvl) finalLevel = maxLvl
+                if (finalLevel < minLvl) finalLevel = minLvl
                 val success = setPropertyVerified(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel.toString(), "INT")
                 if (!success) return false
             }
@@ -309,8 +315,14 @@ object VehicleManager {
             val config = carPropertyManager?.getCarPropertyConfig(356519253) // 0x15400D55 (SEAT_MASSAGE)
             config?.areaIds?.forEach { areaId ->
                 var finalLevel = level
-                if (finalLevel > 3) finalLevel = 3
-                if (finalLevel < 0) finalLevel = 0
+                var maxLvl = 3
+                var minLvl = 0
+                try {
+                    maxLvl = config.getMaxValue(areaId) as? Int ?: 3
+                    minLvl = config.getMinValue(areaId) as? Int ?: 0
+                } catch (e: Exception) { }
+                if (finalLevel > maxLvl) finalLevel = maxLvl
+                if (finalLevel < minLvl) finalLevel = minLvl
                 val success = setPropertyVerified(356519253, areaId, finalLevel.toString(), "INT")
                 if (!success) return false
             }
