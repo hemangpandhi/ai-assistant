@@ -282,8 +282,8 @@ object LLMManager {
             val isSpecific = musicQuery.length > 2 && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
             if (isSpecific) {
                 basePrompt.append("11. MUSIC CHOICES: The user has specified what to play. Use the EXACT syntax <TOOL>playMusic($musicQuery)</TOOL> to play it.\n")
-            } else if (q.contains("play") && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")) {
-                basePrompt.append("11. MUSIC CHOICES: If the user generally asks to play music, DO NOT use tools. You MUST reply EXACTLY with: \"What kind of music would you like to listen to? For example, Bollywood, Rock, Jazz, or a specific song?\" and NO OTHER TEXT.\n")
+            } else {
+                basePrompt.append("11. MUSIC CHOICES: The user generally asked to play music. YOU MUST NOT USE THE playMusic TOOL. You MUST reply EXACTLY with: \"What kind of music would you like to listen to? For example, Bollywood, Rock, Jazz, or a specific song?\" and NO OTHER TEXT.\n")
             }
         }
 
