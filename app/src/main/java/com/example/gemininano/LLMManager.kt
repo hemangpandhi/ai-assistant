@@ -212,7 +212,19 @@ object LLMManager {
             basePrompt.append("7. AMBIGUITY: If you suggest multiple places and the user agrees (e.g. \"Yes\"), DO NOT use the navigate tool immediately. You MUST ask \"Which one?\" first.\n")
         }
         if (isFood || q.isEmpty()) {
-            basePrompt.append("8. FOOD CHOICES: If the user asks for a specific cuisine (like Italian or Mexican), DO NOT use the search tool. Instead, list 2-3 specific restaurants from your knowledge and ALWAYS end with: \"Which one would you like to navigate to?\".\n")
+            val genericRestaurants = listOf("The Daily Grill", "City Diner", "Town Square Kitchen", "Main Street Eatery", "The Rusty Spoon").shuffled().take(3)
+            var selectedPlaces = genericRestaurants
+            
+            if (q.contains("italian")) selectedPlaces = listOf("Luigi's Trattoria", "Bella Roma", "Pasta Bella", "Gino's Pizzeria", "Il Forno").shuffled().take(3)
+            else if (q.contains("mexican")) selectedPlaces = listOf("El Camino", "La Fiesta", "Tacos El Gordo", "Los Amigos", "Casa Blanca").shuffled().take(3)
+            else if (q.contains("chinese")) selectedPlaces = listOf("Golden Dragon", "Jade Garden", "Wok This Way", "China Palace", "Ming's").shuffled().take(3)
+            else if (q.contains("pizza")) selectedPlaces = listOf("Joe's Pizza", "Slice of Life", "Brick Oven Pizza", "Mama's Pizzeria").shuffled().take(3)
+            else if (q.contains("burger")) selectedPlaces = listOf("Burger Joint", "Smashburger", "The Grill", "Classic Burgers").shuffled().take(3)
+            else if (q.contains("sushi") || q.contains("japanese")) selectedPlaces = listOf("Sakura Sushi", "Tokyo Diner", "Zen Sushi", "Oishii").shuffled().take(3)
+
+            val placesStr = selectedPlaces.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
+            
+            basePrompt.append("8. FOOD CHOICES: If the user asks for a specific cuisine, DO NOT use the search tool. Instead, list these specific restaurants from your map data: $placesStr and ALWAYS end with: \"Which one would you like to navigate to?\".\n")
         }
         if (isDiag || q.isEmpty()) {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
@@ -258,11 +270,11 @@ object LLMManager {
 
             basePrompt.append("[Food - Follow-up]\n")
             basePrompt.append("User: \"Italian.\"\n")
-            basePrompt.append("Assistant: Here are some Italian places nearby: 1. Olive Garden, 2. Mario's. Which one would you like to navigate to?\n\n")
+            basePrompt.append("Assistant: Here are some Italian places nearby: 1. Luigi's Trattoria, 2. Bella Roma. Which one would you like to navigate to?\n\n")
             
             basePrompt.append("[Food - Selection]\n")
-            basePrompt.append("User: \"Mario's.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Mario's)</TOOL>\n\n")
+            basePrompt.append("User: \"Luigi's Trattoria.\"\n")
+            basePrompt.append("Assistant: <TOOL>navigate(Luigi's Trattoria)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {
