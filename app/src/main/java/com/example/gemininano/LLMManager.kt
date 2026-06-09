@@ -164,7 +164,7 @@ object LLMManager {
     
     fun getDynamicContext(prompt: String): String {
         val q = prompt.lowercase()
-        val isFood = q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese")
+        val isFood = q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan")
         val isFuel = q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")
         
         if ((isFood || isFuel) && prompt.length < 50) {
@@ -181,6 +181,7 @@ object LLMManager {
                     else if (q.contains("sushi") || q.contains("japanese")) searchQuery = "Sushi"
                     else if (q.contains("indian")) searchQuery = "Indian restaurant"
                     else if (q.contains("thai")) searchQuery = "Thai restaurant"
+                    else if (q.contains("vegetarian") || q.contains("vegan")) searchQuery = "Vegetarian restaurant"
                 }
 
                 val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&format=json&limit=3&viewbox=139.30,35.60,139.45,35.50&bounded=1")
@@ -308,9 +309,10 @@ object LLMManager {
         }
 
         if (isFood || q.isEmpty()) {
+            val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
             basePrompt.append("[Food Query]\n")
             basePrompt.append("User: \"I'm hungry.\"\n")
-            basePrompt.append("Assistant: What kind of food are you in the mood for?\n\n")
+            basePrompt.append("Assistant: I remember you like $diningPref food. Would you like me to find a $diningPref restaurant, or are you craving something else?\n\n")
         }
 
         if (isNav || q.isEmpty()) {
