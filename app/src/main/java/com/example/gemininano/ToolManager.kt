@@ -281,51 +281,53 @@ object ToolManager {
                             val componentName = android.content.ComponentName(targetInfo.serviceInfo.packageName, targetInfo.serviceInfo.name)
                             Log.i(TAG, "Connecting to MediaBrowserService: ${componentName.flattenToString()}")
                             
-                            mediaSearchSuccess = kotlin.coroutines.suspendCoroutine { continuation ->
-                                var hasResumed = false
-                                lateinit var browser: android.media.browse.MediaBrowser
-                                browser = android.media.browse.MediaBrowser(context, componentName, object : android.media.browse.MediaBrowser.ConnectionCallback() {
-                                    override fun onConnected() {
-                                        try {
-                                            val sessionToken = browser.sessionToken
-                                            val controller = android.media.session.MediaController(context, sessionToken)
-                                            controller.transportControls.playFromSearch(query, null)
-                                            Log.i(TAG, "Dispatched playFromSearch for: $query via MediaController")
-                                            if (!hasResumed) {
-                                                hasResumed = true
-                                                continuation.resumeWith(Result.success(true))
+                            mediaSearchSuccess = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                                kotlin.coroutines.suspendCoroutine { continuation ->
+                                    var hasResumed = false
+                                    lateinit var browser: android.media.browse.MediaBrowser
+                                    browser = android.media.browse.MediaBrowser(context, componentName, object : android.media.browse.MediaBrowser.ConnectionCallback() {
+                                        override fun onConnected() {
+                                            try {
+                                                val sessionToken = browser.sessionToken
+                                                val controller = android.media.session.MediaController(context, sessionToken)
+                                                controller.transportControls.playFromSearch(query, null)
+                                                Log.i(TAG, "Dispatched playFromSearch for: $query via MediaController")
+                                                if (!hasResumed) {
+                                                    hasResumed = true
+                                                    continuation.resumeWith(Result.success(true))
+                                                }
+                                                browser.disconnect()
+                                            } catch (e: Exception) {
+                                                Log.e(TAG, "Failed to dispatch playFromSearch", e)
+                                                if (!hasResumed) {
+                                                    hasResumed = true
+                                                    continuation.resumeWith(Result.success(false))
+                                                }
                                             }
-                                            browser.disconnect()
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "Failed to dispatch playFromSearch", e)
+                                        }
+                                        override fun onConnectionSuspended() {
                                             if (!hasResumed) {
                                                 hasResumed = true
                                                 continuation.resumeWith(Result.success(false))
                                             }
                                         }
-                                    }
-                                    override fun onConnectionSuspended() {
+                                        override fun onConnectionFailed() {
+                                            if (!hasResumed) {
+                                                hasResumed = true
+                                                continuation.resumeWith(Result.success(false))
+                                            }
+                                        }
+                                    }, null)
+                                    browser.connect()
+                                    
+                                    // Timeout fallback
+                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                        kotlinx.coroutines.delay(2000)
                                         if (!hasResumed) {
                                             hasResumed = true
+                                            try { browser.disconnect() } catch (e: Exception) {}
                                             continuation.resumeWith(Result.success(false))
                                         }
-                                    }
-                                    override fun onConnectionFailed() {
-                                        if (!hasResumed) {
-                                            hasResumed = true
-                                            continuation.resumeWith(Result.success(false))
-                                        }
-                                    }
-                                }, null)
-                                browser.connect()
-                                
-                                // Timeout fallback
-                                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                    kotlinx.coroutines.delay(2000)
-                                    if (!hasResumed) {
-                                        hasResumed = true
-                                        try { browser.disconnect() } catch (e: Exception) {}
-                                        continuation.resumeWith(Result.success(false))
                                     }
                                 }
                             }
