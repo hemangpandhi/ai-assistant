@@ -176,3 +176,9 @@ adb push gemma-4-E2B-it_qualcomm_qcs8275.litertlm /data/media/10/Android/data/co
 3. Tap **Load Model** to initialize the AI engine into memory.
 4. Navigate to **Android Settings -> Apps -> Default Apps -> Digital assistant app** and set it to **Local AI Assistant**.
 5. Long-press the home button to invoke the overlay and say *"Turn up the heat!"*.
+
+### Troubleshooting
+**Q: The Assistant fails to initialize or doesn't work when the internet is completely offline on the dev board.**
+A: In some AOSP builds, if the system time is completely unsynchronized (e.g., defaulted to 1970) due to a lack of NTP sync on an offline board, SSL certificates for the Cloud fallback check or the underlying SpeechRecognizer/LiteRT engine may fail to initialize. 
+**Fix:** Manually correct the system date and time via Android Settings, or push it via ADB:
+`adb shell date $(date +%m%d%H%M%Y.%S)`

@@ -161,6 +161,30 @@ object ToolManager {
 
             Log.d(TAG, "Matched tool handlerKey: ${matchedTool.handlerKey}, handlerType: ${matchedTool.handlerType}")
 
+            // Safety Middleware Constraint Validation
+            if (matchedTool.constraints != null) {
+                for (constraint in matchedTool.constraints) {
+                    val currentValue = VehicleManager.getFloatProperty(constraint.propertyId)
+                    if (currentValue != null) {
+                        val failed = when (constraint.operator) {
+                            "<" -> currentValue.toDouble() >= constraint.value
+                            ">" -> currentValue.toDouble() <= constraint.value
+                            "==" -> currentValue.toDouble() != constraint.value
+                            "!=" -> currentValue.toDouble() == constraint.value
+                            "<=" -> currentValue.toDouble() > constraint.value
+                            ">=" -> currentValue.toDouble() < constraint.value
+                            else -> false
+                        }
+                        if (failed) {
+                            Log.w(TAG, "Safety Constraint Blocked Tool $toolCall: Property ${constraint.propertyId} is $currentValue. Condition `${constraint.operator} ${constraint.value}` failed. Message: ${constraint.errorMsg}")
+                            return constraint.errorMsg
+                        }
+                    } else {
+                        Log.w(TAG, "Warning: Could not read property ${constraint.propertyId} for safety constraint evaluation.")
+                    }
+                }
+            }
+
             if (matchedTool.handlerType == "GENERIC_VHAL_WRITE") {
                 val propId = matchedTool.propertyId ?: return "System Error: Missing property_id"
                 val dataType = matchedTool.dataType ?: return "System Error: Missing data_type"
