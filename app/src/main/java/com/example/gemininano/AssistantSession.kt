@@ -270,7 +270,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
     }
     
-    private suspend fun processQuery(query: String, retryCount: Int) {
+    private suspend fun processQuery(query: String, retryCount: Int, loopCount: Int = 0, isAgenticObservation: Boolean = false) {
         // Timeout watchdog
         timeoutJob?.cancel()
         timeoutJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
@@ -315,7 +315,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
         }
         
-        MemoryManager.addTurn("User", interceptedQuery)
+        if (isAgenticObservation) {
+            MemoryManager.addTurn("System", interceptedQuery)
+        } else {
+            MemoryManager.addTurn("User", interceptedQuery)
+        }
         val slidingHistory = MemoryManager.getSlidingWindowContext(3000)
         
         // Anti-Hallucination Music Interceptor logic has been moved to the streaming loop
@@ -341,7 +345,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             val dynamicContext = LLMManager.getDynamicContext(context, interceptedQuery)
             val dynStr = if (dynamicContext.isNotEmpty()) "\n$dynamicContext" else ""
-            finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$dynStr$reminder\nUser: $interceptedQuery"
+            if (isAgenticObservation) {
+                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$dynStr$reminder\n$interceptedQuery"
+            } else {
+                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$dynStr$reminder\nUser: $interceptedQuery"
+            }
         }
 
         val executedTools = mutableSetOf<String>()
@@ -486,11 +494,23 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             if (pendingTools.isNotEmpty()) {
                                 setKeepAwake(true)
-                                stopThinkingAnimation()
-                                voiceAnimation.state = VoiceAnimationView.State.LISTENING
+                                // Keep the thinking animation going during tool execution and recursive loops
+                                startThinkingAnimation()
                                 val feedbacks = kotlinx.coroutines.awaitAll(*pendingTools.toTypedArray()).filterNotNull()
                                 toolFeedbacks.addAll(feedbacks)
                                 setKeepAwake(false)
+                                
+                                if (loopCount < 3) {
+                                    val feedbackString = toolFeedbacks.joinToString("\n")
+                                    val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
+                                    
+                                    android.util.Log.i("AssistantSession", "Agentic Loop Triggered (Loop $loopCount) with observation: $observation")
+                                    pendingTools.clear() 
+                                    
+                                    lastResponseBuilder.clear() 
+                                    processQuery(observation, retryCount, loopCount + 1, isAgenticObservation = true)
+                                    return@launch
+                                }
                             }
                             
                             var finalMsg = lastResponseBuilder.toString()
