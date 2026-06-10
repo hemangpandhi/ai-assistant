@@ -500,7 +500,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 toolFeedbacks.addAll(feedbacks)
                                 setKeepAwake(false)
                                 
-                                if (loopCount < 3) {
+                                val isAgenticLoopEnabled = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE).getBoolean("agentic_loop_enabled", true)
+                                if (isAgenticLoopEnabled && loopCount < 3) {
                                     val feedbackString = toolFeedbacks.joinToString("\n")
                                     val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
                                     

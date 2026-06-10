@@ -155,6 +155,7 @@ class LocalLLMActivity : AppCompatActivity() {
         clearButton = findViewById(R.id.clearButton)
         etWakeWord = findViewById(R.id.etWakeWord)
         switchWakeWord = findViewById(R.id.switchWakeWord)
+        val switchAgenticLoop = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchAgenticLoop)
         llApiKeyContainer = findViewById(R.id.llApiKeyContainer)
         tvApiKeyLabel = findViewById(R.id.tvApiKeyLabel)
         etApiKey = findViewById(R.id.etApiKey)
@@ -520,6 +521,13 @@ class LocalLLMActivity : AppCompatActivity() {
             } else {
                 stopService(intent)
             }
+        }
+        
+        // Agentic Loop Initialization
+        val isAgenticLoopEnabled = prefs.getBoolean("agentic_loop_enabled", true)
+        switchAgenticLoop.isChecked = isAgenticLoopEnabled
+        switchAgenticLoop.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("agentic_loop_enabled", isChecked).apply()
         }
         
         etWakeWord.addTextChangedListener(object : android.text.TextWatcher {
