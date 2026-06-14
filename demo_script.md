@@ -46,9 +46,9 @@ This script provides a step-by-step guide for recording your OEM demonstration v
 ### **Scene 3: Agentic Routing & Context Memory**
 *Demonstrate the newly implemented GPS integration (Tokyo), background agentic loops, and multi-turn memory.*
 
-**10. Command:** `"Navigate me to Tokyo"`
-* **Action:** The AI immediately triggers the `<TOOL>navigate(Tokyo)</TOOL>` tool.
-* **Visual:** An Android Intent is dispatched, seamlessly launching Google Maps (or the default navigation app) and instantly calculating a route to Tokyo.
+**10. Command:** `"Navigate me to Tokyo Tower"`
+* **Action:** The AI immediately triggers the `<TOOL>navigate(Tokyo Tower)</TOOL>` tool.
+* **Visual:** An Android Intent is dispatched, seamlessly launching Google Maps (or the default navigation app) and instantly calculating a route to Tokyo Tower.
 
 **11. Command:** `"Suggest nearby places to visit around Tokyo"`
 * **AI Logic:** *This triggers the recursive Agentic Loop.*
@@ -59,6 +59,19 @@ This script provides a step-by-step guide for recording your OEM demonstration v
 
 **12. Follow-up Command:** `"The second one"` OR `"Take me to the Skytree"`
 * **AI Logic:** The AI remembers the context of the previous list, understands your choice, and automatically executes `<TOOL>navigate(Tokyo Skytree)</TOOL>` to route you there without you having to say the full address.
+
+---
+
+### **Scene 4: Seamless Android Intent Bridging (Media & Calls)**
+*Demonstrate how the Assistant hooks deeply into Android's native OS to launch apps and play music based on regional context.*
+
+**13. Command:** `"Play music by Adele"` OR `"Play YOASOBI"`
+* **Action:** The AI triggers `<TOOL>playMusic(Adele)</TOOL>`.
+* **Visual/Audio:** The Assistant utilizes the `MediaBrowserService` or a deep-link Intent to instantly open Spotify (or the default media player) and begin playback without any manual screen tapping.
+
+**14. Command:** `"I need to talk to my mom"`
+* **Action:** The AI recognizes the social relationship and triggers `<TOOL>call(Mom)</TOOL>`.
+* **Visual:** The system Dialer app opens with an `ACTION_DIAL` intent, ready to place the call.
 
 ---
 
