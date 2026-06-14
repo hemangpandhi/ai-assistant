@@ -269,9 +269,20 @@ object LLMManager {
                         for (i in 0 until features.length()) {
                             val feature = features.getJSONObject(i)
                             val properties = feature.optJSONObject("properties") ?: continue
-                            val name = properties.optString("name", "")
+                            val rawName = properties.optString("name", "").trim()
+                            val street = properties.optString("street", "").trim()
+                            val suburb = properties.optString("suburb", "").trim()
                             
-                            if (name.isNotEmpty()) places.add(name)
+                            var finalName = rawName
+                            if (finalName.isNotEmpty() && street.isNotEmpty() && !finalName.contains(street, ignoreCase = true)) {
+                                finalName = "$finalName on $street"
+                            } else if (finalName.isNotEmpty() && suburb.isNotEmpty() && !finalName.contains(suburb, ignoreCase = true)) {
+                                finalName = "$finalName in $suburb"
+                            } else if (finalName.isEmpty() && street.isNotEmpty()) {
+                                finalName = "Gas Station on $street"
+                            }
+                            
+                            if (finalName.isNotEmpty() && !places.contains(finalName)) places.add(finalName)
                         }
                         if (places.isNotEmpty()) {
                             val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
@@ -338,7 +349,7 @@ object LLMManager {
         basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
 
         basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
-        basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the EXACT syntax <TOOL>search(PLACES)</TOOL> instead of listing them.\n")
+        basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the tool <TOOL>search(QUERY)</TOOL> where QUERY is exactly what they asked for (e.g. <TOOL>search(best places to visit in tokyo)</TOOL>).\n")
         basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.\n")
         if (isFood || q.isEmpty()) {
             if (dynCtx.isNotEmpty()) {
