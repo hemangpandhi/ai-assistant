@@ -863,7 +863,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onDestroy() {
         tts?.stop()
-        tts?.shutdown()
         speechRecognizer?.destroy()
         dotAnimatorJob?.cancel()
         
