@@ -60,6 +60,11 @@ This script provides a step-by-step guide for recording your OEM demonstration v
 **12. Follow-up Command:** `"The second one"` OR `"Take me to the Skytree"`
 * **AI Logic:** The AI remembers the context of the previous list, understands your choice, and automatically executes `<TOOL>navigate(Tokyo Skytree)</TOOL>` to route you there without you having to say the full address.
 
+**13. Command:** `"I am running out of fuel"` OR `"I have low battery"`
+* **AI Logic:** The AI recognizes the urgency and safety hazard. It proactively asks: *"Should I find a nearby gas station?"*
+* **Follow-up Command:** `"Yes"`
+* **Action:** The AI queries the Nominatim GPS API for nearby gas stations, reads the list to you, and allows you to select one to navigate to.
+
 ---
 
 ### **Scene 4: Seamless Android Intent Bridging (Media & Calls)**

@@ -520,6 +520,22 @@ object ToolManager {
                     val conditions = listOf("Sunny", "Cloudy", "Rainy", "Partly Cloudy", "Clear").random()
                     "The current weather in $city is $temp°F and $conditions."
                 }
+                "turnOnDefroster" -> {
+                    val success = VehicleManager.writeDefrosterToVhalVerified(true)
+                    if (success) "I've turned on the defroster to clear your windows." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
+                "turnOffDefroster" -> {
+                    val success = VehicleManager.writeDefrosterToVhalVerified(false)
+                    if (success) "I've turned off the defroster." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
+                "turnOnRearDefroster" -> {
+                    val success = VehicleManager.writeRearDefrosterToVhalVerified(true)
+                    if (success) "I've turned on the rear defroster." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
+                "turnOffRearDefroster" -> {
+                    val success = VehicleManager.writeRearDefrosterToVhalVerified(false)
+                    if (success) "I've turned off the rear defroster." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
                 else -> {
                     "System Error: Handler found but logic is missing."
                 }

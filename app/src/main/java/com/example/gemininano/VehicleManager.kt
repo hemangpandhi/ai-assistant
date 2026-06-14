@@ -335,6 +335,21 @@ object VehicleManager {
         }
     }
 
+    suspend fun writeRearDefrosterToVhalVerified(on: Boolean): Boolean {
+        try {
+            // Android Automotive uses HVAC_ELECTRIC_DEFROSTER_ON (0x13200514) for the rear window defroster
+            val HVAC_ELECTRIC_DEFROSTER_ON = 320865556
+            val config = carPropertyManager?.getCarPropertyConfig(HVAC_ELECTRIC_DEFROSTER_ON)
+            val areaId = config?.areaIds?.firstOrNull() ?: 0
+            val success = setPropertyVerified(HVAC_ELECTRIC_DEFROSTER_ON, areaId, on.toString(), "BOOLEAN")
+            if (!success) return false
+            return true
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to write VHAL rear defroster", e)
+            return false
+        }
+    }
+
     suspend fun writeSeatHeaterToVhalVerified(level: Int): Boolean {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
