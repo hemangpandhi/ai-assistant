@@ -87,8 +87,8 @@ object LLMManager {
         withContext(Dispatchers.IO) {
             isInitializing = true
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            // Enforce a minimum of 4096 tokens to prevent native SIGSEGV when HVAC system prompts get too large
-            val maxTokens = Math.max(prefs.getInt("max_tokens", 4096), 4096)
+            // Removed Math.max(..., 4096) constraint so physical devices like Pixel Tablet can lower the KV Cache to prevent GPU OOM crashes
+            val maxTokens = prefs.getInt("max_tokens", 2048)
             
             try {
                 try {
