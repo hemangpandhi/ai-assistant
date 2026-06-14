@@ -373,7 +373,7 @@ object LLMManager {
         if (isSightseeing || q.isEmpty()) {
             basePrompt.append("Example 6:\n")
             basePrompt.append("User: \"What are some sightseeing places to visit?\"\n")
-            basePrompt.append("Assistant: There are many great places to visit around here! You should definitely see the Central Park and the Art Museum. Would you like me to navigate to any of these?\n\n")
+            basePrompt.append("Assistant: <TOOL>search(sightseeing places)</TOOL>\n\n")
 
             basePrompt.append("Example 7:\n")
             basePrompt.append("User: \"Where was the Hollywood movie Inception filmed in Tokyo?\"\n")
