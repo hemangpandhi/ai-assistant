@@ -198,7 +198,7 @@ object ToolManager {
                 
                 // Demo Workaround: Barebones AOSP emulators lack some hardware properties
                 if (propId == 289410577 || propId == 354419973 || propId == 320865540 || 
-                    propId == 354419978 || propId == 354419982 || propId == 354419984) {
+                    propId == 354419978 || propId == 354419982 || propId == 354419984 || propId == 322964416) {
                     return matchedTool.successMessage ?: "Action completed successfully."
                 }
 
