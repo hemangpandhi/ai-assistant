@@ -199,7 +199,7 @@ object LLMManager {
                 var bbox = "35.47,139.27,35.67,139.47" // south,west,north,east Default Sagamihara, Japan fallback
                 try {
                     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                    val locationOverride = prefs.getString("location_override", "") ?: ""
+                    val locationOverride = prefs.getString("location_override", "139.37, 35.57") ?: "139.37, 35.57" // Default Sagamihara lon, lat
                     var lat = 0.0
                     var lon = 0.0
                     var useOverride = false
@@ -212,22 +212,6 @@ object LLMManager {
                             useOverride = true
                         } catch (e: Exception) {
                             android.util.Log.e("LLMManager", "Invalid location override format", e)
-                        }
-                    }
-                    
-                    if (!useOverride) {
-                        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
-                            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                            
-                            val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
-                            val location = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER) 
-                                ?: locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                                
-                            if (location != null) {
-                                lat = location.latitude
-                                lon = location.longitude
-                                useOverride = true
-                            }
                         }
                     }
 
