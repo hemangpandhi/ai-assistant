@@ -340,18 +340,24 @@ object LLMManager {
         basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
         basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the EXACT syntax <TOOL>search(PLACES)</TOOL> instead of listing them.\n")
         basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.\n")
-        val dyn = dynCtx
-        if (dyn.isNotEmpty() && isFood) {
-            basePrompt.append("8. FOOD CHOICES: $dyn\n")
-        } else {
-            basePrompt.append("8. FOOD CHOICES: If the user is hungry and hasn't specified a cuisine, DO NOT use tools. Just ask them what kind of food they want.\n")
+        if (isFood || q.isEmpty()) {
+            if (dynCtx.isNotEmpty()) {
+                basePrompt.append("8. FOOD CHOICES: $dynCtx\n")
+            } else {
+                basePrompt.append("8. FOOD CHOICES: If the user is hungry and hasn't specified a cuisine, DO NOT use tools. Just ask them what kind of food they want.\n")
+            }
         }
-        val dynFuel = dynCtx
-        if (dynFuel.isNotEmpty() && (q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging"))) {
-            basePrompt.append("9. FUEL/CHARGING CHOICES: $dynFuel\n")
-        } else {
-            basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
-            basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, DO NOT USE ANY TOOLS. ALWAYS ask first EXACTLY: \"Should I find a nearby gas station?\"\n")
+        
+        if (isFuel || q.isEmpty()) {
+            if (dynCtx.isNotEmpty()) {
+                basePrompt.append("9. FUEL/CHARGING CHOICES: $dynCtx\n")
+            } else {
+                basePrompt.append("9. FUEL/CHARGING: If the user says they are out of fuel or battery, DO NOT USE ANY TOOLS. ALWAYS ask first EXACTLY: \"Should I find a nearby gas station?\"\n")
+            }
+        }
+        
+        if (isDiag || q.isEmpty()) {
+            basePrompt.append("10. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
         }
         if (isMusic || q.isEmpty()) {
             val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
