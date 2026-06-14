@@ -278,19 +278,21 @@ object LLMManager {
         
         val dynCtx = getDynamicContext(context, query)
         val q = (query + " " + MemoryManager.getSlidingWindowContext(500)).lowercase()
-        val isHvac = q.contains("temperature") || q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("ac") || q.contains("heater") || q.contains("defroster") || q.contains("increase") || q.contains("decrease") || q.contains("fog") || q.contains("window")
-        val isSightseeing = q.contains("visit") || q.contains("interesting") || q.contains("places") || q.contains("sightseeing") || q.contains("tourist") || q.contains("what to do") || q.contains("where to go") || q.contains("city")
-        val isFood = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai")
-        val isFuel = q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")
+        val userQuery = query.lowercase()
+        val isHvac = userQuery.contains("temperature") || userQuery.contains("hot") || userQuery.contains("cold") || userQuery.contains("warm") || userQuery.contains("cool") || userQuery.contains("ac") || userQuery.contains("heater") || userQuery.contains("defroster") || userQuery.contains("increase") || userQuery.contains("decrease") || userQuery.contains("fog") || userQuery.contains("window")
+        val isSightseeing = userQuery.contains("visit") || userQuery.contains("interesting") || userQuery.contains("places") || userQuery.contains("sightseeing") || userQuery.contains("tourist") || userQuery.contains("what to do") || userQuery.contains("where to go") || userQuery.contains("city")
+        val isFood = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai")
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
         val isFollowUpToSearch = mem.contains("which one would you like to navigate") || mem.contains("found these options nearby")
+        val isFollowUpToFuel = mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station")
         
-        val isNav = (q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route")) && !isSightseeing && !isFood || isFollowUpToSearch
-        val isAmbient = q.contains("home") || q.contains("work")
-        val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("diagnos") || q.contains("obd") || q.contains("ob2") || q.contains("engine") || q.contains("service")
-        val isWellness = q.contains("pain") || q.contains("hurt") || q.contains("tired") || q.contains("sore") || q.contains("ache")
-        val isMusic = q.contains("music") || q.contains("play") || q.contains("song") || q.contains("pause") || q.contains("stop") || q.contains("next") || q.contains("previous")
-        val isLocationKnowledge = q.contains("where was") || q.contains("filmed") || q.contains("located") || q.contains("location of") || q.contains("address of")
+        val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFood || isFollowUpToSearch || isFollowUpToFuel
+        val isAmbient = userQuery.contains("home") || userQuery.contains("work")
+        val isDiag = userQuery.contains("wrong") || userQuery.contains("broken") || userQuery.contains("issue") || userQuery.contains("light") || userQuery.contains("code") || userQuery.contains("door") || userQuery.contains("diagnos") || userQuery.contains("obd") || userQuery.contains("ob2") || userQuery.contains("engine") || userQuery.contains("service")
+        val isWellness = userQuery.contains("pain") || userQuery.contains("hurt") || userQuery.contains("tired") || userQuery.contains("sore") || userQuery.contains("ache")
+        val isMusic = userQuery.contains("music") || userQuery.contains("play") || userQuery.contains("song") || userQuery.contains("pause") || userQuery.contains("stop") || userQuery.contains("next") || userQuery.contains("previous")
+        val isLocationKnowledge = userQuery.contains("where was") || userQuery.contains("filmed") || userQuery.contains("located") || userQuery.contains("location of") || userQuery.contains("address of")
+        val isFuel = userQuery.contains("fuel") || userQuery.contains("gas") || userQuery.contains("petrol") || userQuery.contains("charging") || isFollowUpToFuel
         
         val basePrompt = StringBuilder()
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
@@ -333,7 +335,7 @@ object LLMManager {
             basePrompt.append("9. FUEL/CHARGING CHOICES: $dynFuel\n")
         } else {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
-            basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, ALWAYS ask first: \"Should I find a nearby gas station?\" DO NOT navigate immediately.\n")
+            basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, DO NOT USE ANY TOOLS. ALWAYS ask first EXACTLY: \"Should I find a nearby gas station?\"\n")
         }
         if (isMusic || q.isEmpty()) {
             val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
