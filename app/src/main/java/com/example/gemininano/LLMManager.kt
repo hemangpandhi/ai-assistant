@@ -218,8 +218,8 @@ object LLMManager {
                     val apiKey = "973b338e8e104d3d8115c5c93f799e39" // Geoapify API Key
                     val url = java.net.URL("https://api.geoapify.com/v2/places?categories=$searchQuery&filter=rect:$viewbox&limit=3&apiKey=$apiKey")
                     val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.connectTimeout = 1500
-                    connection.readTimeout = 1500
+                    connection.connectTimeout = 4000
+                    connection.readTimeout = 4000
                     connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
                     connection.requestMethod = "GET"
                     
@@ -232,8 +232,8 @@ object LLMManager {
                             // Fallback to generic restaurant if specific cuisine fails
                             val fallbackUrl = java.net.URL("https://api.geoapify.com/v2/places?categories=catering.restaurant&filter=rect:$viewbox&limit=3&apiKey=$apiKey")
                             val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
-                            fallbackConn.connectTimeout = 1500
-                            fallbackConn.readTimeout = 1500
+                            fallbackConn.connectTimeout = 4000
+                            fallbackConn.readTimeout = 4000
                             fallbackConn.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
                             fallbackConn.requestMethod = "GET"
                             if (fallbackConn.responseCode == 200) {
