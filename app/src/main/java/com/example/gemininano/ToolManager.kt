@@ -266,7 +266,19 @@ object ToolManager {
                     if (success) "I've decreased the fan speed by $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "setFanSpeed" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
+                    val argStr = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
+                    var value = argStr.toIntOrNull()
+                    if (value == null) {
+                        if (argStr.contains("max") || argStr.contains("high") || argStr.contains("full") || argStr.contains("maximum")) {
+                            value = 4
+                        } else if (argStr.contains("min") || argStr.contains("low")) {
+                            value = 1
+                        } else {
+                            value = 3
+                        }
+                    }
+                    // AOSP HVAC UI only supports 4 fan speed levels. Clamp it to 1-4 (or 0 for off).
+                    value = value.coerceIn(0, 4)
                     val success = VehicleManager.writeFanSpeedToVhalVerified(value)
                     if (success) "I've set the fan speed to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
