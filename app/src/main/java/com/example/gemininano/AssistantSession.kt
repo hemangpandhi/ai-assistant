@@ -630,7 +630,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             // Streaming TTS Logic
                             val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
                             var remainingText = displayMsg.substring(safeStartIndex)
-                            val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-z])[.!?](?:\\s+|$))".toRegex()
+                            val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.!?](?:\\s+|$))".toRegex()
                             var match = sentenceRegex.find(remainingText)
                             while (match != null) {
                                 val sentence = match.value
