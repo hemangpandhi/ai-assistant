@@ -298,7 +298,7 @@ object LLMManager {
         val isSightseeing = userQuery.contains("visit") || userQuery.contains("interesting") || userQuery.contains("places") || userQuery.contains("sightseeing") || userQuery.contains("tourist") || userQuery.contains("what to do") || userQuery.contains("where to go") || userQuery.contains("city")
         val isFood = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai")
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFollowUpToSearch = mem.contains("which one would you like to navigate") || mem.contains("found these options nearby")
+        val isFollowUpToSearch = mem.contains("which one would you like to navigate") || mem.contains("found these options nearby") || mem.contains("which places would you like to visit")
         val isFollowUpToFuel = mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station")
         
         val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFood || isFollowUpToSearch || isFollowUpToFuel
@@ -446,6 +446,10 @@ object LLMManager {
             basePrompt.append("Example 16:\n")
             basePrompt.append("User: \"Navigate to Tokyo\"\n")
             basePrompt.append("Assistant: <TOOL>navigate(Tokyo)</TOOL>\n\n")
+
+            basePrompt.append("Example 17:\n")
+            basePrompt.append("User: \"Akihabara.\"\n")
+            basePrompt.append("Assistant: <TOOL>navigate(Akihabara)</TOOL>\n\n")
         }
 
         if ((isFuel || q.isEmpty()) && dynCtx.isEmpty()) {
