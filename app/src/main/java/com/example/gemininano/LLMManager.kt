@@ -191,8 +191,9 @@ object LLMManager {
                     else return "" // Generic query, don't search yet
                 }
 
-                var viewbox = "139.70,35.60,139.85,35.75" // Default Central Tokyo fallback
+                var viewbox = "139.27,35.47,139.47,35.67" // Default Sagamihara, Japan fallback
                 try {
+                    /* FORCED SAGAMIHARA FOR DEMO
                     if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
                         androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                         
@@ -210,6 +211,7 @@ object LLMManager {
                             viewbox = "$left,$bottom,$right,$top"
                         }
                     }
+                    */
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
