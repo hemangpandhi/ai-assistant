@@ -179,23 +179,24 @@ object LLMManager {
         
         if ((isFood || isFuel) && prompt.length < 50) {
             try {
-                var searchQuery = "catering.restaurant"
+                var overpassQuery = "node[\"amenity\"=\"restaurant\"]"
+                var isCuisineSpecific = false
                 if (isFuel) {
-                    searchQuery = if (q.contains("charging") || mem.contains("charging")) "service.vehicle.charging_station" else "service.vehicle.fuel"
+                    overpassQuery = if (q.contains("charging") || mem.contains("charging")) "node[\"amenity\"=\"charging_station\"]" else "node[\"amenity\"=\"fuel\"]"
                 } else {
-                    if (q.contains("italian")) searchQuery = "catering.restaurant.italian"
-                    else if (q.contains("mexican")) searchQuery = "catering.restaurant.mexican"
-                    else if (q.contains("chinese")) searchQuery = "catering.restaurant.chinese"
-                    else if (q.contains("pizza")) searchQuery = "catering.restaurant.pizza"
-                    else if (q.contains("burger")) searchQuery = "catering.restaurant.burger"
-                    else if (q.contains("sushi") || q.contains("japanese")) searchQuery = "catering.restaurant.japanese"
-                    else if (q.contains("indian")) searchQuery = "catering.restaurant.indian"
-                    else if (q.contains("thai")) searchQuery = "catering.restaurant.thai"
-                    else if (q.contains("vegetarian") || q.contains("vegan")) searchQuery = "catering.restaurant.vegetarian"
-                    else return "" // Generic query, don't search yet
+                    if (q.contains("italian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"italian\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("mexican")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"mexican\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("chinese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"chinese\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("pizza")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"pizza\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("burger")) { overpassQuery = "node[\"amenity\"=\"fast_food\"][\"cuisine\"~\"burger\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("sushi") || q.contains("japanese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"japanese|sushi\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("indian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"indian\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("thai")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"thai\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("vegetarian") || q.contains("vegan")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"diet:vegan\"~\"yes\",i]"; isCuisineSpecific = true }
+                    else overpassQuery = "node[\"amenity\"~\"restaurant|fast_food|cafe\"]"
                 }
 
-                var viewbox = "139.27,35.47,139.47,35.67" // Default Sagamihara, Japan fallback
+                var bbox = "35.47,139.27,35.67,139.47" // south,west,north,east Default Sagamihara, Japan fallback
                 try {
                     val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
                     val locationOverride = prefs.getString("location_override", "") ?: ""
@@ -235,15 +236,16 @@ object LLMManager {
                         val bottom = lat - 0.1
                         val right = lon + 0.1
                         val top = lat + 0.1
-                        viewbox = "$left,$bottom,$right,$top"
+                        bbox = "$bottom,$left,$top,$right"
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
 
                 return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val apiKey = "973b338e8e104d3d8115c5c93f799e39" // Geoapify API Key
-                    val url = java.net.URL("https://api.geoapify.com/v2/places?categories=$searchQuery&filter=rect:$viewbox&limit=3&apiKey=$apiKey")
+                    val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 3;"
+                    val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
+                    val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
                     val connection = url.openConnection() as java.net.HttpURLConnection
                     connection.connectTimeout = 4000
                     connection.readTimeout = 4000
@@ -253,11 +255,13 @@ object LLMManager {
                     if (connection.responseCode == 200) {
                         val response = connection.inputStream.bufferedReader().use { it.readText() }
                         val jsonObj = org.json.JSONObject(response)
-                        var features = jsonObj.optJSONArray("features") ?: org.json.JSONArray()
+                        var elements = jsonObj.optJSONArray("elements") ?: org.json.JSONArray()
                         
-                        if (features.length() == 0 && isFood && searchQuery != "catering.restaurant") {
+                        if (elements.length() == 0 && isFood && isCuisineSpecific) {
                             // Fallback to generic restaurant if specific cuisine fails
-                            val fallbackUrl = java.net.URL("https://api.geoapify.com/v2/places?categories=catering.restaurant&filter=rect:$viewbox&limit=3&apiKey=$apiKey")
+                            val fallbackQuery = "[out:json][timeout:10];node[\"amenity\"~\"restaurant|fast_food\"]($bbox);out 3;"
+                            val fbEncodedQuery = java.net.URLEncoder.encode(fallbackQuery, "UTF-8")
+                            val fallbackUrl = java.net.URL("https://overpass-api.de/api/interpreter?data=$fbEncodedQuery")
                             val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
                             fallbackConn.connectTimeout = 4000
                             fallbackConn.readTimeout = 4000
@@ -266,27 +270,27 @@ object LLMManager {
                             if (fallbackConn.responseCode == 200) {
                                 val fallbackResponse = fallbackConn.inputStream.bufferedReader().use { it.readText() }
                                 val fallbackObj = org.json.JSONObject(fallbackResponse)
-                                features = fallbackObj.optJSONArray("features") ?: org.json.JSONArray()
+                                elements = fallbackObj.optJSONArray("elements") ?: org.json.JSONArray()
                             }
                         }
                         val places = mutableListOf<String>()
-                        for (i in 0 until features.length()) {
-                            val feature = features.getJSONObject(i)
-                            val properties = feature.optJSONObject("properties") ?: continue
-                            val rawName = properties.optString("name", "").trim()
-                            val street = properties.optString("street", "").trim()
-                            val suburb = properties.optString("suburb", "").trim()
+                        for (i in 0 until elements.length()) {
+                            val element = elements.getJSONObject(i)
+                            val tags = element.optJSONObject("tags") ?: continue
+                            var name = tags.optString("name", tags.optString("name:en", "")).trim()
+                            val brand = tags.optString("brand", tags.optString("brand:en", "")).trim()
                             
-                            var finalName = rawName
-                            if (finalName.isNotEmpty() && street.isNotEmpty() && !finalName.contains(street, ignoreCase = true)) {
-                                finalName = "$finalName on $street"
-                            } else if (finalName.isNotEmpty() && suburb.isNotEmpty() && !finalName.contains(suburb, ignoreCase = true)) {
-                                finalName = "$finalName in $suburb"
-                            } else if (finalName.isEmpty() && street.isNotEmpty()) {
-                                finalName = "Gas Station on $street"
+                            if (name.isEmpty() && brand.isNotEmpty()) {
+                                name = brand
                             }
                             
-                            if (finalName.isNotEmpty() && !places.contains(finalName)) places.add(finalName)
+                            if (name.isEmpty() && isFuel) {
+                                name = "Local Gas Station"
+                            } else if (name.isEmpty() && isFood) {
+                                name = "Local Restaurant"
+                            }
+                            
+                            if (name.isNotEmpty() && !places.contains(name)) places.add(name)
                         }
                         if (places.isNotEmpty()) {
                             val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
