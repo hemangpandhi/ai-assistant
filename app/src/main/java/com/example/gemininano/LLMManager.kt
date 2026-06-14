@@ -353,6 +353,8 @@ object LLMManager {
             basePrompt.append("[HVAC Control]\n")
             basePrompt.append("User: \"Increase temperature.\"\n")
             basePrompt.append("Assistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n")
+            basePrompt.append("User: \"Decrease temperature by 5 degrees.\"\n")
+            basePrompt.append("Assistant: <TOOL>decreaseTemperature(5)</TOOL> I'm cooling it down by 5 degrees.\n")
             basePrompt.append("User: \"Set the temperature to 70.\"\n")
             basePrompt.append("Assistant: <TOOL>setTemperature(70)</TOOL> I've set the temperature to 70 degrees.\n")
             basePrompt.append("User: \"I am feeling cold.\"\n")
