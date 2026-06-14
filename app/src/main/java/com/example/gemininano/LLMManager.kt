@@ -167,17 +167,18 @@ object LLMManager {
         val q = prompt.lowercase()
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
         val isFollowUpToSearch = mem.contains("which one would you like to navigate") || mem.contains("found these options nearby")
+        val isFollowUpToFuel = mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")
         
         val isNav = q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route") || q.contains("take me") || (q.length <= 2 && q.toIntOrNull() != null) || isFollowUpToSearch
         val isFood = (q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan")) && !isNav
-        val isFuel = (q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")) && !isNav
+        val isFuel = (q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging") || isFollowUpToFuel) && !isNav
         val isSightseeing = (q.contains("visit") || q.contains("interesting") || q.contains("places") || q.contains("sightseeing") || q.contains("tourist") || q.contains("what to do") || q.contains("where to go") || q.contains("city") || q.contains("see")) && !isNav
         
         if ((isFood || isFuel) && prompt.length < 50) {
             try {
                 var searchQuery = "catering.restaurant"
                 if (isFuel) {
-                    searchQuery = if (q.contains("charging")) "service.vehicle.charging_station" else "service.vehicle.fuel"
+                    searchQuery = if (q.contains("charging") || mem.contains("charging")) "service.vehicle.charging_station" else "service.vehicle.fuel"
                 } else {
                     if (q.contains("italian")) searchQuery = "catering.restaurant.italian"
                     else if (q.contains("mexican")) searchQuery = "catering.restaurant.mexican"
