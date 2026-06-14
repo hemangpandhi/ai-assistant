@@ -166,7 +166,7 @@ object LLMManager {
     suspend fun getDynamicContext(context: android.content.Context, prompt: String): String {
         val q = prompt.lowercase()
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFoodQuery = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan")
+        val isFoodQuery = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan") || q.contains("american") || q.contains("fast food")
         val isFuelQuery = q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")
         
         val isFollowUpToSearch = (mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("navigate to any of these options")) && !isFoodQuery && !isFuelQuery
@@ -188,12 +188,12 @@ object LLMManager {
                     else if (q.contains("mexican")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"mexican\",i]"; isCuisineSpecific = true }
                     else if (q.contains("chinese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"chinese\",i]"; isCuisineSpecific = true }
                     else if (q.contains("pizza")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"pizza\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("burger")) { overpassQuery = "node[\"amenity\"=\"fast_food\"][\"cuisine\"~\"burger\",i]"; isCuisineSpecific = true }
+                    else if (q.contains("burger") || q.contains("fast food") || q.contains("american")) { overpassQuery = "node[\"amenity\"=\"fast_food\"][\"cuisine\"~\"burger|american\",i]"; isCuisineSpecific = true }
                     else if (q.contains("sushi") || q.contains("japanese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"japanese|sushi\",i]"; isCuisineSpecific = true }
                     else if (q.contains("indian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"indian\",i]"; isCuisineSpecific = true }
                     else if (q.contains("thai")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"thai\",i]"; isCuisineSpecific = true }
                     else if (q.contains("vegetarian") || q.contains("vegan")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"diet:vegan\"~\"yes\",i]"; isCuisineSpecific = true }
-                    else overpassQuery = "node[\"amenity\"~\"restaurant|fast_food|cafe\"]"
+                    else return "" // No specific cuisine mentioned, return empty to force LLM to ask user
                 }
 
                 var bbox = "35.47,139.27,35.67,139.47" // south,west,north,east Default Sagamihara, Japan fallback
@@ -315,7 +315,7 @@ object LLMManager {
         val userQuery = query.lowercase()
         val isHvac = userQuery.contains("temperature") || userQuery.contains("hot") || userQuery.contains("cold") || userQuery.contains("warm") || userQuery.contains("cool") || userQuery.contains("ac") || userQuery.contains("heater") || userQuery.contains("defroster") || userQuery.contains("increase") || userQuery.contains("decrease") || userQuery.contains("fog") || userQuery.contains("window")
         val isSightseeing = userQuery.contains("visit") || userQuery.contains("interesting") || userQuery.contains("places") || userQuery.contains("sightseeing") || userQuery.contains("tourist") || userQuery.contains("what to do") || userQuery.contains("where to go") || userQuery.contains("city")
-        val isFoodQuery = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai")
+        val isFoodQuery = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai") || userQuery.contains("japanese") || userQuery.contains("vegetarian") || userQuery.contains("vegan") || userQuery.contains("american") || userQuery.contains("fast food")
         val isFuelQuery = userQuery.contains("fuel") || userQuery.contains("gas") || userQuery.contains("petrol") || userQuery.contains("charging")
         
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
