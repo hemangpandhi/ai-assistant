@@ -259,11 +259,15 @@ object LLMManager {
                             }
                         }
                         val places = mutableListOf<String>()
+                        val placesWithCoords = mutableListOf<Pair<String, String>>()
                         for (i in 0 until elements.length()) {
                             val element = elements.getJSONObject(i)
                             val tags = element.optJSONObject("tags") ?: continue
                             var name = tags.optString("name", tags.optString("name:en", "")).trim()
                             val brand = tags.optString("brand", tags.optString("brand:en", "")).trim()
+                            
+                            val lat = element.optDouble("lat")
+                            val lon = element.optDouble("lon")
                             
                             if (name.isEmpty() && brand.isNotEmpty()) {
                                 name = brand
@@ -271,19 +275,28 @@ object LLMManager {
                             
                             if (name.isNotEmpty() && !places.contains(name)) {
                                 places.add(name)
+                                placesWithCoords.add(Pair(name, "$lat,$lon"))
                                 if (places.size >= 3) break
                             }
                         }
                         
                         // If we found elements but NONE of them had a name, use a generic fallback
                         if (places.isEmpty() && elements.length() > 0) {
-                            if (isFuel) places.add("Local Gas Station")
-                            else if (isFood) places.add("Local Restaurant")
+                            val firstLat = elements.getJSONObject(0).optDouble("lat")
+                            val firstLon = elements.getJSONObject(0).optDouble("lon")
+                            if (isFuel) {
+                                places.add("Local Gas Station")
+                                placesWithCoords.add(Pair("Local Gas Station", "$firstLat,$firstLon"))
+                            } else if (isFood) {
+                                places.add("Local Restaurant")
+                                placesWithCoords.add(Pair("Local Restaurant", "$firstLat,$firstLon"))
+                            }
                         }
                         
                         if (places.isNotEmpty()) {
                             val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-                            return@withContext "\n\n[System Note: Do NOT use any <TOOL> tags. You MUST reply to the user with EXACTLY this text. Do NOT translate the names, read them EXACTLY as written: \"I found these options nearby: $placesStr. Which one would you like to navigate to?\"]"
+                            val coordInstructions = placesWithCoords.mapIndexed { index, pair -> "If user chooses ${index + 1} (${pair.first}), output EXACTLY <TOOL>navigate(${pair.second})</TOOL>" }.joinToString(". ")
+                            return@withContext "\n\n[System Note: Do NOT use any <TOOL> tags yet. You MUST reply to the user with EXACTLY this text. Do NOT translate the names, read them EXACTLY as written: \"I found these options nearby: $placesStr. Which one would you like to navigate to?\" INTERNAL RULE FOR NEXT TURN: $coordInstructions]"
                         }
                     }
                     return@withContext ""
@@ -443,11 +456,11 @@ object LLMManager {
             
             basePrompt.append("Example 12:\n")
             basePrompt.append("User: \"Italian.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. Luigi's, 2. Roma. Which one would you like to navigate to?\n\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. Luigi's, 2. Roma. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: If user chooses 1 (Luigi's), output EXACTLY <TOOL>navigate(35.123,139.123)</TOOL>.\n\n")
             
             basePrompt.append("Example 13:\n")
             basePrompt.append("User: \"1.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Luigi's)</TOOL>\n\n")
+            basePrompt.append("Assistant: <TOOL>navigate(35.123,139.123)</TOOL>\n\n")
             
             basePrompt.append("Example 14:\n")
             basePrompt.append("User: \"I am running out of fuel.\"\n")
@@ -455,9 +468,9 @@ object LLMManager {
             
             basePrompt.append("Example 15:\n")
             basePrompt.append("User: \"I need charging.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. ENEOS, 2. Cosmo. Which one would you like to navigate to?\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. ENEOS, 2. Cosmo. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: If user chooses 1 (ENEOS), output EXACTLY <TOOL>navigate(35.6324,139.4211)</TOOL>. If user chooses 2 (Cosmo), output EXACTLY <TOOL>navigate(35.6274,139.4038)</TOOL>\n")
             basePrompt.append("User: \"The second one.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Cosmo)</TOOL>\n\n")
+            basePrompt.append("Assistant: <TOOL>navigate(35.6274,139.4038)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {

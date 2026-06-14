@@ -300,29 +300,45 @@ object ToolManager {
 
 
                 "navigate" -> {
-                    val dest = toolCall.substringAfter("(").substringBefore(")")
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        // Intercept and suppress native system toasts to maintain strict bespoke OEM presentation
-                        // Toast.makeText(context, "Navigating to: $dest", Toast.LENGTH_SHORT).show()
+                    val rawArgs = toolCall.substringAfter("(").substringBefore(")")
+                    val args = rawArgs.split(",")
+                    
+                    val queryForMaps = if (args.size >= 2 && args[0].trim().toDoubleOrNull() != null && args[1].trim().toDoubleOrNull() != null) {
+                        "${args[0].trim()},${args[1].trim()}" // Coordinate routing
+                    } else {
+                        rawArgs // Fallback to raw string
                     }
                     
-                    val gMapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(dest)}"))
+                    val spokenDest = if (args.size >= 3 && args[0].trim().toDoubleOrNull() != null) {
+                        args.subList(2, args.size).joinToString(",").trim() // Extracts the optional display name
+                    } else if (args.size == 2 && args[0].trim().toDoubleOrNull() != null) {
+                        "your destination"
+                    } else {
+                        rawArgs // Fallback to raw string
+                    }
+
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        // Intercept and suppress native system toasts to maintain strict bespoke OEM presentation
+                        // Toast.makeText(context, "Navigating to: $queryForMaps", Toast.LENGTH_SHORT).show()
+                    }
+                    
+                    val gMapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(queryForMaps)}"))
                     gMapsIntent.setPackage("com.google.android.apps.maps")
                     gMapsIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                     try {
                         if (intentHandler != null) intentHandler(gMapsIntent) else context.startActivity(gMapsIntent)
                     } catch (e: Exception) {
-                        val navIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(dest)}"))
+                        val navIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(queryForMaps)}"))
                         navIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         try {
                             if (intentHandler != null) intentHandler(navIntent) else context.startActivity(navIntent)
                         } catch (e2: Exception) {
-                            val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(dest)}"))
+                            val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(queryForMaps)}"))
                             geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                             try {
                                 if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)
                             } catch (e3: Exception) {
-                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(dest)}"))
+                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(queryForMaps)}"))
                                 browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                                 try {
                                     if (intentHandler != null) intentHandler(browserIntent) else context.startActivity(browserIntent)
@@ -333,7 +349,7 @@ object ToolManager {
                             }
                         }
                     }
-                    "Routing to $dest."
+                    "Routing to $spokenDest."
                 }
                 "search" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")
