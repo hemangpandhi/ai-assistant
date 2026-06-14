@@ -231,8 +231,8 @@ object LLMManager {
                     val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
                     val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
                     val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.connectTimeout = 4000
-                    connection.readTimeout = 4000
+                    connection.connectTimeout = 10000
+                    connection.readTimeout = 10000
                     connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
                     connection.requestMethod = "GET"
                     
@@ -247,8 +247,8 @@ object LLMManager {
                             val fbEncodedQuery = java.net.URLEncoder.encode(fallbackQuery, "UTF-8")
                             val fallbackUrl = java.net.URL("https://overpass-api.de/api/interpreter?data=$fbEncodedQuery")
                             val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
-                            fallbackConn.connectTimeout = 4000
-                            fallbackConn.readTimeout = 4000
+                            fallbackConn.connectTimeout = 10000
+                            fallbackConn.readTimeout = 10000
                             fallbackConn.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
                             fallbackConn.requestMethod = "GET"
                             if (fallbackConn.responseCode == 200) {
