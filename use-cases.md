@@ -29,8 +29,8 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 
 ### 3. Intelligent Navigation & Sightseeing (Nominatim & Intents)
 *Test the integration with live GPS coordinates (now mocked to Tokyo) and Google Maps routing.*
-* **Prompt:** *"Navigate me to Tokyo"*
-  * **Expected Output:** The AI immediately triggers `<TOOL>navigate(Tokyo)</TOOL>`, which dispatches a `google.navigation:q=Tokyo` Intent to launch the map app.
+* **Prompt:** *"Navigate me to Tokyo Tower"*
+  * **Expected Output:** The AI immediately triggers `<TOOL>navigate(Tokyo Tower)</TOOL>`, which dispatches a `google.navigation:q=Tokyo Tower` Intent to launch the map app.
 * **Prompt:** *"Suggest nearby places to visit around Tokyo"*
   * **Expected Output:** The AI queries the Nominatim endpoint using your live GPS location, lists several real sightseeing locations (e.g., Tokyo Skytree, Senso-ji), and finishes by asking: *"Which places would you like to visit?"*
 * **Follow-up Prompt:** *"The second one."*
