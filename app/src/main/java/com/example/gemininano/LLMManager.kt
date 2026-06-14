@@ -193,25 +193,46 @@ object LLMManager {
 
                 var viewbox = "139.27,35.47,139.47,35.67" // Default Sagamihara, Japan fallback
                 try {
-                    /* FORCED SAGAMIHARA FOR DEMO
-                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
-                        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                        
-                        val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
-                        val location = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER) 
-                            ?: locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                            
-                        if (location != null) {
-                            val lat = location.latitude
-                            val lon = location.longitude
-                            val left = lon - 0.1
-                            val bottom = lat - 0.1
-                            val right = lon + 0.1
-                            val top = lat + 0.1
-                            viewbox = "$left,$bottom,$right,$top"
+                    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                    val locationOverride = prefs.getString("location_override", "") ?: ""
+                    var lat = 0.0
+                    var lon = 0.0
+                    var useOverride = false
+                    
+                    if (locationOverride.isNotEmpty() && locationOverride.contains(",")) {
+                        try {
+                            val parts = locationOverride.split(",")
+                            lon = parts[0].trim().toDouble()
+                            lat = parts[1].trim().toDouble()
+                            useOverride = true
+                        } catch (e: Exception) {
+                            android.util.Log.e("LLMManager", "Invalid location override format", e)
                         }
                     }
-                    */
+                    
+                    if (!useOverride) {
+                        if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
+                            androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                            
+                            val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+                            val location = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER) 
+                                ?: locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
+                                
+                            if (location != null) {
+                                lat = location.latitude
+                                lon = location.longitude
+                                useOverride = true
+                            }
+                        }
+                    }
+
+                    if (useOverride) {
+                        val left = lon - 0.1
+                        val bottom = lat - 0.1
+                        val right = lon + 0.1
+                        val top = lat + 0.1
+                        viewbox = "$left,$bottom,$right,$top"
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }

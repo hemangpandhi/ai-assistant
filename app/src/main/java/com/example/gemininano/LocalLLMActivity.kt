@@ -637,6 +637,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val currentKvCache = prefs.getInt("max_tokens", 4096)
         val currentAutoFlush = prefs.getInt("auto_flush", 25)
+        val currentLocationOverride = prefs.getString("location_override", "") ?: ""
         val currentMechanicName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
         val currentMechanicNum = prefs.getString("mechanic_number", "555-0199") ?: "555-0199"
         val currentDiningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
@@ -644,6 +645,9 @@ class LocalLLMActivity : AppCompatActivity() {
         etKvCache.setText(currentKvCache.toString())
         val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)
         etAutoFlush.setText(currentAutoFlush.toString())
+        
+        val etLocationOverride = dialogView.findViewById<android.widget.EditText>(R.id.etLocationOverride)
+        etLocationOverride.setText(currentLocationOverride)
         
         val etMechanicName = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicName)
         val etMechanicNumber = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicNumber)
@@ -684,6 +688,8 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)
                 
                 prefs.edit().apply {
+                    val etLocationOverride = dialogView.findViewById<android.widget.EditText>(R.id.etLocationOverride)
+                    putString("location_override", etLocationOverride.text.toString().trim())
                     putString("mechanic_name", etMechanicName.text.toString())
                     putString("mechanic_number", etMechanicNumber.text.toString())
                     putString("dining_pref", etDiningPref.text.toString())
