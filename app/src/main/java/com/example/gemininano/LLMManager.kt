@@ -175,19 +175,19 @@ object LLMManager {
         
         if ((isFood || isFuel) && prompt.length < 50) {
             try {
-                var searchQuery = "restaurant"
+                var searchQuery = "catering.restaurant"
                 if (isFuel) {
-                    searchQuery = if (q.contains("charging")) "EV charging station" else "gas station"
+                    searchQuery = if (q.contains("charging")) "service.vehicle.charging_station" else "service.vehicle.fuel"
                 } else {
-                    if (q.contains("italian")) searchQuery = "Italian"
-                    else if (q.contains("mexican")) searchQuery = "Mexican"
-                    else if (q.contains("chinese")) searchQuery = "Chinese"
-                    else if (q.contains("pizza")) searchQuery = "Pizza"
-                    else if (q.contains("burger")) searchQuery = "Burger"
-                    else if (q.contains("sushi") || q.contains("japanese")) searchQuery = "Sushi"
-                    else if (q.contains("indian")) searchQuery = "Indian"
-                    else if (q.contains("thai")) searchQuery = "Thai"
-                    else if (q.contains("vegetarian") || q.contains("vegan")) searchQuery = "Vegetarian"
+                    if (q.contains("italian")) searchQuery = "catering.restaurant.italian"
+                    else if (q.contains("mexican")) searchQuery = "catering.restaurant.mexican"
+                    else if (q.contains("chinese")) searchQuery = "catering.restaurant.chinese"
+                    else if (q.contains("pizza")) searchQuery = "catering.restaurant.pizza"
+                    else if (q.contains("burger")) searchQuery = "catering.restaurant.burger"
+                    else if (q.contains("sushi") || q.contains("japanese")) searchQuery = "catering.restaurant.japanese"
+                    else if (q.contains("indian")) searchQuery = "catering.restaurant.indian"
+                    else if (q.contains("thai")) searchQuery = "catering.restaurant.thai"
+                    else if (q.contains("vegetarian") || q.contains("vegan")) searchQuery = "catering.restaurant.vegetarian"
                     else return "" // Generic query, don't search yet
                 }
 
@@ -215,7 +215,8 @@ object LLMManager {
                 }
 
                 return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&format=json&limit=3&viewbox=$viewbox&bounded=1&accept-language=en")
+                    val apiKey = "YOUR_GEOAPIFY_KEY" // REPLACE WITH ACTUAL API KEY
+                    val url = java.net.URL("https://api.geoapify.com/v2/places?categories=$searchQuery&filter=rect:$viewbox&limit=3&apiKey=$apiKey")
                     val connection = url.openConnection() as java.net.HttpURLConnection
                     connection.connectTimeout = 1500
                     connection.readTimeout = 1500
@@ -224,11 +225,12 @@ object LLMManager {
                     
                     if (connection.responseCode == 200) {
                         val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        var jsonArray = org.json.JSONArray(response)
+                        val jsonObj = org.json.JSONObject(response)
+                        var features = jsonObj.optJSONArray("features") ?: org.json.JSONArray()
                         
-                        if (jsonArray.length() == 0 && isFood && searchQuery != "restaurant") {
+                        if (features.length() == 0 && isFood && searchQuery != "catering.restaurant") {
                             // Fallback to generic restaurant if specific cuisine fails
-                            val fallbackUrl = java.net.URL("https://nominatim.openstreetmap.org/search?q=restaurant&format=json&limit=3&viewbox=$viewbox&bounded=1&accept-language=en")
+                            val fallbackUrl = java.net.URL("https://api.geoapify.com/v2/places?categories=catering.restaurant&filter=rect:$viewbox&limit=3&apiKey=$apiKey")
                             val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
                             fallbackConn.connectTimeout = 1500
                             fallbackConn.readTimeout = 1500
@@ -236,23 +238,15 @@ object LLMManager {
                             fallbackConn.requestMethod = "GET"
                             if (fallbackConn.responseCode == 200) {
                                 val fallbackResponse = fallbackConn.inputStream.bufferedReader().use { it.readText() }
-                                jsonArray = org.json.JSONArray(fallbackResponse)
+                                val fallbackObj = org.json.JSONObject(fallbackResponse)
+                                features = fallbackObj.optJSONArray("features") ?: org.json.JSONArray()
                             }
                         }
                         val places = mutableListOf<String>()
-                        for (i in 0 until jsonArray.length()) {
-                            val obj = jsonArray.getJSONObject(i)
-                            var name = obj.optString("name", "")
-                            val displayName = obj.optString("display_name", "")
-                            
-                            if (name.isEmpty() && displayName.isNotEmpty()) {
-                                name = displayName.split(",").take(2).joinToString(",")
-                            } else if (name.isNotEmpty() && displayName.isNotEmpty() && displayName.contains(",")) {
-                                val contextStr = displayName.substringAfter(",").split(",").firstOrNull()?.trim() ?: ""
-                                if (contextStr.isNotEmpty() && !contextStr.contains(name)) {
-                                    name = "$name ($contextStr)"
-                                }
-                            }
+                        for (i in 0 until features.length()) {
+                            val feature = features.getJSONObject(i)
+                            val properties = feature.optJSONObject("properties") ?: continue
+                            val name = properties.optString("name", "")
                             
                             if (name.isNotEmpty()) places.add(name)
                         }
