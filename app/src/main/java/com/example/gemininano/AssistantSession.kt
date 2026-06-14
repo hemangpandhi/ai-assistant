@@ -66,43 +66,47 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale.US
             tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, "PREWARM")
-            tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-                override fun onStart(utteranceId: String?) {}
-
-                override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
-                    // Highlighting disabled by user request
-                }
-
-                override fun onDone(utteranceId: String?) {
-                    if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
-                        currentHighlightStart = -1
-                        currentHighlightEnd = -1
-                        CoroutineScope(Dispatchers.Main).launch {
-                            val spannable = responseText.text as? android.text.Spannable
-                            if (spannable != null) {
-                                val oldSpans = spannable.getSpans(0, spannable.length, android.text.style.BackgroundColorSpan::class.java)
-                                for (span in oldSpans) spannable.removeSpan(span)
-                            }
-                        }
-                    }
-                    CoroutineScope(Dispatchers.Main).launch {
-                        if (utteranceId == "QUESTION_FINAL") {
-                            btnMic.performClick()
-                        } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
-                            for (job in currentPendingTools) {
-                                try { job.await() } catch (e: Exception) {}
-                            }
-                            kotlinx.coroutines.delay(2000)
-                            finish()
-                        }
-                    }
-                }
-
-                override fun onError(utteranceId: String?) {
-                    android.util.Log.e("AssistantSession", "TTS Error: " + utteranceId)
-                }
-            })
+            setupTtsListener()
         }
+    }
+
+    private fun setupTtsListener() {
+        tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) {}
+
+            override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
+                // Highlighting disabled by user request
+            }
+
+            override fun onDone(utteranceId: String?) {
+                if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
+                    currentHighlightStart = -1
+                    currentHighlightEnd = -1
+                    CoroutineScope(Dispatchers.Main).launch {
+                        val spannable = responseText.text as? android.text.Spannable
+                        if (spannable != null) {
+                            val oldSpans = spannable.getSpans(0, spannable.length, android.text.style.BackgroundColorSpan::class.java)
+                            for (span in oldSpans) spannable.removeSpan(span)
+                        }
+                    }
+                }
+                CoroutineScope(Dispatchers.Main).launch {
+                    if (utteranceId == "QUESTION_FINAL") {
+                        btnMic.performClick()
+                    } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
+                        for (job in currentPendingTools) {
+                            try { job.await() } catch (e: Exception) {}
+                        }
+                        kotlinx.coroutines.delay(2000)
+                        finish()
+                    }
+                }
+            }
+
+            override fun onError(utteranceId: String?) {
+                android.util.Log.e("AssistantSession", "TTS Error: " + utteranceId)
+            }
+        })
     }
 
     private var currentLayoutStyle = -1
@@ -123,6 +127,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         VehicleManager.initialize(context.applicationContext)
         if (tts == null) {
             tts = TextToSpeech(context.applicationContext, this)
+        } else {
+            setupTtsListener()
         }
         
         setupSpeechRecognizer()
