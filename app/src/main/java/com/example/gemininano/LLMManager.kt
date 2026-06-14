@@ -166,7 +166,7 @@ object LLMManager {
     suspend fun getDynamicContext(context: android.content.Context, prompt: String): String {
         val q = prompt.lowercase()
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFollowUpToSearch = mem.contains("which one would you like to navigate") || mem.contains("found these options nearby")
+        val isFollowUpToSearch = mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("navigate to any of these options")
         val isFollowUpToFuel = mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")
         
         val isNav = q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route") || q.contains("take me") || (q.length <= 2 && q.toIntOrNull() != null) || isFollowUpToSearch
@@ -310,7 +310,7 @@ object LLMManager {
         val isSightseeing = userQuery.contains("visit") || userQuery.contains("interesting") || userQuery.contains("places") || userQuery.contains("sightseeing") || userQuery.contains("tourist") || userQuery.contains("what to do") || userQuery.contains("where to go") || userQuery.contains("city")
         val isFood = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai")
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFollowUpToSearch = mem.contains("which one would you like to navigate") || mem.contains("found these options nearby") || mem.contains("which places would you like to visit")
+        val isFollowUpToSearch = mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("which places would you like to visit") || mem.contains("navigate to any of these options")
         val isFollowUpToFuel = mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station")
         
         val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFood || isFollowUpToSearch || isFollowUpToFuel
