@@ -152,8 +152,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         val modelInfoTag: android.widget.TextView? = overlayView.findViewById(R.id.modelInfoTag)
         if (modelInfoTag != null) {
-            val modelName = java.io.File(LLMManager.currentModelPath).nameWithoutExtension
-            modelInfoTag.text = if (modelName.isNotEmpty()) modelName else "Gemma 4 E2B"
+            if (LocalLLMActivity.isCloudModelActive) {
+                modelInfoTag.text = "${LocalLLMActivity.currentCloudModelName} ☁️"
+            } else {
+                val modelName = java.io.File(LLMManager.currentModelPath).nameWithoutExtension
+                modelInfoTag.text = if (modelName.isNotEmpty()) modelName else "Gemma 4 E2B"
+            }
         }
 
         // Global Adaptive Gravity Logic
@@ -351,9 +355,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private suspend fun executeToolCall(toolCall: String): String? {
         return ToolManager.executeToolCall(context.applicationContext, toolCall) { intent ->
             try {
-                startVoiceActivity(intent)
+                intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
             } catch (e: Exception) {
-                android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
+                android.util.Log.e("AssistantSession", "startActivity failed", e)
                 try {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.applicationContext.startActivity(intent)

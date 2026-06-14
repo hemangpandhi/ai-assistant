@@ -69,6 +69,10 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
   * **Expected Output:** The AI triggers `<TOOL>call(Mom)</TOOL>`, opening the system dialer with an `ACTION_DIAL` intent.
 * **Prompt:** *"Play some classic rock music."*
   * **Expected Output:** The AI triggers the `<TOOL>playMusic(classic rock)</TOOL>` tag, which seamlessly dispatches a media search intent to open the default music app (like Spotify) and starts playback.
+* **Prompt:** *"Play music by Adele."*
+  * **Expected Output:** The AI triggers `<TOOL>playMusic(Adele)</TOOL>`, bridging to the media app to start playing the US favorite artist.
+* **Prompt:** *"Play YOASOBI."*
+  * **Expected Output:** The AI triggers `<TOOL>playMusic(YOASOBI)</TOOL>`, launching playback for the Japanese favorite artist.
 
 ---
 
