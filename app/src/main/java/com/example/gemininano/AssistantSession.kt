@@ -748,9 +748,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                                  finalMsg.contains("would you like", ignoreCase = true) || 
                                                  finalMsg.contains("if you'd like", ignoreCase = true) || 
                                                  finalMsg.contains("do you want", ignoreCase = true) ||
-                                                 finalMsg.contains("shall i", ignoreCase = true) ||
-                                                 finalMsg.contains("let me know", ignoreCase = true) ||
-                                                 finalMsg.contains("tell me", ignoreCase = true)
+                                                 finalMsg.contains("shall i", ignoreCase = true)
                                                  
                                 val finalUtterance = if (isQuestion) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
                                 tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
@@ -760,9 +758,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                                  finalMsg.contains("would you like", ignoreCase = true) || 
                                                  finalMsg.contains("if you'd like", ignoreCase = true) || 
                                                  finalMsg.contains("do you want", ignoreCase = true) ||
-                                                 finalMsg.contains("shall i", ignoreCase = true) ||
-                                                 finalMsg.contains("let me know", ignoreCase = true) ||
-                                                 finalMsg.contains("tell me", ignoreCase = true)
+                                                 finalMsg.contains("shall i", ignoreCase = true)
                                                  
                                 if (isQuestion) {
                                     btnMic.performClick()
