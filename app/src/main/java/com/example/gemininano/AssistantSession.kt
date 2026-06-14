@@ -567,6 +567,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     continue
                                 }
                                 
+                                if ((toolName == "turnOnCabinLight" || toolName == "turnOffCabinLight") && !q.contains("light") && !q.contains("cabin") && !q.contains("interior") && !q.contains("dark") && !q.contains("see")) {
+                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory cabin light tool call: $toolCall")
+                                    continue
+                                }
+                                
 
                                 if (executedTools.add(toolCall)) {
                                     android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")
