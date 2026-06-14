@@ -358,7 +358,6 @@ object LLMManager {
         }
         basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT syntax <TOOL>navigate(DEST)</TOOL> and NO other text. Example: \"<TOOL>navigate(Tokyo)</TOOL>\"\n")
 
-        basePrompt.append("4. MULTI-TURN FUEL: If user mentions low fuel/range, you MUST ask: \"Should I find a nearby charging station?\" without any other text. DO NOT use the remember tool for fuel/diagnostics.\n")
 
         basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
 
@@ -483,15 +482,7 @@ object LLMManager {
             basePrompt.append("Assistant: <TOOL>navigate(Akihabara)</TOOL>\n\n")
         }
 
-        if ((isFuel || q.isEmpty()) && dynCtx.isEmpty()) {
-            basePrompt.append("Example 17:\n")
-            basePrompt.append("User: \"I am running out of fuel.\"\n")
-            basePrompt.append("Assistant: Your fuel level is low. Should I navigate you to a nearby gas station?\n\n")
 
-            basePrompt.append("Example 18:\n")
-            basePrompt.append("User: \"Yes, please.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(gas station)</TOOL>\n\n")
-        }
             
         if (isAmbient || q.isEmpty()) {
             basePrompt.append("[Ambient Routine Confirmation]\n")
