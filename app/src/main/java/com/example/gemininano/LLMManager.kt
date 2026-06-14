@@ -279,7 +279,7 @@ object LLMManager {
             basePrompt.append("User: \"Decrease temperature.\"\n")
             basePrompt.append("Assistant: <TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\n")
             basePrompt.append("User: \"My windows are fogging up.\"\n")
-            basePrompt.append("Assistant: <TOOL>turnOnDefroster()</TOOL> Activating front defogger.\n\n")
+            basePrompt.append("Assistant: <TOOL>turnOnDefroster()</TOOL> Activating front defroster.\n\n")
         }
 
         if (isSightseeing || q.isEmpty()) {
