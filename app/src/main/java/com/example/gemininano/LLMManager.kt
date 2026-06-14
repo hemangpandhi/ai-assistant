@@ -228,7 +228,7 @@ object LLMManager {
                 }
 
                 return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 3;"
+                    val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 10;"
                     val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
                     val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
                     val connection = url.openConnection() as java.net.HttpURLConnection
@@ -244,7 +244,7 @@ object LLMManager {
                         
                         if (elements.length() == 0 && isFood && isCuisineSpecific) {
                             // Fallback to generic restaurant if specific cuisine fails
-                            val fallbackQuery = "[out:json][timeout:10];node[\"amenity\"~\"restaurant|fast_food\"]($bbox);out 3;"
+                            val fallbackQuery = "[out:json][timeout:10];node[\"amenity\"~\"restaurant|fast_food\"]($bbox);out 10;"
                             val fbEncodedQuery = java.net.URLEncoder.encode(fallbackQuery, "UTF-8")
                             val fallbackUrl = java.net.URL("https://overpass-api.de/api/interpreter?data=$fbEncodedQuery")
                             val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
@@ -269,14 +269,18 @@ object LLMManager {
                                 name = brand
                             }
                             
-                            if (name.isEmpty() && isFuel) {
-                                name = "Local Gas Station"
-                            } else if (name.isEmpty() && isFood) {
-                                name = "Local Restaurant"
+                            if (name.isNotEmpty() && !places.contains(name)) {
+                                places.add(name)
+                                if (places.size >= 3) break
                             }
-                            
-                            if (name.isNotEmpty() && !places.contains(name)) places.add(name)
                         }
+                        
+                        // If we found elements but NONE of them had a name, use a generic fallback
+                        if (places.isEmpty() && elements.length() > 0) {
+                            if (isFuel) places.add("Local Gas Station")
+                            else if (isFood) places.add("Local Restaurant")
+                        }
+                        
                         if (places.isNotEmpty()) {
                             val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
                             return@withContext "\n\n[System Note: Do NOT use any <TOOL> tags. You MUST reply to the user with EXACTLY this text. Do NOT translate the names, read them EXACTLY as written: \"I found these options nearby: $placesStr. Which one would you like to navigate to?\"]"
