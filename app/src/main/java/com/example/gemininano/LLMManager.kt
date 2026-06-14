@@ -215,7 +215,7 @@ object LLMManager {
                 }
 
                 return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val apiKey = "YOUR_GEOAPIFY_KEY" // REPLACE WITH ACTUAL API KEY
+                    val apiKey = "973b338e8e104d3d8115c5c93f799e39" // Geoapify API Key
                     val url = java.net.URL("https://api.geoapify.com/v2/places?categories=$searchQuery&filter=rect:$viewbox&limit=3&apiKey=$apiKey")
                     val connection = url.openConnection() as java.net.HttpURLConnection
                     connection.connectTimeout = 1500
