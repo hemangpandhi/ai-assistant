@@ -173,13 +173,11 @@ object LLMManager {
         val isFuel = (q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")) && !isNav
         val isSightseeing = (q.contains("visit") || q.contains("interesting") || q.contains("places") || q.contains("sightseeing") || q.contains("tourist") || q.contains("what to do") || q.contains("where to go") || q.contains("city") || q.contains("see")) && !isNav
         
-        if ((isFood || isFuel || isSightseeing) && prompt.length < 50) {
+        if ((isFood || isFuel) && prompt.length < 50) {
             try {
                 var searchQuery = "restaurant"
                 if (isFuel) {
                     searchQuery = if (q.contains("charging")) "EV charging station" else "gas station"
-                } else if (isSightseeing) {
-                    searchQuery = "tourist attraction"
                 } else {
                     if (q.contains("italian")) searchQuery = "Italian"
                     else if (q.contains("mexican")) searchQuery = "Mexican"
@@ -322,7 +320,8 @@ object LLMManager {
 
         basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
 
-        basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
+        basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
+        basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the EXACT syntax <TOOL>search(PLACES)</TOOL> instead of listing them.\n")
         basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.\n")
         val dyn = dynCtx
         if (dyn.isNotEmpty() && isFood) {
@@ -337,11 +336,6 @@ object LLMManager {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
             basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, DO NOT USE ANY TOOLS. ALWAYS ask first EXACTLY: \"Should I find a nearby gas station?\"\n")
         }
-        val dynSightseeing = dynCtx
-        if (dynSightseeing.isNotEmpty() && isSightseeing) {
-            basePrompt.append("10.5 SIGHTSEEING CHOICES: $dynSightseeing\n")
-        }
-        
         if (isMusic || q.isEmpty()) {
             val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
             val isSpecific = musicQuery.length > 2 && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
@@ -375,13 +369,14 @@ object LLMManager {
             basePrompt.append("Assistant: <TOOL>turnOnDefroster()</TOOL> Activating front defroster.\n\n")
         }
 
-        if ((isSightseeing || q.isEmpty()) && dynCtx.isEmpty()) {
+        if (isSightseeing || q.isEmpty()) {
             basePrompt.append("Example 6:\n")
             basePrompt.append("User: \"What are some sightseeing places to visit?\"\n")
-            basePrompt.append("Assistant: <TOOL>search(sightseeing places)</TOOL>\n\n")
-        }
+            basePrompt.append("Assistant: I recommend visiting the Tokyo Skytree, Senso-ji Temple, and Meiji Shrine. Which places would you like to visit?\n\n")
 
-        if (isSightseeing || q.isEmpty()) {
+            basePrompt.append("Example 6.5:\n")
+            basePrompt.append("User: \"Show me places to visit near Tokyo on map\"\n")
+            basePrompt.append("Assistant: <TOOL>search(places to visit near Tokyo)</TOOL>\n\n")
 
             basePrompt.append("Example 7:\n")
             basePrompt.append("User: \"Where was the Hollywood movie Inception filmed in Tokyo?\"\n")
