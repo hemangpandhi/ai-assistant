@@ -228,7 +228,7 @@ object LLMManager {
                         val response = connection.inputStream.bufferedReader().use { it.readText() }
                         var jsonArray = org.json.JSONArray(response)
                         
-                        if (jsonArray.length() == 0 && !isFuel && searchQuery != "restaurant") {
+                        if (jsonArray.length() == 0 && isFood && searchQuery != "restaurant") {
                             // Fallback to generic restaurant if specific cuisine fails
                             val fallbackUrl = java.net.URL("https://nominatim.openstreetmap.org/search?q=restaurant&format=json&limit=3&viewbox=$viewbox&bounded=1&accept-language=en")
                             val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
