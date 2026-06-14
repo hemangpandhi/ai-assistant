@@ -449,3 +449,14 @@ Instead of relying on a monolithic base model, future versions will utilize **Lo
 
 ### 5. Advanced NPU/DSP Memory Management
 To push Time-To-First-Token (TTFT) latency even lower (sub-500ms), future architecture scaling will involve migrating the massive LLM Key-Value (KV) cache directly into the ultra-fast Hexagon DSP memory or EdgeTPU SRAM, bypassing standard Android RAM constraints and eliminating prompt-processing bottlenecks entirely.
+
+## Recent Architectural Upgrades
+
+### 1. Recursive Agentic Loops (Auto-Reasoning)
+The orchestrator has been upgraded from a strict Request-Response paradigm to a recursive **Agentic Loop** architecture. 
+When the LLM triggers a tool (e.g., querying the Nominatim API for restaurants), the `AssistantSession` executes the tool silently in the background, suppresses the raw XML from the UI, and feeds the `ToolFeedback` back into the LLM as a "System Observation". The LLM is then prompted to reason about this new data and generate a final human-readable response autonomously. This eliminates the need for the user to manually trigger follow-up questions.
+
+### 2. Perfect UI/TTS Synchronization (Perceived Latency)
+To solve the jarring visual disconnect between ultra-fast local LLM generation and slower Text-to-Speech (TTS) synthesis, the architecture employs a tightly coupled timing lock:
+- **Smart Sentence Regex:** A lookbehind regex `(?<=[a-z])[.!?](?:\s+|$)` ensures the TTS engine does not unnaturally pause on numbers (e.g., `1.`) or abbreviations (e.g., `U.S.`).
+- **Synchronized Visual Spooling:** The visual "typewriter" effect has been locked to exactly `65ms` per character (roughly 150 Words Per Minute). Because this perfectly matches the default Google TTS speaking rate, the visual text types out on the screen in exact synchronization with the audio playback, regardless of how fast the LLM backend generated the tokens.

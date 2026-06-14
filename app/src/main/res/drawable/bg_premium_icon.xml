@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <!-- Very dark, almost black sapphire center -->
+    <solid android:color="#D9030508" />
+    <!-- Bright glowing neon cyan stroke for a premium halo effect -->
+    <stroke
+        android:width="1.5dp"
+        android:color="#8000F2FE" />
+</shape>

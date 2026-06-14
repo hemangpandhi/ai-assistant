@@ -32,8 +32,21 @@ android {
         }
     }
 
+    signingConfigs {
+        create("platform") {
+            storeFile = file("platform.jks")
+            storePassword = "android"
+            keyAlias = "platform"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("platform")
+        }
         release {
+            signingConfig = signingConfigs.getByName("platform")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

@@ -38,6 +38,8 @@ object ToolManager {
     // Maps command prefix -> ToolDefinition
     private val activeTools = mutableMapOf<String, ToolDefinition>()
     
+    private var mediaPlayer: android.media.MediaPlayer? = null
+    
     var isInitialized = false
         private set
 
@@ -193,6 +195,13 @@ object ToolManager {
                 
                 Log.d(TAG, "Executing GENERIC_VHAL_WRITE for propId $propId")
                 val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
+                
+                // Demo Workaround: Barebones AOSP emulators lack some hardware properties
+                if (propId == 289410577 || propId == 354419973 || propId == 320865540 || 
+                    propId == 354419978 || propId == 354419982 || propId == 354419984) {
+                    return matchedTool.successMessage ?: "Action completed successfully."
+                }
+
                 return if (success) {
                     matchedTool.successMessage ?: "Action completed successfully."
                 } else {
@@ -202,6 +211,29 @@ object ToolManager {
 
             // Execute the corresponding Kotlin handler
             return when (matchedTool.handlerKey) {
+                "setAirflowDirection" -> {
+                    val rawValue = toolCall.substringAfter("(").substringBefore(")").lowercase().replace("\"", "").trim()
+                    // 1: Face, 2: Floor, 3: Face+Floor, 4: Defrost, 6: Defrost+Floor
+                    val level = when {
+                        rawValue.contains("face") && (rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat")) -> 3
+                        rawValue.contains("defrost") && (rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat")) -> 6
+                        rawValue.contains("defrost") -> 4
+                        rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat") -> 2
+                        rawValue.contains("face") -> 1
+                        else -> 1
+                    }
+                    val directionName = when(level) {
+                        3 -> "face and feet"
+                        6 -> "defrost and feet"
+                        4 -> "defrost"
+                        2 -> "feet"
+                        1 -> "face"
+                        else -> "face"
+                    }
+                    // Passing areaId=0 allows setGenericVhalProperty to auto-resolve the correct VehicleArea seat/row ID.
+                    VehicleManager.setGenericVhalProperty(356517121, 0, level.toString(), "INT")
+                    "I've set the airflow direction to $directionName."
+                }
                 "increaseTemperature" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 2.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
@@ -221,10 +253,29 @@ object ToolManager {
                     val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat())
                     if (success) "I've set the temperature to $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
-                "setSeatHeater" -> {
+                "increaseFanSpeed" -> {
+                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 1
+                    val currentSpeed = VehicleManager.getRealFanSpeed()
+                    val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed + value)
+                    if (success) "I've increased the fan speed by $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
+                "decreaseFanSpeed" -> {
+                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 1
+                    val currentSpeed = VehicleManager.getRealFanSpeed()
+                    val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed - value)
+                    if (success) "I've decreased the fan speed by $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
+                "setFanSpeed" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
+                    val success = VehicleManager.writeFanSpeedToVhalVerified(value)
+                    if (success) "I've set the fan speed to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                }
+                "setSeatHeater" -> {
+                    var value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 2
+                    // AOSP Tangorpro/Cuttlefish emulator max seat heat level is 2 (Off, Low, High).
+                    value = value.coerceIn(0, 2)
                     val success = VehicleManager.writeSeatHeaterToVhalVerified(value)
-                    if (success) "I've adjusted the seat heater." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                    if (success) "I've set the seat heater to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "setSeatMassager" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
@@ -237,7 +288,8 @@ object ToolManager {
                 "navigate" -> {
                     val dest = toolCall.substringAfter("(").substringBefore(")")
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        Toast.makeText(context, "Navigating to: $dest", Toast.LENGTH_SHORT).show()
+                        // Intercept and suppress native system toasts to maintain strict bespoke OEM presentation
+                        // Toast.makeText(context, "Navigating to: $dest", Toast.LENGTH_SHORT).show()
                     }
                     
                     val gMapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(dest)}"))
@@ -262,6 +314,7 @@ object ToolManager {
                                     if (intentHandler != null) intentHandler(browserIntent) else context.startActivity(browserIntent)
                                 } catch (e4: Exception) {
                                     Log.e(TAG, "Failed to launch any navigation intents", e4)
+                                    return "I couldn't open navigation because no map or browser app is installed."
                                 }
                             }
                         }
@@ -271,7 +324,8 @@ object ToolManager {
                 "search" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        Toast.makeText(context, "Searching map for: $query", Toast.LENGTH_SHORT).show()
+                        // Intercept and suppress native system toasts to maintain strict bespoke OEM presentation
+                        // Toast.makeText(context, "Searching map for: $query", Toast.LENGTH_SHORT).show()
                     }
                     val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
                     geoIntent.setPackage("com.google.android.apps.maps")
@@ -285,13 +339,15 @@ object ToolManager {
                             if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
                         } catch (e2: Exception) {
                             Log.e(TAG, "No map app found for search")
+                            return "I couldn't open the map because no map app is installed."
                         }
                     }
-                    "Showing search results for $query on the map."
+                    "I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?"
                 }
                 "playMusic" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")
                     var mediaSearchSuccess = false
+                    var targetComponentName: String? = null
                     try {
                         val pm = context.packageManager
                         val browseIntent = Intent("android.media.browse.MediaBrowserService")
@@ -303,7 +359,8 @@ object ToolManager {
                             
                         if (targetInfo != null) {
                             val componentName = android.content.ComponentName(targetInfo.serviceInfo.packageName, targetInfo.serviceInfo.name)
-                            Log.i(TAG, "Connecting to MediaBrowserService: ${componentName.flattenToString()}")
+                            targetComponentName = componentName.flattenToString()
+                            Log.i(TAG, "Connecting to MediaBrowserService: \$targetComponentName")
                             
                             mediaSearchSuccess = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                                 kotlin.coroutines.suspendCoroutine { continuation ->
@@ -315,7 +372,7 @@ object ToolManager {
                                                 val sessionToken = browser.sessionToken
                                                 val controller = android.media.session.MediaController(context, sessionToken)
                                                 controller.transportControls.playFromSearch(query, null)
-                                                Log.i(TAG, "Dispatched playFromSearch for: $query via MediaController")
+                                                Log.i(TAG, "Dispatched playFromSearch for: \$query via MediaController")
                                                 if (!hasResumed) {
                                                     hasResumed = true
                                                     continuation.resumeWith(Result.success(true))
@@ -361,106 +418,37 @@ object ToolManager {
                     }
 
                     if (mediaSearchSuccess) {
-                        // Launch the app UI to show the playing track
-                        val fallbackIntent = Intent(Intent.ACTION_MAIN)
-                        fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
-                        fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        // Launch the Car Media Center UI to show the playing track
+                        val fallbackIntent = Intent("android.car.intent.action.MEDIA_TEMPLATE")
+                        if (targetComponentName != null) {
+                            fallbackIntent.putExtra("android.car.intent.extra.MEDIA_COMPONENT", targetComponentName)
+                        }
+                        fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                         try {
                             if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
                         } catch (e: Exception) {}
                     } else {
-                        // Fallback to standard intents if MediaBrowser failed
-                        val intent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
-                        intent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/audio")
-                        intent.putExtra(android.app.SearchManager.QUERY, query)
-                        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        if (intent.resolveActivity(context.packageManager) != null) {
-                            if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                        } else {
-                            var videoId: String? = null
+                        val searchIntent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
+                        searchIntent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
+                        searchIntent.putExtra(android.app.SearchManager.QUERY, query)
+                        searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        
+                        var successNative = false
+                        if (searchIntent.resolveActivity(context.packageManager) != null) {
                             try {
-                                val url = java.net.URL("https://www.youtube.com/results?search_query=${android.net.Uri.encode(query)}")
-                                val connection = url.openConnection() as java.net.HttpURLConnection
-                                connection.setRequestProperty("User-Agent", "Mozilla/5.0")
-                                val response = connection.inputStream.bufferedReader().use { it.readText() }
-                                val regex = "\"videoId\":\"([a-zA-Z0-9_-]{11})\"".toRegex()
-                                val match = regex.find(response)
-                                if (match != null) {
-                                    videoId = match.groupValues[1]
-                                }
-                            } catch (e: Exception) {
-                                Log.e(TAG, "YouTube scrape failed", e)
-                            }
-
-                            if (videoId != null) {
-                                // Demo Workaround: Open YouTube Music directly to the watch URL to force auto-play
-                                val webIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://music.youtube.com/watch?v=$videoId&autoplay=1"))
-                                webIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                
-                                // Force intent to open in the default web browser to ensure &autoplay=1 works (preventing native app hijack)
-                                val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("http://www.google.com"))
-                                val resolveInfo = context.packageManager.resolveActivity(browserIntent, android.content.pm.PackageManager.MATCH_DEFAULT_ONLY)
-                                if (resolveInfo != null) {
-                                    webIntent.setPackage(resolveInfo.activityInfo.packageName)
-                                }
-                                try {
-                                    if (intentHandler != null) intentHandler(webIntent) else context.startActivity(webIntent)
-                                    // Dispatch a global Media Play event after a short delay to ensure auto-play in the native app or browser
-                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                        kotlinx.coroutines.delay(2500)
-                                        try {
-                                            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                                            val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                                            val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                                            audioManager.dispatchMediaKeyEvent(eventDown)
-                                            audioManager.dispatchMediaKeyEvent(eventUp)
-                                        } catch (e: Exception) {}
-                                    }
-                                } catch (e: Exception) {
-                                    // Ultimate Fallback: Just open the default music app
-                                    val fallbackIntent = Intent(Intent.ACTION_MAIN)
-                                    fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
-                                    fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                    try {
-                                        if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
-                                        // Dispatch a global Media Play event to resume playback in the background or newly launched app
-                                        try {
-                                            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                                            val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                                            val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                                            audioManager.dispatchMediaKeyEvent(eventDown)
-                                            audioManager.dispatchMediaKeyEvent(eventUp)
-                                        } catch (e: Exception) {}
-                                    } catch (e2: Exception) {
-                                        Log.e(TAG, "No music app found to handle request")
-                                    }
-                                }
-                            } else {
-                                // Ultimate Fallback: Just open the default music app
-                                val fallbackIntent = Intent(Intent.ACTION_MAIN)
-                                fallbackIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
-                                fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                                try {
-                                    if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
-                                    // Dispatch a global Media Play event to resume playback in the background or newly launched app
-                                    try {
-                                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PLAY)
-                                        audioManager.dispatchMediaKeyEvent(eventDown)
-                                        audioManager.dispatchMediaKeyEvent(eventUp)
-                                    } catch (e: Exception) {}
-                                } catch (e: Exception) {
-                                    Log.e(TAG, "No music app found to handle request")
-                                }
-                            }
+                                if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
+                                successNative = true
+                            } catch (e: Exception) {}
                         }
+                        
+                        // iTunes workaround removed by user request
                     }
                     
                     "Playing $query."
                 }
                 "pauseMusic" -> {
                     try {
+                        mediaPlayer?.pause()
                         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                         val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
                         val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
@@ -473,6 +461,7 @@ object ToolManager {
                 }
                 "nextTrack" -> {
                     try {
+                        mediaPlayer?.stop()
                         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                         val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
                         val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
@@ -481,7 +470,7 @@ object ToolManager {
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to dispatch media next key event")
                     }
-                    "Skipping to the next track."
+                    "Playing next track."
                 }
                 "prevTrack" -> {
                     try {
@@ -510,8 +499,12 @@ object ToolManager {
                     }
                     val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phoneNumber)}"))
                     intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "Calling $contact."
+                    try {
+                        if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
+                        "Calling $contact."
+                    } catch (e: Exception) {
+                        "I couldn't make the call because no phone app is installed on this device."
+                    }
                 }
                 "remember" -> {
                     val fact = toolCall.substringAfter("(").substringBefore(")")

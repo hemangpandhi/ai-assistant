@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/rootOverlay"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/transparent">
+
+    <!-- TOP LETTERBOX (Animation & Status) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/topBar"
+        android:layout_width="match_parent"
+        android:layout_height="120dp"
+        android:background="#F202050A"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintTop_toTopOf="parent">
+        
+        <ImageView
+            android:id="@+id/localAiIcon"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="32dp"
+            android:src="@drawable/ic_local_ai_brain"
+            app:tint="#A8C7FA"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+            
+        <TextView
+            android:id="@+id/assistantName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
+            android:text="VEHICLE EDGE"
+            android:textColor="#A8C7FA"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.2"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toEndOf="@id/localAiIcon"/>
+            
+        <com.example.gemininano.VoiceAnimationView
+            android:id="@+id/voiceAnimation"
+            android:layout_width="300dp"
+            android:layout_height="100dp"
+            android:layout_marginEnd="32dp"
+            android:visibility="gone"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+            
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- BOTTOM LETTERBOX (Subtitles/Response) -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/cardPopup"
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:background="#F202050A"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_constraintBottom_toBottomOf="parent">
+
+        <ScrollView
+            android:id="@+id/svResponse"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="64dp"
+            android:layout_marginEnd="64dp"
+            app:layout_constrainedHeight="true"
+            app:layout_constraintHeight_max="100dp"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
+
+            <TextView
+                android:id="@+id/assistantResponseText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#FFFFFF"
+                android:textSize="36sp" 
+                android:gravity="center"
+                android:fontFamily="sans-serif-thin"
+                android:letterSpacing="0.02"
+                android:lineSpacingMultiplier="1.2" />
+        </ScrollView>
+        
+        <!-- Hidden elements to prevent Kotlin crashes -->
+        <EditText android:id="@+id/etInput" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" />
+        <Button android:id="@+id/btnSend" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" />
+        <Button android:id="@+id/btnOpenApp" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" />
+        <View android:id="@+id/inputControlsContainer" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" />
+        <TextView android:id="@+id/assistantStatusText" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" />
+        <ImageButton android:id="@+id/btnMic" android:layout_width="1dp" android:layout_height="1dp" android:visibility="gone" />
+        <!-- Dummy blur view to prevent crashes when AssistantSession checks for it -->
+        <View android:id="@+id/blurBackgroundView" android:layout_width="0dp" android:layout_height="0dp" android:visibility="gone" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

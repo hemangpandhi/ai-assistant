@@ -47,29 +47,13 @@
             android:id="@+id/assistantName"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="VEHICLE EDGE AI ASSISTANT"
+            android:text="VEHICLE EDGE ASSISTANT"
             android:textColor="#A8C7FA"
-            android:textSize="16sp"
+            android:textSize="11sp"
             android:fontFamily="sans-serif-medium"
             android:letterSpacing="0.15"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent" />
-            
-        <!-- MODEL INFORMATION TAG -->
-        <TextView
-            android:id="@+id/modelInfoTag"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Gemini Nano LiteRT"
-            android:textColor="#8AB4F8"
-            android:textSize="14sp"
-            android:fontFamily="sans-serif-medium"
-            android:letterSpacing="0.1"
-            android:layout_marginEnd="24dp"
-            android:alpha="0.8"
-            app:layout_constraintTop_toTopOf="@id/assistantName"
-            app:layout_constraintBottom_toBottomOf="@id/assistantName"
             app:layout_constraintEnd_toEndOf="parent" />
 
         <!-- CONTAINED RESPONSE SCROLLVIEW -->

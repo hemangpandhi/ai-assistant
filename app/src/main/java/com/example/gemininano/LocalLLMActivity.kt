@@ -147,6 +147,8 @@ class LocalLLMActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         modelSpinner = findViewById(R.id.modelSpinner)
         spinnerBackend = findViewById(R.id.spinnerBackend)
+        val spinnerAnimationStyle = findViewById<Spinner>(R.id.spinnerAnimationStyle)
+        val spinnerUILayout = findViewById<Spinner>(R.id.spinnerUILayout)
         
         val backendOptions = arrayOf("Auto", "NPU", "GPU", "CPU")
         val backendAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, backendOptions)
@@ -190,6 +192,52 @@ class LocalLLMActivity : AppCompatActivity() {
         if (!savedModelPath.isNullOrEmpty()) {
             MODEL_PATH = savedModelPath
         }
+
+        // Setup Animation Style Spinner
+        val animationOptions = arrayOf(
+            "Google Assistant (4 Dots)",
+            "Polestar Holographic Waveform",
+            "Pulsing Aura",
+            "Minimalist Edge Bar",
+            "Dual-Tone Symmetrical EQ",
+            "Zero-G Orb (Holographic)",
+            "Levitating Core (Magnetic)",
+            "Photo-Optimized Fluid Ribbon (Google)"
+        )
+        val animAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, animationOptions)
+        spinnerAnimationStyle.adapter = animAdapter
+        val savedAnimStyle = prefs.getInt("anim_style_pref", 1) // Default to Polestar (1)
+        spinnerAnimationStyle.setSelection(savedAnimStyle)
+        
+        spinnerAnimationStyle.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putInt("anim_style_pref", position).apply()
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+        
+        // Setup UI Layout Style Spinner
+        val uiLayoutOptions = arrayOf(
+            "Wide Dashboard Strip (Polestar)",
+            "Floating Center Pill (Google)",
+            "Driver-Side Vertical Panel",
+            "Slim Top Banner",
+            "Full-Screen Immersive Canvas",
+            "Holographic Cyberpunk HUD",
+            "Beveled Glass Island (Lucid)",
+            "Cinematic Letterbox (Concept)"
+        )
+        val layoutAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, uiLayoutOptions)
+        spinnerUILayout.adapter = layoutAdapter
+        val savedLayout = prefs.getInt("ui_layout_pref", 0) // Default to Polestar
+        spinnerUILayout.setSelection(savedLayout)
+
+        spinnerUILayout.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                prefs.edit().putInt("ui_layout_pref", position).apply()
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
         
         if (intent.action == "com.example.gemininano.RUN_TESTS" && !isTestRunning) {
             val internalFiles = applicationContext.filesDir.listFiles()?.toList() ?: emptyList()
@@ -225,6 +273,11 @@ class LocalLLMActivity : AppCompatActivity() {
         }
 
         supportActionBar?.title = "MediaPipe Local LLM"
+        
+        if (intent.getBooleanExtra("auto_trigger_mic", false)) {
+            android.util.Log.d("AutomatedTest", "auto_trigger_mic is true, clicking voice button.")
+            voiceButton.postDelayed({ voiceButton.performClick() }, 500)
+        }
         
         chatAdapter = ChatAdapter(mutableListOf())
         chatRecyclerView.layoutManager = LinearLayoutManager(this).apply {
@@ -274,6 +327,12 @@ class LocalLLMActivity : AppCompatActivity() {
                     override fun onError(utteranceId: String?) {}
                 })
             }
+        }
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            delay(2000)
+            val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
+            java.io.File(getExternalFilesDir(null), "diag_report.md").writeText(report)
         }
 
         // Setup Permissions
@@ -351,7 +410,9 @@ class LocalLLMActivity : AppCompatActivity() {
         })
 
         // Setup System Prompt Editor
-        etSystemPrompt.setText(LLMManager.getSystemPrompt(this))
+        lifecycleScope.launch {
+            etSystemPrompt.setText(LLMManager.getSystemPrompt(this@LocalLLMActivity))
+        }
         
         btnSavePrompt.setOnClickListener {
             val newPrompt = etSystemPrompt.text.toString()
@@ -361,11 +422,13 @@ class LocalLLMActivity : AppCompatActivity() {
         }
         
         btnResetPrompt.setOnClickListener {
-            val defaultPrompt = LLMManager.getDefaultSystemPrompt(this)
-            etSystemPrompt.setText(defaultPrompt)
-            prefs.edit().remove("custom_system_prompt").apply()
-            LLMManager.resetConversation()
-            Toast.makeText(this, "Reset to Default Prompt!", Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch {
+                val defaultPrompt = LLMManager.getDefaultSystemPrompt(this@LocalLLMActivity)
+                etSystemPrompt.setText(defaultPrompt)
+                prefs.edit().remove("custom_system_prompt").apply()
+                LLMManager.resetConversation()
+                Toast.makeText(this@LocalLLMActivity, "Reset to Default Prompt!", Toast.LENGTH_SHORT).show()
+            }
         }
 
 
@@ -544,7 +607,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
         val filter = IntentFilter("com.example.gemininano.DIAGNOSTICS_DUMP")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(diagnosticReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+            registerReceiver(diagnosticReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {
             registerReceiver(diagnosticReceiver, filter)
         }
@@ -566,7 +629,7 @@ class LocalLLMActivity : AppCompatActivity() {
         etSpeed.setText(VehicleManager.getRealSpeed().toString())
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-        val currentKvCache = prefs.getInt("max_tokens", 2048)
+        val currentKvCache = prefs.getInt("max_tokens", 4096)
         val currentAutoFlush = prefs.getInt("auto_flush", 25)
         val currentMechanicName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
         val currentMechanicNum = prefs.getString("mechanic_number", "555-0199") ?: "555-0199"
@@ -761,6 +824,7 @@ class LocalLLMActivity : AppCompatActivity() {
         } else {
             MODEL_PATH = java.io.File(externalDir ?: internalDir, currentModel.filename).absolutePath
             val allNames = allFiles.map { it.name }.joinToString(", ").takeIf { it.isNotEmpty() } ?: "empty"
+            android.util.Log.i("AutomatedTest", "No model found. internalDir: ${internalDir.absolutePath}, externalDir: ${externalDir?.absolutePath}, allNames: $allNames")
             chatAdapter.addMessage(ChatMessage("No model found.\nPath checked: ${externalDir?.absolutePath}\nContents: $allNames\n\nPlease click 'Download' or push via ADB.", isUser = false))
             chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
             
@@ -934,19 +998,18 @@ class LocalLLMActivity : AppCompatActivity() {
             }
             val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
+            val dynCtx = LLMManager.getDynamicContext(applicationContext, prompt)
             val finalPrompt = if (LLMManager.isFirstMessage) {
                 LLMManager.isFirstMessage = false
                 LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
             } else {
-                val additionalContext = LLMManager.getDynamicContext(applicationContext, prompt)
                 val customProps = VehicleManager.getCustomPropertiesString()
                 val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
                 
-                // If the prompt is short (e.g. "Yes", "Shizuoka palace"), skip telemetry to prevent distracting the LLM from the active conversation flow
                 if (prompt.length < 25) {
-                    additionalContext + "\nUser: " + prompt
+                    "$dynCtx\nUser: " + prompt
                 } else {
-                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]" + additionalContext + "\nUser: " + prompt
+                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]$dynCtx\nUser: " + prompt
                 }
             }
 

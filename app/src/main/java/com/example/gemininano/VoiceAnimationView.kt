@@ -2,12 +2,14 @@ package com.example.gemininano
 
 import android.animation.ValueAnimator
 import android.content.Context
-import android.graphics.*
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
 import android.util.AttributeSet
 import android.view.View
 import android.view.animation.LinearInterpolator
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.abs
 
 class VoiceAnimationView @JvmOverloads constructor(
     context: Context,
@@ -19,59 +21,73 @@ class VoiceAnimationView @JvmOverloads constructor(
         IDLE, LISTENING, THINKING, SPEAKING
     }
 
-    private var currentState = State.IDLE
-    private var targetState = State.IDLE
-    private var transitionProgress = 1f
-
+    private var targetState: State = State.IDLE
+    private var transitionProgress: Float = 1f
     var state: State = State.IDLE
         set(value) {
             if (field == value) return
-            currentState = field
             targetState = value
             transitionProgress = 0f
             field = value
-            if (value != State.IDLE && animator?.isRunning != true) {
-                startAnimation()
-            }
+            if (value != State.IDLE && animator?.isRunning != true) startAnimation()
         }
 
     private var animator: ValueAnimator? = null
     private var animationPhase = 0f
 
-    // Google Assistant Colors
-    private val googleBlue = Color.parseColor("#4285F4")
-    private val googleRed = Color.parseColor("#EA4335")
-    private val googleYellow = Color.parseColor("#FBBC05")
-    private val googleGreen = Color.parseColor("#34A853")
-    
-    private val dotColors = intArrayOf(googleBlue, googleRed, googleYellow, googleGreen)
-
-    // General Paint Setup
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.FILL
+    // Volumetric 3D Wave Layers (Monochromatic Ice-Blue)
+    private val wavePaints = Array(3) { i ->
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeCap = Paint.Cap.BUTT // Prevents the rounded "pill" progress-bar look
+            strokeWidth = when (i) {
+                0 -> 10f  // Outer volumetric shadow/glow
+                1 -> 4f   // Intense ice-blue mid-core
+                else -> 2f // Razor-sharp white crest
+            }
+            when (i) {
+                0 -> setShadowLayer(15f, 0f, 0f, Color.parseColor("#4D00E5FF"))
+                1 -> setShadowLayer(10f, 0f, 0f, Color.parseColor("#B3A8C7FA"))
+                else -> setShadowLayer(5f, 0f, 0f, Color.parseColor("#FFFFFF"))
+            }
+        }
     }
+    
+    private val wavePath = Path()
 
     init {
-        setLayerType(LAYER_TYPE_SOFTWARE, null)
+        setLayerType(LAYER_TYPE_SOFTWARE, null) // Required for setShadowLayer neon bloom
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        val wF = w.toFloat()
+        // Seamlessly fade to invisible at the edges to prevent blocky progress-bar look
+        val colors1 = intArrayOf(Color.TRANSPARENT, Color.parseColor("#4D00E5FF"), Color.parseColor("#4D00E5FF"), Color.TRANSPARENT)
+        val colors2 = intArrayOf(Color.TRANSPARENT, Color.parseColor("#B3A8C7FA"), Color.parseColor("#B3A8C7FA"), Color.TRANSPARENT)
+        val colors3 = intArrayOf(Color.TRANSPARENT, Color.parseColor("#FFFFFF"), Color.parseColor("#FFFFFF"), Color.TRANSPARENT)
+        
+        val positions = floatArrayOf(0f, 0.3f, 0.7f, 1f)
+        
+        wavePaints[0].shader = android.graphics.LinearGradient(0f, 0f, wF, 0f, colors1, positions, android.graphics.Shader.TileMode.CLAMP)
+        wavePaints[1].shader = android.graphics.LinearGradient(0f, 0f, wF, 0f, colors2, positions, android.graphics.Shader.TileMode.CLAMP)
+        wavePaints[2].shader = android.graphics.LinearGradient(0f, 0f, wF, 0f, colors3, positions, android.graphics.Shader.TileMode.CLAMP)
     }
 
     private fun startAnimation() {
         if (animator?.isRunning == true) return
         visibility = VISIBLE
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = 10000
+            duration = 45000
             repeatCount = ValueAnimator.INFINITE
             interpolator = LinearInterpolator()
             addUpdateListener {
-                animationPhase += 0.1f
+                animationPhase += 0.05f
                 if (transitionProgress < 1f) {
-                    transitionProgress += 0.08f
+                    transitionProgress += 0.05f
                     if (transitionProgress >= 1f) {
                         transitionProgress = 1f
-                        currentState = targetState
-                        if (currentState == State.IDLE) {
-                            stopAnimation()
-                        }
+                        state = targetState
                     }
                 }
                 invalidate()
@@ -80,63 +96,38 @@ class VoiceAnimationView @JvmOverloads constructor(
         }
     }
 
-    private fun stopAnimation() {
-        animator?.cancel()
-        animator = null
-        visibility = GONE
-    }
-
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
-        
-        val cx = width / 2f
         val cy = height / 2f
+        val w = width.toFloat()
 
-        if (transitionProgress < 1f) {
-            if (currentState != State.IDLE) drawState(currentState, canvas, cx, cy, 1f - transitionProgress)
-            if (targetState != State.IDLE) drawState(targetState, canvas, cx, cy, transitionProgress)
-        } else {
-            if (currentState != State.IDLE) drawState(currentState, canvas, cx, cy, 1f)
-        }
-    }
-
-    private fun drawState(state: State, canvas: Canvas, cx: Float, cy: Float, alphaProgress: Float) {
-        val baseAlpha = (255 * alphaProgress).toInt().coerceIn(0, 255)
-        if (baseAlpha == 0) return
-
-        val maxRadius = Math.min(width / 12f, height / 4f)
-        val dotRadius = maxRadius * 0.45f
-        val spacing = dotRadius * 3.5f
-        val startX = cx - (spacing * 1.5f)
-
-        for (i in 0 until 4) {
-            paint.color = dotColors[i]
-            paint.alpha = baseAlpha
-            
-            var x = startX + (i * spacing)
-            var y = cy
-            var r = dotRadius
-
+        for (i in 0 until 3) {
+            var amplitudeModifier = 0.1f
             when (state) {
-                State.LISTENING -> {
-                    // Gentle pulse together
-                    val pulse = sin(animationPhase * 0.5f).toFloat()
-                    r += pulse * (dotRadius * 0.2f)
-                }
-                State.THINKING -> {
-                    // Wave motion left to right
-                    val wave = sin(animationPhase * 1.5f + (i * 1.2f)).toFloat()
-                    y += wave * (dotRadius * 0.8f)
-                }
-                State.SPEAKING -> {
-                    // Random-looking EQ bounce (combining sine waves)
-                    val bounce = sin(animationPhase * 2f + (i * 2f)).toFloat() * cos(animationPhase * 1.3f + i).toFloat()
-                    r += bounce * (dotRadius * 0.4f)
-                }
-                State.IDLE -> {}
+                State.LISTENING -> amplitudeModifier = 1.0f + kotlin.math.sin(animationPhase * 2f + i).toFloat() * 0.3f
+                State.THINKING -> amplitudeModifier = 0.5f + kotlin.math.sin(animationPhase * 3f).toFloat() * 0.2f
+                State.SPEAKING -> amplitudeModifier = 1.6f * abs(kotlin.math.sin(animationPhase * 3f + i).toFloat())
+                State.IDLE -> amplitudeModifier = 0.35f + kotlin.math.sin(animationPhase * 1.5f + i).toFloat() * 0.15f
             }
 
-            canvas.drawCircle(x, y, r, paint)
+            val frequency = 0.012f + (i * 0.003f)
+            val baseAmplitude = 20f + (i * 4f)
+            
+            wavePath.reset()
+
+            for (x in 0..width step 6) {
+                val xF = x.toFloat()
+                val midX = w / 2f
+                val distanceFromCenter = abs(xF - midX)
+                
+                val gaussianDistribution = kotlin.math.exp(-(distanceFromCenter * distanceFromCenter) / (2 * (w * 0.15f) * (w * 0.15f)))
+                
+                val y = cy + kotlin.math.sin(xF * frequency + animationPhase + (i * 1.5f)).toFloat() * baseAmplitude * amplitudeModifier * gaussianDistribution
+                
+                if (x == 0) wavePath.moveTo(xF, y) else wavePath.lineTo(xF, y)
+            }
+            
+            canvas.drawPath(wavePath, wavePaints[i])
         }
     }
 }

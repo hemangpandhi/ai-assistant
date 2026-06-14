@@ -38,13 +38,24 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private lateinit var btnOpenApp: Button
     private lateinit var inputControls: View
     private lateinit var voiceAnimation: VoiceAnimationView
-    private lateinit var svResponse: android.widget.ScrollView
+    private var svResponse: android.widget.ScrollView? = null
     
     private var lastResponseBuilder = java.lang.StringBuilder()
     private var tts: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
     private var dotAnimatorJob: kotlinx.coroutines.Job? = null
     private var pendingConfirmationTool: String? = null
+    private var currentHighlightStart = -1
+    private var currentHighlightEnd = -1
+    
+    // Typewriter Effect Variables
+    private var typewriterJob: kotlinx.coroutines.Job? = null
+    private var targetDisplayMessage = ""
+    private var currentDisplayLength = 0
+    // Calibrated to match average Text-To-Speech rendering speed (~15 chars/sec)
+    private val typingSpeedMs: Long = 65L
+    
+    private val currentPendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
@@ -52,11 +63,29 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {}
 
+                override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
+                    // Highlighting disabled by user request
+                }
+
                 override fun onDone(utteranceId: String?) {
+                    if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
+                        currentHighlightStart = -1
+                        currentHighlightEnd = -1
+                        CoroutineScope(Dispatchers.Main).launch {
+                            val spannable = responseText.text as? android.text.Spannable
+                            if (spannable != null) {
+                                val oldSpans = spannable.getSpans(0, spannable.length, android.text.style.BackgroundColorSpan::class.java)
+                                for (span in oldSpans) spannable.removeSpan(span)
+                            }
+                        }
+                    }
                     CoroutineScope(Dispatchers.Main).launch {
                         if (utteranceId == "QUESTION_FINAL") {
                             btnMic.performClick()
                         } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
+                            for (job in currentPendingTools) {
+                                try { job.await() } catch (e: Exception) {}
+                            }
                             kotlinx.coroutines.delay(2000)
                             finish()
                         }
@@ -70,12 +99,48 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
     }
 
+    private var currentLayoutStyle = -1
+    private var speechRecognizerIntent: Intent? = null
+
+    override fun onHide() {
+        super.onHide()
+        try {
+            speechRecognizer?.cancel()
+        } catch(e: Exception) {}
+        
+        val restartIntent = Intent(context, WakeWordService::class.java)
+        restartIntent.action = "ACTION_RESTART_LISTENING"
+        context.startService(restartIntent)
+    }
+
     override fun onCreateContentView(): View {
         VehicleManager.initialize(context.applicationContext)
         tts = TextToSpeech(context, this)
-        overlayView = layoutInflater.inflate(R.layout.assistant_overlay, null)
         
-        statusText = overlayView.findViewById(R.id.assistantStatusText)
+        setupSpeechRecognizer()
+        inflateAndBindLayout()
+        
+        return overlayView
+    }
+    
+    private fun inflateAndBindLayout() {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val layoutStyle = prefs.getInt("ui_layout_pref", 0)
+        currentLayoutStyle = layoutStyle
+        
+        val layoutRes = when (layoutStyle) {
+            0 -> R.layout.assistant_overlay // Polestar Wide
+            1 -> R.layout.assistant_overlay_pill // Center Pill
+            2 -> R.layout.assistant_overlay_side // Left Side Panel
+            3 -> R.layout.assistant_overlay_top // Top Banner
+            4 -> R.layout.assistant_overlay_immersive // Full-Screen Immersive
+            5 -> R.layout.assistant_overlay_hud // Holographic Cyberpunk HUD
+            6 -> R.layout.assistant_overlay_beveled // Beveled Glass Island
+            7 -> R.layout.assistant_overlay_cinematic // Cinematic Letterbox
+            else -> R.layout.assistant_overlay
+        }
+        overlayView = layoutInflater.inflate(layoutRes, null)
+        statusText = overlayView.findViewById(R.id.assistantResponseText) // Routed to main text
         responseText = overlayView.findViewById(R.id.assistantResponseText)
         etInput = overlayView.findViewById(R.id.etInput)
         btnSend = overlayView.findViewById(R.id.btnSend)
@@ -84,6 +149,33 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         svResponse = overlayView.findViewById(R.id.svResponse)
         inputControls = overlayView.findViewById(R.id.inputControlsContainer)
         voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
+        
+        val modelInfoTag: android.widget.TextView? = overlayView.findViewById(R.id.modelInfoTag)
+        if (modelInfoTag != null) {
+            val modelName = java.io.File(LLMManager.currentModelPath).nameWithoutExtension
+            modelInfoTag.text = if (modelName.isNotEmpty()) modelName else "Gemma 4 E2B"
+        }
+
+        // Global Adaptive Gravity Logic
+        responseText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val len = s?.length ?: 0
+                if (len < 50) {
+                    responseText.gravity = android.view.Gravity.CENTER
+                } else {
+                    responseText.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+                }
+            }
+        })
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val blurView = overlayView.findViewById<android.view.View>(R.id.blurBackgroundView)
+            blurView?.setRenderEffect(
+                android.graphics.RenderEffect.createBlurEffect(25f, 25f, android.graphics.Shader.TileMode.CLAMP)
+            )
+        }
         
         val rootOverlay = overlayView.findViewById<View>(R.id.rootOverlay)
         rootOverlay.setOnClickListener {
@@ -100,23 +192,29 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         btnSend.setOnClickListener {
             val query = etInput.text.toString()
             if (query.isNotBlank()) {
+                tts?.stop()
                 handleQuery(query)
                 etInput.setText("")
             }
         }
         
-        setupSpeechRecognizer()
-
-        return overlayView
-    }
-    
-    private fun setupSpeechRecognizer() {
-        speechRecognizer = if (SpeechRecognizer.isOnDeviceRecognitionAvailable(context)) {
-            SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
-        } else {
-            SpeechRecognizer.createSpeechRecognizer(context)
+        btnMic.setOnClickListener {
+            tts?.stop()
+            btnMic.isEnabled = false
+            CoroutineScope(Dispatchers.Main).launch {
+                kotlinx.coroutines.delay(500)
+                speechRecognizer?.startListening(speechRecognizerIntent)
+                btnMic.isEnabled = true
+            }
         }
-        val speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+        
+        // Update the active content view window with the newly inflated view
+        setContentView(overlayView)
+    }
+
+    private fun setupSpeechRecognizer() {
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
+        speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
         }
@@ -155,8 +253,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
             override fun onResults(results: Bundle?) {
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty()) {
+                if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
                     etInput.setText(matches[0])
+                    tts?.stop()
                     handleQuery(matches[0])
                 }
             }
@@ -168,20 +267,26 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
-
-        btnMic.setOnClickListener {
-            speechRecognizer?.startListening(speechRecognizerIntent)
-        }
     }
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
+        
+        // Re-inflate if layout setting changed
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        if (prefs.getInt("ui_layout_pref", 0) != currentLayoutStyle) {
+            inflateAndBindLayout()
+        }
         
         statusText.visibility = View.VISIBLE
         stopDotAnimation("Hi, how can I help you?")
         responseText.text = ""
         etInput.setText("")
         voiceAnimation.state = VoiceAnimationView.State.IDLE
+        
+        val stopListeningIntent = Intent(context, WakeWordService::class.java)
+        stopListeningIntent.action = "ACTION_STOP_LISTENING"
+        context.startService(stopListeningIntent)
         
         if (LLMManager.engine == null) {
             statusText.text = "Initializing Model..."
@@ -197,7 +302,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         
                         // Automatically start listening if invoked via voice match/hotword
                         if (showFlags and SHOW_WITH_ASSIST != 0) {
-                            btnMic.performClick()
+                            CoroutineScope(Dispatchers.Main).launch {
+                                kotlinx.coroutines.delay(500)
+                                btnMic.performClick()
+                            }
                         }
                     }
 
@@ -218,7 +326,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             
             // Automatically start listening if invoked via voice match/hotword
             if (showFlags and SHOW_WITH_ASSIST != 0) {
-                btnMic.performClick()
+                CoroutineScope(Dispatchers.Main).launch {
+                    kotlinx.coroutines.delay(500)
+                    btnMic.performClick()
+                }
             }
         }
     }
@@ -238,16 +349,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     }
 
     private suspend fun executeToolCall(toolCall: String): String? {
-        return ToolManager.executeToolCall(context, toolCall) { intent ->
+        return ToolManager.executeToolCall(context.applicationContext, toolCall) { intent ->
             try {
                 startVoiceActivity(intent)
             } catch (e: Exception) {
                 android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
                 try {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                    context.startActivity(intent)
+                    context.applicationContext.startActivity(intent)
                 } catch (e2: Exception) {
                     android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
+                    throw e2 // Propagate to ToolManager for fallbacks
                 }
             }
         }
@@ -260,8 +372,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         // Removed 'You:' and 'Assistant:' prefixes for cleaner UI
         responseText.text = ""
+        currentHighlightStart = -1
+        currentHighlightEnd = -1
 
         lastResponseBuilder.clear()
+        targetDisplayMessage = ""
+        currentDisplayLength = 0
+        typewriterJob?.cancel()
+        
         btnSend.isEnabled = false
         isQueryProcessed = false
         
@@ -270,7 +388,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
     }
     
-    private suspend fun processQuery(query: String, retryCount: Int, loopCount: Int = 0, isAgenticObservation: Boolean = false) {
+    private suspend fun processQuery(query: String, retryCount: Int, loopCount: Int = 0, isAgenticObservation: Boolean = false, previousExecutedTools: Set<String> = emptySet()) {
         // Timeout watchdog
         timeoutJob?.cancel()
         timeoutJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
@@ -325,38 +443,36 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         // Anti-Hallucination Music Interceptor logic has been moved to the streaming loop
         // to allow the LLM to naturally generate a response.
         val qStr = interceptedQuery.lowercase()
-        val musicQuery = qStr.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
-        val isGenericMusic = musicQuery.length <= 2 && qStr.contains("play") && !qStr.contains("pause") && !qStr.contains("stop") && !qStr.contains("next") && !qStr.contains("previous")
-        val expectFollowup = isGenericMusic
+        val expectFollowup = false
         
+        val dynCtx = LLMManager.getDynamicContext(context, interceptedQuery)
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             
-            // If we have sliding history, we must be recovering from a KV Cache wipe or it's a new turn after a wipe.
             if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder\n\n[Conversation History]\n$slidingHistory\nAssistant:"
+                finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nUser: $interceptedQuery\nAssistant:"
             } else {
-                finalPrompt = "$sysPrompt\n$reminder\n\nUser: $interceptedQuery"
+                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery" else "$reminder$dynCtx\n\nUser: $interceptedQuery"
             }
             LLMManager.isFirstMessage = false
         } else {
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            val dynamicContext = LLMManager.getDynamicContext(context, interceptedQuery)
-            val dynStr = if (dynamicContext.isNotEmpty()) "\n$dynamicContext" else ""
             if (isAgenticObservation) {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$dynStr$reminder\n$interceptedQuery"
+                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
             } else {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$dynStr$reminder\nUser: $interceptedQuery"
+                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\nUser: $interceptedQuery"
             }
         }
 
         val executedTools = mutableSetOf<String>()
+        executedTools.addAll(previousExecutedTools)
         val toolFeedbacks = mutableListOf<String>()
-        val pendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
+        currentPendingTools.clear()
         val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
         val spokenTextLength = intArrayOf(0)
+        val parsedSpokenLength = intArrayOf(0)
         
         val startTime = System.currentTimeMillis()
         var firstTokenTime = -1L
@@ -424,17 +540,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 val isGenericFood = (q.contains("hungry") || q.contains("food")) && 
                                                     !(q.contains("italian") || q.contains("mexican") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("vegetarian") || q.contains("vegan") || q.contains("indian") || q.contains("thai") || q.contains("japanese"))
                                 
-                                if ((toolName == "navigate" || toolName == "search") && isGenericFood) {
+                                val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("diagnos") || q.contains("obd") || q.contains("ob2") || q.contains("engine") || q.contains("service")
+                                val isShortFollowUp = q.length < 20 && !q.contains("search") && !q.contains("find") && !q.contains("look up")
+                                
+                                if ((toolName == "navigate" || toolName == "search") && (isGenericFood || isDiag || (toolName == "search" && isShortFollowUp))) {
                                     android.util.Log.w("AssistantSession", "Intercepted hallucinatory tool call: $toolCall")
                                     continue
                                 }
                                 
-                                val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
-                                val isGenericMusic = musicQuery.length <= 2 && q.contains("play") && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
-                                if (toolName == "playMusic" && isGenericMusic) {
-                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory music tool call: $toolCall")
-                                    continue
-                                }
 
                                 if (executedTools.add(toolCall)) {
                                     android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")
@@ -449,39 +562,73 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async {
                                             executeToolCall(toolCall)
                                         }
-                                        pendingTools.add(job)
+                                        currentPendingTools.add(job)
                                     }
                                 }
                             }
-                            
-                            var displayMsg = currentText.replace(regex, "").trim()
+                            // Hide any fully formed OR partially streamed tools from the TTS/UI to prevent index corruption
+                            var displayMsg = currentText.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "")
+                            val lastTagIndex = displayMsg.lastIndexOf("<")
+                            if (lastTagIndex != -1) {
+                                val potentialTag = displayMsg.substring(lastTagIndex).uppercase()
+                                if ("<TOOL".startsWith(potentialTag)) {
+                                    displayMsg = displayMsg.substring(0, lastTagIndex)
+                                }
+                            }
+                            displayMsg = displayMsg.trim()
                             
                             
                             if (displayMsg.isNotEmpty() && statusText.visibility == View.VISIBLE) {
-                                statusText.visibility = View.GONE
                                 stopDotAnimation()
+                                voiceAnimation.state = VoiceAnimationView.State.SPEAKING
                             }
                             
-                            responseText.text = parseMarkdown(displayMsg)
+                            val displayStr = displayMsg.toString()
+                            targetDisplayMessage = displayStr
                             
-                            // Auto-scroll to bottom as text streams
-                            svResponse.post {
-                                svResponse.fullScroll(View.FOCUS_DOWN)
+                            // Typewriter Coroutine Buffer
+                            if (typewriterJob == null || typewriterJob?.isActive != true) {
+                                typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+                                    while (isActive && currentDisplayLength < targetDisplayMessage.length) {
+                                        val step = 1
+                                        val dynamicDelay = typingSpeedMs
+                                        
+                                        currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
+                                        val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
+                                        
+                                        responseText.text = parseMarkdown(currentSubstring)
+                                        
+                                        // Auto-scroll to bottom as text streams
+                                        svResponse?.post {
+                                            svResponse?.fullScroll(View.FOCUS_DOWN)
+                                        }
+                                        
+                                        kotlinx.coroutines.delay(dynamicDelay)
+                                    }
+                                }
                             }
                             
                             // Streaming TTS Logic
                             val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
                             var remainingText = displayMsg.substring(safeStartIndex)
-                            val sentenceRegex = "^(.*?)([.!?]+(?:\\s+|$)|\\n)".toRegex()
+                            val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-z])[.!?](?:\\s+|$))".toRegex()
                             var match = sentenceRegex.find(remainingText)
                             while (match != null) {
                                 val sentence = match.value
                                 spokenTextLength[0] += sentence.length
-                                tts?.speak(sentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
+                                
+                                val parsedSentence = parseMarkdown(sentence).toString()
+                                val sentenceStartOffset = parsedSpokenLength[0]
+                                parsedSpokenLength[0] += parsedSentence.length
+                                
+                                tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
                                 
                                 remainingText = displayMsg.substring(spokenTextLength[0])
                                 match = sentenceRegex.find(remainingText)
                             }
+                            
+                            // The typewriter handles UI updating, so we don't set it immediately here
+                            // responseText.text = parseMarkdown(displayMsg)
                         }
                     }
 
@@ -492,11 +639,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
                             
-                            if (pendingTools.isNotEmpty()) {
+                            if (currentPendingTools.isNotEmpty()) {
                                 setKeepAwake(true)
                                 // Keep the thinking animation going during tool execution and recursive loops
                                 startThinkingAnimation()
-                                val feedbacks = kotlinx.coroutines.awaitAll(*pendingTools.toTypedArray()).filterNotNull()
+                                val feedbacks = kotlinx.coroutines.awaitAll(*currentPendingTools.toTypedArray()).filterNotNull()
                                 toolFeedbacks.addAll(feedbacks)
                                 setKeepAwake(false)
                                 
@@ -506,10 +653,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
                                     
                                     android.util.Log.i("AssistantSession", "Agentic Loop Triggered (Loop $loopCount) with observation: $observation")
-                                    pendingTools.clear() 
+                                    currentPendingTools.clear() 
                                     
                                     lastResponseBuilder.clear() 
-                                    processQuery(observation, retryCount, loopCount + 1, isAgenticObservation = true)
+                                    processQuery(observation, retryCount, loopCount + 1, isAgenticObservation = true, previousExecutedTools = executedTools)
                                     return@launch
                                 }
                             }
@@ -534,19 +681,34 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             MemoryManager.addTurn("Assistant", finalMsg.trim())
                             
-                            finalMsg = finalMsg.replace(regex, "").trim()
+                            finalMsg = finalMsg.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "")
+                            val finalLastTagIndex = finalMsg.lastIndexOf("<")
+                            if (finalLastTagIndex != -1) {
+                                val potentialTag = finalMsg.substring(finalLastTagIndex).uppercase()
+                                if ("<TOOL".startsWith(potentialTag)) {
+                                    finalMsg = finalMsg.substring(0, finalLastTagIndex)
+                                }
+                            }
+                            finalMsg = finalMsg.trim()
                             if (finalMsg.isEmpty() && toolFeedbacks.isNotEmpty()) {
                                 finalMsg = toolFeedbacks.joinToString("\n")
                             } else if (toolFeedbacks.isNotEmpty()) {
                                 finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
                             }
                             
-                            
-                            responseText.text = parseMarkdown(finalMsg)
-                            
-                            // Final auto-scroll
-                            svResponse.post {
-                                svResponse.fullScroll(View.FOCUS_DOWN)
+                            targetDisplayMessage = finalMsg
+                            if (typewriterJob == null || typewriterJob?.isActive != true) {
+                                typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+                                    while (isActive && currentDisplayLength < targetDisplayMessage.length) {
+                                        val step = 1
+                                        val dynamicDelay = typingSpeedMs
+                                        currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
+                                        val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
+                                        responseText.text = parseMarkdown(currentSubstring)
+                                        svResponse?.post { svResponse?.fullScroll(View.FOCUS_DOWN) }
+                                        kotlinx.coroutines.delay(dynamicDelay)
+                                    }
+                                }
                             }
                             
                             stopThinkingAnimation()
@@ -557,16 +719,47 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 val safeIndex = Math.min(spokenTextLength[0], finalMsg.length)
                                 val remainingSentence = finalMsg.substring(safeIndex).trim()
                                 if (remainingSentence.isNotEmpty()) {
-                                    tts?.speak(remainingSentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
+                                    val parsedSentence = parseMarkdown(remainingSentence).toString()
+                                    val sentenceStartOffset = parsedSpokenLength[0]
+                                    parsedSpokenLength[0] += parsedSentence.length
+                                    tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
                                 }
-                                val finalUtterance = if (expectFollowup || finalMsg.trim().endsWith("?")) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
+                                val isQuestion = expectFollowup || 
+                                                 finalMsg.trim().endsWith("?") || 
+                                                 finalMsg.contains("would you like", ignoreCase = true) || 
+                                                 finalMsg.contains("if you'd like", ignoreCase = true) || 
+                                                 finalMsg.contains("do you want", ignoreCase = true) ||
+                                                 finalMsg.contains("shall i", ignoreCase = true) ||
+                                                 finalMsg.contains("let me know", ignoreCase = true) ||
+                                                 finalMsg.contains("tell me", ignoreCase = true)
+                                                 
+                                val finalUtterance = if (isQuestion) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
                                 tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
                             } else {
-                                if (expectFollowup || finalMsg.trim().endsWith("?")) {
+                                val isQuestion = expectFollowup || 
+                                                 finalMsg.trim().endsWith("?") || 
+                                                 finalMsg.contains("would you like", ignoreCase = true) || 
+                                                 finalMsg.contains("if you'd like", ignoreCase = true) || 
+                                                 finalMsg.contains("do you want", ignoreCase = true) ||
+                                                 finalMsg.contains("shall i", ignoreCase = true) ||
+                                                 finalMsg.contains("let me know", ignoreCase = true) ||
+                                                 finalMsg.contains("tell me", ignoreCase = true)
+                                                 
+                                if (isQuestion) {
                                     btnMic.performClick()
-                                } else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) {
-                                    kotlinx.coroutines.delay(2000)
-                                    finish()
+                                } else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) {
+                                    CoroutineScope(Dispatchers.Main).launch {
+                                        for (job in currentPendingTools) {
+                                            try { job.await() } catch (e: Exception) {}
+                                        }
+                                        kotlinx.coroutines.delay(2000)
+                                        finish()
+                                    }
+                                } else {
+                                    CoroutineScope(Dispatchers.Main).launch {
+                                        kotlinx.coroutines.delay(2000)
+                                        finish()
+                                    }
                                 }
                             }
                         }
@@ -605,7 +798,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     emptyMap()
                 )
             }
-        } catch (e: Exception) {     } catch (e: Exception) {
+        } catch (e: Exception) {
             statusText.text = "Error"
             stopThinkingAnimation()
             responseText.text = "An unexpected error occurred."
@@ -660,6 +853,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         tts?.shutdown()
         speechRecognizer?.destroy()
         dotAnimatorJob?.cancel()
+        
+        val restartIntent = Intent(context, WakeWordService::class.java)
+        restartIntent.action = "ACTION_RESTART_LISTENING"
+        context.startService(restartIntent)
+        
         super.onDestroy()
     }
 }
