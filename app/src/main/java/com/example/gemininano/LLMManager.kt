@@ -193,7 +193,7 @@ object LLMManager {
                     else return "" // Generic query, don't search yet
                 }
 
-                var viewbox = "139.30,35.60,139.45,35.50" // Default Tokyo fallback
+                var viewbox = "139.70,35.60,139.85,35.75" // Default Central Tokyo fallback
                 try {
                     if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
                         androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
