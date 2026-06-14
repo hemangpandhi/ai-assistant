@@ -166,12 +166,15 @@ object LLMManager {
     suspend fun getDynamicContext(context: android.content.Context, prompt: String): String {
         val q = prompt.lowercase()
         val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFollowUpToSearch = mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("navigate to any of these options")
-        val isFollowUpToFuel = mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")
+        val isFoodQuery = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan")
+        val isFuelQuery = q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")
+        
+        val isFollowUpToSearch = (mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("navigate to any of these options")) && !isFoodQuery && !isFuelQuery
+        val isFollowUpToFuel = (mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")) && !isFoodQuery
         
         val isNav = q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route") || q.contains("take me") || (q.length <= 2 && q.toIntOrNull() != null) || isFollowUpToSearch
-        val isFood = (q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan")) && !isNav
-        val isFuel = (q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging") || isFollowUpToFuel) && !isNav
+        val isFood = isFoodQuery && !isFollowUpToSearch
+        val isFuel = (isFuelQuery || isFollowUpToFuel) && !isFollowUpToSearch
         val isSightseeing = (q.contains("visit") || q.contains("interesting") || q.contains("places") || q.contains("sightseeing") || q.contains("tourist") || q.contains("what to do") || q.contains("where to go") || q.contains("city") || q.contains("see")) && !isNav
         
         if ((isFood || isFuel) && prompt.length < 50) {
@@ -308,18 +311,22 @@ object LLMManager {
         val userQuery = query.lowercase()
         val isHvac = userQuery.contains("temperature") || userQuery.contains("hot") || userQuery.contains("cold") || userQuery.contains("warm") || userQuery.contains("cool") || userQuery.contains("ac") || userQuery.contains("heater") || userQuery.contains("defroster") || userQuery.contains("increase") || userQuery.contains("decrease") || userQuery.contains("fog") || userQuery.contains("window")
         val isSightseeing = userQuery.contains("visit") || userQuery.contains("interesting") || userQuery.contains("places") || userQuery.contains("sightseeing") || userQuery.contains("tourist") || userQuery.contains("what to do") || userQuery.contains("where to go") || userQuery.contains("city")
-        val isFood = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai")
-        val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFollowUpToSearch = mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("which places would you like to visit") || mem.contains("navigate to any of these options")
-        val isFollowUpToFuel = mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station")
+        val isFoodQuery = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai")
+        val isFuelQuery = userQuery.contains("fuel") || userQuery.contains("gas") || userQuery.contains("petrol") || userQuery.contains("charging")
         
-        val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFood || isFollowUpToSearch || isFollowUpToFuel
+        val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
+        val isFollowUpToSearch = (mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("which places would you like to visit") || mem.contains("navigate to any of these options")) && !isFoodQuery && !isFuelQuery
+        val isFollowUpToFuel = (mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")) && !isFoodQuery
+        
+        val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFoodQuery || isFollowUpToSearch || isFollowUpToFuel
         val isAmbient = userQuery.contains("home") || userQuery.contains("work")
         val isDiag = userQuery.contains("wrong") || userQuery.contains("broken") || userQuery.contains("issue") || userQuery.contains("light") || userQuery.contains("code") || userQuery.contains("door") || userQuery.contains("diagnos") || userQuery.contains("obd") || userQuery.contains("ob2") || userQuery.contains("engine") || userQuery.contains("service")
         val isWellness = userQuery.contains("pain") || userQuery.contains("hurt") || userQuery.contains("tired") || userQuery.contains("sore") || userQuery.contains("ache")
         val isMusic = userQuery.contains("music") || userQuery.contains("play") || userQuery.contains("song") || userQuery.contains("pause") || userQuery.contains("stop") || userQuery.contains("next") || userQuery.contains("previous")
         val isLocationKnowledge = userQuery.contains("where was") || userQuery.contains("filmed") || userQuery.contains("located") || userQuery.contains("location of") || userQuery.contains("address of")
-        val isFuel = userQuery.contains("fuel") || userQuery.contains("gas") || userQuery.contains("petrol") || userQuery.contains("charging") || isFollowUpToFuel
+        
+        val isFood = isFoodQuery && !isFollowUpToSearch
+        val isFuel = (isFuelQuery || isFollowUpToFuel) && !isFollowUpToSearch
         
         val basePrompt = StringBuilder()
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
