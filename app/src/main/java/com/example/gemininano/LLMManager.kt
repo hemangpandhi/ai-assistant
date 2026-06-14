@@ -337,6 +337,11 @@ object LLMManager {
             basePrompt.append("9. DIAGNOSTICS: If asked about car problems, read the OBD code and ask if they want to call a mechanic.\n")
             basePrompt.append("10. FUEL/CHARGING: If the user says they are out of fuel or battery, DO NOT USE ANY TOOLS. ALWAYS ask first EXACTLY: \"Should I find a nearby gas station?\"\n")
         }
+        val dynSightseeing = dynCtx
+        if (dynSightseeing.isNotEmpty() && isSightseeing) {
+            basePrompt.append("10.5 SIGHTSEEING CHOICES: $dynSightseeing\n")
+        }
+        
         if (isMusic || q.isEmpty()) {
             val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
             val isSpecific = musicQuery.length > 2 && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
@@ -370,10 +375,13 @@ object LLMManager {
             basePrompt.append("Assistant: <TOOL>turnOnDefroster()</TOOL> Activating front defroster.\n\n")
         }
 
-        if (isSightseeing || q.isEmpty()) {
+        if ((isSightseeing || q.isEmpty()) && dynCtx.isEmpty()) {
             basePrompt.append("Example 6:\n")
             basePrompt.append("User: \"What are some sightseeing places to visit?\"\n")
             basePrompt.append("Assistant: <TOOL>search(sightseeing places)</TOOL>\n\n")
+        }
+
+        if (isSightseeing || q.isEmpty()) {
 
             basePrompt.append("Example 7:\n")
             basePrompt.append("User: \"Where was the Hollywood movie Inception filmed in Tokyo?\"\n")
