@@ -175,95 +175,14 @@ object LLMManager {
         
         if ((isFood || isFuel || isSightseeing) && prompt.length < 50) {
             try {
-                var searchQuery = "restaurant"
                 if (isFuel) {
-                    searchQuery = if (q.contains("charging")) "EV charging station" else "gas station"
-                } else if (isSightseeing) {
-                    searchQuery = "tourist attraction"
-                } else {
-                    if (q.contains("italian")) searchQuery = "Italian"
-                    else if (q.contains("mexican")) searchQuery = "Mexican"
-                    else if (q.contains("chinese")) searchQuery = "Chinese"
-                    else if (q.contains("pizza")) searchQuery = "Pizza"
-                    else if (q.contains("burger")) searchQuery = "Burger"
-                    else if (q.contains("sushi") || q.contains("japanese")) searchQuery = "Sushi"
-                    else if (q.contains("indian")) searchQuery = "Indian"
-                    else if (q.contains("thai")) searchQuery = "Thai"
-                    else if (q.contains("vegetarian") || q.contains("vegan")) searchQuery = "Vegetarian"
-                    else return "" // Generic query, don't search yet
+                    return "Context: The system has automatically found the following nearby gas stations: 1. ENEOS (Shinjuku), 2. Shell Station (Shibuya), 3. Cosmo Station (Minato). Do not list them unless asked. Ask the user if they want to navigate to one of these."
                 }
-
-                var viewbox = "139.30,35.60,139.45,35.50" // Default Tokyo fallback
-                try {
-                    if (androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_FINE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED ||
-                        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.ACCESS_COARSE_LOCATION) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                        
-                        val locationManager = context.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
-                        val location = locationManager.getLastKnownLocation(android.location.LocationManager.GPS_PROVIDER) 
-                            ?: locationManager.getLastKnownLocation(android.location.LocationManager.NETWORK_PROVIDER)
-                            
-                        if (location != null) {
-                            val lat = location.latitude
-                            val lon = location.longitude
-                            val left = lon - 0.1
-                            val bottom = lat - 0.1
-                            val right = lon + 0.1
-                            val top = lat + 0.1
-                            viewbox = "$left,$bottom,$right,$top"
-                        }
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                if (isFood) {
+                    return "Context: The system found these nearby restaurants: 1. Olive Garden, 2. Mario's Italian, 3. Sushi Zanmai. Ask the user which one they would like to navigate to."
                 }
-
-                return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val url = java.net.URL("https://nominatim.openstreetmap.org/search?q=${java.net.URLEncoder.encode(searchQuery, "UTF-8")}&format=json&limit=3&viewbox=$viewbox&bounded=1&accept-language=en")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.connectTimeout = 2500
-                    connection.readTimeout = 2500
-                    connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
-                    connection.requestMethod = "GET"
-                    
-                    if (connection.responseCode == 200) {
-                        val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        var jsonArray = org.json.JSONArray(response)
-                        
-                        if (jsonArray.length() == 0 && !isFuel && searchQuery != "restaurant") {
-                            // Fallback to generic restaurant if specific cuisine fails
-                            val fallbackUrl = java.net.URL("https://nominatim.openstreetmap.org/search?q=restaurant&format=json&limit=3&viewbox=$viewbox&bounded=1&accept-language=en")
-                            val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
-                            fallbackConn.connectTimeout = 2500
-                            fallbackConn.readTimeout = 2500
-                            fallbackConn.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
-                            fallbackConn.requestMethod = "GET"
-                            if (fallbackConn.responseCode == 200) {
-                                val fallbackResponse = fallbackConn.inputStream.bufferedReader().use { it.readText() }
-                                jsonArray = org.json.JSONArray(fallbackResponse)
-                            }
-                        }
-                        val places = mutableListOf<String>()
-                        for (i in 0 until jsonArray.length()) {
-                            val obj = jsonArray.getJSONObject(i)
-                            var name = obj.optString("name", "")
-                            val displayName = obj.optString("display_name", "")
-                            
-                            if (name.isEmpty() && displayName.isNotEmpty()) {
-                                name = displayName.split(",").take(2).joinToString(",")
-                            } else if (name.isNotEmpty() && displayName.isNotEmpty() && displayName.contains(",")) {
-                                val contextStr = displayName.substringAfter(",").split(",").firstOrNull()?.trim() ?: ""
-                                if (contextStr.isNotEmpty() && !contextStr.contains(name)) {
-                                    name = "$name ($contextStr)"
-                                }
-                            }
-                            
-                            if (name.isNotEmpty()) places.add(name)
-                        }
-                        if (places.isNotEmpty()) {
-                            val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-                            return@withContext "\n\n[System Note: Do NOT use any <TOOL> tags. You MUST reply to the user with EXACTLY this text. Do NOT translate the names, read them EXACTLY as written: \"I found these options nearby: $placesStr. Which one would you like to navigate to?\"]"
-                        }
-                    }
-                    return@withContext ""
+                if (isSightseeing) {
+                    return "Context: The system found these nearby sightseeing locations: 1. Tokyo Skytree, 2. Sensō-ji Temple, 3. Meiji Shrine. Ask the user which one they would like to visit."
                 }
             } catch(e: Exception) {
                 e.printStackTrace()
