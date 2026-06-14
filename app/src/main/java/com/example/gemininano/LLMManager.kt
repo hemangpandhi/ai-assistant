@@ -373,8 +373,14 @@ object LLMManager {
         }
         if (isMusic || q.isEmpty()) {
             val musicQuery = q.replace("play", "").replace("music", "").replace("some", "").replace("for", "").replace("me", "").trim()
-            val isSpecific = musicQuery.length > 2 && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous")
-            if (isSpecific) {
+            val isSpecific = musicQuery.length > 2 && !q.contains("pause") && !q.contains("stop") && !q.contains("next") && !q.contains("previous") && !q.contains("prev")
+            if (q.contains("next")) {
+                basePrompt.append("11. MUSIC CONTROLS: The user wants to skip. Use the EXACT syntax <TOOL>nextTrack()</TOOL>.\n")
+            } else if (q.contains("previous") || q.contains("prev")) {
+                basePrompt.append("11. MUSIC CONTROLS: The user wants to go back. Use the EXACT syntax <TOOL>prevTrack()</TOOL>.\n")
+            } else if (q.contains("pause") || q.contains("stop") || q.contains("halt")) {
+                basePrompt.append("11. MUSIC CONTROLS: The user wants to stop music. Use the EXACT syntax <TOOL>pauseMusic()</TOOL>.\n")
+            } else if (isSpecific) {
                 basePrompt.append("11. MUSIC CHOICES: The user has specified what to play. Use the EXACT syntax <TOOL>playMusic($musicQuery)</TOOL> to play it.\n")
             } else {
                 basePrompt.append("11. MUSIC CHOICES: The user asked to play music but didn't specify what. You MUST immediately use the EXACT syntax <TOOL>playMusic(relaxing music)</TOOL> to play default music.\n")
