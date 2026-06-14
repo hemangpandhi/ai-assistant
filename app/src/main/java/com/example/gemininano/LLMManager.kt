@@ -351,53 +351,63 @@ object LLMManager {
         basePrompt.append("\n")
 
         if (isHvac || q.isEmpty()) {
-            basePrompt.append("[HVAC Control]\n")
+            basePrompt.append("Example 1:\n")
             basePrompt.append("User: \"Increase temperature.\"\n")
-            basePrompt.append("Assistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n")
+            basePrompt.append("Assistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n\n")
+            basePrompt.append("Example 2:\n")
             basePrompt.append("User: \"Decrease temperature by 5 degrees.\"\n")
-            basePrompt.append("Assistant: <TOOL>decreaseTemperature(5)</TOOL> I'm cooling it down by 5 degrees.\n")
+            basePrompt.append("Assistant: <TOOL>decreaseTemperature(5)</TOOL> I'm cooling it down by 5 degrees.\n\n")
+            basePrompt.append("Example 3:\n")
             basePrompt.append("User: \"Set the temperature to 70.\"\n")
-            basePrompt.append("Assistant: <TOOL>setTemperature(70)</TOOL> I've set the temperature to 70 degrees.\n")
+            basePrompt.append("Assistant: <TOOL>setTemperature(70)</TOOL> I've set the temperature to 70 degrees.\n\n")
+            basePrompt.append("Example 4:\n")
             basePrompt.append("User: \"I am feeling cold.\"\n")
-            basePrompt.append("Assistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n")
-            basePrompt.append("User: \"Decrease temperature.\"\n")
-            basePrompt.append("Assistant: <TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\n")
+            basePrompt.append("Assistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n\n")
+            basePrompt.append("Example 5:\n")
             basePrompt.append("User: \"My windows are fogging up.\"\n")
             basePrompt.append("Assistant: <TOOL>turnOnDefroster()</TOOL> Activating front defroster.\n\n")
         }
 
         if (isSightseeing || q.isEmpty()) {
-            basePrompt.append("[Sightseeing Query]\n")
+            basePrompt.append("Example 6:\n")
             basePrompt.append("User: \"What are some sightseeing places to visit?\"\n")
             basePrompt.append("Assistant: There are many great places to visit around here! You should definitely see the Central Park and the Art Museum. Would you like me to navigate to any of these?\n\n")
 
-            basePrompt.append("[Location Knowledge Query]\n")
+            basePrompt.append("Example 7:\n")
             basePrompt.append("User: \"Where was the Hollywood movie Inception filmed in Tokyo?\"\n")
             basePrompt.append("Assistant: <TOOL>search(Ark Hills, Tokyo)</TOOL> The Hollywood movie Inception was filmed at Ark Hills in Tokyo. Would you like me to navigate there?\n\n")
 
-            basePrompt.append("[Sightseeing - Decline]\n")
+            basePrompt.append("Example 8:\n")
             basePrompt.append("User: \"No thanks.\"\n")
             basePrompt.append("Assistant: OK, let me know if I can do something else for you.\n\n")
 
-            basePrompt.append("[Sightseeing - Accept without specifying]\n")
+            basePrompt.append("Example 9:\n")
             basePrompt.append("User: \"Yes please.\"\n")
             basePrompt.append("Assistant: Which destination would you like to navigate to?\n\n")
 
-            basePrompt.append("[Sightseeing - Accept specific]\n")
+            basePrompt.append("Example 10:\n")
             basePrompt.append("User: \"The Eiffel Tower.\"\n")
             basePrompt.append("Assistant: <TOOL>navigate(Eiffel Tower)</TOOL>\n\n")
         }
 
         if (isFood || isFuel || isSightseeing || q.isEmpty()) {
-            basePrompt.append("[Food Selection]\n")
+            basePrompt.append("Example 11:\n")
             basePrompt.append("User: \"I'm hungry.\"\n")
-            basePrompt.append("Assistant: Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\n")
+            basePrompt.append("Assistant: Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\n\n")
+            
+            basePrompt.append("Example 12:\n")
             basePrompt.append("User: \"Italian.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. Luigi's, 2. Roma. Which one would you like to navigate to?\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. Luigi's, 2. Roma. Which one would you like to navigate to?\n\n")
+            
+            basePrompt.append("Example 13:\n")
             basePrompt.append("User: \"1.\"\n")
             basePrompt.append("Assistant: <TOOL>navigate(Luigi's)</TOOL>\n\n")
             
-            basePrompt.append("[Fuel/Charging Selection]\n")
+            basePrompt.append("Example 14:\n")
+            basePrompt.append("User: \"I am running out of fuel.\"\n")
+            basePrompt.append("Assistant: Your fuel level is low. Should I navigate you to a nearby gas station?\n\n")
+            
+            basePrompt.append("Example 15:\n")
             basePrompt.append("User: \"I need charging.\"\n")
             basePrompt.append("Assistant: I found these options nearby: 1. ChargePoint, 2. Tesla Supercharger. Which one would you like to navigate to?\n")
             basePrompt.append("User: \"The second one.\"\n")
@@ -405,17 +415,17 @@ object LLMManager {
         }
 
         if (isNav || q.isEmpty()) {
-            basePrompt.append("[Direct Navigation]\n")
+            basePrompt.append("Example 16:\n")
             basePrompt.append("User: \"Navigate to Tokyo\"\n")
             basePrompt.append("Assistant: <TOOL>navigate(Tokyo)</TOOL>\n\n")
         }
 
         if ((isFuel || q.isEmpty()) && dynCtx.isEmpty()) {
-            basePrompt.append("[Smart Fuel Routing - Ask First]\n")
+            basePrompt.append("Example 17:\n")
             basePrompt.append("User: \"I am running out of fuel.\"\n")
             basePrompt.append("Assistant: Your fuel level is low. Should I navigate you to a nearby gas station?\n\n")
 
-            basePrompt.append("[Smart Fuel Routing - Confirm]\n")
+            basePrompt.append("Example 18:\n")
             basePrompt.append("User: \"Yes, please.\"\n")
             basePrompt.append("Assistant: <TOOL>navigate(gas station)</TOOL>\n\n")
         }
