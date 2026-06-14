@@ -27,18 +27,27 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 
 ---
 
-### 3. Intelligent Navigation & Sightseeing (Nominatim & Intents)
-*Test the integration with live GPS coordinates (now mocked to Tokyo) and Google Maps routing.*
+### 3. World Knowledge to Physical Action Bridge
+*Show that the LLM isn't trapped inside a "chatbot box"—it can use its vast worldly knowledge to manipulate the physical car screens.*
+* **Prompt:** *"Where was the Hollywood movie Inception filmed in Tokyo?"*
+  * **Expected AI logic:** It searches its internal LLM knowledge base to find the answer, but then bridges that data to the car's navigation system.
+  * **Expected Output:** *"The Hollywood movie Inception was filmed at Ark Hills in Tokyo. Would you like me to navigate there?"* (while simultaneously dropping a map pin using the `<TOOL>search(Ark Hills, Tokyo)</TOOL>` tool).
+  * **Why it's intelligent:** It seamlessly blends conversational trivia with actionable driving utility.
+
+---
+
+### 4. Intelligent Navigation & Sightseeing (Nominatim & Intents)
+*Test the integration with live GPS coordinates and Google Maps routing.*
 * **Prompt:** *"Navigate me to Tokyo Tower"*
   * **Expected Output:** The AI immediately triggers `<TOOL>navigate(Tokyo Tower)</TOOL>`, which dispatches a `google.navigation:q=Tokyo Tower` Intent to launch the map app.
 * **Prompt:** *"Suggest nearby places to visit around Tokyo"*
-  * **Expected Output:** The AI queries the Nominatim endpoint using your live GPS location, lists several real sightseeing locations (e.g., Tokyo Skytree, Senso-ji), and finishes by asking: *"Which places would you like to visit?"*
+  * **Expected Output:** The AI queries the Nominatim endpoint using your live GPS location, lists several real sightseeing locations, and finishes by asking: *"Which places would you like to visit?"*
 * **Follow-up Prompt:** *"The second one."*
   * **Expected Output:** The AI remembers the context, parses your choice, and automatically executes `<TOOL>navigate(DEST)</TOOL>` to route you there.
 
 ---
 
-### 4. Agentic Loops & Multi-Turn Interactive Experiences
+### 5. Agentic Loops & Multi-Turn Interactive Experiences
 *Test the newly stabilized Agentic Loop architecture. The AI can execute a tool, read the background result, and take another action automatically or prompt the user intelligently.*
 
 * **4.1 Personalized Dining Search:**
@@ -63,7 +72,7 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 
 ---
 
-### 5. Telephony & Media Controls
+### 6. Telephony & Media Controls
 *Test the seamless bridging of Android Intents.*
 * **Prompt:** *"I need to talk to my mom."*
   * **Expected Output:** The AI triggers `<TOOL>call(Mom)</TOOL>`, opening the system dialer with an `ACTION_DIAL` intent.
@@ -76,7 +85,7 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 
 ---
 
-### 6. Diagnostics & Vehicle Awareness
+### 7. Diagnostics & Vehicle Awareness
 *Test how the AI uses the mock telemetry data to make informed decisions.*
 * **Prompt:** *"Why is my check engine light on?"*
   * **Expected AI logic:** It reads the `OBD2_DIAGNOSTICS` state (e.g., P0420 code) and explains there is an issue with the catalytic converter. It may then ask if you want to call a mechanic.
@@ -85,7 +94,7 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 
 ---
 
-### 7. Hardware Safety Guardrails
+### 8. Hardware Safety Guardrails
 *Test the hardcoded Kotlin safety checks that supersede AI logic.*
 * **Prompt:** *"Roll down the windows."*
   * **Expected Output:** The AI will output `<TOOL>setWindowPosition(100)</TOOL>`. 
@@ -93,7 +102,7 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 
 ---
 
-### 8. Persistent Context & Rule Retention
+### 9. Persistent Context & Rule Retention
 *Test the memory consistency across long conversations.*
 * **Prompt:** Talk about random topics, ask for a joke, then suddenly say *"Take me to the nearest gas station."*
   * **Expected Output:** Because the core rulebook is now statically preserved in the LiteRT KV Cache, the AI will never forget the exact `<TOOL>navigate(...)</TOOL>` syntax, regardless of how long the conversation has drifted.
