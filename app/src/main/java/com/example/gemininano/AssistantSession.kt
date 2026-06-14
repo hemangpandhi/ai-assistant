@@ -41,7 +41,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var svResponse: android.widget.ScrollView? = null
     
     private var lastResponseBuilder = java.lang.StringBuilder()
-    private var tts: TextToSpeech? = null
+    companion object {
+        var globalTts: TextToSpeech? = null
+    }
+    private var tts: TextToSpeech?
+        get() = globalTts
+        set(value) { globalTts = value }
     private var speechRecognizer: SpeechRecognizer? = null
     private var dotAnimatorJob: kotlinx.coroutines.Job? = null
     private var pendingConfirmationTool: String? = null
@@ -60,6 +65,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale.US
+            tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, "PREWARM")
             tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) {}
 
@@ -115,7 +121,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onCreateContentView(): View {
         VehicleManager.initialize(context.applicationContext)
-        tts = TextToSpeech(context, this)
+        if (tts == null) {
+            tts = TextToSpeech(context.applicationContext, this)
+        }
         
         setupSpeechRecognizer()
         inflateAndBindLayout()
