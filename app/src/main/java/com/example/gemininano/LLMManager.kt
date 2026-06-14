@@ -307,7 +307,7 @@ object LLMManager {
         val isFollowUpToSearch = (mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("which places would you like to visit") || mem.contains("navigate to any of these options")) && !isFoodQuery && !isFuelQuery
         val isFollowUpToFuel = (mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")) && !isFoodQuery
         
-        val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFoodQuery || isFollowUpToSearch || isFollowUpToFuel
+        val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFoodQuery || isFollowUpToSearch
         val isAmbient = userQuery.contains("home") || userQuery.contains("work")
         val isDiag = userQuery.contains("wrong") || userQuery.contains("broken") || userQuery.contains("issue") || userQuery.contains("light") || userQuery.contains("code") || userQuery.contains("door") || userQuery.contains("diagnos") || userQuery.contains("obd") || userQuery.contains("ob2") || userQuery.contains("engine") || userQuery.contains("service")
         val isWellness = userQuery.contains("pain") || userQuery.contains("hurt") || userQuery.contains("tired") || userQuery.contains("sore") || userQuery.contains("ache")
