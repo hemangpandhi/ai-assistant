@@ -104,7 +104,7 @@ object LLMManager {
                     "NPU" -> Backend.NPU()
                     "GPU" -> Backend.GPU()
                     "CPU" -> Backend.CPU()
-                    else -> Backend.GPU() // Auto defaults to GPU
+                    else -> if (android.os.Build.MANUFACTURER.equals("Google", ignoreCase = true)) Backend.NPU() else Backend.GPU()
                 }
 
                 val engineConfig = EngineConfig(
