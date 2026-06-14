@@ -235,14 +235,16 @@ object ToolManager {
                     "I've set the airflow direction to $directionName."
                 }
                 "increaseTemperature" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 2.0
+                    val argStr = toolCall.substringAfter("(").substringBefore(")")
+                    val value = Regex("-?\\d+(\\.\\d+)?").find(argStr)?.value?.toDoubleOrNull() ?: 2.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
                     Log.d(TAG, "increaseTemperature: parsed value=$value, currentTemp=$currentTemp")
                     val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat())
                     if (success) "I've increased the temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "decreaseTemperature" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 2.0
+                    val argStr = toolCall.substringAfter("(").substringBefore(")")
+                    val value = Regex("-?\\d+(\\.\\d+)?").find(argStr)?.value?.toDoubleOrNull() ?: 2.0
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
                     Log.d(TAG, "decreaseTemperature: parsed value=$value, currentTemp=$currentTemp")
                     val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat())
@@ -254,13 +256,15 @@ object ToolManager {
                     if (success) "I've set the temperature to $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "increaseFanSpeed" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 1
+                    val argStr = toolCall.substringAfter("(").substringBefore(")")
+                    val value = Regex("\\d+").find(argStr)?.value?.toIntOrNull() ?: 1
                     val currentSpeed = VehicleManager.getRealFanSpeed()
                     val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed + value)
                     if (success) "I've increased the fan speed by $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "decreaseFanSpeed" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 1
+                    val argStr = toolCall.substringAfter("(").substringBefore(")")
+                    val value = Regex("\\d+").find(argStr)?.value?.toIntOrNull() ?: 1
                     val currentSpeed = VehicleManager.getRealFanSpeed()
                     val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed - value)
                     if (success) "I've decreased the fan speed by $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
