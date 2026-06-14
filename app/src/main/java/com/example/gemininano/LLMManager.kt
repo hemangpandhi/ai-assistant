@@ -182,7 +182,9 @@ object LLMManager {
                 var overpassQuery = "node[\"amenity\"=\"restaurant\"]"
                 var isCuisineSpecific = false
                 if (isFuel) {
-                    if (!isFollowUpToFuel) return "" // Force LLM to ask user first
+                    if (!isFollowUpToFuel) {
+                        return "\n\n[System Note: Do NOT use any <TOOL> tags. You MUST reply to the user with EXACTLY this text: \"Your fuel level is low. Should I find a nearby gas station?\"]"
+                    }
                     overpassQuery = if (q.contains("charging") || mem.contains("charging")) "node[\"amenity\"=\"charging_station\"]" else "node[\"amenity\"=\"fuel\"]"
                 } else {
                     if (q.contains("italian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"italian\",i]"; isCuisineSpecific = true }
@@ -194,7 +196,9 @@ object LLMManager {
                     else if (q.contains("indian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"indian\",i]"; isCuisineSpecific = true }
                     else if (q.contains("thai")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"thai\",i]"; isCuisineSpecific = true }
                     else if (q.contains("vegetarian") || q.contains("vegan")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"diet:vegan\"~\"yes\",i]"; isCuisineSpecific = true }
-                    else return "" // No specific cuisine mentioned, return empty to force LLM to ask user
+                    else {
+                        return "\n\n[System Note: Do NOT use any <TOOL> tags. You MUST reply to the user with EXACTLY this text: \"Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\"]"
+                    }
                 }
 
                 var bbox = "35.47,139.27,35.67,139.47" // south,west,north,east Default Sagamihara, Japan fallback
