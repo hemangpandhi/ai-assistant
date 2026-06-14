@@ -182,6 +182,7 @@ object LLMManager {
                 var overpassQuery = "node[\"amenity\"=\"restaurant\"]"
                 var isCuisineSpecific = false
                 if (isFuel) {
+                    if (!isFollowUpToFuel) return "" // Force LLM to ask user first
                     overpassQuery = if (q.contains("charging") || mem.contains("charging")) "node[\"amenity\"=\"charging_station\"]" else "node[\"amenity\"=\"fuel\"]"
                 } else {
                     if (q.contains("italian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"italian\",i]"; isCuisineSpecific = true }
@@ -450,9 +451,9 @@ object LLMManager {
             
             basePrompt.append("Example 15:\n")
             basePrompt.append("User: \"I need charging.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. ChargePoint, 2. Tesla Supercharger. Which one would you like to navigate to?\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. ENEOS, 2. Cosmo. Which one would you like to navigate to?\n")
             basePrompt.append("User: \"The second one.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Tesla Supercharger)</TOOL>\n\n")
+            basePrompt.append("Assistant: <TOOL>navigate(Cosmo)</TOOL>\n\n")
         }
 
         if (isNav || q.isEmpty()) {
