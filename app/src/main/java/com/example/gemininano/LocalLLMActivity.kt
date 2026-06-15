@@ -316,8 +316,11 @@ class LocalLLMActivity : AppCompatActivity() {
                 tts.language = Locale.US
                 applyVoiceSettings()
                 tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {}
+                    override fun onStart(utteranceId: String?) {
+                        android.util.Log.i("LLMLatency", "[LocalLLMActivity] TTS Synthesis Started for $utteranceId")
+                    }
                     override fun onDone(utteranceId: String?) {
+                        android.util.Log.i("LLMLatency", "[LocalLLMActivity] TTS Synthesis Done for $utteranceId")
                         if (utteranceId == "QUESTION" || utteranceId == "QUESTION_FINAL") {
                             runOnUiThread {
                                 voiceButton.performClick()
@@ -359,12 +362,16 @@ class LocalLLMActivity : AppCompatActivity() {
 
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
+                android.util.Log.i("LLMLatency", "[LocalLLMActivity] Speech Recognizer onReadyForSpeech")
                 inputText.setText("")
             }
-            override fun onBeginningOfSpeech() {}
+            override fun onBeginningOfSpeech() {
+                android.util.Log.i("LLMLatency", "[LocalLLMActivity] Speech Recognizer onBeginningOfSpeech")
+            }
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
+                android.util.Log.i("LLMLatency", "[LocalLLMActivity] Speech Recognizer onEndOfSpeech")
                 inputText.setText("")
             }
             override fun onError(error: Int) {
@@ -380,6 +387,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 chatAdapter.addMessage(ChatMessage(msg, isUser = false))
             }
             override fun onResults(results: Bundle?) {
+                android.util.Log.i("LLMLatency", "[LocalLLMActivity] Speech Recognizer onResults")
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
                     val voiceText = matches[0]
@@ -392,7 +400,9 @@ class LocalLLMActivity : AppCompatActivity() {
         })
 
         voiceButton.setOnClickListener {
+            android.util.Log.i("LLMLatency", "[LocalLLMActivity] Voice Button Clicked")
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
+                android.util.Log.i("LLMLatency", "[LocalLLMActivity] Speech Recognizer startListening() called")
                 speechRecognizer.startListening(speechRecognizerIntent)
             } else {
                 ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)

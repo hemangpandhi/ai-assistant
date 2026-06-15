@@ -57,8 +57,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var typewriterJob: kotlinx.coroutines.Job? = null
     private var targetDisplayMessage = ""
     private var currentDisplayLength = 0
-    // Calibrated to match average Text-To-Speech rendering speed (~15 chars/sec)
-    private val typingSpeedMs: Long = 65L
+    // Speed up typewriter effect significantly to fix UI sluggishness.
+    private val typingSpeedMs: Long = 5L
     
     private val currentPendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
 
@@ -72,7 +72,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     private fun setupTtsListener() {
         tts?.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) {}
+            override fun onStart(utteranceId: String?) {
+                if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
+                    android.util.Log.i("LLMLatency", "[AssistantSession] TTS Synthesis Started for $utteranceId")
+                }
+            }
 
             override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
                 // Highlighting disabled by user request
@@ -80,6 +84,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
             override fun onDone(utteranceId: String?) {
                 if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
+                    android.util.Log.i("LLMLatency", "[AssistantSession] TTS Synthesis Done for $utteranceId")
                     currentHighlightStart = -1
                     currentHighlightEnd = -1
                     CoroutineScope(Dispatchers.Main).launch {
@@ -217,10 +222,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
         
         btnMic.setOnClickListener {
+            android.util.Log.i("LLMLatency", "[AssistantSession] Voice Button Clicked")
             tts?.stop()
             btnMic.isEnabled = false
             CoroutineScope(Dispatchers.Main).launch {
                 kotlinx.coroutines.delay(500)
+                android.util.Log.i("LLMLatency", "[AssistantSession] Speech Recognizer startListening() called")
                 speechRecognizer?.startListening(speechRecognizerIntent)
                 btnMic.isEnabled = true
             }
@@ -239,14 +246,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
+                android.util.Log.i("LLMLatency", "[AssistantSession] Speech Recognizer onReadyForSpeech")
                 statusText.visibility = View.VISIBLE
                 startDotAnimation("")
                 voiceAnimation.state = VoiceAnimationView.State.LISTENING
             }
-            override fun onBeginningOfSpeech() {}
+            override fun onBeginningOfSpeech() {
+                android.util.Log.i("LLMLatency", "[AssistantSession] Speech Recognizer onBeginningOfSpeech")
+            }
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
+                android.util.Log.i("LLMLatency", "[AssistantSession] Speech Recognizer onEndOfSpeech")
                 startThinkingAnimation()
             }
             override fun onError(error: Int) {
@@ -270,6 +281,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 }
             }
             override fun onResults(results: Bundle?) {
+                android.util.Log.i("LLMLatency", "[AssistantSession] Speech Recognizer onResults")
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
                     etInput.setText(matches[0])
@@ -645,6 +657,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 val sentenceStartOffset = parsedSpokenLength[0]
                                 parsedSpokenLength[0] += parsedSentence.length
                                 
+                                android.util.Log.i("LLMLatency", "[AssistantSession] Sending sentence to TTS queue: SENTENCE_$sentenceStartOffset")
                                 tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
                                 
                                 remainingText = displayMsg.substring(spokenTextLength[0])
