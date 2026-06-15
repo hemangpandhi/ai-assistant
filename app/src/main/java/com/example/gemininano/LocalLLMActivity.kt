@@ -964,7 +964,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private fun generateText(prompt: String, isVoice: Boolean = false, displayPrompt: String = "") {
         if (isGenerating) return
         
-        if (prompt.trim() == "/diagnostics") {
+        if (prompt.trim().lowercase() == "/diagnostics") {
             chatAdapter.addMessage(ChatMessage("/diagnostics", isUser = true))
             if (!isVoice) {
                 inputText.setText("")

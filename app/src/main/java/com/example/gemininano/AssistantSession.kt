@@ -494,7 +494,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             if (isAgenticObservation) {
                 finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
             } else {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\nUser: $interceptedQuery"
+                if (interceptedQuery.length < 25) {
+                    finalPrompt = "$dynCtx\nUser: $interceptedQuery"
+                } else {
+                    finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\nUser: $interceptedQuery"
+                }
             }
         }
 
