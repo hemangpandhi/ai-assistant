@@ -118,7 +118,7 @@ object ToolManager {
      */
     fun getRelevantTools(query: String): List<ToolDefinition> {
         if (query.isBlank()) return activeTools.values.toList()
-        return SemanticSearchManager.search(query, 8)
+        return SemanticSearchManager.search(query, 30)
     }
 
     /**
