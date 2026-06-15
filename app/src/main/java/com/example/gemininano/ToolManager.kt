@@ -579,7 +579,7 @@ object ToolManager {
     /**
      * Executes a dummy command for every registered tool to verify the VHAL pipeline.
      */
-    fun runSystemDiagnostics(context: Context): String {
+    suspend fun runSystemDiagnostics(context: Context): String {
         val sb = StringBuilder()
         sb.append("## System Diagnostics Report\n\n")
         sb.append("| Tool Name | Handler Type | Status | Note |\n")
@@ -601,7 +601,7 @@ object ToolManager {
                     else -> "$key()" // No args
                 }
 
-                val result = kotlinx.coroutines.runBlocking { executeToolCall(context, dummyCall) }
+                val result = executeToolCall(context, dummyCall)
                 if (result.startsWith("System Error") || result.startsWith("Failed")) {
                     status = "❌ FAIL"
                     note = result

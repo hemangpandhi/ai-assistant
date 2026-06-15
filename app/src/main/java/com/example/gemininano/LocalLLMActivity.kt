@@ -969,9 +969,16 @@ class LocalLLMActivity : AppCompatActivity() {
             if (!isVoice) {
                 inputText.setText("")
             }
-            val report = ToolManager.runSystemDiagnostics(this)
-            chatAdapter.addMessage(ChatMessage(report, isUser = false, isStreaming = false))
-            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+            
+            // Diagnostics queries the hardware which can take a moment, so run off the Main thread
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
+                
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    chatAdapter.addMessage(ChatMessage(report, isUser = false, isStreaming = false))
+                    chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                }
+            }
             return
         }
         
@@ -1436,8 +1443,10 @@ class LocalLLMActivity : AppCompatActivity() {
     }
     private val diagnosticReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
-            val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
-            android.util.Log.i("AutomatedTest", "\n\n=================== DIAGNOSTIC DUMP ===================\n$report\n========================================================\n\n")
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
+                android.util.Log.i("AutomatedTest", "\n\n=================== DIAGNOSTIC DUMP ===================\n$report\n========================================================\n\n")
+            }
         }
     }
 }
