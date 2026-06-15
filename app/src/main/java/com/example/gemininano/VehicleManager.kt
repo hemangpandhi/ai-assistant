@@ -512,8 +512,9 @@ object VehicleManager {
                             if (continuation.isActive) continuation.resume(false)
                         }
                     } catch (e: Exception) {
+                        Log.e("VehicleManager", "Hardware Exception in setGenericVhalProperty for $propertyId", e)
                         carPropertyManager?.unregisterCallback(callback, propertyId)
-                        if (continuation.isActive) continuation.resumeWithException(e)
+                        if (continuation.isActive) continuation.resume(false)
                     }
 
                     continuation.invokeOnCancellation {
