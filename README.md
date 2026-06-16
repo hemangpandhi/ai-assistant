@@ -37,7 +37,7 @@ graph TD
     SM --> |&lt;TOOL&gt;| TM[🛠️ ToolManager]
     SM --> |Text| TTS[🔊 Android TTS]
     
-    JSON[📄 custom_properties.json] -.-> |Loads Tool Routes| TM
+    JSON[📄 vehicle_skills_registry.json] -.-> |Loads Tool Routes| TM
     JSON -.-> |Loads VHAL Properties| VM
 
     TM --> VM
