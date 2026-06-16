@@ -341,7 +341,7 @@ object LLMManager {
         val basePrompt = StringBuilder()
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
         
-        val isComplexQuery = query.length >= 25 || isHvac || isSightseeing || isFoodQuery || isFuelQuery || isNav || isDiag || isWellness || isAmbient || isLocationKnowledge
+        val isComplexQuery = isHvac || isSightseeing || isFoodQuery || isFuelQuery || isNav || isDiag || isWellness || isAmbient || isLocationKnowledge
         
         if (isComplexQuery) {
             basePrompt.append("=== VEHICLE STATE ===\n")

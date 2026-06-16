@@ -479,7 +479,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             
             if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nUser: $interceptedQuery\nAssistant:"
+                finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nAssistant:"
             } else {
                 finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery" else "$reminder$dynCtx\n\nUser: $interceptedQuery"
             }

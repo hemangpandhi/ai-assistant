@@ -56,7 +56,8 @@ class VoiceAnimationView @JvmOverloads constructor(
     private val wavePath = Path()
 
     init {
-        setLayerType(LAYER_TYPE_SOFTWARE, null) // Required for setShadowLayer neon bloom
+        // Hardware acceleration is fully supported for setShadowLayer on Android 9+
+        // Removing LAYER_TYPE_SOFTWARE to prevent severe CPU bottlenecking and 3000ms LLM TTFT delays
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
