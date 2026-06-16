@@ -364,14 +364,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var timeoutJob: kotlinx.coroutines.Job? = null
 
     private fun startThinkingAnimation() {
-        statusText.visibility = View.VISIBLE
-        startDotAnimation("")
-        voiceAnimation.state = VoiceAnimationView.State.THINKING
+        CoroutineScope(Dispatchers.Main).launch {
+            statusText.visibility = View.VISIBLE
+            startDotAnimation("")
+            voiceAnimation.state = VoiceAnimationView.State.THINKING
+        }
     }
 
     private fun stopThinkingAnimation() {
-        voiceAnimation.state = VoiceAnimationView.State.IDLE
-        stopDotAnimation()
+        CoroutineScope(Dispatchers.Main).launch {
+            voiceAnimation.state = VoiceAnimationView.State.IDLE
+            stopDotAnimation()
+        }
     }
 
     private suspend fun executeToolCall(toolCall: String): String? {
