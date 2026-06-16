@@ -58,6 +58,8 @@ This JSON file contains two arrays:
 - `"properties"`: Sensors the AI reads to understand the car's state (e.g., Battery, Tire Pressure).
 - `"tools"`: Actions the AI can take to physically control the car (e.g., HVAC, Windows, Trunk).
 
+> **📖 Complete Reference Guide:** For a deep-dive tutorial on mapping complex custom Kotlin actions, adding safety guardrails, and enforcing high-risk confirmation dialogues, please read the full **[Vehicle Skills Registry Guide](docs/VEHICLE_SKILLS_REGISTRY_GUIDE.md)**.
+
 ### 1. How to Fix an Existing Tool or Property
 If a tool like `<TOOL>openTrunk()</TOOL>` isn't working on your specific car/emulator, it means the `property_id` in the JSON doesn't match your car's hardware.
 1. Connect via ADB and run: `adb shell dumpsys car_service --hal`
