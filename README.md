@@ -50,48 +50,43 @@ For a detailed breakdown of the system architecture, including the **Eager Strea
 
 ## Adding New Hardware Features (Zero-Code Architecture)
 
-This project uses a highly scalable, JSON-driven tool architecture. You can add support for standard Android Automotive VHAL properties without writing any Kotlin code.
+This project uses a highly scalable, JSON-driven tool architecture. You can add support for new Android Automotive VHAL properties or fix existing ones without writing any Kotlin code.
 
-### 1. Adding a Context Property (Read-Only)
-To allow the LLM to read a vehicle sensor (e.g., EV Battery Level, Outside Temp):
-1. Open `app/src/main/assets/custom_properties.json`.
-2. Append to the `"properties"` array with the AOSP VHAL ID:
+All mappings are located in a single file: `app/src/main/assets/vehicle_skills_registry.json`
+
+This JSON file contains two arrays:
+- `"properties"`: Sensors the AI reads to understand the car's state (e.g., Battery, Tire Pressure).
+- `"tools"`: Actions the AI can take to physically control the car (e.g., HVAC, Windows, Trunk).
+
+### 1. How to Fix an Existing Tool or Property
+If a tool like `<TOOL>openTrunk()</TOOL>` isn't working on your specific car/emulator, it means the `property_id` in the JSON doesn't match your car's hardware.
+1. Connect via ADB and run: `adb shell dumpsys car_service --hal`
+2. Search the output for the feature you want (e.g., `Property: 0x16200b02 (DOOR_LOCK)`).
+3. Convert the Hex ID (`0x16200b02`) to a Decimal integer (`371198722`).
+4. Open `vehicle_skills_registry.json`, find the tool block (e.g., `"handler_key": "unlockDoors"`), and update the `"property_id"` field to your new decimal integer.
+
+### 2. How to Add a Completely New Tool (Generic VHAL Write)
+To allow the LLM to physically control a brand new vehicle feature (e.g., Ambient Lights):
+1. Find the property ID for Ambient Lights using the `dumpsys` command above.
+2. Open `vehicle_skills_registry.json` and append a new block to the `"tools"` array.
+3. Use `"handler_type": "GENERIC_VHAL_WRITE"` so the system handles it automatically.
+
+**Required fields for a new tool:**
 ```json
 {
-  "name": "EV_BATTERY_LEVEL",
-  "id": 291504905,
-  "type": "FLOAT"
+  "prompt_string": "<TOOL>setAmbientLight()</TOOL>", // The exact syntax the AI must output
+  "handler_type": "GENERIC_VHAL_WRITE", // Tells the engine no Kotlin code is needed
+  "property_id": 356518835, // The decimal ID for the VHAL property
+  "data_type": "INT", // "INT", "FLOAT", "BOOLEAN", or "STRING"
+  "area_id": 0, // 0 usually means global/all areas
+  "value_to_write": "5", // The value to write to the VHAL when this tool is called
+  "success_message": "I've changed the ambient lighting color.", // What the car speaks out loud
+  "keywords": ["ambient", "light", "color", "mood", "lighting"] // Used for semantic routing
 }
 ```
-The property will automatically be injected into the LLM's system prompt context.
-
-### 2. Adding an Actuator Command (Generic VHAL Write)
-To allow the LLM to physically control a vehicle feature (e.g., Wipers, Ambient Lights, Trunk):
-1. Open `app/src/main/assets/custom_properties.json`.
-2. Append to the `"tools"` array, using `"handler_type": "GENERIC_VHAL_WRITE"`:
-```json
-{
-  "prompt_string": "<TOOL>setAmbientLight(COLOR_INT)</TOOL>",
-  "handler_type": "GENERIC_VHAL_WRITE",
-  "property_id": 356518835,
-  "data_type": "INT",
-  "area_id": 0,
-  "success_message": "I've changed the ambient lighting color."
-}
-```
-The `ToolManager` engine will dynamically parse the LLM's output (e.g., `<TOOL>setAmbientLight(5)</TOOL>`) and securely write `5` to the VHAL using reflection, with **zero Kotlin code required**.
 
 ### 3. Adding Complex Commands (Custom Kotlin)
 If a command requires complex math, area ID iteration, or safety guardrails (e.g., speed limits for windows), use `"handler_type": "CUSTOM_KOTLIN"` and map it to a `"handler_key"`. Then, write the custom execution logic in `ToolManager.kt`.
-
-### 4. How to Find & Extract Vehicle Property IDs
-If you need to find the correct `property_id` (like `DOOR_LOCK` or `TRUNK_POS`) for your specific vehicle or emulator:
-1. Connect via ADB and run: `adb shell dumpsys car_service --hal`
-2. This outputs all supported properties, including their Hexadecimal IDs (e.g., `Property: 0x16200b02 (DOOR_LOCK)`).
-3. Convert the Hex ID to Decimal (e.g., `371198722`).
-4. Update the `"property_id"` field in `app/src/main/assets/vehicle_skills_registry.json`.
-
-*(You can also browse all official properties and their Hex IDs in the [AOSP VehicleProperty.aidl](https://cs.android.com/android/platform/superproject/+/master:hardware/interfaces/automotive/vehicle/aidl/android/hardware/automotive/vehicle/VehicleProperty.aidl) source code.)*
 
 ---
 
