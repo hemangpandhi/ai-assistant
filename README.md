@@ -84,6 +84,15 @@ The `ToolManager` engine will dynamically parse the LLM's output (e.g., `<TOOL>s
 ### 3. Adding Complex Commands (Custom Kotlin)
 If a command requires complex math, area ID iteration, or safety guardrails (e.g., speed limits for windows), use `"handler_type": "CUSTOM_KOTLIN"` and map it to a `"handler_key"`. Then, write the custom execution logic in `ToolManager.kt`.
 
+### 4. How to Find & Extract Vehicle Property IDs
+If you need to find the correct `property_id` (like `DOOR_LOCK` or `TRUNK_POS`) for your specific vehicle or emulator:
+1. Connect via ADB and run: `adb shell dumpsys car_service --hal`
+2. This outputs all supported properties, including their Hexadecimal IDs (e.g., `Property: 0x16200b02 (DOOR_LOCK)`).
+3. Convert the Hex ID to Decimal (e.g., `371198722`).
+4. Update the `"property_id"` field in `app/src/main/assets/vehicle_skills_registry.json`.
+
+*(You can also browse all official properties and their Hex IDs in the [AOSP VehicleProperty.aidl](https://cs.android.com/android/platform/superproject/+/master:hardware/interfaces/automotive/vehicle/aidl/android/hardware/automotive/vehicle/VehicleProperty.aidl) source code.)*
+
 ---
 
 ## Supported Models & AAOS Hardware Contexts
