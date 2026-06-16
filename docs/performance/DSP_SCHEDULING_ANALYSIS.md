@@ -22,6 +22,11 @@ During the optimization phase of the `AssistantSession` (Voice UI) on the Snapdr
 *   **Chat Pipeline:** The user types text. The DSP is asleep. The NPU gets 100% of the silicon immediately. **Result: 1.3s TTFT.**
 *   **Voice Pipeline:** The Android `SpeechRecognizer` utilizes a heavy acoustic neural network on the DSP to process the microphone buffer. When the user stops speaking (`onResults`), the DSP requires approximately **800ms** to tear down the acoustic tensors, flush the memory, and release the hardware locks. The LLM `sendMessageAsync` command is physically queued behind this cleanup process.
 
+#### Why does the STT Cleanup take 800ms?
+1. **Acoustic Model Teardown:** The offline dictation model occupies the Hexagon DSP's tensor cores and SRAM. When speech ends, the DSP must halt the active stream, flush the acoustic model's tensors out of SRAM, and deallocate the memory.
+2. **Audio HAL & Buffer Cleanup:** The Android `AudioFlinger` must communicate with the hardware Audio HAL to drop Audio Focus, release the microphone hardware lock, and destroy the PCM ring buffers.
+3. **The Shared Silicon Context Switch:** Because the NPU (LLM) and DSP (STT) are physically the exact same Hexagon processor, they share the same internal L2/L3 cache and vector math units. The OS cannot start paging the 2B-parameter LLM graph into the Hexagon Processor until the STT graph is fully flushed out. This is essentially a massive hardware "context switch" from an *Audio Transcriber* to a *Generative AI*.
+
 **Final Formula:**
 `1.3s (Pure NPU LLM Inference) + 0.8s (DSP STT Cleanup) = 2.1s (Voice TTFT)`
 
