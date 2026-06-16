@@ -116,10 +116,12 @@ class WakeWordService : Service() {
             }
         }
     }
-    
+    private var restartJob: kotlinx.coroutines.Job? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "ACTION_RESTART_LISTENING") {
-            CoroutineScope(Dispatchers.Main).launch {
+            restartJob?.cancel()
+            restartJob = CoroutineScope(Dispatchers.Main).launch {
                 try {
                     // Wait 2500ms to allow async media apps (like Spotify) to claim Audio Focus 
                     // and trigger AudioFlinger DSP routing changes before we grab the mic.
@@ -130,6 +132,12 @@ class WakeWordService : Service() {
                         customAudioRecord?.release()
                     } catch(e: Exception) {}
                     customAudioRecord = null
+                    
+                    try {
+                        customRecognizer?.close()
+                    } catch (e: Exception) {}
+                    customRecognizer = null
+                    
                     recognizerSetup()
                     Log.d("WakeWord", "Restarting listener after Assistant UI closed")
                 } catch (e: Exception) {

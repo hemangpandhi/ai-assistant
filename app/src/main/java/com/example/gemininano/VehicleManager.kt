@@ -78,15 +78,20 @@ object VehicleManager {
             val car = Car.createCar(context)
             carPropertyManager = car.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
             
-            carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.PERF_VEHICLE_SPEED, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-            carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-            carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.HVAC_TEMPERATURE_SET, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-            carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.FUEL_LEVEL, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-            carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.GEAR_SELECTION, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-            try {
-                carPropertyManager?.registerCallback(carPropertyCallback, VehiclePropertyIds.WINDOW_POS, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-            } catch (e: Exception) {
-                Log.w("VehicleManager", "Could not register window pos callback")
+            val propertiesToRegister = listOf(
+                VehiclePropertyIds.PERF_VEHICLE_SPEED,
+                VehiclePropertyIds.HVAC_SEAT_TEMPERATURE,
+                VehiclePropertyIds.HVAC_TEMPERATURE_SET,
+                VehiclePropertyIds.FUEL_LEVEL,
+                VehiclePropertyIds.GEAR_SELECTION,
+                VehiclePropertyIds.WINDOW_POS
+            )
+            for (propId in propertiesToRegister) {
+                try {
+                    carPropertyManager?.registerCallback(carPropertyCallback, propId, CarPropertyManager.SENSOR_RATE_ONCHANGE)
+                } catch (e: Exception) {
+                    Log.w("VehicleManager", "Could not register callback for property ID: $propId - ${e.message}")
+                }
             }
             
             // Dynamic JSON Properties
