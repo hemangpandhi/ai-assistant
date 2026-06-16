@@ -118,6 +118,20 @@ object ToolManager {
      */
     fun getRelevantTools(query: String): List<ToolDefinition> {
         if (query.isBlank()) return activeTools.values.toList()
+        
+        // Fast path: Keyword matching (0ms)
+        val q = query.lowercase()
+        val exactMatches = activeTools.values.filter { tool ->
+            tool.keywords?.any { q.contains(it) } == true
+        }
+        
+        if (exactMatches.isNotEmpty()) {
+            // Always include generic fallback tools like search and navigate just in case
+            val fallbacks = activeTools.values.filter { it.handlerKey == "search" || it.handlerKey == "navigate" }
+            return (exactMatches + fallbacks).distinct()
+        }
+        
+        // Slow path: Semantic Search (2000ms+)
         return SemanticSearchManager.search(query, 8)
     }
 
