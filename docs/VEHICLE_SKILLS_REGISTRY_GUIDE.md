@@ -2,9 +2,14 @@
 
 This guide comprehensively details how to configure `vehicle_skills_registry.json`. This file acts as the central nervous system of the Assistant, seamlessly bridging the local AI model to the Android Automotive Vehicle Hardware Abstraction Layer (VHAL) without requiring you to write complex code for every new feature.
 
-The file is divided into two primary arrays:
-1. **`properties`**: Read-only sensors (telemetry) that provide context to the AI.
-2. **`tools`**: Actionable commands (actuators) the AI can execute.
+### 🌟 Absolute Beginner's Summary
+If you have zero prior knowledge of Android or coding, don't worry! This file is written in **JSON**, which is just a simple way to store data using text. 
+
+Think of this file as the **"Brain Dictionary"** for the AI Assistant. It tells the AI two basic things:
+1. **What it can "See" (`properties`)**: These are read-only sensors. By adding a sensor here, you let the AI know what the car is doing (like if the battery is low, or if a door is open).
+2. **What it can "Do" (`tools`)**: These are physical actions. By adding a tool here, you give the AI the ability to push a button in the car (like rolling down a window or turning on the AC).
+
+To add a new feature to the car, you don't need to write any complicated Kotlin code. You just copy-paste a block of text into this JSON file and change the numbers to match your specific car!
 
 ---
 
