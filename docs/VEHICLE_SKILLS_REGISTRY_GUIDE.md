@@ -64,14 +64,22 @@ Add a block to the `"tools"` array:
 ```
 
 ### Breakdown of Tool Fields:
-- **`prompt_string`**: The exact XML string the AI will output when it decides to use this tool.
-- **`handler_type`**: Must be `"GENERIC_VHAL_WRITE"` for automatic hardware execution.
+- **`prompt_string`**: The exact XML string the AI will output when it decides to use this tool (e.g., `<TOOL>setAmbientLight()</TOOL>`). This must exactly match the name of your feature so the parser can catch it.
+- **`handler_type`**: Must be exactly `"GENERIC_VHAL_WRITE"` for automatic hardware execution. If you need complex logic, set this to `"CUSTOM_KOTLIN"` instead.
 - **`property_id`**: The Decimal VHAL ID you extracted in Step 1.
-- **`data_type`**: The type of data to write (`INT`, `FLOAT`, `BOOLEAN`, or `STRING`).
-- **`area_id`**: The physical zone of the car (e.g., driver seat vs passenger seat). Use `0` for global properties.
+- **`data_type`**: The type of data to write (`INT`, `FLOAT`, `BOOLEAN`, or `STRING`). 
+  - *How to find it:* Look at the `VehiclePropertyType` in your `dumpsys` output or the AIDL file.
+- **`area_id`**: The physical zone of the car (e.g., driver seat vs passenger seat).
+  - *How to find it:* Look at your `dumpsys` output for the property. It will list the supported `AreaId`s.
+  - If the property affects the whole car (like Trunk, AC Power, or Ambient Light), the Area ID is almost always `0`.
+  - If it is zone-specific (like Windows or Doors), it will be a bitmask or specific ID (e.g., `1` for Front Left, `2` for Front Right). If you want the tool to affect a specific window, use that exact `AreaId`. If you put `0` for a zoned property, the `VehicleManager` will usually fallback and apply it to the first available area.
 - **`value_to_write`**: The specific value to push to the VHAL when this tool is triggered.
-- **`success_message`**: The human-readable confirmation the Assistant will speak out loud.
-- **`keywords`**: An array of relevant words. The Semantic Search Engine (RAG) uses these to intelligently map the user's voice prompt to this specific tool.
+  - *How to find it:* 
+    - For `BOOLEAN` properties (like Defroster or AC Power), this will always be `"true"` or `"false"`.
+    - For `INT` properties (like Window Position or Fan Speed), look at the `dumpsys` output for `min` and `max` limits. For example, if Window Position accepts 0-100, you would write `"100"` to fully open it. If it's an enum (like Ambient Light colors), look up the specific integer mapping in your OEM's HAL documentation.
+- **`success_message`**: The human-readable confirmation the Assistant will speak out loud when the command succeeds.
+- **`keywords`**: An array of relevant words. 
+  - *How to fill this:* Think of synonyms a user might say. The Semantic Search Engine (RAG) uses these to intelligently route the user's voice prompt to this specific tool without sending the whole list to the LLM. For an ambient light tool, you would use `["ambient", "light", "color", "mood", "lighting"]`.
 
 ---
 
