@@ -226,12 +226,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
             tts?.stop()
             btnMic.isEnabled = false
-            CoroutineScope(Dispatchers.Main).launch {
-                kotlinx.coroutines.delay(500)
-                LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
-                speechRecognizer?.startListening(speechRecognizerIntent)
-                btnMic.isEnabled = true
-            }
+            LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
+            speechRecognizer?.startListening(speechRecognizerIntent)
+            btnMic.isEnabled = true
         }
         
         // Update the active content view window with the newly inflated view
@@ -337,10 +334,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         
                         // Automatically start listening if invoked via voice match/hotword
                         if (showFlags and SHOW_WITH_ASSIST != 0) {
-                            CoroutineScope(Dispatchers.Main).launch {
-                                kotlinx.coroutines.delay(500)
-                                btnMic.performClick()
-                            }
+                            btnMic.performClick()
                         }
                     }
 
@@ -361,10 +355,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             
             // Automatically start listening if invoked via voice match/hotword
             if (showFlags and SHOW_WITH_ASSIST != 0) {
-                CoroutineScope(Dispatchers.Main).launch {
-                    kotlinx.coroutines.delay(500)
-                    btnMic.performClick()
-                }
+                btnMic.performClick()
             }
         }
     }
