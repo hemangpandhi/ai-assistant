@@ -320,12 +320,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         stopListeningIntent.action = "ACTION_STOP_LISTENING"
         context.startService(stopListeningIntent)
         
-        if (LLMManager.engine == null) {
-            statusText.text = "Initializing Model..."
+        if (LLMManager.engine == null || LLMManager.isPrewarming) {
+            statusText.text = if (LLMManager.isPrewarming) "Pre-warming Model... This may take 20s" else "Initializing Model..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
             
             CoroutineScope(Dispatchers.Main).launch {
+                // Wait for prewarm to finish if it's currently running
+                while (LLMManager.isPrewarming) {
+                    kotlinx.coroutines.delay(500)
+                }
+                
                 LLMManager.autoInitialize(context, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
                         statusText.text = "Hi, how can I help you?"

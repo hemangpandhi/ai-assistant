@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 object LLMManager {
@@ -28,6 +29,9 @@ object LLMManager {
         private set
 
     var isInitializing = false
+        private set
+        
+    var isPrewarming = false
         private set
 
     var isFirstMessage = true
@@ -77,27 +81,29 @@ object LLMManager {
             }
         }
     }
+    private val initMutex = kotlinx.coroutines.sync.Mutex()
 
     suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
-        if (!force && engine != null && currentModelPath == modelPath) {
-            callback?.onSuccess()
-            return
-        }
-
-        withContext(Dispatchers.IO) {
-            isInitializing = true
-            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            // Removed Math.max(..., 4096) constraint so physical devices like Pixel Tablet can lower the KV Cache to prevent GPU OOM crashes
-            val maxTokens = prefs.getInt("max_tokens", 2048)
-            
-            try {
+        initMutex.withLock {
+            if (!force && engine != null && currentModelPath == modelPath) {
+                withContext(Dispatchers.Main) { callback?.onSuccess() }
+                return
+            }
+    
+            withContext(Dispatchers.IO) {
+                isInitializing = true
+                val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                // Removed Math.max(..., 4096) constraint so physical devices like Pixel Tablet can lower the KV Cache to prevent GPU OOM crashes
+                val maxTokens = prefs.getInt("max_tokens", 2048)
+                
                 try {
-                    conversation?.close()
-                    engine?.close()
-                } catch (e: Exception) {
-                    Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
-                }
-                conversation = null
+                    try {
+                        conversation?.close()
+                        engine?.close()
+                    } catch (e: Exception) {
+                        Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
+                    }
+                    conversation = null
                 engine = null
 
                 val backend = when (backendChoice) {
@@ -149,6 +155,7 @@ object LLMManager {
                 }
             } finally {
                 isInitializing = false
+            }
             }
         }
     }
@@ -431,6 +438,34 @@ object LLMManager {
             Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
         } catch (e: Exception) {
             Log.e("LLMManager", "Failed to reset conversation", e)
+        }
+    }
+
+    suspend fun prewarm(context: Context) {
+        if (engine == null || conversation == null || !isFirstMessage) return
+        
+        withContext(Dispatchers.IO) {
+            isPrewarming = true
+            try {
+                Log.d("LLMManager", "Starting background pre-warm sequence...")
+                val sysPrompt = getSystemPrompt(context, "")
+                val prewarmPrompt = "$sysPrompt\n\n[System Initialization: Acknowledge this configuration. Do not generate a response.]"
+                
+                val latch = kotlinx.coroutines.sync.Mutex(true)
+                conversation?.sendMessageAsync(Contents.of(Content.Text(prewarmPrompt)), object : com.google.ai.edge.litertlm.MessageCallback {
+                    override fun onMessage(message: com.google.ai.edge.litertlm.Message) {}
+                    override fun onDone() { latch.unlock() }
+                    override fun onError(throwable: Throwable) { latch.unlock() }
+                }, emptyMap())
+                
+                latch.lock() // Suspend until the NPU finishes computing the KV cache
+                isFirstMessage = false
+                Log.d("LLMManager", "Prewarm complete. KV cache populated.")
+            } catch (e: Exception) {
+                Log.e("LLMManager", "Prewarm failed", e)
+            } finally {
+                isPrewarming = false
+            }
         }
     }
 }

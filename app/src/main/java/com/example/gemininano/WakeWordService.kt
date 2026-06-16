@@ -52,6 +52,20 @@ class WakeWordService : Service() {
                 Log.e("WakeWord", "Failed to unpack model: ${exception.message}") 
             }
         )
+        
+        // Background Pre-warming of Gemini Nano
+        CoroutineScope(Dispatchers.Main).launch {
+            LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
+                override fun onSuccess() {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        LLMManager.prewarm(applicationContext)
+                    }
+                }
+                override fun onError(e: Exception) {
+                    Log.e("WakeWord", "Background LLM Init Failed", e)
+                }
+            })
+        }
     }
 
     private fun updateWakeWord() {
