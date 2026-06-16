@@ -71,11 +71,12 @@ class WakeWordService : Service() {
             Log.e("WakeWord", "Failed to init recognizer: ${e.message}")
         }
     }
+    private var listeningJob: kotlinx.coroutines.Job? = null
     
     private fun startCustomListening() {
         if (isRecording) return
         isRecording = true
-        CoroutineScope(Dispatchers.IO).launch {
+        listeningJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
                 
@@ -126,13 +127,19 @@ class WakeWordService : Service() {
                     // Wait 2500ms to allow async media apps (like Spotify) to claim Audio Focus 
                     // and trigger AudioFlinger DSP routing changes before we grab the mic.
                     delay(2500)
+                    
+                    // 1. Tell IO thread to stop
                     isRecording = false
+                    
+                    // 2. Unblock the IO thread's AudioRecord.read() by stopping the microphone
                     try {
                         customAudioRecord?.stop()
-                        customAudioRecord?.release()
                     } catch(e: Exception) {}
-                    customAudioRecord = null
                     
+                    // 3. WAIT for the IO thread to fully exit the acceptWaveForm loop!
+                    listeningJob?.join()
+                    
+                    // 4. Safely close the C++ Recognizer now that no thread is using it
                     try {
                         customRecognizer?.close()
                     } catch (e: Exception) {}
