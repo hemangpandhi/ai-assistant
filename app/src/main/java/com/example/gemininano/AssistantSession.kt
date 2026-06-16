@@ -482,9 +482,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val finalPrompt: String
         
         if (!isComplexQuery && !isAgenticObservation) {
-            // AGGRESSIVE OPTIMIZATION: For simple commands, completely wipe the NPU KV Cache
-            // and skip injecting any conversational history. The prompt will be ~50 tokens.
-            LLMManager.resetConversation(context)
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery"
@@ -540,7 +537,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 LatencyLogger.log("AssistantSession", "Time to First Token (TTFT): ${ttft}ms")
                             }
                             
-                            CoroutineScope(Dispatchers.Main).launch {
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                if (isQueryProcessed) return@launch
                                 voiceAnimation.state = VoiceAnimationView.State.SPEAKING
                                 val chunk = chunkText
                                 lastResponseBuilder.append(chunk)
@@ -837,11 +835,22 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
                 }
             } else {
-                LLMManager.conversation!!.sendMessageAsync(
-                    Contents.of(Content.Text(finalPrompt)),
-                    callback,
-                    emptyMap()
-                )
+                CoroutineScope(Dispatchers.IO).launch {
+                    try {
+                        LLMManager.conversation!!.sendMessageAsync(
+                            Contents.of(Content.Text(finalPrompt)),
+                            callback,
+                            emptyMap()
+                        )
+                    } catch (e: Exception) {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            statusText.text = "Error"
+                            stopThinkingAnimation()
+                            responseText.text = "Failed to communicate with NPU."
+                            btnSend.isEnabled = true
+                        }
+                    }
+                }
             }
         } catch (e: Exception) {
             statusText.text = "Error"
