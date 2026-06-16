@@ -341,14 +341,19 @@ object LLMManager {
         val basePrompt = StringBuilder()
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
         
-        basePrompt.append("=== VEHICLE STATE ===\n")
-        basePrompt.append("${VehicleManager.getLLMContextString(context)}\n")
-        basePrompt.append("Memory: $userMemory\n\n")
+        val isComplexQuery = query.length >= 25 || isHvac || isSightseeing || isFoodQuery || isFuelQuery || isNav || isDiag || isWellness || isAmbient || isLocationKnowledge
+        
+        if (isComplexQuery) {
+            basePrompt.append("=== VEHICLE STATE ===\n")
+            basePrompt.append("${VehicleManager.getLLMContextString(context)}\n")
+            basePrompt.append("Memory: $userMemory\n\n")
+        }
         
         basePrompt.append("=== TOOLS ===\n")
         basePrompt.append("${ToolManager.getLlmToolsPrompt(query)}\n\n")
         
-        basePrompt.append("=== STRICT RULES ===\n")
+        if (isComplexQuery) {
+            basePrompt.append("=== STRICT RULES ===\n")
         basePrompt.append("IMPORTANT: If you use a tool, YOUR RESPONSE MUST EXACTLY START WITH THE XML TAG '<TOOL>'. Do NOT omit it.\n")
         
         basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax BEFORE your text:\n")
@@ -386,12 +391,13 @@ object LLMManager {
         
 
         val customInstructions = VehicleManager.getCustomPropertyInstructions()
-        if (customInstructions.isNotEmpty()) {
+        if (customInstructions.isNotEmpty() && isComplexQuery) {
             basePrompt.append("\n=== DYNAMIC VEHICLE SENSOR RULES ===\n")
             customInstructions.forEachIndexed { index, inst ->
                 basePrompt.append("${10 + index}. $inst\n")
             }
         }
+        } // End of isComplexQuery block
         
         return basePrompt.toString().trimIndent()
     }
