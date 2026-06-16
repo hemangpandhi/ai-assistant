@@ -472,25 +472,37 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val qStr = interceptedQuery.lowercase()
         val expectFollowup = false
         
+        val isComplexQuery = interceptedQuery.length >= 25 || 
+                interceptedQuery.lowercase().contains("temperature") || 
+                interceptedQuery.lowercase().contains("hot") || 
+                interceptedQuery.lowercase().contains("navigate") || 
+                interceptedQuery.lowercase().contains("diagnos")
+        
         val dynCtx = LLMManager.getDynamicContext(context, interceptedQuery)
         val finalPrompt: String
-        if (LLMManager.isFirstMessage) {
+        
+        if (!isComplexQuery && !isAgenticObservation) {
+            // AGGRESSIVE OPTIMIZATION: For simple commands, completely wipe the NPU KV Cache
+            // and skip injecting any conversational history. The prompt will be ~50 tokens.
+            LLMManager.resetConversation(context)
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            
-            if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nAssistant:"
-            } else {
-                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery" else "$reminder$dynCtx\n\nUser: $interceptedQuery"
-            }
-            LLMManager.isFirstMessage = false
+            finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery"
         } else {
-            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            if (isAgenticObservation) {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
+            if (LLMManager.isFirstMessage) {
+                val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+                val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
+                
+                if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
+                    finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nAssistant:"
+                } else {
+                    finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery" else "$reminder$dynCtx\n\nUser: $interceptedQuery"
+                }
+                LLMManager.isFirstMessage = false
             } else {
-                if (interceptedQuery.length < 25) {
-                    finalPrompt = "$dynCtx\nUser: $interceptedQuery"
+                val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
+                if (isAgenticObservation) {
+                    finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
                 } else {
                     finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\nUser: $interceptedQuery"
                 }
