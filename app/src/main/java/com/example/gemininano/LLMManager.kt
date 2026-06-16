@@ -359,22 +359,22 @@ object LLMManager {
         basePrompt.append("=== TOOLS ===\n")
         basePrompt.append("${ToolManager.getLlmToolsPrompt(query)}\n\n")
         
-        basePrompt.append("IMPORTANT: If you use a tool, YOUR RESPONSE MUST EXACTLY START WITH THE XML TAG '<TOOL>'. Do NOT omit it.\n\n")
+        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response. Example: 'Playing relaxing music now. <TOOL>playMusic(relaxing music)</TOOL>'\n\n")
         
         if (isComplexQuery) {
             basePrompt.append("=== STRICT RULES ===\n")
             
-            basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax BEFORE your text:\n")
-            basePrompt.append("- If user gives an exact number: \"<TOOL>setTemperature(VAL)</TOOL> I've set the temperature to [VAL] degrees.\"\n")
-            basePrompt.append("- If user is cold or wants to increase it: \"<TOOL>increaseTemperature()</TOOL> I'm warming it up.\"\n")
-            basePrompt.append("- If user is hot or wants to decrease it: \"<TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\"\n")
+            basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax AFTER your text:\n")
+            basePrompt.append("- If user gives an exact number: \"I've set the temperature to [VAL] degrees. <TOOL>setTemperature(VAL)</TOOL>\"\n")
+            basePrompt.append("- If user is cold or wants to increase it: \"I'm warming it up. <TOOL>increaseTemperature()</TOOL>\"\n")
+            basePrompt.append("- If user is hot or wants to decrease it: \"I'm cooling it down. <TOOL>decreaseTemperature()</TOOL>\"\n")
             basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
 
             basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
 
-            basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT syntax <TOOL>navigate(DEST)</TOOL> and NO other text. Example: \"<TOOL>navigate(Tokyo)</TOOL>\"\n")
+            basePrompt.append("3. NAVIGATION: To navigate, briefly acknowledge the destination and then use the syntax <TOOL>navigate(DEST)</TOOL> at the end. Example: \"Setting destination to Tokyo. <TOOL>navigate(Tokyo)</TOOL>\"\n")
 
-            basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
+            basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"Heading Home. Should I turn on the heater? <TOOL>navigate(Home)</TOOL>\"\n")
 
             basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
             basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the tool <TOOL>search(QUERY)</TOOL> where QUERY is exactly what they asked for (e.g. <TOOL>search(best places to visit in tokyo)</TOOL>).\n")
