@@ -119,6 +119,10 @@
       "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
       "handler_key": "setSeatHeater",
       "handler_type": "CUSTOM_KOTLIN",
+      "property_id": 356517131,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've adjusted the seat heater.",
       "keywords": [
         "seat",
         "heater",
@@ -126,30 +130,27 @@
         "warm",
         "bottom",
         "butt"
-      ],
-      "property_id": 356517131,
-      "data_type": "INT",
-      "area_id": 0,
-      "success_message": "I've adjusted the seat heater."
+      ]
     },
     {
       "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
       "handler_key": "setSeatMassager",
       "handler_type": "CUSTOM_KOTLIN",
+      "property_id": 356519253,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've turned on the seat massager for you.",
       "keywords": [
         "seat",
         "massage",
         "massager",
         "back",
         "relax"
-      ],
-      "property_id": 356519253,
-      "data_type": "INT",
-      "area_id": 0,
-      "success_message": "I've turned on the seat massager for you."
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnDefroster()</TOOL>",
+      "handler_key": "turnOnDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -166,6 +167,7 @@
     },
     {
       "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
+      "handler_key": "turnOffDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -182,6 +184,7 @@
     },
     {
       "prompt_string": "<TOOL>turnOnAC()</TOOL>",
+      "handler_key": "turnOnAC",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419973,
       "data_type": "BOOLEAN",
@@ -199,6 +202,7 @@
     },
     {
       "prompt_string": "<TOOL>turnOffAC()</TOOL>",
+      "handler_key": "turnOffAC",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419973,
       "data_type": "BOOLEAN",
@@ -216,92 +220,153 @@
     },
     {
       "prompt_string": "<TOOL>turnOnAutoMode()</TOOL>",
+      "handler_key": "turnOnAutoMode",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419978,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've turned on automatic climate control.",
-      "keywords": ["auto", "automatic", "climate"]
+      "keywords": [
+        "auto",
+        "automatic",
+        "climate"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffAutoMode()</TOOL>",
+      "handler_key": "turnOffAutoMode",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419978,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "false",
       "success_message": "I've disabled automatic climate control.",
-      "keywords": ["auto", "automatic", "climate"]
+      "keywords": [
+        "auto",
+        "automatic",
+        "climate"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnRecirculation()</TOOL>",
+      "handler_key": "turnOnRecirculation",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419982,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've turned on air recirculation.",
-      "keywords": ["recirculation", "recirculate", "inside", "air"]
+      "keywords": [
+        "recirculation",
+        "recirculate",
+        "inside",
+        "air"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffRecirculation()</TOOL>",
+      "handler_key": "turnOffRecirculation",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419982,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "false",
       "success_message": "I've turned off air recirculation.",
-      "keywords": ["recirculation", "recirculate", "fresh", "air"]
+      "keywords": [
+        "recirculation",
+        "recirculate",
+        "fresh",
+        "air"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
+      "handler_key": "turnOnRearDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
       "area_id": 2,
       "value_to_write": "true",
       "success_message": "Activating rear defroster.",
-      "keywords": ["rear", "defroster", "defrost", "back", "window"]
+      "keywords": [
+        "rear",
+        "defroster",
+        "defrost",
+        "back",
+        "window"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
+      "handler_key": "turnOffRearDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
       "area_id": 2,
       "value_to_write": "false",
       "success_message": "Deactivating rear defroster.",
-      "keywords": ["rear", "defroster", "defrost", "back", "window"]
+      "keywords": [
+        "rear",
+        "defroster",
+        "defrost",
+        "back",
+        "window"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
+      "handler_key": "turnOnHvacPower",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419984,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've turned on the climate control system.",
-      "keywords": ["hvac", "climate", "power", "system", "on"]
+      "keywords": [
+        "hvac",
+        "climate",
+        "power",
+        "system",
+        "on"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
+      "handler_key": "turnOffHvacPower",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419984,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "false",
       "success_message": "I've turned off the climate control system.",
-      "keywords": ["hvac", "climate", "power", "system", "off"]
+      "keywords": [
+        "hvac",
+        "climate",
+        "power",
+        "system",
+        "off"
+      ]
     },
     {
       "prompt_string": "<TOOL>setAirflowDirection(face|floor|face and floor|defrost)</TOOL>",
       "handler_key": "setAirflowDirection",
       "handler_type": "CUSTOM_KOTLIN",
-      "keywords": ["airflow", "direction", "face", "floor", "vents", "leg", "legs", "feet", "feat"]
+      "keywords": [
+        "airflow",
+        "direction",
+        "face",
+        "floor",
+        "vents",
+        "leg",
+        "legs",
+        "feet",
+        "feat"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnCabinLight()</TOOL>",
+      "handler_key": "turnOnCabinLight",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 289410577,
       "data_type": "INT",
@@ -319,6 +384,7 @@
     },
     {
       "prompt_string": "<TOOL>turnOffCabinLight()</TOOL>",
+      "handler_key": "turnOffCabinLight",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 289410577,
       "data_type": "INT",
@@ -338,15 +404,6 @@
       "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
       "handler_key": "setWindowPosition",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "keywords": [
-        "window",
-        "roll",
-        "down",
-        "up",
-        "open",
-        "close",
-        "air"
-      ],
       "property_id": 322964416,
       "data_type": "INT",
       "area_id": 0,
@@ -358,6 +415,15 @@
           "value": 70,
           "error_msg": "Safety Warning: Speed is too high to safely open the windows."
         }
+      ],
+      "keywords": [
+        "window",
+        "roll",
+        "down",
+        "up",
+        "open",
+        "close",
+        "air"
       ]
     },
     {
@@ -479,15 +545,15 @@
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've popped the trunk.",
+      "requires_confirmation": true,
+      "confirmation_message": "Warning: Are you sure you want to open the trunk?",
       "keywords": [
         "trunk",
         "open",
         "back",
         "boot",
         "cargo"
-      ],
-      "requires_confirmation": true,
-      "confirmation_message": "Warning: Are you sure you want to open the trunk?"
+      ]
     },
     {
       "prompt_string": "<TOOL>unlockDoors()</TOOL>",
@@ -498,15 +564,15 @@
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've unlocked the doors.",
+      "requires_confirmation": true,
+      "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?",
       "keywords": [
         "unlock",
         "door",
         "doors",
         "open",
         "latch"
-      ],
-      "requires_confirmation": true,
-      "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?"
+      ]
     }
   ]
 }
