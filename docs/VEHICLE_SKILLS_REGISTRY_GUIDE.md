@@ -23,7 +23,20 @@ You can also look up IDs in the official AOSP [VehicleProperty.aidl](https://cs.
 
 ---
 
-## 2. Adding Contextual Properties (Read-Only Sensors)
+## 2. How to Fix or Update an Existing Property/Tool
+
+If an existing tool (like `<TOOL>openTrunk()</TOOL>`) isn't working on your specific car/emulator, it means the `"property_id"` mapped in the JSON doesn't match your car's hardware.
+
+**To fix an existing tool or property:**
+1. Run `adb shell dumpsys car_service --hal` to find the correct Hex ID for your car's specific feature.
+2. Convert that Hex ID to a Decimal integer.
+3. Open `vehicle_skills_registry.json`.
+4. Find the broken tool or property block (e.g., search for `"handler_key": "openTrunk"`).
+5. Simply overwrite the existing `"property_id"` field with your new decimal integer!
+
+---
+
+## 3. Adding Contextual Properties (Read-Only Sensors)
 
 If you want the AI to know about a specific vehicle state (like tire pressure, battery level, or outside temperature) so it can answer user questions, add a block to the `"properties"` array.
 
@@ -49,7 +62,7 @@ If the sensor data is complex, you can explicitly instruct the LLM on how to int
 
 ---
 
-## 3. Adding Actionable Tools (Generic VHAL Write)
+## 4. Adding Actionable Tools (Generic VHAL Write)
 
 If you want the AI to physically control a feature (like turning on ambient lights or opening a window), you can use a `GENERIC_VHAL_WRITE` tool. This requires **zero Kotlin code**; the system handles the reflection and hardware writes automatically.
 
@@ -88,7 +101,7 @@ Add a block to the `"tools"` array:
 
 ---
 
-## 4. Advanced Tool Configuration (Safety & Guardrails)
+## 5. Advanced Tool Configuration (Safety & Guardrails)
 
 For dangerous operations (like opening trunks or unlocking doors while driving), you can inject native safety guardrails directly into the JSON.
 
@@ -127,7 +140,7 @@ You can prevent a tool from executing if a different sensor is in a dangerous st
 
 ---
 
-## 5. Adding Complex Commands (Custom Kotlin)
+## 6. Adding Complex Commands (Custom Kotlin)
 
 If a command requires complex logic (like parsing arguments from the AI, e.g., `<TOOL>setTemperature(72)</TOOL>`), a `GENERIC_VHAL_WRITE` is not enough. You must use `CUSTOM_KOTLIN`.
 
