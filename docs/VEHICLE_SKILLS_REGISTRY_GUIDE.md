@@ -168,3 +168,39 @@ private suspend fun executeTool(toolCall: String): String {
     }
 }
 ```
+
+---
+
+## 7. Agentic & Multi-Turn Features (New)
+
+With the migration to a fully Agentic Architecture, the registry now supports recursive tool execution and multi-turn interaction configuration natively.
+
+### A. The Agentic Loop
+If a tool does not definitively answer the user's query and requires the LLM to analyze the tool's output and generate a secondary response (e.g., retrieving coordinates from a `searchNearby` and then parsing them for the user), you must add the `requires_agentic_loop` flag:
+```json
+{
+  "prompt_string": "<TOOL>queryMemory(QUERY)</TOOL>",
+  "handler_key": "queryMemory",
+  "handler_type": "CUSTOM_KOTLIN",
+  "requires_agentic_loop": true
+}
+```
+*Note: When this flag is `true`, the UI will remain silent while the tool executes, feeding the result back into the LLM as a `SystemObservation` to trigger a second "thought" cycle.*
+
+### B. Forcing Multi-Turn Follow-Ups
+To ensure the LLM remains conversational during complex workflows, you can embed explicit multi-turn instructions directly into the `prompt_string`!
+```json
+{
+  "prompt_string": "If you use this tool, you MUST end your final response by asking the user: 'Would you like me to navigate to any of these locations?' \n<TOOL>searchNearby(POI)</TOOL>"
+}
+```
+
+### C. Offline Fallback Routing
+By default, the Gemini Manager routes all queries to the local LiteRT/QNN model. However, if your tool requires an active internet connection (like live API calls or Google Maps search), flag it so the system knows how to handle network drops:
+```json
+{
+  "handler_key": "searchNearby",
+  "offline_capable": false
+}
+```
+If the vehicle loses connectivity, any tool marked `offline_capable: false` will automatically trigger an offline-fallback response rather than crashing or hanging the Agentic loop!
