@@ -117,9 +117,17 @@ object VehicleManager {
                     customPropertyIdToType[id] = type
                     customPropertyValues[name] = "Unknown" // Initial state
                     
+                    val rateStr = if (prop.has("update_rate")) prop.getString("update_rate").uppercase() else "ONCHANGE"
+                    val rateFloat = when (rateStr) {
+                        "NORMAL" -> CarPropertyManager.SENSOR_RATE_NORMAL // 1Hz
+                        "FAST" -> CarPropertyManager.SENSOR_RATE_FAST // 10Hz
+                        "FASTEST" -> CarPropertyManager.SENSOR_RATE_FASTEST // 100Hz
+                        else -> CarPropertyManager.SENSOR_RATE_ONCHANGE // 0Hz (Event Driven)
+                    }
+
                     try {
-                        carPropertyManager?.registerCallback(carPropertyCallback, id, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-                        Log.i("VehicleManager", "Registered custom JSON property: $name ($id)")
+                        carPropertyManager?.registerCallback(carPropertyCallback, id, rateFloat)
+                        Log.i("VehicleManager", "Registered custom JSON property: $name ($id) at rate $rateStr")
                     } catch (e: Exception) {
                         Log.e("VehicleManager", "Failed to register custom property: $name ($id)", e)
                     }
