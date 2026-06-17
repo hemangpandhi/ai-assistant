@@ -41,7 +41,8 @@
         "ac",
         "heater",
         "climate"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
@@ -56,7 +57,9 @@
         "ac",
         "heater",
         "climate"
-      ]
+      ],
+      "offline_capable": true,
+      "read_property_id": 356517125
     },
     {
       "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
@@ -71,7 +74,9 @@
         "ac",
         "heater",
         "climate"
-      ]
+      ],
+      "offline_capable": true,
+      "read_property_id": 356517125
     },
     {
       "prompt_string": "<TOOL>setFanSpeed(LEVEL)</TOOL>",
@@ -83,7 +88,8 @@
         "ac",
         "blower",
         "air"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>increaseFanSpeed()</TOOL>",
@@ -98,7 +104,9 @@
         "up",
         "increase",
         "higher"
-      ]
+      ],
+      "offline_capable": true,
+      "read_property_id": 356517135
     },
     {
       "prompt_string": "<TOOL>decreaseFanSpeed()</TOOL>",
@@ -113,7 +121,9 @@
         "down",
         "decrease",
         "lower"
-      ]
+      ],
+      "offline_capable": true,
+      "read_property_id": 356517135
     },
     {
       "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
@@ -130,6 +140,12 @@
         "warm",
         "bottom",
         "butt"
+      ],
+      "offline_capable": true,
+      "area_mapping_strategy": "DYNAMIC_BY_AUDIO_ZONE",
+      "role_restrictions": [
+        "driver",
+        "front_passenger"
       ]
     },
     {
@@ -146,6 +162,12 @@
         "massager",
         "back",
         "relax"
+      ],
+      "offline_capable": true,
+      "area_mapping_strategy": "DYNAMIC_BY_AUDIO_ZONE",
+      "role_restrictions": [
+        "driver",
+        "front_passenger"
       ]
     },
     {
@@ -163,7 +185,8 @@
         "fog",
         "window",
         "windshield"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
@@ -180,7 +203,8 @@
         "fog",
         "window",
         "windshield"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOnAC()</TOOL>",
@@ -198,7 +222,8 @@
         "cool",
         "cold",
         "on"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOffAC()</TOOL>",
@@ -216,7 +241,8 @@
         "cool",
         "cold",
         "off"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOnAutoMode()</TOOL>",
@@ -231,7 +257,8 @@
         "auto",
         "automatic",
         "climate"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOffAutoMode()</TOOL>",
@@ -246,7 +273,8 @@
         "auto",
         "automatic",
         "climate"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOnRecirculation()</TOOL>",
@@ -262,7 +290,8 @@
         "recirculate",
         "inside",
         "air"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOffRecirculation()</TOOL>",
@@ -278,7 +307,8 @@
         "recirculate",
         "fresh",
         "air"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
@@ -295,7 +325,8 @@
         "defrost",
         "back",
         "window"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
@@ -312,7 +343,8 @@
         "defrost",
         "back",
         "window"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
@@ -329,7 +361,8 @@
         "power",
         "system",
         "on"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
@@ -346,7 +379,8 @@
         "power",
         "system",
         "off"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>setAirflowDirection(face|floor|face and floor|defrost)</TOOL>",
@@ -362,7 +396,8 @@
         "legs",
         "feet",
         "feat"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOnCabinLight()</TOOL>",
@@ -380,7 +415,8 @@
         "on",
         "interior",
         "dome"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>turnOffCabinLight()</TOOL>",
@@ -398,7 +434,8 @@
         "off",
         "interior",
         "dome"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
@@ -424,10 +461,11 @@
         "open",
         "close",
         "air"
-      ]
+      ],
+      "offline_capable": true
     },
     {
-      "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
+      "prompt_string": "To navigate to a location, output exactly <TOOL>navigate(DEST)</TOOL>. If the user agrees to navigate but does not specify WHICH location (e.g., they just say 'yes'), you MUST ask them which location they want to go to instead of outputting the tool.",
       "handler_key": "navigate",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
@@ -440,12 +478,28 @@
         "food",
         "dining",
         "nearby"
-      ]
+      ],
+      "offline_capable": false,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "destination": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "destination"
+        ]
+      }
     },
     {
-      "prompt_string": "<TOOL>search(search_term)</TOOL>",
+      "prompt_string": "To search for a specific place, output exactly <TOOL>search(search_term)</TOOL>. IMPORTANT: Before outputting the <TOOL> tag, you MUST ask the user if they would like to navigate to any of the results you find.",
       "handler_key": "search",
       "handler_type": "CUSTOM_KOTLIN",
+      "requires_agentic_loop": true,
+      "context_dependencies": [
+        "navigate"
+      ],
       "keywords": [
         "search",
         "find",
@@ -454,7 +508,21 @@
         "food",
         "dining",
         "nearby"
-      ]
+      ],
+      "offline_capable": false,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "search_term": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "search_term"
+        ]
+      },
+      "execution_profile": "ASYNC_LONG",
+      "latency_placeholder": "Let me look that up for you..."
     },
     {
       "prompt_string": "To play music, you MUST immediately output exactly <TOOL>playMusic(SONG)</TOOL>. If no song is specified, just output <TOOL>playMusic(relaxing music)</TOOL>.",
@@ -467,7 +535,8 @@
         "artist",
         "album",
         "listen"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>pauseMusic()</TOOL>",
@@ -478,29 +547,59 @@
         "pause",
         "stop",
         "halt"
-      ]
+      ],
+      "offline_capable": true
     },
     {
-      "prompt_string": "<TOOL>nextTrack()</TOOL>",
+      "prompt_string": "To skip to the next track/song, output exactly <TOOL>nextTrack()</TOOL>.",
       "handler_key": "nextTrack",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "music",
         "next",
         "skip",
-        "forward"
-      ]
+        "forward",
+        "track"
+      ],
+      "offline_capable": true
     },
     {
-      "prompt_string": "<TOOL>prevTrack()</TOOL>",
+      "prompt_string": "To go back to the previous track/song, output exactly <TOOL>prevTrack()</TOOL>.",
       "handler_key": "prevTrack",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "music",
         "previous",
         "back",
-        "rewind"
-      ]
+        "rewind",
+        "track"
+      ],
+      "offline_capable": true
+    },
+    {
+      "prompt_string": "To book a restaurant table, output exactly <TOOL>bookRestaurant(RESTAURANT_TIME_AND_GUESTS)</TOOL>. If the user does not specify the restaurant name, time, and number of guests, output the tool WITHOUT arguments: <TOOL>bookRestaurant()</TOOL>.",
+      "handler_key": "bookRestaurant",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "book",
+        "restaurant",
+        "table",
+        "reservation",
+        "dinner"
+      ],
+      "offline_capable": false,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "restaurant_time_and_guests": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "restaurant_time_and_guests"
+        ]
+      },
+      "missing_slot_prompt": "Which restaurant would you like to book, for what time, and for how many people?"
     },
     {
       "prompt_string": "<TOOL>call(NAME)</TOOL>",
@@ -511,7 +610,8 @@
         "phone",
         "dial",
         "contact"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>remember(FACT)</TOOL>",
@@ -522,7 +622,8 @@
         "fact",
         "note",
         "save"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>getWeather(CITY)</TOOL>",
@@ -534,7 +635,8 @@
         "sunny",
         "forecast",
         "cloudy"
-      ]
+      ],
+      "offline_capable": false
     },
     {
       "prompt_string": "<TOOL>openTrunk()</TOOL>",
@@ -553,7 +655,8 @@
         "back",
         "boot",
         "cargo"
-      ]
+      ],
+      "offline_capable": true
     },
     {
       "prompt_string": "<TOOL>unlockDoors()</TOOL>",
@@ -572,7 +675,38 @@
         "doors",
         "open",
         "latch"
-      ]
+      ],
+      "offline_capable": true
+    },
+    {
+      "prompt_string": "To search your memory for a past fact, output exactly <TOOL>queryMemory(SEARCH_TERM)</TOOL>",
+      "handler_key": "queryMemory",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_agentic_loop": true,
+      "keywords": ["remember", "memory", "what did i", "where did i", "birthday", "anniversary", "date", "park"],
+      "offline_capable": true,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "search_term": { "type": "string" }
+        },
+        "required": ["search_term"]
+      }
+    },
+    {
+      "prompt_string": "To search for nearby places (like food, restaurants, or gas stations), output exactly <TOOL>searchNearby(AMENITY)</TOOL>. IMPORTANT: Before outputting the <TOOL> tag, you MUST ask the user if they would like to navigate to any of the nearby options you find.",
+      "handler_key": "searchNearby",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_agentic_loop": true,
+      "keywords": ["hungry", "food", "eat", "restaurant", "gas", "fuel", "charging", "nearby"],
+      "offline_capable": false,
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "amenity": { "type": "string" }
+        },
+        "required": ["amenity"]
+      }
     }
   ]
 }

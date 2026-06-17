@@ -29,16 +29,12 @@ class VoiceAnimationView @JvmOverloads constructor(
             targetState = value
             transitionProgress = 0f
             field = value
-            if (value == State.THINKING) {
-                animator?.pause()
-                invalidate()
-            } else {
-                if (animator?.isPaused == true) {
-                    animator?.resume()
-                }
-                if (value != State.IDLE && animator?.isRunning != true) {
-                    startAnimation()
-                }
+            
+            if (animator?.isPaused == true) {
+                animator?.resume()
+            }
+            if (animator?.isRunning != true) {
+                startAnimation()
             }
         }
 

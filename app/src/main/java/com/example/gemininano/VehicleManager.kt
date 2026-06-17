@@ -140,7 +140,7 @@ object VehicleManager {
         }
     }
 
-    private fun getFloatPropertyQuietly(propertyId: Int, default: Float): Float {
+    fun getFloatPropertyQuietly(propertyId: Int, default: Float): Float {
         return try {
             val config = carPropertyManager?.getCarPropertyConfig(propertyId)
             val areaId = config?.areaIds?.firstOrNull() ?: 0

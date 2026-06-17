@@ -20,6 +20,16 @@ object ToolManager {
         val errorMsg: String
     )
     
+    data class SafetyConstraints(
+        val requiresParked: Boolean,
+        val maxSpeedKmh: Float
+    )
+    
+    data class ToolParameters(
+        val required: List<String>,
+        val missingSlotPrompt: String? = null
+    )
+    
     data class ToolDefinition(
         val handlerType: String,
         val promptString: String,
@@ -32,7 +42,17 @@ object ToolManager {
         val keywords: List<String>?,
         val constraints: List<Constraint>?,
         val requiresConfirmation: Boolean = false,
-        val confirmationMessage: String? = null
+        val confirmationMessage: String? = null,
+        val requiresAgenticLoop: Boolean = false,
+        val contextDependencies: List<String>? = null,
+        val offlineCapable: Boolean = true,
+        val executionProfile: String? = null,
+        val latencyPlaceholder: String? = null,
+        val readPropertyId: Int? = null,
+        val areaMappingStrategy: String? = null,
+        val roleRestrictions: List<String>? = null,
+        val safetyConstraints: SafetyConstraints? = null,
+        val parameters: ToolParameters? = null
     )
     
     // Maps command prefix -> ToolDefinition
@@ -91,12 +111,64 @@ object ToolManager {
                         }
                     }
 
+                    val requiresAgenticLoop = if (toolObj.has("requires_agentic_loop")) toolObj.getBoolean("requires_agentic_loop") else false
+                    val contextDependenciesList = mutableListOf<String>()
+                    if (toolObj.has("context_dependencies")) {
+                        val arr = toolObj.getJSONArray("context_dependencies")
+                        for (j in 0 until arr.length()) contextDependenciesList.add(arr.getString(j))
+                    }
+                    
+                    val offlineCapable = if (toolObj.has("offline_capable")) toolObj.getBoolean("offline_capable") else true
+                    val executionProfile = if (toolObj.has("execution_profile")) toolObj.getString("execution_profile") else null
+                    val latencyPlaceholder = if (toolObj.has("latency_placeholder")) toolObj.getString("latency_placeholder") else null
+                    val readPropertyId = if (toolObj.has("read_property_id")) toolObj.getInt("read_property_id") else null
+                    val areaMappingStrategy = if (toolObj.has("area_mapping_strategy")) toolObj.getString("area_mapping_strategy") else null
+                    
+                    var roleRestrictions: List<String>? = null
+                    if (toolObj.has("role_restrictions")) {
+                        val arr = toolObj.getJSONArray("role_restrictions")
+                        val roles = mutableListOf<String>()
+                        for (j in 0 until arr.length()) roles.add(arr.getString(j))
+                        roleRestrictions = roles
+                    }
+                    
+                    var safetyConstraints: SafetyConstraints? = null
+                    if (toolObj.has("safety_constraints")) {
+                        val sObj = toolObj.getJSONObject("safety_constraints")
+                        safetyConstraints = SafetyConstraints(
+                            requiresParked = if (sObj.has("requires_parked")) sObj.getBoolean("requires_parked") else false,
+                            maxSpeedKmh = if (sObj.has("max_speed_kmh")) sObj.getDouble("max_speed_kmh").toFloat() else 0f
+                        )
+                    }
+                    
+                    var parameters: ToolParameters? = null
+                    if (toolObj.has("parameters")) {
+                        val pObj = toolObj.getJSONObject("parameters")
+                        if (pObj.has("required")) {
+                            val arr = pObj.getJSONArray("required")
+                            val reqs = mutableListOf<String>()
+                            for (j in 0 until arr.length()) reqs.add(arr.getString(j))
+                            val missingPrompt = if (toolObj.has("missing_slot_prompt")) toolObj.getString("missing_slot_prompt") else null
+                            parameters = ToolParameters(reqs, missingPrompt)
+                        }
+                    }
+
                     activeTools[commandName] = ToolDefinition(
                         handlerType, promptString, handlerKey, propertyId, dataType, areaId, valueToWrite, successMessage,
                         if (keywordsList.isNotEmpty()) keywordsList else null,
                         if (constraintsList.isNotEmpty()) constraintsList else null,
                         requiresConfirmation = if (toolObj.has("requires_confirmation")) toolObj.getBoolean("requires_confirmation") else false,
-                        confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null
+                        confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null,
+                        requiresAgenticLoop = requiresAgenticLoop,
+                        contextDependencies = if (contextDependenciesList.isNotEmpty()) contextDependenciesList else null,
+                        offlineCapable = offlineCapable,
+                        executionProfile = executionProfile,
+                        latencyPlaceholder = latencyPlaceholder,
+                        readPropertyId = readPropertyId,
+                        areaMappingStrategy = areaMappingStrategy,
+                        roleRestrictions = roleRestrictions,
+                        safetyConstraints = safetyConstraints,
+                        parameters = parameters
                     )
                     Log.i(TAG, "Registered Tool: $commandName ($handlerType) -> $promptString")
                 }
@@ -116,23 +188,40 @@ object ToolManager {
      * Evaluates the user query against the tool keywords.
      * Returns the top matching tools (plus any default generic ones).
      */
-    fun getRelevantTools(query: String): List<ToolDefinition> {
-        if (query.isBlank()) return activeTools.values.toList()
+    private fun isNetworkAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val activeNetworkInfo = connectivityManager.activeNetworkInfo
+        return activeNetworkInfo != null && activeNetworkInfo.isConnected
+    }
+
+    fun getRelevantTools(context: Context, query: String, previousExecutedTools: Set<String> = emptySet()): List<ToolDefinition> {
+        val isOnline = isNetworkAvailable(context)
+        
+        val injectedDependencies = mutableSetOf<ToolDefinition>()
+        for (toolKey in previousExecutedTools) {
+            val toolDef = activeTools[toolKey]
+            toolDef?.contextDependencies?.forEach { depKey ->
+                activeTools[depKey]?.let { injectedDependencies.add(it) }
+            }
+        }
+
+        val allToolsFiltered = if (isOnline) activeTools.values else activeTools.values.filter { it.offlineCapable }
+
+        if (query.isBlank()) return allToolsFiltered.toList()
         
         // Fast path: Keyword matching (0ms)
         val q = query.lowercase()
-        val exactMatches = activeTools.values.filter { tool ->
+        val exactMatches = allToolsFiltered.filter { tool ->
             tool.keywords?.any { q.contains(it) } == true
         }
         
         if (exactMatches.isNotEmpty()) {
-            // Always include generic fallback tools like search and navigate just in case
-            val fallbacks = activeTools.values.filter { it.handlerKey == "search" || it.handlerKey == "navigate" }
-            return (exactMatches + fallbacks).distinct()
+            return (exactMatches + injectedDependencies.filter { isOnline || it.offlineCapable }).distinct()
         }
         
         // Slow path: Semantic Search (2000ms+)
-        return SemanticSearchManager.search(query, 8)
+        val topKTools = SemanticSearchManager.search(query, 8).filter { isOnline || activeTools[it.handlerKey]?.offlineCapable == true }.toMutableList()
+        return (topKTools + injectedDependencies.filter { isOnline || it.offlineCapable }).distinct()
     }
 
     /**
@@ -147,8 +236,8 @@ object ToolManager {
     
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
-    fun getLlmToolsPrompt(query: String = ""): String {
-        val relevantTools = getRelevantTools(query)
+    fun getLlmToolsPrompt(context: Context, query: String = "", previousExecutedTools: Set<String> = emptySet()): String {
+        val relevantTools = getRelevantTools(context, query, previousExecutedTools)
         if (relevantTools.isEmpty()) return ""
         return relevantTools.map { it.promptString }.joinToString("\n")
     }
@@ -176,6 +265,23 @@ object ToolManager {
             }
 
             Log.d(TAG, "Matched tool handlerKey: ${matchedTool.handlerKey}, handlerType: ${matchedTool.handlerType}")
+
+            // 1. Safety Middleware: Block Execution if Vehicle is Moving
+            if (matchedTool.safetyConstraints != null) {
+                val currentSpeed = VehicleManager.getFloatPropertyQuietly(291504647, 0f) // PERF_VEHICLE_SPEED
+                if (matchedTool.safetyConstraints.requiresParked && currentSpeed > matchedTool.safetyConstraints.maxSpeedKmh) {
+                    Log.w(TAG, "Safety Constraint Blocked Tool $toolCall: Vehicle speed is $currentSpeed km/h (Max: ${matchedTool.safetyConstraints.maxSpeedKmh})")
+                    return "Safety Error: Cannot execute while vehicle is in motion."
+                }
+            }
+            
+            // 2. Slot Filling: Missing Parameter Check
+            val paramString = toolCall.substringAfter("(", "").substringBeforeLast(")")
+            if (matchedTool.parameters?.required?.isNotEmpty() == true && paramString.isBlank()) {
+                Log.w(TAG, "Missing required parameters for $toolCall")
+                val missingPrompt = matchedTool.parameters.missingSlotPrompt ?: "What would you like to ${matchedTool.handlerKey}?"
+                return "Prompt Error: $missingPrompt"
+            }
 
             // Safety Middleware Constraint Validation
             if (matchedTool.constraints != null) {
@@ -299,6 +405,13 @@ object ToolManager {
                     if (success) "I've set the fan speed to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "setSeatHeater" -> {
+                    var areaId = 0 // Default to global
+                    if (matchedTool.areaMappingStrategy == "DYNAMIC_BY_AUDIO_ZONE") {
+                        // TODO: Integrate with android.hardware.soundtrigger to get the Wake Word audio zone.
+                        // For now, we stub this to Driver Seat (Area 1) or Global (Area 0).
+                        Log.i(TAG, "DYNAMIC_BY_AUDIO_ZONE triggered. Stubbing to Driver Area.")
+                        areaId = 1
+                    }
                     var value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 2
                     // AOSP Tangorpro/Cuttlefish emulator max seat heat level is 2 (Off, Low, High).
                     value = value.coerceIn(0, 2)
@@ -306,6 +419,11 @@ object ToolManager {
                     if (success) "I've set the seat heater to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "setSeatMassager" -> {
+                    var areaId = 0
+                    if (matchedTool.areaMappingStrategy == "DYNAMIC_BY_AUDIO_ZONE") {
+                        Log.i(TAG, "DYNAMIC_BY_AUDIO_ZONE triggered. Stubbing to Driver Area.")
+                        areaId = 1
+                    }
                     val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
                     val success = VehicleManager.writeSeatMassagerToVhalVerified(value)
                     if (success) "I've turned on the seat massager for you." else "I sent the command, but the vehicle hardware didn't confirm the change."
@@ -364,6 +482,117 @@ object ToolManager {
                         }
                     }
                     "Routing to $spokenDest."
+                }
+                "bookRestaurant" -> {
+                    val query = toolCall.substringAfter("(").substringBefore(")")
+                    // The slot filling middleware has already guaranteed that this parameter is not blank!
+                    
+                    // Offline Automotive systems can book by automatically opening the dialer via Bluetooth!
+                    val restaurantName = query.split(",").firstOrNull()?.trim() ?: "Restaurant"
+                    
+                    // In a production system, we would do an offline POI reverse-lookup for the phone number here.
+                    // For demo purposes, we will mock the phone number to a standard 555 number.
+                    val mockPhoneNumber = "555-0155" 
+                    
+                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(mockPhoneNumber)}"))
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    try {
+                        if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
+                        "I've opened the dialer to call $restaurantName. You can make the reservation now."
+                    } catch (e: Exception) {
+                        "I couldn't dial the restaurant because no phone app is installed on this device."
+                    }
+                }
+                "queryMemory" -> {
+                    val searchTerm = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
+                    val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    val memoryStr = prefs.getString("user_memory", "") ?: ""
+                    val lines = memoryStr.split("\n").filter { it.isNotBlank() }
+                    val results = lines.filter { it.lowercase().contains(searchTerm) }
+                    
+                    if (results.isNotEmpty()) {
+                        "Memory retrieved: ${results.joinToString("; ")}"
+                    } else if (lines.isNotEmpty()) {
+                        "No specific match found. Full memory context: ${lines.joinToString("; ")}"
+                    } else {
+                        "You have no saved memories."
+                    }
+                }
+                "searchNearby" -> {
+                    val amenity = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
+                    var overpassQuery = "node[\"amenity\"~\"$amenity\",i]"
+                    if (amenity.contains("italian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"italian\",i]" }
+                    else if (amenity.contains("mexican")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"mexican\",i]" }
+                    else if (amenity.contains("chinese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"chinese\",i]" }
+                    else if (amenity.contains("pizza")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"pizza\",i]" }
+                    else if (amenity.contains("burger") || amenity.contains("fast food") || amenity.contains("american")) { overpassQuery = "node[\"amenity\"=\"fast_food\"][\"cuisine\"~\"burger|american\",i]" }
+                    else if (amenity.contains("sushi") || amenity.contains("japanese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"japanese|sushi\",i]" }
+                    else if (amenity.contains("indian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"indian\",i]" }
+                    else if (amenity.contains("thai")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"thai\",i]" }
+                    else if (amenity.contains("gas") || amenity.contains("fuel")) { overpassQuery = "node[\"amenity\"=\"fuel\"]" }
+                    else if (amenity.contains("charging")) { overpassQuery = "node[\"amenity\"=\"charging_station\"]" }
+                    else if (amenity.contains("food") || amenity.contains("restaurant")) { overpassQuery = "node[\"amenity\"=\"restaurant\"]" }
+                    
+                    var bbox = "35.47,139.27,35.67,139.47" // Default Sagamihara
+                    try {
+                        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                        val locationOverride = prefs.getString("location_override", "139.37, 35.57") ?: "139.37, 35.57"
+                        if (locationOverride.contains(",")) {
+                            val parts = locationOverride.split(",")
+                            val lon = parts[0].trim().toDouble()
+                            val lat = parts[1].trim().toDouble()
+                            bbox = "${lat - 0.1},${lon - 0.1},${lat + 0.1},${lon + 0.1}"
+                        }
+                    } catch (e: Exception) { e.printStackTrace() }
+
+                    val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 10;"
+                    try {
+                        val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
+                        val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
+                        val connection = url.openConnection() as java.net.HttpURLConnection
+                        connection.connectTimeout = 10000
+                        connection.readTimeout = 10000
+                        connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
+                        connection.requestMethod = "GET"
+                        if (connection.responseCode == 200) {
+                            val response = connection.inputStream.bufferedReader().use { it.readText() }
+                            val jsonObj = org.json.JSONObject(response)
+                            val elements = jsonObj.optJSONArray("elements") ?: org.json.JSONArray()
+                            val places = mutableListOf<String>()
+                            val placesWithCoords = mutableListOf<Pair<String, String>>()
+                            for (i in 0 until elements.length()) {
+                                val element = elements.getJSONObject(i)
+                                val tags = element.optJSONObject("tags") ?: continue
+                                var name = tags.optString("name", tags.optString("name:en", "")).trim()
+                                val brand = tags.optString("brand", tags.optString("brand:en", "")).trim()
+                                val lat = element.optDouble("lat")
+                                val lon = element.optDouble("lon")
+                                if (name.isEmpty() && brand.isNotEmpty()) name = brand
+                                if (name.isNotEmpty() && !places.contains(name)) {
+                                    places.add(name)
+                                    placesWithCoords.add(Pair(name, "$lat,$lon"))
+                                    if (places.size >= 3) break
+                                }
+                            }
+                            if (places.isEmpty() && elements.length() > 0) {
+                                val firstLat = elements.getJSONObject(0).optDouble("lat")
+                                val firstLon = elements.getJSONObject(0).optDouble("lon")
+                                places.add("Local $amenity")
+                                placesWithCoords.add(Pair("Local $amenity", "$firstLat,$firstLon"))
+                            }
+                            if (places.isNotEmpty()) {
+                                val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
+                                val coordInstructions = placesWithCoords.mapIndexed { index, pair -> "If user chooses ${index + 1} (${pair.first}), output EXACTLY <TOOL>navigate(${pair.second})</TOOL>" }.joinToString(". ")
+                                "I found these options nearby: $placesStr. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: $coordInstructions"
+                            } else {
+                                "I couldn't find any $amenity nearby."
+                            }
+                        } else {
+                            "Failed to search for $amenity due to network error."
+                        }
+                    } catch (e: Exception) {
+                        "Failed to search for $amenity due to network error."
+                    }
                 }
                 "search" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")

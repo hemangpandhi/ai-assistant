@@ -158,6 +158,7 @@ class LocalLLMActivity : AppCompatActivity() {
         etWakeWord = findViewById(R.id.etWakeWord)
         switchWakeWord = findViewById(R.id.switchWakeWord)
         val switchAgenticLoop = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchAgenticLoop)
+        val switchVerboseAgentic = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchVerboseAgentic)
         llApiKeyContainer = findViewById(R.id.llApiKeyContainer)
         tvApiKeyLabel = findViewById(R.id.tvApiKeyLabel)
         etApiKey = findViewById(R.id.etApiKey)
@@ -614,6 +615,13 @@ class LocalLLMActivity : AppCompatActivity() {
             prefs.edit().putBoolean("agentic_loop_enabled", isChecked).apply()
         }
         
+        // Verbose Agentic Responses
+        val isVerboseAgenticEnabled = prefs.getBoolean("verbose_agentic_responses", false)
+        switchVerboseAgentic.isChecked = isVerboseAgenticEnabled
+        switchVerboseAgentic.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("verbose_agentic_responses", isChecked).apply()
+        }
+        
         etWakeWord.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -1032,7 +1040,6 @@ class LocalLLMActivity : AppCompatActivity() {
             }
             val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
-            val dynCtx = LLMManager.getDynamicContext(applicationContext, prompt)
             val finalPrompt = if (LLMManager.isFirstMessage) {
                 LLMManager.isFirstMessage = false
                 LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
@@ -1040,11 +1047,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 val customProps = VehicleManager.getCustomPropertiesString()
                 val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
                 
-                if (prompt.length < 25) {
-                    "$dynCtx\nUser: " + prompt
-                } else {
-                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]$dynCtx\nUser: " + prompt
-                }
+                "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]\nUser: " + prompt
             }
 
             val executedTools = mutableSetOf<String>()
@@ -1147,28 +1150,6 @@ class LocalLLMActivity : AppCompatActivity() {
                             }
                             
                             finalResponse = finalResponse.replace(regex, "").trim()
-                            if (finalResponse.isEmpty() && executedTools.isNotEmpty()) {
-                                finalResponse = executedTools.joinToString("\n") { tool ->
-                                    when {
-                                        tool.startsWith("increaseTemperature") -> "I've increased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("decreaseTemperature") -> "I've decreased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("setTemperature") -> "I've set the temperature to ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("setSeatHeater") -> "I've adjusted the seat heater."
-                                        tool.startsWith("setSeatMassager") -> "I've turned on the seat massager for you."
-                                        tool.startsWith("turnOnDefroster") -> "I've turned on the defroster."
-                                        tool.startsWith("turnOffDefroster") -> "I've turned off the defroster."
-                                        tool.startsWith("setWindowPosition") -> "I've adjusted the windows."
-                                        tool.startsWith("navigate") -> "Routing to ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("playMusic") -> "Playing ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("pauseMusic") -> "Music paused."
-                                        tool.startsWith("nextTrack") -> "Skipping to next track."
-                                        tool.startsWith("prevTrack") -> "Playing previous track."
-                                        tool.startsWith("call") -> "Calling ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("remember") -> "Got it, I've remembered that."
-                                        else -> "Action completed."
-                                    }
-                                }
-                            }
                             chatAdapter.replaceLastMessage(finalResponse)
                             chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                             

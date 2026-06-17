@@ -104,6 +104,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         }
                         kotlinx.coroutines.delay(2000)
                         finish()
+                    } else if (utteranceId == "STATEMENT_FINAL") {
+                        kotlinx.coroutines.delay(2000)
+                        finish()
                     }
                 }
             }
@@ -481,13 +484,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val qStr = interceptedQuery.lowercase()
         val expectFollowup = false
         
-        val isComplexQuery = interceptedQuery.length >= 25 || 
-                interceptedQuery.lowercase().contains("temperature") || 
-                interceptedQuery.lowercase().contains("hot") || 
-                interceptedQuery.lowercase().contains("navigate") || 
-                interceptedQuery.lowercase().contains("diagnos")
-        
-        val dynCtx = LLMManager.getDynamicContext(context, interceptedQuery)
         val finalPrompt: String
         
         if (LLMManager.isFirstMessage) {
@@ -495,21 +491,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             
             if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nAssistant:"
+                finalPrompt = "$sysPrompt\n$reminder\n\n[Conversation History]\n$slidingHistory\nAssistant:"
             } else {
-                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery" else "$reminder$dynCtx\n\nUser: $interceptedQuery"
+                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder\n\nUser: $interceptedQuery" else "$reminder\n\nUser: $interceptedQuery"
             }
             LLMManager.isFirstMessage = false
         } else {
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             if (isAgenticObservation) {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
+                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\n$interceptedQuery"
             } else {
-                if (interceptedQuery.length < 25) {
-                    finalPrompt = "$dynCtx\nUser: $interceptedQuery"
-                } else {
-                    finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\nUser: $interceptedQuery"
-                }
+                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: $interceptedQuery"
             }
         }
 
@@ -582,25 +574,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             for (match in matches) {
                                 val toolCall = match.groups[1]?.value?.trim() ?: continue
                                 
-                                // Anti-Hallucination Hack: Prevent direct navigation on generic food queries
-                                val toolName = toolCall.substringBefore("(").trim()
-                                val q = interceptedQuery.lowercase()
-                                val isGenericFood = (q.contains("hungry") || q.contains("food")) && 
-                                                    !(q.contains("italian") || q.contains("mexican") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("vegetarian") || q.contains("vegan") || q.contains("indian") || q.contains("thai") || q.contains("japanese"))
-                                
-                                val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("diagnos") || q.contains("obd") || q.contains("ob2") || q.contains("engine") || q.contains("service")
-                                val isShortFollowUp = q.length < 20 && !q.contains("search") && !q.contains("find") && !q.contains("look up")
-                                
-                                if ((toolName == "navigate" || toolName == "search") && (isGenericFood || isDiag || (toolName == "search" && isShortFollowUp))) {
-                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory tool call: $toolCall")
-                                    continue
-                                }
-                                
-                                if ((toolName == "turnOnCabinLight" || toolName == "turnOffCabinLight") && !q.contains("light") && !q.contains("cabin") && !q.contains("interior") && !q.contains("dark") && !q.contains("see")) {
-                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory cabin light tool call: $toolCall")
-                                    continue
-                                }
-                                
+                                // Let the Agentic architecture fully control tool usage.
+                                // If the LLM hallucinates a tool, the agentic loop will provide feedback and self-correct.
 
                                 if (executedTools.add(toolCall)) {
                                     android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")
@@ -612,6 +587,19 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         lastResponseBuilder.append(confirmMsg)
                                         isHallucinating = true // Force stop further output processing
                                     } else {
+                                        val toolName = toolCall.substringBefore("(").trim()
+                                        val toolDef = ToolManager.getToolDefinition(toolName)
+                                        if (toolDef?.executionProfile == "ASYNC_LONG" && toolDef.latencyPlaceholder != null) {
+                                            Log.i("AssistantSession", "Latency Masking Triggered: Synthesizing placeholder '${toolDef.latencyPlaceholder}'")
+                                            tts?.speak(toolDef.latencyPlaceholder, TextToSpeech.QUEUE_FLUSH, null, "LATENCY_MASK")
+                                            // The tool might take 2-3 seconds, so UI must show speaking state
+                                            CoroutineScope(Dispatchers.Main).launch {
+                                                stopDotAnimation()
+                                                voiceAnimation.state = VoiceAnimationView.State.SPEAKING
+                                                responseText.text = toolDef.latencyPlaceholder
+                                            }
+                                        }
+                                        
                                         val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async {
                                             executeToolCall(toolCall)
                                         }
@@ -620,7 +608,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 }
                             }
                             // Hide any fully formed OR partially streamed tools from the TTS/UI to prevent index corruption
-                            var displayMsg = currentText.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "")
+                            var displayMsg = currentText.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "").replace("\\[DONE\\]", "")
                             val lastTagIndex = displayMsg.lastIndexOf("<")
                             if (lastTagIndex != -1) {
                                 val potentialTag = displayMsg.substring(lastTagIndex).uppercase()
@@ -631,54 +619,59 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             displayMsg = displayMsg.trim()
                             
                             
-                            if (displayMsg.isNotEmpty() && statusText.visibility == View.VISIBLE) {
-                                stopDotAnimation()
-                                voiceAnimation.state = VoiceAnimationView.State.SPEAKING
-                            }
+                            val isVerboseAgenticEnabled = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE).getBoolean("verbose_agentic_responses", false)
+                            val isSilentAgenticLoop = isAgenticObservation && !isVerboseAgenticEnabled
                             
-                            val displayStr = displayMsg.toString()
-                            targetDisplayMessage = displayStr
-                            
-                            // Typewriter Coroutine Buffer
-                            if (typewriterJob == null || typewriterJob?.isActive != true) {
-                                typewriterJob = CoroutineScope(Dispatchers.Main).launch {
-                                    while (isActive && currentDisplayLength < targetDisplayMessage.length) {
-                                        val step = 1
-                                        val dynamicDelay = typingSpeedMs
-                                        
-                                        currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
-                                        val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
-                                        
-                                        responseText.text = parseMarkdown(currentSubstring)
-                                        
-                                        // Auto-scroll to bottom as text streams
-                                        svResponse?.post {
-                                            svResponse?.fullScroll(View.FOCUS_DOWN)
+                            if (!isSilentAgenticLoop) {
+                                if (displayMsg.isNotEmpty() && statusText.visibility == View.VISIBLE) {
+                                    stopDotAnimation()
+                                    voiceAnimation.state = VoiceAnimationView.State.SPEAKING
+                                }
+                                
+                                val displayStr = displayMsg.toString()
+                                targetDisplayMessage = displayStr
+                                
+                                // Typewriter Coroutine Buffer
+                                if (typewriterJob == null || typewriterJob?.isActive != true) {
+                                    typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+                                        while (isActive && currentDisplayLength < targetDisplayMessage.length) {
+                                            val step = 1
+                                            val dynamicDelay = typingSpeedMs
+                                            
+                                            currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
+                                            val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
+                                            
+                                            responseText.text = parseMarkdown(currentSubstring)
+                                            
+                                            // Auto-scroll to bottom as text streams
+                                            svResponse?.post {
+                                                svResponse?.fullScroll(View.FOCUS_DOWN)
+                                            }
+                                            
+                                            kotlinx.coroutines.delay(dynamicDelay)
                                         }
-                                        
-                                        kotlinx.coroutines.delay(dynamicDelay)
                                     }
                                 }
-                            }
-                            
-                            // Streaming TTS Logic
-                            val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
-                            var remainingText = displayMsg.substring(safeStartIndex)
-                            val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.!?](?:\\s+|$))".toRegex()
-                            var match = sentenceRegex.find(remainingText)
-                            while (match != null) {
-                                val sentence = match.value
-                                spokenTextLength[0] += sentence.length
                                 
-                                val parsedSentence = parseMarkdown(sentence).toString()
-                                val sentenceStartOffset = parsedSpokenLength[0]
-                                parsedSpokenLength[0] += parsedSentence.length
-                                
-                                LatencyLogger.log("AssistantSession", "Sending sentence to TTS queue: SENTENCE_$sentenceStartOffset")
-                                tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
-                                
-                                remainingText = displayMsg.substring(spokenTextLength[0])
-                                match = sentenceRegex.find(remainingText)
+                                // Streaming TTS Logic
+                                val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
+                                var remainingText = displayMsg.substring(safeStartIndex)
+                                val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.!?](?:\\s+|$))".toRegex()
+                                var match = sentenceRegex.find(remainingText)
+                                while (match != null) {
+                                    val sentence = match.value
+                                    spokenTextLength[0] += sentence.length
+                                    
+                                    val parsedSentence = parseMarkdown(sentence).toString()
+                                    val sentenceStartOffset = parsedSpokenLength[0]
+                                    parsedSpokenLength[0] += parsedSentence.length
+                                    
+                                    LatencyLogger.log("AssistantSession", "Sending sentence to TTS queue: SENTENCE_$sentenceStartOffset")
+                                    tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
+                                    
+                                    remainingText = displayMsg.substring(spokenTextLength[0])
+                                    match = sentenceRegex.find(remainingText)
+                                }
                             }
                             
                             // The typewriter handles UI updating, so we don't set it immediately here
@@ -702,15 +695,68 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 setKeepAwake(false)
                                 
                                 val isAgenticLoopEnabled = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE).getBoolean("agentic_loop_enabled", true)
-                                if (isAgenticLoopEnabled && loopCount < 3) {
+                                val isVerboseAgenticEnabled = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE).getBoolean("verbose_agentic_responses", false)
+                                
+                                val requiresAgenticLoop = executedTools.any { toolName ->
+                                    ToolManager.getToolDefinition(toolName)?.requiresAgenticLoop == true
+                                }
+                                
+                                val promptError = toolFeedbacks.find { it.startsWith("Prompt Error:") }
+                                if (promptError != null) {
+                                    val promptMsg = promptError.substringAfter("Prompt Error:").trim()
+                                    android.util.Log.i("AssistantSession", "Workflow Engine Intercept: Native Slot Filling Prompt -> $promptMsg")
+                                    
+                                    currentPendingTools.clear()
+                                    tts?.speak(promptMsg, TextToSpeech.QUEUE_ADD, null, "SLOT_FILLING_PROMPT")
+                                    
+                                    CoroutineScope(Dispatchers.Main).launch {
+                                        stopDotAnimation()
+                                        voiceAnimation.state = VoiceAnimationView.State.SPEAKING
+                                        responseText.text = promptMsg
+                                        
+                                        while (tts?.isSpeaking == true) {
+                                            kotlinx.coroutines.delay(100)
+                                        }
+                                        
+                                        // Wait a tiny bit and re-trigger the microphone automatically
+                                        kotlinx.coroutines.delay(200)
+                                        btnMic.performClick()
+                                    }
+                                    return@launch
+                                }
+                                
+                                if (isAgenticLoopEnabled && loopCount < 3 && (requiresAgenticLoop || isVerboseAgenticEnabled)) {
                                     val feedbackString = toolFeedbacks.joinToString("\n")
-                                    val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
+                                    val observation = if (isVerboseAgenticEnabled) {
+                                        "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
+                                    } else {
+                                        "System Observation: Tool execution resulted in:\n$feedbackString\nIf you need to take another action based on this information, output another <TOOL> call. If the request is fully satisfied, do NOT generate any conversational text, just output [DONE]."
+                                    }
                                     
                                     android.util.Log.i("AssistantSession", "Agentic Loop Triggered (Loop $loopCount) with observation: $observation")
                                     currentPendingTools.clear() 
                                     
                                     lastResponseBuilder.clear() 
                                     processQuery(observation, retryCount, loopCount + 1, isAgenticObservation = true, previousExecutedTools = executedTools)
+                                    return@launch
+                                } else if (currentPendingTools.isNotEmpty()) {
+                                    // Short-circuit: The tool executed successfully and does not require an agentic loop follow-up
+                                    android.util.Log.i("AssistantSession", "Short-circuiting Agentic Loop. Tools executed natively.")
+                                    val feedbackStr = toolFeedbacks.joinToString(". ").replace(Regex("<.*?>"), "")
+                                    val hasSpoken = lastResponseBuilder.toString().replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "").replace("\\[DONE\\]", "").trim().isNotEmpty()
+                                    if (feedbackStr.isNotBlank() && !isVerboseAgenticEnabled && !hasSpoken) {
+                                        tts?.speak(feedbackStr, TextToSpeech.QUEUE_ADD, null, "FINAL_FEEDBACK")
+                                        CoroutineScope(Dispatchers.Main).launch {
+                                            stopDotAnimation()
+                                            voiceAnimation.state = VoiceAnimationView.State.SPEAKING
+                                            responseText.text = feedbackStr
+                                        }
+                                    }
+                                    while (tts?.isSpeaking == true) {
+                                        kotlinx.coroutines.delay(100)
+                                    }
+                                    kotlinx.coroutines.delay(500) // Small buffer before closing
+                                    finish()
                                     return@launch
                                 }
                             }
@@ -735,7 +781,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             MemoryManager.addTurn("Assistant", finalMsg.trim())
                             
-                            finalMsg = finalMsg.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "")
+                            finalMsg = finalMsg.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "").replace("\\[DONE\\]", "")
                             val finalLastTagIndex = finalMsg.lastIndexOf("<")
                             if (finalLastTagIndex != -1) {
                                 val potentialTag = finalMsg.substring(finalLastTagIndex).uppercase()
