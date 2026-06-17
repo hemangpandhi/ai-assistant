@@ -305,17 +305,32 @@ object VehicleManager {
     fun setGenericVhalProperty(propertyId: Int, areaId: Int, value: String, dataType: String): Boolean {
         try {
             var targetAreaId = areaId
+            val config = carPropertyManager?.getCarPropertyConfig(propertyId)
+            
             // If areaId is 0 (global/unassigned), try to fetch the first valid areaId from the config
-            if (targetAreaId == 0) {
-                val config = carPropertyManager?.getCarPropertyConfig(propertyId)
-                if (config != null && config.areaIds.isNotEmpty()) {
-                    targetAreaId = config.areaIds.first()
-                }
+            if (targetAreaId == 0 && config != null && config.areaIds.isNotEmpty()) {
+                targetAreaId = config.areaIds.first()
             }
 
             when (dataType.uppercase()) {
-                "INT" -> carPropertyManager?.setIntProperty(propertyId, targetAreaId, value.toFloatOrNull()?.toInt() ?: value.toInt())
-                "FLOAT" -> carPropertyManager?.setFloatProperty(propertyId, targetAreaId, value.toFloat())
+                "INT" -> {
+                    var parsedInt = value.toFloatOrNull()?.toInt() ?: value.toInt()
+                    if (config != null) {
+                        val min = config.getMinValue(targetAreaId) as? Int
+                        val max = config.getMaxValue(targetAreaId) as? Int
+                        if (min != null && max != null) parsedInt = parsedInt.coerceIn(min, max)
+                    }
+                    carPropertyManager?.setIntProperty(propertyId, targetAreaId, parsedInt)
+                }
+                "FLOAT" -> {
+                    var parsedFloat = value.toFloat()
+                    if (config != null) {
+                        val min = config.getMinValue(targetAreaId) as? Float
+                        val max = config.getMaxValue(targetAreaId) as? Float
+                        if (min != null && max != null) parsedFloat = parsedFloat.coerceIn(min, max)
+                    }
+                    carPropertyManager?.setFloatProperty(propertyId, targetAreaId, parsedFloat)
+                }
                 "BOOLEAN" -> carPropertyManager?.setBooleanProperty(propertyId, targetAreaId, value.toBoolean())
                 "STRING" -> carPropertyManager?.setProperty(Any::class.java, propertyId, targetAreaId, value)
                 else -> return false
