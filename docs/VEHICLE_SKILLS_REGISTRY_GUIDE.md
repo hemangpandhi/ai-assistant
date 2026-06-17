@@ -175,17 +175,23 @@ private suspend fun executeTool(toolCall: String): String {
 
 With the migration to a fully Agentic Architecture, the registry now supports recursive tool execution and multi-turn interaction configuration natively.
 
-### A. The Agentic Loop
-If a tool does not definitively answer the user's query and requires the LLM to analyze the tool's output and generate a secondary response (e.g., retrieving coordinates from a `searchNearby` and then parsing them for the user), you must add the `requires_agentic_loop` flag:
+### A. The Agentic Loop (`requires_agentic_loop`)
+You only need to add this flag for **Information Retrieval** tools. 
+
+**Ask yourself:** *"Does the LLM need to read the tool's output to formulate its final answer to the user?"*
+*   **Yes?** Add `"requires_agentic_loop": true`. 
+    *   *Example (`searchNearby`)*: The user asks for restaurants. The tool reaches out to an API and returns a raw JSON block of coordinates and names. The LLM *must* run a second time to read that JSON and turn it into a conversational sentence: *"I found three sushi places nearby..."*
+    *   *Example (`queryMemory`)*: The user asks "When is my wife's birthday?". The tool queries the database and returns `[Memory: Wife birthday is June 12]`. The LLM *must* loop again to say: *"Your wife's birthday is on June 12th."*
+*   **No?** Omit the flag (or set it to `false`).
+    *   *Example (`turnOnAC`, `openTrunk`, `setWindowPosition`)*: The user says "Open the window". The tool triggers the hardware and returns `"I've opened the windows."` There is nothing left for the LLM to "think" about. The UI speaks the success message immediately, saving an expensive second AI processing cycle!
+
 ```json
 {
   "prompt_string": "<TOOL>queryMemory(QUERY)</TOOL>",
-  "handler_key": "queryMemory",
   "handler_type": "CUSTOM_KOTLIN",
   "requires_agentic_loop": true
 }
 ```
-*Note: When this flag is `true`, the UI will remain silent while the tool executes, feeding the result back into the LLM as a `SystemObservation` to trigger a second "thought" cycle.*
 
 ### B. Forcing Multi-Turn Follow-Ups
 To ensure the LLM remains conversational during complex workflows, you can embed explicit multi-turn instructions directly into the `prompt_string`!
@@ -195,12 +201,20 @@ To ensure the LLM remains conversational during complex workflows, you can embed
 }
 ```
 
-### C. Offline Fallback Routing
-By default, the Gemini Manager routes all queries to the local LiteRT/QNN model. However, if your tool requires an active internet connection (like live API calls or Google Maps search), flag it so the system knows how to handle network drops:
+### C. Offline Fallback Routing (`offline_capable`)
+By default, the architecture assumes all tools are offline-capable (`true`). You only need to explicitly set it to `false` when the tool **requires an active internet connection to function**.
+
+**Ask yourself:** *"If the car drives into a tunnel with zero cell service, will this tool crash?"*
+*   **Yes?** Set `"offline_capable": false`.
+    *   *Example (`search`, `searchNearby`)*: These tools fetch live data from the internet (Overpass API / Google Maps). If the car is offline, the tool will fail. By tagging it `false`, the system knows to gracefully block the tool and tell the user, *"I need an internet connection to look that up."*
+*   **No?** Omit the flag (defaults to `true`).
+    *   *Example (All Car Controls)*: VHAL properties (AC, doors, windows, trunk) run on the local CAN bus. They always work offline.
+    *   *Example (`queryMemory`, `remember`)*: Your memory system saves preferences directly to the local Android database on the vehicle's hard drive. It works perfectly in a tunnel!
+
 ```json
 {
-  "handler_key": "searchNearby",
+  "prompt_string": "<TOOL>searchNearby(POI)</TOOL>",
+  "handler_type": "CUSTOM_KOTLIN",
   "offline_capable": false
 }
 ```
-If the vehicle loses connectivity, any tool marked `offline_capable: false` will automatically trigger an offline-fallback response rather than crashing or hanging the Agentic loop!
