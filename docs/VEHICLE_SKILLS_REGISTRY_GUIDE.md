@@ -31,7 +31,7 @@ If an existing tool (like `<TOOL>openTrunk()</TOOL>`) isn't working on your spec
 1. Run `adb shell dumpsys car_service --hal` to find the correct Hex ID for your car's specific feature.
 2. Convert that Hex ID to a Decimal integer.
 3. Open `vehicle_skills_registry.json`.
-4. Find the broken tool or property block (e.g., search for `"handler_key": "openTrunk"`).
+4. Find the broken tool or property block (e.g., search for `"prompt_string": "<TOOL>openTrunk()</TOOL>"`).
 5. Simply overwrite the existing `"property_id"` field with your new decimal integer!
 
 ---

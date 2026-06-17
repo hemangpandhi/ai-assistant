@@ -172,7 +172,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOnDefroster()</TOOL>",
-      "handler_key": "turnOnDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -190,7 +189,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
-      "handler_key": "turnOffDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -208,7 +206,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOnAC()</TOOL>",
-      "handler_key": "turnOnAC",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419973,
       "data_type": "BOOLEAN",
@@ -227,7 +224,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOffAC()</TOOL>",
-      "handler_key": "turnOffAC",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419973,
       "data_type": "BOOLEAN",
@@ -246,7 +242,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOnAutoMode()</TOOL>",
-      "handler_key": "turnOnAutoMode",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419978,
       "data_type": "BOOLEAN",
@@ -262,7 +257,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOffAutoMode()</TOOL>",
-      "handler_key": "turnOffAutoMode",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419978,
       "data_type": "BOOLEAN",
@@ -278,7 +272,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOnRecirculation()</TOOL>",
-      "handler_key": "turnOnRecirculation",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419982,
       "data_type": "BOOLEAN",
@@ -295,7 +288,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOffRecirculation()</TOOL>",
-      "handler_key": "turnOffRecirculation",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419982,
       "data_type": "BOOLEAN",
@@ -312,7 +304,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
-      "handler_key": "turnOnRearDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -330,7 +321,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
-      "handler_key": "turnOffRearDefroster",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -348,7 +338,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
-      "handler_key": "turnOnHvacPower",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419984,
       "data_type": "BOOLEAN",
@@ -366,7 +355,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
-      "handler_key": "turnOffHvacPower",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419984,
       "data_type": "BOOLEAN",
@@ -401,7 +389,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOnCabinLight()</TOOL>",
-      "handler_key": "turnOnCabinLight",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 289410577,
       "data_type": "INT",
@@ -420,7 +407,6 @@
     },
     {
       "prompt_string": "<TOOL>turnOffCabinLight()</TOOL>",
-      "handler_key": "turnOffCabinLight",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 289410577,
       "data_type": "INT",
@@ -439,7 +425,6 @@
     },
     {
       "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
-      "handler_key": "setWindowPosition",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 322964416,
       "data_type": "INT",
@@ -640,7 +625,6 @@
     },
     {
       "prompt_string": "<TOOL>openTrunk()</TOOL>",
-      "handler_key": "openTrunk",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -660,7 +644,6 @@
     },
     {
       "prompt_string": "<TOOL>unlockDoors()</TOOL>",
-      "handler_key": "unlockDoors",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865541,
       "data_type": "BOOLEAN",
@@ -683,14 +666,27 @@
       "handler_key": "queryMemory",
       "handler_type": "CUSTOM_KOTLIN",
       "requires_agentic_loop": true,
-      "keywords": ["remember", "memory", "what did i", "where did i", "birthday", "anniversary", "date", "park"],
+      "keywords": [
+        "remember",
+        "memory",
+        "what did i",
+        "where did i",
+        "birthday",
+        "anniversary",
+        "date",
+        "park"
+      ],
       "offline_capable": true,
       "parameters": {
         "type": "object",
         "properties": {
-          "search_term": { "type": "string" }
+          "search_term": {
+            "type": "string"
+          }
         },
-        "required": ["search_term"]
+        "required": [
+          "search_term"
+        ]
       }
     },
     {
@@ -698,14 +694,27 @@
       "handler_key": "searchNearby",
       "handler_type": "CUSTOM_KOTLIN",
       "requires_agentic_loop": true,
-      "keywords": ["hungry", "food", "eat", "restaurant", "gas", "fuel", "charging", "nearby"],
+      "keywords": [
+        "hungry",
+        "food",
+        "eat",
+        "restaurant",
+        "gas",
+        "fuel",
+        "charging",
+        "nearby"
+      ],
       "offline_capable": false,
       "parameters": {
         "type": "object",
         "properties": {
-          "amenity": { "type": "string" }
+          "amenity": {
+            "type": "string"
+          }
         },
-        "required": ["amenity"]
+        "required": [
+          "amenity"
+        ]
       }
     }
   ]
