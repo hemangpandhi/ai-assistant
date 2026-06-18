@@ -1233,20 +1233,14 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private suspend fun runAutomatedTests() {
-        android.util.Log.i("AutomatedTest", "Initializing 200 Comprehensive Tests...")
+        android.util.Log.i("AutomatedTest", "Initializing Comprehensive Tests...")
         while (MODEL_PATH.isEmpty()) {
             kotlinx.coroutines.delay(100)
         }
         
-        if (LLMManager.engine == null) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                try {
-                    LLMManager.initialize(this@LocalLLMActivity, MODEL_PATH)
-                    android.util.Log.i("AutomatedTest", "Model loaded successfully.")
-                } catch (e: Exception) {
-                    android.util.Log.e("AutomatedTest", "Failed to load model: ${e.message}")
-                }
-            }
+        while (LLMManager.conversation == null) {
+            android.util.Log.i("AutomatedTest", "Waiting for LLM initialization...")
+            kotlinx.coroutines.delay(500)
         }
         
         // Ensure conversation is initialized before starting

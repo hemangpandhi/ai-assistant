@@ -8,6 +8,8 @@ import android.content.Context
 import android.util.Log
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 
 object VehicleManager {
     private var carPropertyManager: CarPropertyManager? = null
@@ -164,6 +166,12 @@ object VehicleManager {
         } catch (e: Exception) { null }
     }
 
+    fun getBooleanProperty(propertyId: Int, areaId: Int = 0): Boolean? {
+        return try {
+            carPropertyManager?.getBooleanProperty(propertyId, areaId)
+        } catch (e: Exception) { null }
+    }
+
     private fun getIntPropertyQuietly(propertyId: Int, default: Int): Int {
         return try {
             val config = carPropertyManager?.getCarPropertyConfig(propertyId)
@@ -203,110 +211,131 @@ object VehicleManager {
     fun setMockSpeed(speed: Float) { currentSpeed = speed }
 
     suspend fun writeTemperatureToVhalVerified(temp: Float): Boolean {
-        try {
-            var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(1, 4) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
-            }
-            Log.d("VehicleManager", "writeTemperatureToVhal called with $temp. Area IDs: ${areaIds.joinToString()}")
-            
-            var anySuccess = false
-            areaIds.forEach { areaId ->
-                var finalTemp = temp
+        return kotlinx.coroutines.coroutineScope {
+            try {
+                var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
+                if (areaIds == null || areaIds.isEmpty()) {
+                    areaIds = intArrayOf(1, 4) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
+                }
+                Log.d("VehicleManager", "writeTemperatureToVhal called with $temp. Area IDs: ${areaIds.joinToString()}")
                 
+                // Ensure HVAC power is on using its correct area IDs
                 try {
-                    val configArray = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.configArray
-                    var isVhalFahrenheit = false
-                    
-                    if (configArray != null && configArray.size >= 2) {
-                        val minTemp = configArray[0] / 10f
-                        val maxTemp = configArray[1] / 10f
-                        val increment = if (configArray.size >= 3) configArray[2] / 10f else 0.5f
-                        
-                        // If max temp is > 50, the VHAL natively expects Fahrenheit
-                        if (maxTemp > 50f) {
-                            isVhalFahrenheit = true
-                        }
-                        
-                        // If requested temp is Fahrenheit but VHAL expects Celsius, convert to Celsius
-                        if (!isVhalFahrenheit && finalTemp > 30f) {
-                            // Empirically verified System UI reverse mapping: C = (F - 29) / 2
-                            finalTemp = (finalTemp - 29.0f) / 2.0f
-                        }
-                        
-                        if (isVhalFahrenheit) {
-                            finalTemp = Math.round(finalTemp).toFloat()
-                        } else if (increment > 0) {
-                            finalTemp = Math.round(finalTemp / increment) * increment
-                        }
-                        
-                        // Clamp
-                        if (finalTemp > maxTemp) finalTemp = maxTemp
-                        if (finalTemp < minTemp) finalTemp = minTemp
-                    } else {
-                        // Fallback assuming Celsius
-                        if (finalTemp > 30f) {
-                            finalTemp = (finalTemp - 29.0f) / 2.0f
-                        }
-                        finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
-                        if (finalTemp > 28.0f) finalTemp = 28.0f
-                        if (finalTemp < 16.0f) finalTemp = 16.0f
+                    val pConfig = carPropertyManager?.getCarPropertyConfig(354419984)
+                    val pAreaIds = pConfig?.areaIds ?: intArrayOf(0)
+                    pAreaIds.forEach { aId ->
+                        setGenericVhalProperty(354419984, aId, "true", "BOOLEAN")
                     }
-                } catch (e: Exception) {
-                    // Safety fallback
-                    if (finalTemp > 30f) {
-                        finalTemp = (finalTemp - 32f) * 5f / 9f
-                    }
-                    finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
-                    if (finalTemp > 28.0f) finalTemp = 28.0f
-                    if (finalTemp < 16.0f) finalTemp = 16.0f
-                }
+                    kotlinx.coroutines.delay(100)
+                } catch (e: Exception) {}
+                
+                val deferreds = areaIds.map { areaId ->
+                    async {
+                        var finalTemp = temp
+                        
+                        try {
+                            val configArray = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.configArray
+                            var isVhalFahrenheit = false
+                            
+                            if (configArray != null && configArray.size >= 2) {
+                                val minTemp = configArray[0] / 10f
+                                val maxTemp = configArray[1] / 10f
+                                val increment = if (configArray.size >= 3) configArray[2] / 10f else 0.5f
+                                
+                                if (maxTemp > 50f) {
+                                    isVhalFahrenheit = true
+                                }
+                                
+                                if (!isVhalFahrenheit && finalTemp > 30f) {
+                                    finalTemp = (finalTemp - 29.0f) / 2.0f
+                                }
+                                
+                                if (isVhalFahrenheit) {
+                                    finalTemp = Math.round(finalTemp).toFloat()
+                                } else if (increment > 0) {
+                                    finalTemp = Math.round(finalTemp / increment) * increment
+                                }
+                                
+                                if (finalTemp > maxTemp) finalTemp = maxTemp
+                                if (finalTemp < minTemp) finalTemp = minTemp
+                            } else {
+                                if (finalTemp > 30f) {
+                                    finalTemp = (finalTemp - 29.0f) / 2.0f
+                                }
+                                finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
+                                if (finalTemp > 28.0f) finalTemp = 28.0f
+                                if (finalTemp < 16.0f) finalTemp = 16.0f
+                            }
+                        } catch (e: Exception) {
+                            if (finalTemp > 30f) {
+                                finalTemp = (finalTemp - 32f) * 5f / 9f
+                            }
+                            finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
+                            if (finalTemp > 28.0f) finalTemp = 28.0f
+                            if (finalTemp < 16.0f) finalTemp = 16.0f
+                        }
 
-                try {
-                    Log.d("VehicleManager", "Setting temp for area $areaId to $finalTemp")
-                    val success = setPropertyVerified(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp.toString(), "FLOAT")
-                    if (success) {
-                        anySuccess = true
+                        try {
+                            Log.d("VehicleManager", "Setting temp for area $areaId to $finalTemp")
+                            setPropertyVerified(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp.toString(), "FLOAT", 1000, 2)
+                        } catch (e: Exception) {
+                            Log.e("VehicleManager", "Failed to set temp for area $areaId (tried $finalTemp)", e)
+                            false
+                        }
                     }
-                } catch (e: Exception) {
-                    Log.e("VehicleManager", "Failed to set temp for area $areaId (tried $finalTemp)", e)
                 }
+                
+                val results = deferreds.map { it.await() }
+                return@coroutineScope results.any { it }
+            } catch (e: Exception) {
+                Log.e("VehicleManager", "Failed to write VHAL temp", e)
+                return@coroutineScope false
             }
-            return anySuccess
-        } catch (e: Exception) {
-            Log.e("VehicleManager", "Failed to write VHAL temp", e)
-            return false
         }
     }
     
     suspend fun writeFanSpeedToVhalVerified(speedLevel: Int): Boolean {
-        try {
-            val config = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_FAN_SPEED)
-            var areaIds = config?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(1) // Fallback for ROW_1 in AOSP
-            }
-            
-            var anySuccess = false
-            areaIds.forEach { areaId ->
-                var finalLevel = speedLevel
-                var maxLvl = 7
-                var minLvl = 1
+        return kotlinx.coroutines.coroutineScope {
+            try {
+                val config = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_FAN_SPEED)
+                var areaIds = config?.areaIds
+                if (areaIds == null || areaIds.isEmpty()) {
+                    areaIds = intArrayOf(1) // Fallback for ROW_1 in AOSP
+                }
+                
+                // Ensure HVAC power is on using its correct area IDs
                 try {
-                    maxLvl = config?.getMaxValue(areaId) as? Int ?: 7
-                    minLvl = config?.getMinValue(areaId) as? Int ?: 1
+                    val pConfig = carPropertyManager?.getCarPropertyConfig(354419984)
+                    val pAreaIds = pConfig?.areaIds ?: intArrayOf(0)
+                    pAreaIds.forEach { aId ->
+                        setGenericVhalProperty(354419984, aId, "true", "BOOLEAN")
+                    }
+                    kotlinx.coroutines.delay(100)
                 } catch (e: Exception) {}
                 
-                if (finalLevel > maxLvl) finalLevel = maxLvl
-                if (finalLevel < minLvl) finalLevel = minLvl
+                val deferreds = areaIds.map { areaId ->
+                    async {
+                        var finalLevel = speedLevel
+                        var maxLvl = 7
+                        var minLvl = 1
+                        try {
+                            maxLvl = config?.getMaxValue(areaId) as? Int ?: 7
+                            minLvl = config?.getMinValue(areaId) as? Int ?: 1
+                        } catch (e: Exception) {}
+                        
+                        if (finalLevel > maxLvl) finalLevel = maxLvl
+                        if (finalLevel < minLvl) finalLevel = minLvl
+                        
+                        setPropertyVerified(android.car.VehiclePropertyIds.HVAC_FAN_SPEED, areaId, finalLevel.toString(), "INT", 1000, 2)
+                    }
+                }
                 
-                val success = setPropertyVerified(android.car.VehiclePropertyIds.HVAC_FAN_SPEED, areaId, finalLevel.toString(), "INT")
-                if (success) anySuccess = true
+                val results = deferreds.map { it.await() }
+                return@coroutineScope results.any { it }
+            } catch (e: Exception) {
+                Log.e("VehicleManager", "Failed to write VHAL fan speed", e)
+                return@coroutineScope false
             }
-            return anySuccess
-        } catch (e: Exception) {
-            Log.e("VehicleManager", "Failed to write VHAL fan speed", e)
-            return false
         }
     }
     

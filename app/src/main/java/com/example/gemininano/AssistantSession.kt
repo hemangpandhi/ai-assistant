@@ -751,9 +751,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                             voiceAnimation.state = VoiceAnimationView.State.SPEAKING
                                             responseText.text = feedbackStr
                                         }
-                                    }
-                                    while (tts?.isSpeaking == true) {
-                                        kotlinx.coroutines.delay(100)
+                                        // Wait briefly for TTS engine to transition to speaking state
+                                        kotlinx.coroutines.delay(300)
+                                        while (tts?.isSpeaking == true) {
+                                            kotlinx.coroutines.delay(100)
+                                        }
                                     }
                                     kotlinx.coroutines.delay(500) // Small buffer before closing
                                     finish()
@@ -764,7 +766,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             var finalMsg = lastResponseBuilder.toString()
                             
                             // Auto-Context Clearing Hack for silent KV Cache overflows
-                            if (finalMsg.trim().length <= 3) {
+                            if (finalMsg.trim().length <= 3 && executedTools.isEmpty()) {
                                 if (retryCount >= 2) {
                                     statusText.text = "Error"
                                     stopThinkingAnimation()
@@ -848,13 +850,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         for (job in currentPendingTools) {
                                             try { job.await() } catch (e: Exception) {}
                                         }
-                                        kotlinx.coroutines.delay(2000)
-                                        finish()
-                                    }
-                                } else {
-                                    CoroutineScope(Dispatchers.Main).launch {
-                                        kotlinx.coroutines.delay(2000)
-                                        finish()
                                     }
                                 }
                             }
