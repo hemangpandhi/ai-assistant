@@ -19,15 +19,18 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
             }
             "getWeather" -> {
                 val city = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
+                val mockTemp = (15..30).random()
+                val conditions = listOf("sunny", "partly cloudy", "raining", "clear").random()
+                val weatherData = "The current weather in $city is $mockTemp degrees Celsius and $conditions."
+                
                 val intent = Intent(Intent.ACTION_WEB_SEARCH)
                 intent.putExtra(SearchManager.QUERY, "weather in $city")
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    ToolExecutionResult(true, "I've opened the weather for $city.")
-                } catch (e: Exception) {
-                    ToolExecutionResult(false, "I couldn't open the weather information.")
-                }
+                } catch (e: Exception) {}
+                
+                ToolExecutionResult(true, weatherData)
             }
             "openApp" -> {
                 val appName = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")

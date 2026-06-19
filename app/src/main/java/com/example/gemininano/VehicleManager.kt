@@ -42,7 +42,7 @@ object VehicleManager {
     
     fun getLLMContextString(context: Context, query: String = ""): String {
         val city = LocationManager.getCurrentCity()
-        var base = "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, City: $city"
+        var base = "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Current Location: $city"
         
         if (query.isBlank()) return base
         

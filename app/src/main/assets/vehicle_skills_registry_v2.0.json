@@ -1154,8 +1154,11 @@
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
                 "next song",
+                "next track",
+                "next",
                 "skip track",
-                "skip"
+                "skip",
+                "forward"
             ],
             "offline_capable": true,
             "success_message": "I've skipped to the next track.",
@@ -1167,7 +1170,10 @@
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
                 "previous song",
+                "previous track",
+                "previous",
                 "back track",
+                "go back",
                 "rewind"
             ],
             "offline_capable": true,
@@ -1238,7 +1244,6 @@
                 "outside temperature"
             ],
             "offline_capable": false,
-            "success_message": "Here's the current weather information.",
             "requires_vehicle_state": false
         },
         {
@@ -1252,7 +1257,11 @@
                 "restaurant",
                 "food",
                 "dining",
-                "nearby"
+                "nearby",
+                "suggest places",
+                "places to visit",
+                "tourist",
+                "visit"
             ],
             "requires_vehicle_state": false
         },

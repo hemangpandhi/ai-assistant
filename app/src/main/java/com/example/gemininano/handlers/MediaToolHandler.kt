@@ -16,7 +16,10 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
         return when (handlerKey) {
             "playMusic" -> {
                 val argStr = toolCall.substringAfter("(").substringBefore(")")
-                val query = if (argStr.isBlank()) "relaxing music" else argStr.trim().replace("\"", "")
+                if (argStr.isBlank() || argStr == "SONG" || argStr == "music") {
+                    return ToolExecutionResult(false, "MISSING_PARAMETER: The user did not specify what song to play. Ask them what song or artist they would like to hear.")
+                }
+                val query = argStr.trim().replace("\"", "")
                 
                 var success = false
                 try {

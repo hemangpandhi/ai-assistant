@@ -233,6 +233,7 @@ classDiagram
     class AssistantSession {
         +onShow(args, showFlags)
         -handleQuery(query)
+        -handleAgenticFollowUp()
     }
 
     class LLMManager {
@@ -245,8 +246,32 @@ classDiagram
     class ToolManager {
         <<Singleton>>
         +executeToolCall()
-        -dispatchIntent()
-        -dispatchMediaKeyEvent()
+        +getLlmToolsPrompt()
+    }
+
+    class ToolHandler {
+        <<Interface>>
+        +execute(context, toolCall, args)
+    }
+
+    class HVACToolHandler {
+        <<Implementation>>
+        +execute()
+    }
+
+    class MediaToolHandler {
+        <<Implementation>>
+        +execute()
+    }
+
+    class NavigationToolHandler {
+        <<Implementation>>
+        +execute()
+    }
+
+    class SystemToolHandler {
+        <<Implementation>>
+        +execute()
     }
 
     class MemoryManager {
@@ -266,6 +291,7 @@ classDiagram
         +ActivityManager
         +AudioManager
         +MediaBrowserService
+        +SpeechRecognizer
     }
 
     class vehicle_skills_registry.json {
@@ -277,13 +303,17 @@ classDiagram
     %% Relationships
     LocalLLMActivity ..> LLMManager : Initializes
     AssistantSession ..> MemoryManager : Logs Query
-    LocalLLMActivity ..> MemoryManager : Logs Query
     MemoryManager --> LLMManager : Feeds Context
     AssistantSession ..> LLMManager : Queries
-    LocalLLMActivity ..> ToolManager : Executes Tools
     AssistantSession ..> ToolManager : Executes Tools
-    ToolManager --> VehicleManager : Actuates Hardware (VHAL)
-    ToolManager --> AndroidFramework : Dispatches Intents (Media/Phone)
+    ToolManager --> ToolHandler : Routes Command
+    ToolHandler <|-- HVACToolHandler
+    ToolHandler <|-- MediaToolHandler
+    ToolHandler <|-- NavigationToolHandler
+    ToolHandler <|-- SystemToolHandler
+    HVACToolHandler --> VehicleManager : Actuates Hardware (VHAL)
+    MediaToolHandler --> AndroidFramework : Dispatches Intents (Media)
+    NavigationToolHandler --> AndroidFramework : Maps / Search
     LLMManager --> VehicleManager : Reads Telemetry
     vehicle_skills_registry.json ..> ToolManager : Parsed dynamically
     vehicle_skills_registry.json ..> VehicleManager : Parsed dynamically

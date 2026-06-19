@@ -58,7 +58,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var targetDisplayMessage = ""
     private var currentDisplayLength = 0
     // Speed up typewriter effect significantly to fix UI sluggishness.
-    private val typingSpeedMs: Long = 5L
+    private val typingSpeedMs: Long = 35L
     
     private val currentPendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
 
@@ -102,6 +102,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 }
                 CoroutineScope(Dispatchers.Main).launch {
                     if (utteranceId == "QUESTION_FINAL") {
+                        kotlinx.coroutines.delay(500)
                         btnMic.performClick()
                     } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
                         for (job in currentPendingTools) {
@@ -248,9 +249,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 300L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 200L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500L)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
 
@@ -737,12 +738,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     android.util.Log.i("AssistantSession", "Short-circuiting Agentic Loop. Tools executed natively.")
                                     val feedbackStr = toolFeedbacks.joinToString(". ").replace(Regex("<.*?>"), "")
                                     val hasSpoken = lastResponseBuilder.toString().replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "").replace("\\[DONE\\]", "").trim().isNotEmpty()
-                                    if (feedbackStr.isNotBlank() && !isVerboseAgenticEnabled && !hasSpoken) {
+                                    if (feedbackStr.isNotBlank() && !isVerboseAgenticEnabled) {
                                         tts?.speak(feedbackStr, TextToSpeech.QUEUE_ADD, null, "FINAL_FEEDBACK")
                                         CoroutineScope(Dispatchers.Main).launch {
                                             stopDotAnimation()
                                             voiceAnimation.state = VoiceAnimationView.State.SPEAKING
-                                            responseText.text = feedbackStr
+                                            typewriterJob?.cancel()
+                                            if (hasSpoken) {
+                                                responseText.text = parseMarkdown(targetDisplayMessage + "\n\n" + feedbackStr)
+                                            } else {
+                                                responseText.text = parseMarkdown(feedbackStr)
+                                            }
+                                            svResponse?.post { svResponse?.fullScroll(android.view.View.FOCUS_DOWN) }
                                         }
                                     }
                                     
