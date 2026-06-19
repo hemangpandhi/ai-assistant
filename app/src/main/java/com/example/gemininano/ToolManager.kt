@@ -30,6 +30,11 @@ object ToolManager {
         val missingSlotPrompt: String? = null
     )
     
+    data class SystemInstruction(
+        val instruction: String,
+        val keywords: List<String>
+    )
+
     data class ToolDefinition(
         val handlerType: String,
         val promptString: String,
@@ -39,11 +44,13 @@ object ToolManager {
         val areaId: Int?,
         val valueToWrite: String?,
         val successMessage: String?,
+        val errorMessage: String?,
         val keywords: List<String>?,
         val constraints: List<Constraint>?,
         val requiresConfirmation: Boolean = false,
         val confirmationMessage: String? = null,
         val requiresAgenticLoop: Boolean = false,
+        val requiresVehicleState: Boolean = false,
         val contextDependencies: List<String>? = null,
         val offlineCapable: Boolean = true,
         val executionProfile: String? = null,
@@ -60,7 +67,7 @@ object ToolManager {
     // Maps command prefix -> ToolDefinition
     private val activeTools = mutableMapOf<String, ToolDefinition>()
     
-    private val systemInstructions = mutableListOf<String>()
+    private val systemInstructions = mutableListOf<SystemInstruction>()
     
     private var mediaPlayer: android.media.MediaPlayer? = null
     
@@ -70,7 +77,7 @@ object ToolManager {
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
-            val inputStream = context.assets.open("vehicle_skills_registry_2.json")
+            val inputStream = context.assets.open("vehicle_skills_registry_v2.0.json")
             val size = inputStream.available()
             val buffer = ByteArray(size)
             inputStream.read(buffer)
@@ -82,7 +89,14 @@ object ToolManager {
             if (jsonObject.has("system_instructions")) {
                 val instructionsArray = jsonObject.getJSONArray("system_instructions")
                 for (i in 0 until instructionsArray.length()) {
-                    systemInstructions.add(instructionsArray.getString(i))
+                    val instObj = instructionsArray.getJSONObject(i)
+                    val instText = instObj.getString("instruction")
+                    val keywordsList = mutableListOf<String>()
+                    if (instObj.has("keywords")) {
+                        val arr = instObj.getJSONArray("keywords")
+                        for (j in 0 until arr.length()) keywordsList.add(arr.getString(j).lowercase())
+                    }
+                    systemInstructions.add(SystemInstruction(instText, keywordsList))
                 }
             }
             
@@ -101,6 +115,7 @@ object ToolManager {
                     val areaId = if (toolObj.has("area_id")) toolObj.getInt("area_id") else null
                     val valueToWrite = if (toolObj.has("value_to_write")) toolObj.getString("value_to_write") else null
                     val successMessage = if (toolObj.has("success_message")) toolObj.getString("success_message") else null
+                    val errorMessage = if (toolObj.has("error_message")) toolObj.getString("error_message") else null
 
                     val keywordsList = mutableListOf<String>()
                     if (toolObj.has("keywords")) {
@@ -123,6 +138,7 @@ object ToolManager {
                     }
 
                     val requiresAgenticLoop = if (toolObj.has("requires_agentic_loop")) toolObj.getBoolean("requires_agentic_loop") else false
+                    val requiresVehicleState = if (toolObj.has("requires_vehicle_state")) toolObj.getBoolean("requires_vehicle_state") else false
                     val contextDependenciesList = mutableListOf<String>()
                     if (toolObj.has("context_dependencies")) {
                         val arr = toolObj.getJSONArray("context_dependencies")
@@ -165,12 +181,13 @@ object ToolManager {
                     }
 
                     activeTools[commandName] = ToolDefinition(
-                        handlerType, promptString, handlerKey, propertyId, dataType, areaId, valueToWrite, successMessage,
+                        handlerType, promptString, handlerKey, propertyId, dataType, areaId, valueToWrite, successMessage, errorMessage,
                         if (keywordsList.isNotEmpty()) keywordsList else null,
                         if (constraintsList.isNotEmpty()) constraintsList else null,
                         requiresConfirmation = if (toolObj.has("requires_confirmation")) toolObj.getBoolean("requires_confirmation") else false,
                         confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null,
                         requiresAgenticLoop = requiresAgenticLoop,
+                        requiresVehicleState = requiresVehicleState,
                         contextDependencies = if (contextDependenciesList.isNotEmpty()) contextDependenciesList else null,
                         offlineCapable = offlineCapable,
                         executionProfile = executionProfile,
@@ -188,7 +205,7 @@ object ToolManager {
             }
             isInitialized = true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse tools from vehicle_skills_registry.json", e)
+            Log.e(TAG, "Failed to parse tools from vehicle_skills_registry_v2.0.json", e)
         }
         
         // Initialize Semantic Search RAG asynchronously
@@ -221,7 +238,7 @@ object ToolManager {
 
         val allToolsFiltered = if (isOnline) activeTools.values else activeTools.values.filter { it.offlineCapable }
 
-        if (query.isBlank()) return allToolsFiltered.toList()
+        if (query.isBlank()) return emptyList()
         
         // Fast path: Keyword matching (0ms)
         val q = query.lowercase()
@@ -250,11 +267,22 @@ object ToolManager {
     
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
-    fun getGlobalSystemInstructions(): String {
-        if (systemInstructions.isEmpty()) return ""
+    fun requiresVehicleState(context: Context, query: String, previousExecutedTools: Set<String> = emptySet()): Boolean {
+        val relevantTools = getRelevantTools(context, query, previousExecutedTools)
+        return relevantTools.any { it.requiresVehicleState }
+    }
+
+    fun getGlobalSystemInstructions(query: String): String {
+        if (systemInstructions.isEmpty() || query.isBlank()) return ""
+        val q = query.lowercase()
+        val matchingInstructions = systemInstructions.filter { inst ->
+            inst.keywords.isEmpty() || inst.keywords.any { q.contains(it) }
+        }
+        if (matchingInstructions.isEmpty()) return ""
+        
         val builder = StringBuilder("=== STRICT RULES ===\n")
-        systemInstructions.forEachIndexed { index, inst ->
-            builder.append("${index + 1}. $inst\n")
+        matchingInstructions.forEachIndexed { index, inst ->
+            builder.append("${index + 1}. ${inst.instruction}\n")
         }
         return builder.toString()
     }
@@ -266,7 +294,7 @@ object ToolManager {
     }
 
     /**
-     * Executes the requested tool call if it is enabled in vehicle_skills_registry.json.
+     * Executes the requested tool call if it is enabled in vehicle_skills_registry_v2.0.json.
      * Returns a string summarizing the outcome for the chat UI.
      */
     suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
@@ -357,7 +385,15 @@ object ToolManager {
             // Execute the corresponding Kotlin handler via Registry
             val handler = com.example.gemininano.handlers.ToolHandlerRegistry.getHandler(matchedTool.handlerKey!!, matchedTool)
             if (handler != null) {
-                return handler.execute(context, toolCall, intentHandler)
+                val args = toolCall.substringAfter("(").substringBeforeLast(")")
+                val result = handler.execute(context, toolCall, args, intentHandler)
+                if (result.success && matchedTool.successMessage != null) {
+                    return matchedTool.successMessage
+                }
+                if (!result.success && matchedTool.errorMessage != null) {
+                    return matchedTool.errorMessage
+                }
+                return result.message
             } else {
                 return "System Error: Handler found but logic is missing."
             }

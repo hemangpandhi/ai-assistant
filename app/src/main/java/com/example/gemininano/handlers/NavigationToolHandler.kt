@@ -8,7 +8,7 @@ import android.util.Log
 class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
     private val TAG = "NavigationToolHandler"
 
-    override suspend fun execute(context: Context, toolCall: String, intentHandler: ((Intent) -> Unit)?): String {
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         return when (handlerKey) {
             "navigate" -> {
                 val dest = toolCall.substringAfter("(").substringBefore(")")
@@ -43,11 +43,11 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                             if (intentHandler != null) intentHandler(browserIntent) else context.startActivity(browserIntent)
                         } catch (e3: Exception) {
                             Log.e(TAG, "No map or browser app found for navigation")
-                            return "I couldn't open navigation because no map or browser app is installed."
+                            return ToolExecutionResult(false, "I couldn't open navigation because no map or browser app is installed.")
                         }
                     }
                 }
-                "Routing to $spokenDest."
+                ToolExecutionResult(true, "Routing to $spokenDest.")
             }
             "searchNearby" -> {
                 val amenity = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
@@ -114,15 +114,15 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                         if (places.isNotEmpty()) {
                             val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
                             val coordInstructions = placesWithCoords.mapIndexed { index, pair -> "If user chooses ${index + 1} (${pair.first}), output EXACTLY <TOOL>navigate(${pair.second})</TOOL>" }.joinToString(". ")
-                            "I found these options nearby: $placesStr. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: $coordInstructions"
+                            ToolExecutionResult(true, "I found these options nearby: $placesStr. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: $coordInstructions")
                         } else {
-                            "I couldn't find any $amenity nearby."
+                            ToolExecutionResult(true, "I couldn't find any $amenity nearby.")
                         }
                     } else {
-                        "Failed to search for $amenity due to network error."
+                        ToolExecutionResult(false, "Failed to search for $amenity due to network error.")
                     }
                 } catch (e: Exception) {
-                    "Failed to search for $amenity due to network error."
+                    ToolExecutionResult(false, "Failed to search for $amenity due to network error.")
                 }
             }
             "search" -> {
@@ -139,21 +139,21 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                         if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
                     } catch (e2: Exception) {
                         Log.e(TAG, "No map app found for search")
-                        return "I couldn't open the map because no map app is installed."
+                        return ToolExecutionResult(false, "I couldn't open the map because no map app is installed.")
                     }
                 }
-                "I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?"
+                ToolExecutionResult(true, "I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?")
             }
             "suggestNearbyPlaces" -> {
-                "I can suggest some nearby places. What kind of place are you looking for?"
+                ToolExecutionResult(true, "I can suggest some nearby places. What kind of place are you looking for?")
             }
             "provideLaneLevelGuidance" -> {
-                "You should stay in the left two lanes for your upcoming turn."
+                ToolExecutionResult(true, "You should stay in the left two lanes for your upcoming turn.")
             }
             "suggestAlternateRoute" -> {
-                "I've found an alternate route that saves 5 minutes. I've updated the navigation."
+                ToolExecutionResult(true, "I've found an alternate route that saves 5 minutes. I've updated the navigation.")
             }
-            else -> "System Error: Navigation Handler not recognized."
+            else -> ToolExecutionResult(false, "System Error: Navigation Handler not recognized.")
         }
     }
 }

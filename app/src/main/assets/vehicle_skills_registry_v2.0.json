@@ -1,4 +1,71 @@
 {
+    "properties": [
+        {
+            "name": "INFO_MODEL",
+            "hex": "0x11100102",
+            "id": 286261506,
+            "value_type": "STRING",
+            "type": "STRING",
+            "instruction": "Vehicle model name or code. When the user asks what model this car is, answer using INFO_MODEL."
+        },
+        {
+            "name": "CABIN_LIGHTS_SWITCH",
+            "hex": "0x11400f02",
+            "id": 289410818,
+            "value_type": "INT32",
+            "type": "INT"
+        },
+        {
+            "name": "HVAC_DEFROSTER",
+            "hex": "0x13200504",
+            "id": 320865540,
+            "value_type": "BOOLEAN",
+            "type": "BOOLEAN"
+        },
+        {
+            "name": "WINDOW_POS",
+            "hex": "0x13400bc0",
+            "id": 322964416,
+            "value_type": "INT32",
+            "type": "INT",
+            "instruction": "Window position for each area (0 = fully closed, higher values = more open). When the user asks if windows are closed, use WINDOW_POS from the Current State."
+        },
+        {
+            "name": "HVAC_AC_ON",
+            "hex": "0x15200505",
+            "id": 354419973,
+            "value_type": "BOOLEAN",
+            "type": "BOOLEAN"
+        },
+        {
+            "name": "HVAC_RECIRC_ON",
+            "hex": "0x15200508",
+            "id": 354419976,
+            "value_type": "BOOLEAN",
+            "type": "BOOLEAN"
+        },
+        {
+            "name": "HVAC_AUTO_ON",
+            "hex": "0x1520050a",
+            "id": 354419978,
+            "value_type": "BOOLEAN",
+            "type": "BOOLEAN"
+        },
+        {
+            "name": "HVAC_POWER_ON",
+            "hex": "0x15200510",
+            "id": 354419984,
+            "value_type": "BOOLEAN",
+            "type": "BOOLEAN"
+        },
+        {
+            "name": "HVAC_SEAT_TEMPERATURE",
+            "hex": "0x1540050b",
+            "id": 356517131,
+            "value_type": "INT32",
+            "type": "INT"
+        }
+    ],
     "tools": [
         {
             "prompt_string": "<TOOL>setTemperature(VAL)</TOOL>",
@@ -14,11 +81,13 @@
                 "heater",
                 "climate"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "success_message": "I've adjusted the cabin temperature.",
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
-            "prompt_string": "<TOOL>increaseTemperature()</TOOL> // Use this to make the cabin warmer or when user is cold",
+            "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
             "handler_key": "increaseTemperature",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
@@ -28,13 +97,17 @@
                 "raise temperature",
                 "ac",
                 "heater",
-                "climate"
+                "climate",
+                "freezing",
+                "cold"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "success_message": "I've increased the cabin temperature.",
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
-            "prompt_string": "<TOOL>decreaseTemperature()</TOOL> // Use this to make the cabin colder or when user is hot",
+            "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
             "handler_key": "decreaseTemperature",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
@@ -44,10 +117,13 @@
                 "lower temperature",
                 "ac",
                 "heater",
-                "climate"
+                "climate",
+                "heat"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "success_message": "I've decreased the cabin temperature.",
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>setFanSpeed(LEVEL)</TOOL>",
@@ -60,6 +136,8 @@
                 "blower",
                 "air"
             ],
+            "offline_capable": true,
+            "success_message": "I've adjusted the fan speed.",
             "requires_vehicle_state": true
         },
         {
@@ -76,6 +154,8 @@
                 "increase",
                 "higher"
             ],
+            "offline_capable": true,
+            "success_message": "I've increased the fan speed.",
             "requires_vehicle_state": false
         },
         {
@@ -92,6 +172,8 @@
                 "decrease",
                 "lower"
             ],
+            "offline_capable": true,
+            "success_message": "I've decreased the fan speed.",
             "requires_vehicle_state": false
         },
         {
@@ -108,6 +190,8 @@
                 "defrost",
                 "windshield"
             ],
+            "offline_capable": true,
+            "success_message": "I've adjusted the airflow direction.",
             "requires_vehicle_state": false
         },
         {
@@ -126,8 +210,9 @@
                 "cold",
                 "on"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOffAC()</TOOL>",
@@ -143,10 +228,13 @@
                 "conditioning",
                 "cool",
                 "cold",
-                "off"
+                "off",
+                "turn off",
+                "air conditioner"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOnAutoClimate()</TOOL>",
@@ -161,8 +249,9 @@
                 "automatic",
                 "climate"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOffAutoClimate()</TOOL>",
@@ -177,8 +266,9 @@
                 "automatic",
                 "climate"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOnRecirculation()</TOOL>",
@@ -194,8 +284,9 @@
                 "inside air",
                 "pollution"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOffRecirculation()</TOOL>",
@@ -211,8 +302,9 @@
                 "fresh air",
                 "outside air"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
@@ -229,8 +321,9 @@
                 "system",
                 "on"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
@@ -247,8 +340,9 @@
                 "system",
                 "off"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOnFrontDefroster()</TOOL>",
@@ -265,8 +359,9 @@
                 "windshield",
                 "front window"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOffFrontDefroster()</TOOL>",
@@ -283,8 +378,9 @@
                 "windshield",
                 "front window"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
@@ -300,8 +396,9 @@
                 "defrost",
                 "back window"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
@@ -317,8 +414,9 @@
                 "defrost",
                 "back window"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>setAllWindowsPosition(PCT)</TOOL>",
@@ -332,8 +430,13 @@
                 "roll",
                 "up",
                 "down",
-                "position"
+                "position",
+                "open",
+                "window",
+                "all windows"
             ],
+            "offline_capable": true,
+            "success_message": "I've adjusted the window positions.",
             "requires_vehicle_state": false
         },
         {
@@ -346,6 +449,8 @@
                 "crack the windows",
                 "little bit open"
             ],
+            "offline_capable": true,
+            "success_message": "I've opened the windows slightly.",
             "requires_vehicle_state": false
         },
         {
@@ -357,6 +462,8 @@
                 "shut all windows",
                 "secure windows"
             ],
+            "offline_capable": true,
+            "success_message": "I've closed all the windows.",
             "requires_vehicle_state": false
         },
         {
@@ -373,8 +480,9 @@
                 "light on",
                 "brighten cabin"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>turnOffCabinLight()</TOOL>",
@@ -390,8 +498,9 @@
                 "light off",
                 "darken cabin"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
@@ -407,6 +516,7 @@
                 "warm seat",
                 "cold seat"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": true
         },
         {
@@ -423,6 +533,7 @@
                 "back massage",
                 "relax seat"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": true
         },
         {
@@ -437,8 +548,10 @@
                 "windows closed",
                 "windows secure"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "success_message": "I've checked the status of all windows.",
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>movePassengerSeatForward()</TOOL>",
@@ -449,10 +562,12 @@
                 "adjust passenger seat",
                 "front passenger seat"
             ],
+            "offline_capable": true,
+            "success_message": "I've moved the passenger seat forward.",
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>handleFeelingCold()</TOOL> // Use this when the user explicitly says they are feeling cold",
+            "prompt_string": "<TOOL>handleFeelingCold()</TOOL>",
             "handler_key": "handleFeelingCold",
             "handler_type": "CUSTOM_KOTLIN",
             "requires_confirmation": true,
@@ -462,8 +577,11 @@
                 "feeling cold",
                 "bit cold",
                 "raise temperature",
-                "warmer"
+                "warmer",
+                "freezing",
+                "cold"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -487,8 +605,9 @@
                 "vibrant",
                 "colorful"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>enableFreshAirIntake()</TOOL>",
@@ -503,6 +622,7 @@
                 "open windows",
                 "ventilate"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -516,8 +636,12 @@
                 "too much pollution",
                 "polluted air",
                 "air quality",
-                "protect from pollution"
+                "protect from pollution",
+                "polluted",
+                "smog",
+                "smells"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -529,23 +653,28 @@
                 "windshield is foggy",
                 "fog on glass",
                 "defog",
-                "can't see"
+                "can't see",
+                "fog",
+                "windshield",
+                "fogged"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>improveRoadVisibility</TOOL> - Say EXACTLY this for fog or visibility.",
+            "prompt_string": "<TOOL>improveRoadVisibility()</TOOL>",
             "handler_key": "improveRoadVisibility",
             "handler_type": "CUSTOM_KOTLIN",
             "requires_confirmation": true,
             "confirmation_message": "I can turn on or strengthen exterior lighting to help you see the road better. Do you want me to do that?",
             "success_message": "I've adjusted lighting for better visibility.",
             "keywords": [
-                "foggy outside",
-                "can't see the road well",
+                "barely see the road",
+                "too dark",
                 "visibility",
-                "fog"
+                "see better"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -559,8 +688,11 @@
                 "feel sleepy",
                 "drowsy",
                 "tired while driving",
-                "keep me awake"
+                "keep me awake",
+                "sleepy",
+                "tired"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -576,6 +708,7 @@
                 "enjoy the breeze",
                 "evening atmosphere"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -587,8 +720,13 @@
                 "charging rate",
                 "charge faster",
                 "battery health",
-                "low battery"
+                "low battery",
+                "battery",
+                "charge",
+                "range"
             ],
+            "offline_capable": true,
+            "success_message": "I've analyzed the battery and suggested an optimized charging rate.",
             "requires_vehicle_state": false
         },
         {
@@ -600,6 +738,9 @@
                 "upcoming event",
                 "calendar reminder"
             ],
+            "offline_capable": false,
+            "requires_agentic_loop": true,
+            "success_message": "I've checked your upcoming events and prepared a reminder.",
             "requires_vehicle_state": false
         },
         {
@@ -613,6 +754,9 @@
                 "restaurant",
                 "places to go"
             ],
+            "offline_capable": false,
+            "requires_agentic_loop": true,
+            "success_message": "I've found some nearby places you might like.",
             "requires_vehicle_state": false
         },
         {
@@ -625,6 +769,8 @@
                 "install child seat",
                 "how to install"
             ],
+            "offline_capable": true,
+            "success_message": "I'll walk you through how to install the child seat safely.",
             "requires_vehicle_state": false
         },
         {
@@ -637,17 +783,21 @@
                 "rainy weather",
                 "take umbrella"
             ],
+            "offline_capable": false,
+            "success_message": "I've checked the weather and will remind you to carry an umbrella if rain is expected.",
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>getNewsHighlights</TOOL> - Say EXACTLY this for news.",
+            "prompt_string": "<TOOL>getNewsHighlights()</TOOL>",
             "handler_key": "getNewsHighlights",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "top news highlights",
-                "news",
-                "headlines"
+                "today's news",
+                "news highlights",
+                "latest news"
             ],
+            "offline_capable": false,
+            "success_message": "Here are today's news highlights.",
             "requires_vehicle_state": false
         },
         {
@@ -660,6 +810,8 @@
                 "need rest",
                 "sleepy"
             ],
+            "offline_capable": true,
+            "success_message": "I've assessed your fatigue level and prepared recommendations.",
             "requires_vehicle_state": false
         },
         {
@@ -672,6 +824,8 @@
                 "eyes off road",
                 "stay focused"
             ],
+            "offline_capable": true,
+            "success_message": "I'll monitor for distraction and alert you if needed.",
             "requires_vehicle_state": false
         },
         {
@@ -684,6 +838,8 @@
                 "left turn lane",
                 "right turn lane"
             ],
+            "offline_capable": true,
+            "success_message": "I'll guide you with lane-level navigation.",
             "requires_vehicle_state": false
         },
         {
@@ -696,6 +852,9 @@
                 "alternate route",
                 "traffic ahead"
             ],
+            "offline_capable": false,
+            "requires_agentic_loop": true,
+            "success_message": "I've checked traffic and found an alternate route.",
             "requires_vehicle_state": false
         },
         {
@@ -709,6 +868,8 @@
                 "make it louder",
                 "music volume"
             ],
+            "offline_capable": true,
+            "success_message": "I've adjusted the background music to match the cabin situation.",
             "requires_vehicle_state": false
         },
         {
@@ -721,6 +882,8 @@
                 "doors and windows closed",
                 "before I leave"
             ],
+            "offline_capable": true,
+            "success_message": "I've checked whether the vehicle is secured.",
             "requires_vehicle_state": false
         },
         {
@@ -735,6 +898,8 @@
                 "office commute",
                 "morning commute"
             ],
+            "offline_capable": true,
+            "requires_agentic_loop": true,
             "requires_vehicle_state": false
         },
         {
@@ -749,17 +914,20 @@
                 "make the cabin comfortable",
                 "comfort for long trip"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>prepareForIncomingRain</TOOL> - Say EXACTLY this for rain.",
+            "prompt_string": "<TOOL>prepareForIncomingRain()</TOOL>",
             "handler_key": "prepareForIncomingRain",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "about to rain",
-                "prepare the cabin",
-                "rain"
+                "rain is coming",
+                "looks like rain",
+                "get ready for rain"
             ],
+            "offline_capable": true,
+            "success_message": "I've prepared the vehicle for the incoming rain.",
             "requires_vehicle_state": false
         },
         {
@@ -771,6 +939,8 @@
                 "parking downtown",
                 "help me park"
             ],
+            "offline_capable": true,
+            "success_message": "I've prepared parking assistance for you.",
             "requires_vehicle_state": false
         },
         {
@@ -786,6 +956,7 @@
                 "eco mode",
                 "energy saving"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -798,6 +969,9 @@
                 "good atmosphere",
                 "nice drive"
             ],
+            "offline_capable": true,
+            "requires_agentic_loop": true,
+            "success_message": "I've adjusted settings to make this trip more enjoyable.",
             "requires_vehicle_state": false
         },
         {
@@ -810,6 +984,8 @@
                 "weekend trip",
                 "health check"
             ],
+            "offline_capable": true,
+            "success_message": "I've checked the vehicle's readiness for your trip.",
             "requires_vehicle_state": false
         },
         {
@@ -822,6 +998,8 @@
                 "older people",
                 "comfortable for parents"
             ],
+            "offline_capable": true,
+            "success_message": "I've adjusted cabin settings for your elderly passengers.",
             "requires_vehicle_state": false
         },
         {
@@ -834,6 +1012,9 @@
                 "focus mode",
                 "meeting assistant"
             ],
+            "offline_capable": true,
+            "requires_agentic_loop": true,
+            "success_message": "I've prepared the cabin and schedule for your important meeting.",
             "requires_vehicle_state": false
         },
         {
@@ -849,6 +1030,7 @@
                 "getting out",
                 "exit"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -862,6 +1044,8 @@
                 "weird vibration",
                 "feels unsafe"
             ],
+            "offline_capable": true,
+            "success_message": "I've evaluated the vehicle signals and prepared safety recommendations.",
             "requires_vehicle_state": false
         },
         {
@@ -877,6 +1061,7 @@
                 "night mode",
                 "see better at night"
             ],
+            "offline_capable": true,
             "requires_vehicle_state": false
         },
         {
@@ -887,8 +1072,13 @@
                 "going to the airport",
                 "airport trip",
                 "flight",
-                "to the airport"
+                "to the airport",
+                "airport",
+                "terminal"
             ],
+            "offline_capable": false,
+            "requires_agentic_loop": true,
+            "success_message": "I've prepared navigation and settings for your airport trip.",
             "requires_vehicle_state": false
         },
         {
@@ -899,8 +1089,13 @@
                 "range lower than usual",
                 "why is my range low",
                 "battery range dropped",
-                "range issue"
+                "range issue",
+                "battery",
+                "charge",
+                "range"
             ],
+            "offline_capable": true,
+            "success_message": "I've analyzed possible reasons for the lower range.",
             "requires_vehicle_state": false
         },
         {
@@ -913,11 +1108,12 @@
                 "what model is this",
                 "car model",
                 "vehicle model",
-                "which nissan",
                 "what am I driving"
             ],
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
+            "offline_capable": true,
+            "success_message": "I've checked the vehicle identity.",
+            "error_message": "The vehicle hardware did not confirm the change.",
+            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>playMusic(SONG)</TOOL>",
@@ -929,8 +1125,14 @@
                 "song",
                 "artist",
                 "album",
-                "listen"
+                "listen",
+                "play",
+                "music",
+                "song"
             ],
+            "offline_capable": false,
+            "requires_agentic_loop": true,
+            "success_message": "I'll start playing music.",
             "requires_vehicle_state": false
         },
         {
@@ -942,6 +1144,8 @@
                 "stop music",
                 "halt music"
             ],
+            "offline_capable": true,
+            "success_message": "I've paused the music.",
             "requires_vehicle_state": false
         },
         {
@@ -953,6 +1157,8 @@
                 "skip track",
                 "skip"
             ],
+            "offline_capable": true,
+            "success_message": "I've skipped to the next track.",
             "requires_vehicle_state": false
         },
         {
@@ -964,17 +1170,26 @@
                 "back track",
                 "rewind"
             ],
+            "offline_capable": true,
+            "success_message": "I've gone back to the previous track.",
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>callContact</TOOL> - Say EXACTLY this to call anyone.",
+            "prompt_string": "<TOOL>callContact(NAME)</TOOL>",
             "handler_key": "callContact",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "call the mechanic",
                 "call",
-                "contact"
+                "phone",
+                "dial",
+                "contact",
+                "call",
+                "phone",
+                "dial"
             ],
+            "offline_capable": true,
+            "requires_agentic_loop": true,
+            "success_message": "I'll place the call.",
             "parameters": {
                 "required": [
                     "query"
@@ -984,14 +1199,18 @@
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>sendText</TOOL> - Say EXACTLY this to send a message.",
+            "prompt_string": "<TOOL>sendText(NAME,MSG)</TOOL>",
             "handler_key": "sendText",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "send a text message",
-                "saying i'll be late",
-                "text"
+                "text",
+                "message",
+                "sms",
+                "send message"
             ],
+            "offline_capable": true,
+            "requires_agentic_loop": true,
+            "success_message": "I've sent your message.",
             "requires_vehicle_state": false
         },
         {
@@ -1004,35 +1223,23 @@
                 "save",
                 "remember this"
             ],
+            "offline_capable": true,
+            "success_message": "I've saved that information.",
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>getWeather</TOOL> - Say EXACTLY this for weather.",
+            "prompt_string": "<TOOL>getWeather(CITY)</TOOL>",
             "handler_key": "getWeather",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "weather like in seattle",
                 "weather",
-                "forecast"
+                "rain",
+                "forecast",
+                "outside temperature"
             ],
+            "offline_capable": false,
+            "success_message": "Here's the current weather information.",
             "requires_vehicle_state": false
-        },
-        {
-            "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
-            "handler_key": "navigate",
-            "handler_type": "CUSTOM_KOTLIN",
-            "keywords": [
-                "navigate",
-                "go to",
-                "directions",
-                "route",
-                "drive",
-                "restaurant",
-                "food",
-                "dining",
-                "nearby"
-            ],
-            "requires_vehicle_state": true
         },
         {
             "prompt_string": "<TOOL>search(search_term)</TOOL>",
@@ -1050,6 +1257,47 @@
             "requires_vehicle_state": false
         },
         {
+            "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
+            "handler_key": "navigate",
+            "handler_type": "CUSTOM_KOTLIN",
+            "keywords": [
+                "navigate",
+                "go to",
+                "directions",
+                "route",
+                "drive",
+                "restaurant",
+                "food",
+                "dining",
+                "nearby",
+                "navigate",
+                "direction",
+                "route"
+            ],
+            "requires_vehicle_state": true
+        },
+        {
+            "prompt_string": "<TOOL>openTrunk()</TOOL>",
+            "handler_key": "openTrunk",
+            "handler_type": "GENERIC_VHAL_WRITE",
+            "property_id": 320865540,
+            "data_type": "BOOLEAN",
+            "area_id": 0,
+            "value_to_write": "true",
+            "success_message": "I've popped the trunk.",
+            "keywords": [
+                "trunk",
+                "open",
+                "back",
+                "boot",
+                "cargo"
+            ],
+            "requires_confirmation": true,
+            "confirmation_message": "Warning: Are you sure you want to open the trunk?",
+            "requires_vehicle_state": true,
+            "error_message": "The vehicle hardware did not confirm the change."
+        },
+        {
             "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
             "handler_key": "setWindowPosition",
             "handler_type": "GENERIC_VHAL_WRITE",
@@ -1060,7 +1308,9 @@
                 "up",
                 "open",
                 "close",
-                "air"
+                "air",
+                "open",
+                "window"
             ],
             "property_id": 322964416,
             "data_type": "INT",
@@ -1085,30 +1335,12 @@
                 "call",
                 "phone",
                 "dial",
-                "contact"
+                "contact",
+                "call",
+                "phone",
+                "dial"
             ],
             "requires_vehicle_state": false
-        },
-        {
-            "prompt_string": "<TOOL>openTrunk()</TOOL>",
-            "handler_key": "openTrunk",
-            "handler_type": "GENERIC_VHAL_WRITE",
-            "property_id": 320865540,
-            "data_type": "BOOLEAN",
-            "area_id": 0,
-            "value_to_write": "true",
-            "success_message": "I've popped the trunk.",
-            "keywords": [
-                "trunk",
-                "open",
-                "back",
-                "boot",
-                "cargo"
-            ],
-            "requires_confirmation": true,
-            "confirmation_message": "Warning: Are you sure you want to open the trunk?",
-            "requires_vehicle_state": true,
-            "error_message": "The vehicle hardware did not confirm the change."
         },
         {
             "prompt_string": "<TOOL>unlockDoors()</TOOL>",
@@ -1130,44 +1362,37 @@
             "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?",
             "requires_vehicle_state": true,
             "error_message": "The vehicle hardware did not confirm the change."
-        }
-    ],
-    "system_instructions": [
-        {
-            "instruction": "NAVIGATION: To navigate, briefly acknowledge the destination and then use the syntax <TOOL>navigate(DEST)</TOOL> at the end. Example: \"Setting destination to Tokyo. <TOOL>navigate(Tokyo)\"",
-            "keywords": [
-                "navigate",
-                "home",
-                "work",
-                "directions",
-                "drive"
-            ]
         },
         {
-            "instruction": "SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT use the navigate tool until they answer!",
+            "prompt_string": "<TOOL>getBatteryLevel()</TOOL>",
+            "handler_key": "getBatteryLevel",
+            "handler_type": "NATIVE_VHAL",
             "keywords": [
-                "places",
-                "visit",
-                "sightseeing",
-                "suggest",
-                "city",
-                "tokyo",
-                "japan",
-                "where to go"
-            ]
+                "battery",
+                "range",
+                "how much battery",
+                "battery level",
+                "charge"
+            ],
+            "offline_capable": true,
+            "success_message": "Checking the battery level.",
+            "error_message": "Failed to read battery.",
+            "requires_vehicle_state": true
         },
         {
-            "instruction": "AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.",
+            "prompt_string": "<TOOL>adjustSeatPosition(direction)</TOOL>",
+            "handler_key": "adjustSeatPosition",
+            "handler_type": "NATIVE_VHAL",
             "keywords": [
-                "places",
-                "visit",
-                "sightseeing",
-                "suggest",
-                "city",
-                "tokyo",
-                "japan",
-                "where to go"
-            ]
+                "seat",
+                "position",
+                "sleepy",
+                "alertness"
+            ],
+            "offline_capable": true,
+            "success_message": "Adjusting seat for better alertness.",
+            "error_message": "Failed to move seat.",
+            "requires_vehicle_state": true
         }
     ]
 }

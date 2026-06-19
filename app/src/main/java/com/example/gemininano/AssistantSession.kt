@@ -65,6 +65,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale.US
+            val audioAttributes = android.media.AudioAttributes.Builder()
+                .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build()
+            tts?.setAudioAttributes(audioAttributes)
             tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, "PREWARM")
             setupTtsListener()
         }
@@ -323,16 +328,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         stopListeningIntent.action = "ACTION_STOP_LISTENING"
         context.startService(stopListeningIntent)
         
-        if (LLMManager.engine == null || LLMManager.isPrewarming) {
-            statusText.text = if (LLMManager.isPrewarming) "Pre-warming Model... This may take 20s" else "Initializing Model..."
+        if (LLMManager.engine == null) {
+            statusText.text = "Initializing Model..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
             
             CoroutineScope(Dispatchers.Main).launch {
-                // Wait for prewarm to finish if it's currently running
-                while (LLMManager.isPrewarming) {
-                    kotlinx.coroutines.delay(500)
-                }
                 
                 LLMManager.autoInitialize(context, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
@@ -485,23 +486,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val expectFollowup = false
         
         val finalPrompt: String
-        
-        if (LLMManager.isFirstMessage) {
-            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            
-            if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder\n\n[Conversation History]\n$slidingHistory\nAssistant:"
-            } else {
-                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder\n\nUser: $interceptedQuery" else "$reminder\n\nUser: $interceptedQuery"
-            }
-            LLMManager.isFirstMessage = false
+        val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+        val reminder = "\\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
+        if (isAgenticObservation) {
+            finalPrompt = "$sysPrompt\\n$reminder\\n$interceptedQuery"
         } else {
-            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            if (isAgenticObservation) {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\n$interceptedQuery"
+            if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
+                finalPrompt = "$sysPrompt\\n$reminder\\n\\n[Conversation History]\\n$slidingHistory\\nUser: $interceptedQuery\\nAssistant:"
             } else {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder\nUser: $interceptedQuery"
+                finalPrompt = "$sysPrompt\\n$reminder\\n\\nUser: $interceptedQuery"
             }
         }
 
@@ -751,12 +744,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                             voiceAnimation.state = VoiceAnimationView.State.SPEAKING
                                             responseText.text = feedbackStr
                                         }
-                                        // Wait briefly for TTS engine to transition to speaking state
-                                        kotlinx.coroutines.delay(300)
-                                        while (tts?.isSpeaking == true) {
-                                            kotlinx.coroutines.delay(100)
-                                        }
                                     }
+                                    
+                                    // Always wait briefly for any queued TTS (streaming or feedback) to start
+                                    kotlinx.coroutines.delay(500)
+                                    // Block until TTS finishes speaking completely
+                                    while (tts?.isSpeaking == true) {
+                                        kotlinx.coroutines.delay(100)
+                                    }
+                                    
                                     kotlinx.coroutines.delay(500) // Small buffer before closing
                                     finish()
                                     return@launch
@@ -874,7 +870,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             if (LocalLLMActivity.isCloudModelActive) {
                 CoroutineScope(Dispatchers.IO).launch {
                     var systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-                    systemPrompt += "\n\n[Current State: ${VehicleManager.getLLMContextString(context)}]"
+                    systemPrompt += "\n\n[Current State: ${VehicleManager.getLLMContextString(context, interceptedQuery)}]"
                     
                     if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
                         GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback)

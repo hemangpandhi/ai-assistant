@@ -5,5 +5,5 @@ import android.content.Intent
 
 interface ToolHandler {
     val handlerKey: String
-    suspend fun execute(context: Context, toolCall: String, intentHandler: ((Intent) -> Unit)?): String
+    suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult
 }

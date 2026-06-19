@@ -310,12 +310,12 @@ If it finds a matching `GENERIC_VHAL_WRITE` handler, the `ToolManager` uses refl
 
 ## How to Add a New Action and Property
 
-Adding a new feature to the assistant is a simple two-step process using `vehicle_skills_registry.json` and, optionally, `LLMManager.kt` if you want to explicitly guide the AI's behavior.
+Adding a new feature to the assistant is now a pure **Zero-Code** process using only `vehicle_skills_registry.json`. You no longer need to modify Kotlin code.
 
 ### Scenario: Adding Control for the Sunroof
 
-#### Step 1: Update `vehicle_skills_registry.json`
-To give the AI the ability to open the sunroof, define a new tool in the JSON array. You need the exact AOSP or Vendor VHAL Property ID (e.g., `320865540` for `WINDOW_POS`).
+#### Step 1: Add the Tool to `vehicle_skills_registry.json`
+To give the AI the ability to open the sunroof, define a new tool in the JSON array. You need the exact AOSP or Vendor VHAL Property ID (e.g., `320865540` for `WINDOW_POS`). Note the use of `requires_vehicle_state` so the LLM knows if the roof is already open.
 
 ```json
 {
@@ -325,29 +325,25 @@ To give the AI the ability to open the sunroof, define a new tool in the JSON ar
   "data_type": "INT",
   "area_id": 16, 
   "value_to_write": "100",
-  "success_message": "Opening the sunroof now."
-}
-```
-* **`prompt_string`**: The exact syntax you want the LLM to output.
-* **`handler_type`**: `GENERIC_VHAL_WRITE` tells the `ToolManager` to bypass custom Kotlin logic and automatically write the value to the VHAL.
-* **`property_id`**: The target VHAL ID.
-* **`area_id`**: The specific zone (e.g., `16` represents the roof zone in AOSP).
-* **`value_to_write`**: The payload (e.g., `100` means 100% open).
-
-#### Step 2: (Optional) Guide the AI in `LLMManager.kt`
-While the JSON injects the tool definition into the prompt automatically, you can add a strict rule in `LLMManager.getSystemPrompt()` to ensure the LLM understands *when* to use it, especially if the prompt length is constrained.
-
-Open `LLMManager.kt` and locate the `getSystemPrompt()` method. Add a new contextual rule:
-
-```kotlin
-val isSunroof = q.contains("sunroof") || q.contains("roof") || q.contains("sky")
-
-if (isSunroof || q.isEmpty()) {
-    basePrompt.append("8. SUNROOF: If the user asks to open the sunroof or see the sky, you MUST output the EXACT syntax <TOOL>openSunroof()</TOOL>.\n")
+  "success_message": "Opening the sunroof now.",
+  "keywords": ["sunroof", "roof", "sky"],
+  "requires_vehicle_state": true
 }
 ```
 
-That's it! Restart the app, and the AI will now securely actuate the sunroof when asked, without you needing to manually implement `CarPropertyManager` callbacks.
+#### Step 2: (Optional) Guide the AI via `system_instructions`
+If the tool requires complex logic (like checking the weather before opening the roof), you do NOT edit `LLMManager.kt`. Instead, add a rule to the `system_instructions` array in the JSON. The RAG engine will dynamically inject it only when the keywords are triggered.
+
+```json
+"system_instructions": [
+    {
+        "instruction": "SUNROOF: If the user asks to open the sunroof, briefly warn them if it is raining outside before executing <TOOL>openSunroof()</TOOL>.",
+        "keywords": ["sunroof", "roof", "sky"]
+    }
+]
+```
+
+That's it! Restart the app, and the AI will now securely actuate the sunroof when asked, adhering to your custom instruction without any Kotlin recompilation.
 
 ## Main Components Detail
 
@@ -460,3 +456,36 @@ When the LLM triggers a tool (e.g., querying the Nominatim API for restaurants),
 To solve the jarring visual disconnect between ultra-fast local LLM generation and slower Text-to-Speech (TTS) synthesis, the architecture employs a tightly coupled timing lock:
 - **Smart Sentence Regex:** A lookbehind regex `(?<=[a-z])[.!?](?:\s+|$)` ensures the TTS engine does not unnaturally pause on numbers (e.g., `1.`) or abbreviations (e.g., `U.S.`).
 - **Synchronized Visual Spooling:** The visual "typewriter" effect has been locked to exactly `65ms` per character (roughly 150 Words Per Minute). Because this perfectly matches the default Google TTS speaking rate, the visual text types out on the screen in exact synchronization with the audio playback, regardless of how fast the LLM backend generated the tokens.
+
+### 3. Dual-Path Dynamic RAG Architecture (Latency vs Accuracy)
+To achieve a **< 1.5s Time-To-First-Token (TTFT)** while maintaining robust handling of unpredictable human language, the `ToolManager` implements a Dual-Path Retrieval-Augmented Generation (RAG) architecture.
+
+1. **Fast Path (0ms - JSON Keyword Matching):** For standard, predictable queries (e.g., "suggest places in tokyo"), the engine performs a lightning-fast `O(N)` string comparison against the `keywords` array in `vehicle_skills_registry.json`. This is 100% deterministic and adds zero database latency, guaranteeing instant response times for common automotive interactions.
+2. **Slow Path (2000ms+ - Semantic Vector Fallback):** If the user uses slang or unpredictable vocabulary that misses the JSON keywords (e.g., "I need ideas for locations in Japan"), the engine automatically falls back to `SemanticSearchManager`. This system uses mathematical embeddings (a local Vector DB cache) to understand the *meaning* of the sentence and retrieve the correct tool semantically.
+
+```mermaid
+flowchart TD
+    %% Styling
+    classDef user fill:#3B82F6,stroke:#2563EB,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef fastPath fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef slowPath fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef db fill:#64748B,stroke:#475569,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef llm fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+
+    USER(["🗣️ User Query<br>(e.g. 'I am freezing')"]):::user
+    
+    subgraph ToolManager ["🛠️ ToolManager RAG Interceptor"]
+        CHECK{"Match JSON Keywords?"}:::db
+        
+        FAST["⚡ Fast Path (0ms)<br>Direct array lookup"]:::fastPath
+        SLOW["🧠 Slow Path (2000ms)<br>SemanticSearchManager<br>Mathematical Embeddings"]:::slowPath
+        
+        CHECK -- Yes --> FAST
+        CHECK -- No --> SLOW
+    end
+    
+    LLM{"🧠 LLMManager<br>Dynamic Prompt Injection"}:::llm
+    
+    FAST -->|"Inject Context & Tools"| LLM
+    SLOW -->|"Inject Semantic Tools"| LLM
+```

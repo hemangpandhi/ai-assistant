@@ -40,13 +40,25 @@ object VehicleManager {
         return customPropertyInstructions
     }
     
-    fun getLLMContextString(context: Context): String {
-        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
-        val customProps = getCustomPropertiesString()
-        val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
+    fun getLLMContextString(context: Context, query: String = ""): String {
+        val city = LocationManager.getCurrentCity()
+        var base = "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, City: $city"
         
-        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Heater: ${getRealSeatHeaterLevel()}, City: ${LocationManager.getCurrentCity()}$customPropsStr"
+        if (query.isBlank()) return base
+        
+        val relevantTools = ToolManager.getRelevantTools(context, query)
+        val relevantPropIds = relevantTools.mapNotNull { it.propertyId }.toSet()
+        
+        val activeProps = customPropertyValues.filterKeys { propName ->
+            val id = customPropertyIdToName.entries.find { it.value == propName }?.key
+            id in relevantPropIds
+        }.entries.joinToString(", ") { "${it.key}: ${it.value}" }
+        
+        if (activeProps.isNotEmpty()) {
+            base += ", $activeProps"
+        }
+        
+        return base
     }
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
@@ -77,7 +89,7 @@ object VehicleManager {
         try {
             ToolManager.initialize(context)
 
-            val car = Car.createCar(context)
+            val car = Car.createCar(context, null, Car.CAR_WAIT_TIMEOUT_WAIT_FOREVER, Car.CarServiceLifecycleListener { _, _ -> })
             carPropertyManager = car.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
             
             val propertiesToRegister = listOf(
@@ -98,7 +110,7 @@ object VehicleManager {
             
             // Dynamic JSON Properties
             try {
-                val inputStream = context.assets.open("vehicle_skills_registry.json")
+                val inputStream = context.assets.open("vehicle_skills_registry_v2.0.json")
                 val size = inputStream.available()
                 val buffer = ByteArray(size)
                 inputStream.read(buffer)
@@ -135,7 +147,7 @@ object VehicleManager {
                     }
                 }
             } catch (e: Exception) {
-                Log.e("VehicleManager", "Error parsing vehicle_skills_registry.json", e)
+                Log.e("VehicleManager", "Error parsing vehicle_skills_registry_v2.0.json", e)
             }
             
             currentSpeed = getFloatPropertyQuietly(VehiclePropertyIds.PERF_VEHICLE_SPEED, 0f)

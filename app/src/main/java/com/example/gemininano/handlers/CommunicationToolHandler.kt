@@ -6,7 +6,7 @@ import android.net.Uri
 
 class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
     
-    override suspend fun execute(context: Context, toolCall: String, intentHandler: ((Intent) -> Unit)?): String {
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         return when (handlerKey) {
             "call" -> {
                 val contact = toolCall.substringAfter("(").substringBefore(")")
@@ -27,9 +27,9 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "I've opened the dialer to call $contact."
+                    ToolExecutionResult(true, "I've opened the dialer to call $contact.")
                 } catch (e: Exception) {
-                    "I couldn't dial $contact because no phone app is installed."
+                    ToolExecutionResult(false, "I couldn't dial $contact because no phone app is installed.")
                 }
             }
             "bookRestaurant" -> {
@@ -41,9 +41,9 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "I've opened the dialer to call $restaurantName. You can make the reservation now."
+                    ToolExecutionResult(true, "I've opened the dialer to call $restaurantName. You can make the reservation now.")
                 } catch (e: Exception) {
-                    "I couldn't dial the restaurant because no phone app is installed on this device."
+                    ToolExecutionResult(false, "I couldn't dial the restaurant because no phone app is installed on this device.")
                 }
             }
             "queryMemory" -> {
@@ -54,11 +54,11 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
                 val results = lines.filter { it.lowercase().contains(searchTerm) }
                 
                 if (results.isNotEmpty()) {
-                    "Memory retrieved: ${results.joinToString("; ")}"
+                    ToolExecutionResult(true, "Memory retrieved: ${results.joinToString("; ")}")
                 } else if (lines.isNotEmpty()) {
-                    "No specific match found. Full memory context: ${lines.joinToString("; ")}"
+                    ToolExecutionResult(true, "No specific match found. Full memory context: ${lines.joinToString("; ")}")
                 } else {
-                    "You have no saved memories."
+                    ToolExecutionResult(true, "You have no saved memories.")
                 }
             }
             "callContact" -> {
@@ -67,9 +67,9 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "I've opened the dialer to call $contact."
+                    ToolExecutionResult(true, "I've opened the dialer to call $contact.")
                 } catch (e: Exception) {
-                    "I couldn't dial $contact because no phone app is installed."
+                    ToolExecutionResult(false, "I couldn't dial $contact because no phone app is installed.")
                 }
             }
             "sendText" -> {
@@ -83,12 +83,12 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "I've opened your messaging app to text $contact."
+                    ToolExecutionResult(true, "I've opened your messaging app to text $contact.")
                 } catch (e: Exception) {
-                    "I couldn't send a text to $contact because no messaging app is installed."
+                    ToolExecutionResult(false, "I couldn't send a text to $contact because no messaging app is installed.")
                 }
             }
-            else -> "System Error: Communication Handler not recognized."
+            else -> ToolExecutionResult(false, "System Error: Communication Handler not recognized.")
         }
     }
 }

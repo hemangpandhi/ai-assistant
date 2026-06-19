@@ -10,7 +10,7 @@ import android.net.Uri
 class MediaToolHandler(override val handlerKey: String) : ToolHandler {
     private val TAG = "MediaToolHandler"
 
-    override suspend fun execute(context: Context, toolCall: String, intentHandler: ((Intent) -> Unit)?): String {
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         val mediaSessionManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
         
         return when (handlerKey) {
@@ -40,7 +40,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 } catch (e: Exception) {
                     Log.e(TAG, "MediaSession search failed", e)
                 }
-                if (success) "Playing $query in the background." else "System Error: Could not start media."
+                if (success) ToolExecutionResult(true, "Playing $query in the background.") else ToolExecutionResult(false, "System Error: Could not start media.")
             }
             "pauseMusic" -> {
                 try {
@@ -51,7 +51,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to pause media via MediaSessionManager", e)
                 }
-                "Music paused."
+                ToolExecutionResult(true, "Music paused.")
             }
             "nextTrack" -> {
                 try {
@@ -62,7 +62,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to skip media next via MediaSessionManager", e)
                 }
-                "Playing next track."
+                ToolExecutionResult(true, "Playing next track.")
             }
             "prevTrack" -> {
                 try {
@@ -73,12 +73,12 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to skip media previous via MediaSessionManager", e)
                 }
-                "Playing the previous track."
+                ToolExecutionResult(true, "Playing the previous track.")
             }
             "adjustBgmForSituation" -> {
-                "I've adjusted the background music to match the current driving situation."
+                ToolExecutionResult(true, "I've adjusted the background music to match the current driving situation.")
             }
-            else -> "System Error: Media Handler not recognized."
+            else -> ToolExecutionResult(false, "System Error: Media Handler not recognized.")
         }
     }
 }

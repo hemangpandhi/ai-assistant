@@ -7,7 +7,7 @@ import android.app.SearchManager
 
 class SystemToolHandler(override val handlerKey: String) : ToolHandler {
     
-    override suspend fun execute(context: Context, toolCall: String, intentHandler: ((Intent) -> Unit)?): String {
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         return when (handlerKey) {
             "remember" -> {
                 val fact = toolCall.substringAfter("(").substringBefore(")")
@@ -15,7 +15,7 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
                 val currentMemory = prefs.getString("user_memory", "") ?: ""
                 val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
                 prefs.edit().putString("user_memory", newMemory).apply()
-                "Got it, I've remembered that."
+                ToolExecutionResult(true, "Got it, I've remembered that.")
             }
             "getWeather" -> {
                 val city = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
@@ -24,9 +24,9 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "I've opened the weather for $city."
+                    ToolExecutionResult(true, "I've opened the weather for $city.")
                 } catch (e: Exception) {
-                    "I couldn't open the weather information."
+                    ToolExecutionResult(false, "I couldn't open the weather information.")
                 }
             }
             "openApp" -> {
@@ -35,19 +35,19 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "I've opened the app store to find $appName."
+                    ToolExecutionResult(true, "I've opened the app store to find $appName.")
                 } catch (e: Exception) {
-                    "I couldn't open the app."
+                    ToolExecutionResult(false, "I couldn't open the app.")
                 }
             }
             "sendUpcomingEventReminder" -> {
-                "You have a meeting scheduled in 30 minutes."
+                ToolExecutionResult(true, "You have a meeting scheduled in 30 minutes.")
             }
             "explainChildSeatInstallation" -> {
-                "To install the child seat, refer to your vehicle's LATCH system anchors located in the rear seats."
+                ToolExecutionResult(true, "To install the child seat, refer to your vehicle's LATCH system anchors located in the rear seats.")
             }
             "suggestUmbrellaIfRainy" -> {
-                "There is rain expected at your destination. I suggest taking an umbrella."
+                ToolExecutionResult(true, "There is rain expected at your destination. I suggest taking an umbrella.")
             }
             "getNewsHighlights" -> {
                 val intent = Intent(Intent.ACTION_WEB_SEARCH)
@@ -55,12 +55,12 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    "Here are today's top news highlights."
+                    ToolExecutionResult(true, "Here are today's top news highlights.")
                 } catch (e: Exception) {
-                    "I couldn't load the news highlights."
+                    ToolExecutionResult(false, "I couldn't load the news highlights.")
                 }
             }
-            else -> "System Error: System Handler not recognized."
+            else -> ToolExecutionResult(false, "System Error: System Handler not recognized.")
         }
     }
 }

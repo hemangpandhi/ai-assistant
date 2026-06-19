@@ -65,6 +65,11 @@ android {
         viewBinding = true
         buildConfig = true
     }
+    packagingOptions {
+        jniLibs {
+            useLegacyPackaging = false
+        }
+    }
     useLibrary("android.car")
 }
 

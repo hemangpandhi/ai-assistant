@@ -31,10 +31,7 @@ object LLMManager {
     var isInitializing = false
         private set
         
-    var isPrewarming = false
-        private set
 
-    var isFirstMessage = true
     private var appContext: Context? = null
 
 
@@ -69,8 +66,8 @@ object LLMManager {
                 modelFile = File(savedModelPath)
             }
             if (modelFile == null || !modelFile.exists()) {
-                modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+                modelFile = models.find { it.name.contains("Qwen", ignoreCase = true) }
+                    ?: models.find { it.name.contains("gemma", ignoreCase = true) }
                     ?: models.firstOrNull()
             }
 
@@ -93,8 +90,14 @@ object LLMManager {
             withContext(Dispatchers.IO) {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Removed Math.max(..., 4096) constraint so physical devices like Pixel Tablet can lower the KV Cache to prevent GPU OOM crashes
-                val maxTokens = prefs.getInt("max_tokens", 2048)
+                // Determine maxTokens dynamically. Gemma 4 E2B is statically compiled for 8192 tokens. Qwen uses 2048.
+                val maxTokens = if (modelPath.lowercase().contains("gemma")) {
+                    8192
+                } else if (modelPath.lowercase().contains("phi")) {
+                    4096
+                } else {
+                    2048
+                }
                 
                 try {
                     // Set ADSP_LIBRARY_PATH so the Hexagon DSP can find the QNN native libraries
@@ -122,7 +125,7 @@ object LLMManager {
                 val backend = when (backendChoice) {
                     "NPU" -> Backend.NPU()
                     "GPU" -> Backend.GPU()
-                    "CPU" -> Backend.CPU()
+                    "CPU" -> Backend.CPU(8)
                     else -> Backend.GPU() // Auto defaults to GPU
                 }
 
@@ -163,7 +166,7 @@ object LLMManager {
                     try {
                         val engineConfigFallback = EngineConfig(
                             modelPath = modelPath,
-                            backend = Backend.CPU(),
+                            backend = Backend.CPU(8),
                             maxNumTokens = maxTokens
                         )
                         engine = Engine(engineConfigFallback)
@@ -186,15 +189,15 @@ object LLMManager {
             }
         }
     }
-    suspend fun getSystemPrompt(context: android.content.Context, query: String = "", previousExecutedTools: Set<String> = emptySet()): String {
+    suspend fun getSystemPrompt(context: android.content.Context, query: String = "", previousExecutedTools: Set<String> = emptySet()): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val customPrompt = prefs.getString("system_prompt", null)
         
         if (!customPrompt.isNullOrEmpty()) {
-            return customPrompt
+            return@withContext customPrompt
         }
         
-        return getDefaultSystemPrompt(context, query, previousExecutedTools)
+        return@withContext getDefaultSystemPrompt(context, query, previousExecutedTools)
     }
     
     suspend fun getDefaultSystemPrompt(context: android.content.Context, query: String = "", previousExecutedTools: Set<String> = emptySet()): String {
@@ -202,32 +205,28 @@ object LLMManager {
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\\n\\n")
         
         // Universal Agentic Context Injection
-        basePrompt.append("=== VEHICLE STATE ===\\n")
-        basePrompt.append("${VehicleManager.getLLMContextString(context)}\\n\\n")
+        if (ToolManager.requiresVehicleState(context, query, previousExecutedTools)) {
+            basePrompt.append("=== VEHICLE STATE ===\\n")
+            basePrompt.append("${VehicleManager.getLLMContextString(context)}\\n\\n")
+        }
         
-        basePrompt.append("=== TOOLS ===\\n")
-        basePrompt.append("${ToolManager.getLlmToolsPrompt(context, query, previousExecutedTools)}\\n\\n")
-        
-        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response. Example: 'Playing relaxing music now. <TOOL>playMusic(relaxing music)</TOOL>'\\n\\n")
-        
-        val globalInstructions = ToolManager.getGlobalSystemInstructions()
+        val globalInstructions = ToolManager.getGlobalSystemInstructions(query)
         if (globalInstructions.isNotEmpty()) {
-            basePrompt.append(globalInstructions)
+            basePrompt.append(globalInstructions).append("\\n")
         }
+        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response. Example: 'Adjusting climate. <TOOL>actionName(param)</TOOL>'\\n\\n")
 
-        val customInstructions = VehicleManager.getCustomPropertyInstructions()
-        if (customInstructions.isNotEmpty()) {
-            basePrompt.append("\\n=== DYNAMIC VEHICLE SENSOR RULES ===\\n")
-            customInstructions.forEachIndexed { index, inst ->
-                basePrompt.append("${10 + index}. $inst\\n")
-            }
-        }
+
+        
+        basePrompt.append("\\n=== TOOLS ===\\n")
+        basePrompt.append("${ToolManager.getLlmToolsPrompt(context, query, previousExecutedTools)}\\n\\n")
         return basePrompt.toString().trimIndent()
     }
 
 
 
     fun resetConversation(context: Context? = null) {
+        MemoryManager.clearMemory()
         if (engine == null) return
         
         try {
@@ -236,7 +235,6 @@ object LLMManager {
             Log.w("LLMManager", "Error closing previous conversation", e)
         }
         
-        isFirstMessage = true
         
         val conversationConfig = ConversationConfig()
         
@@ -248,9 +246,4 @@ object LLMManager {
         }
     }
 
-    suspend fun prewarm(context: Context) {
-        // Disabled: Prewarming with an empty query bypasses Tool RAG and injects all 26+ tools 
-        // into the KV Cache, causing NPU memory segmentation faults (SIGSEGV).
-        return
-    }
 }

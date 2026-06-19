@@ -275,6 +275,11 @@ class LocalLLMActivity : AppCompatActivity() {
 
         supportActionBar?.title = "MediaPipe Local LLM"
         
+        if (intent.hasExtra("test_prompt")) {
+            val testPrompt = intent.getStringExtra("test_prompt")
+            inputText.setText(testPrompt)
+            generateButton.postDelayed({ generateButton.performClick() }, 1000)
+        }
         if (intent.getBooleanExtra("auto_trigger_mic", false)) {
             android.util.Log.d("AutomatedTest", "auto_trigger_mic is true, clicking voice button.")
             voiceButton.postDelayed({ voiceButton.performClick() }, 500)
@@ -315,6 +320,11 @@ class LocalLLMActivity : AppCompatActivity() {
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts.language = Locale.US
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                tts.setAudioAttributes(audioAttributes)
                 applyVoiceSettings()
                 tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {
@@ -536,37 +546,38 @@ class LocalLLMActivity : AppCompatActivity() {
         val btnSyncTime = findViewById<Button>(R.id.btnSyncTime)
         btnSyncTime.setOnClickListener {
             btnSyncTime.isEnabled = false
-            btnSyncTime.text = "Syncing..."
+            btnSyncTime.text = "Clearing Cache..."
             Thread {
                 try {
-                    val url = java.net.URL("http://google.com")
-                    val conn = url.openConnection() as java.net.HttpURLConnection
-                    conn.requestMethod = "HEAD"
-                    conn.connectTimeout = 5000
-                    conn.readTimeout = 5000
-                    val dateHeader = conn.getHeaderField("Date")
-                    if (dateHeader != null) {
-                        val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", java.util.Locale.US)
-                        val date = format.parse(dateHeader)
-                        if (date != null) {
-                            val am = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-                            am.setTime(date.time)
-                            runOnUiThread {
-                                Toast.makeText(this@LocalLLMActivity, "Time synced to $date", Toast.LENGTH_SHORT).show()
-                            }
+                    val internalDir = applicationContext.filesDir
+                    val externalDir = applicationContext.getExternalFilesDir(null)
+                    val tmpDir = java.io.File("/data/local/tmp/")
+                    val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles(), tmpDir.listFiles())
+                        .flatMap { it.toList() }
+                    
+                    var count = 0
+                    allFiles.forEach { file ->
+                        if (file.name.endsWith(".bin") && !file.name.endsWith(".litertlm.bin")) {
+                            file.delete()
+                            count++
                         }
-                    } else {
-                        runOnUiThread { Toast.makeText(this@LocalLLMActivity, "No Date header found", Toast.LENGTH_SHORT).show() }
+                        if (file.name.contains("xnnpack")) {
+                            file.delete()
+                            count++
+                        }
+                    }
+                    runOnUiThread {
+                        Toast.makeText(this@LocalLLMActivity, "Cleared $count stale cache files", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    Log.e("LocalLLMActivity", "Failed to sync time", e)
+                    Log.e("LocalLLMActivity", "Failed to clear cache", e)
                     runOnUiThread {
-                        Toast.makeText(this@LocalLLMActivity, "Sync failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@LocalLLMActivity, "Cache clear failed: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 } finally {
                     runOnUiThread {
                         btnSyncTime.isEnabled = true
-                        btnSyncTime.text = "Sync Time"
+                        btnSyncTime.text = "Clear Cache"
                     }
                 }
             }.start()
@@ -837,8 +848,8 @@ class LocalLLMActivity : AppCompatActivity() {
         // Dynamic Fallback: If exact filename is not found, use any existing .bin, .task, or .litertlm file
         if (modelFile == null) {
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+            modelFile = models.find { it.name.contains("Qwen", ignoreCase = true) }
+                ?: models.find { it.name.contains("gemma", ignoreCase = true) }
                 ?: models.firstOrNull()
             if (modelFile != null) {
                 // Try to find a matching LlmModel for this file to update the UI
@@ -1040,15 +1051,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
             val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
-            val finalPrompt = if (LLMManager.isFirstMessage) {
-                LLMManager.isFirstMessage = false
-                LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
-            } else {
-                val customProps = VehicleManager.getCustomPropertiesString()
-                val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
-                
-                "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]\nUser: " + prompt
-            }
+            val finalPrompt = LLMManager.getSystemPrompt(applicationContext, prompt) + "\\nUser: " + prompt
 
             val executedTools = mutableSetOf<String>()
             val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
@@ -1106,6 +1109,14 @@ class LocalLLMActivity : AppCompatActivity() {
                                 val toolCall = match.groups[1]?.value ?: continue
                                 if (executedTools.add(toolCall)) {
                                     executeToolCall(toolCall)
+                                    val toolName = toolCall.substringBefore("(").trim()
+                                    val toolDef = ToolManager.getToolDefinition(toolName)
+                                    if (toolDef?.requiresAgenticLoop != true) {
+                                        isHallucinating = true
+                                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                            LLMManager.resetConversation()
+                                        }
+                                    }
                                 }
                             }
                             
@@ -1221,7 +1232,6 @@ class LocalLLMActivity : AppCompatActivity() {
                 val errorMsg = e.message ?: ""
                 chatAdapter.updateLastMessage("\nError: $errorMsg")
                 resetControls()
-                LLMManager.isFirstMessage = true
                 
                 if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
                     chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
@@ -1268,13 +1278,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 val lastResponseBuilder = java.lang.StringBuilder()
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    val isFirst = LLMManager.isFirstMessage
-                    val finalQuery = if (isFirst) {
-                        LLMManager.isFirstMessage = false
-                        LLMManager.getSystemPrompt(applicationContext, query) + "\nUser: " + query
-                    } else {
-                        "User: $query"
-                    }
+                    val finalQuery = LLMManager.getSystemPrompt(applicationContext, query) + "\\nUser: " + query
                     
                     android.util.Log.i("AutomatedTest", "Conversation is null: ${LLMManager.conversation == null}")
                     
