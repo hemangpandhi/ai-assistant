@@ -63,3 +63,14 @@ A: **100% secure.** Because the Wake Word, Speech-to-Text, and LLM inference all
 
 **Q: What happens if the AI hallucinates and tries to turn off the engine while driving?**
 A: The `vehicle_skills_registry_v2.0.json` acts as a hardcoded whitelist. The LLM cannot invent VHAL property IDs. It can only execute exactly what is defined in the JSON. Furthermore, production deployments rely on Android's native SELinux and `CarPropertyManager` permissions, which physically restrict apps from writing to critical powertrain sensors while in `DRIVE` gear.
+
+## 6. Hardware & Build Requirements
+
+**Q: Can this run on any Android tablet or phone?**
+A: Technically yes, the core logic will run on any Android 11+ device. However, to execute the edge LLMs at interactive speeds, the hardware must have a capable GPU (e.g., Adreno 700+ series) or a dedicated NPU (like the Google Tensor G3/G4 or Qualcomm Hexagon DSP). 
+
+**Q: Why does the app request `SYSTEM_ALERT_WINDOW` and the Assistant Role?**
+A: To provide a true automotive experience, the app needs to draw its transparent UI overlay on top of any active application (like Google Maps) without forcing the user to leave their current screen. The Assistant Role is required so that the physical steering wheel voice button routes directly to our app instead of the default Google Assistant.
+
+**Q: I get an `INSTALL_FAILED_INSUFFICIENT_STORAGE` error when trying to deploy the APK. Why?**
+A: This is a known issue on some Android development devices when repeatedly overwriting large APKs that contain embedded `.litertlm` model weights. Always run `adb uninstall com.example.gemininano` before deploying a fresh build to clear the corrupted storage state.
