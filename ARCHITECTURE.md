@@ -113,6 +113,7 @@ flowchart TD
     subgraph Orchestration ["3. Core AI Orchestration (Kotlin Singleton)"]
         LLM{"🧠 LLMManager<br/>(Prompt & State Control)"}:::logic
         TM["🛠️ ToolManager<br/>(Semantic Router & RAG)"]:::logic
+        HANDLERS{"⚙️ ToolHandlers<br/>(HVAC, Media, Navigation, System)"}:::logic
         MEM["🧠 MemoryManager<br/>(Short-Term Context Window)"]:::logic
         JSON[("📄 vehicle_skills_registry.json<br/>(Zero-Code Definitions)")]:::config
         PREFS[("💾 SharedPreferences<br/>(Long-Term User Memory)")]:::config
@@ -164,14 +165,18 @@ flowchart TD
     TTS -->|"Synthesized Audio"| SPK
     
     LLM -->|"<TOOL> Execution Tag"| TM
-    TM -->|"VHAL Payload"| CPM
+    TM -->|"Routes Command"| HANDLERS
+    
+    HANDLERS -->|"VHAL Payload"| CPM
     CPM -->|"Cross-Process IPC"| CARSERVICE
     CARSERVICE -->|"HIDL / AIDL"| VHAL
     VHAL -->|"Electrical Actuation"| CAN
 
-    TM -->|"Standard Android Intent"| INTENTS
+    HANDLERS -->|"Standard Android Intent"| INTENTS
     INTENTS -->|"Launch & Media Routing"| MEDIA
     INTENTS -->|"Launch Dialer"| PHONE
+    
+    HANDLERS -.->|"Tool Feedback (Agentic Loop)"| LLM
 ```
 
 ### AOSP Vertical Integration Stack
