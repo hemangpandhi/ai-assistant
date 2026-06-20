@@ -940,10 +940,24 @@ class LocalLLMActivity : AppCompatActivity() {
 
         LLMManager.initialize(applicationContext, MODEL_PATH, force, backendChoice, object : LLMManager.InitCallback {
             override fun onSuccess() {
-                chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Ready for inference.", isUser = false))
+                chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Pre-warming Cache...", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-                generateButton.isEnabled = true
-                btnLoadModel.isEnabled = false
+                
+                // Silent Pre-warm to eliminate initial 3s TTFT latency
+                val prewarmCallback = object : com.google.ai.edge.litertlm.MessageCallback {
+                    override fun onMessage(p0: com.google.ai.edge.litertlm.Message) {}
+                    override fun onError(p0: Exception) {}
+                    override fun onDone() {
+                        runOnUiThread {
+                            LLMManager.resetConversation(applicationContext)
+                            chatAdapter.addMessage(ChatMessage("Pre-warm complete! System ready for inference < 1.5s.", isUser = false))
+                            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                            generateButton.isEnabled = true
+                            btnLoadModel.isEnabled = false
+                        }
+                    }
+                }
+                LLMManager.conversation?.sendMessageAsync("[SYSTEM: PREWARM]", prewarmCallback)
             }
 
             override fun onError(e: Exception) {

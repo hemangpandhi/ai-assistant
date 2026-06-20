@@ -130,6 +130,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         super.onHide()
         try {
             speechRecognizer?.cancel()
+            tts?.stop()
+            typewriterJob?.cancel()
+            timeoutJob?.cancel()
+            currentPendingTools.forEach { it.cancel() }
+            currentPendingTools.clear()
+            LLMManager.resetConversation(context)
         } catch(e: Exception) {}
         
         val restartIntent = Intent(context, WakeWordService::class.java)
@@ -231,6 +237,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
         
         btnMic.setOnClickListener {
+            try {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.playSoundEffect(android.media.AudioManager.FX_KEY_CLICK, 1.0f)
+            } catch (e: Exception) {}
+            
             LatencyLogger.reset()
             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
             tts?.stop()
@@ -376,13 +387,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private fun startThinkingAnimation() {
         CoroutineScope(Dispatchers.Main).launch {
             statusText.visibility = View.VISIBLE
-            startDotAnimation("")
+            startDotAnimation("Thinking")
             voiceAnimation.state = VoiceAnimationView.State.THINKING
         }
     }
 
     private fun stopThinkingAnimation() {
         CoroutineScope(Dispatchers.Main).launch {
+            statusText.text = ""
             voiceAnimation.state = VoiceAnimationView.State.IDLE
             stopDotAnimation()
         }
