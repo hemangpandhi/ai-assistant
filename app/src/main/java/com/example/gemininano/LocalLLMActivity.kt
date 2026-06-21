@@ -944,20 +944,25 @@ class LocalLLMActivity : AppCompatActivity() {
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                 
                 // Silent Pre-warm to eliminate initial 3s TTFT latency
-                val prewarmCallback = object : com.google.ai.edge.litertlm.MessageCallback {
-                    override fun onMessage(p0: com.google.ai.edge.litertlm.Message) {}
-                    override fun onError(p0: Exception) {}
-                    override fun onDone() {
-                        runOnUiThread {
-                            LLMManager.resetConversation(applicationContext)
-                            chatAdapter.addMessage(ChatMessage("Pre-warm complete! System ready for inference < 1.5s.", isUser = false))
-                            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-                            generateButton.isEnabled = true
-                            btnLoadModel.isEnabled = false
+                if (!isTestRunning) {
+                    val prewarmCallback = object : com.google.ai.edge.litertlm.MessageCallback {
+                        override fun onMessage(p0: com.google.ai.edge.litertlm.Message) {}
+                        override fun onError(p0: Throwable) {}
+                        override fun onDone() {
+                            runOnUiThread {
+                                LLMManager.resetConversation(applicationContext)
+                                chatAdapter.addMessage(ChatMessage("Pre-warm complete! System ready for inference < 1.5s.", isUser = false))
+                                chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                                generateButton.isEnabled = true
+                                btnLoadModel.isEnabled = false
+                            }
                         }
                     }
+                    LLMManager.conversation?.sendMessageAsync("[SYSTEM: PREWARM]", prewarmCallback)
+                } else {
+                    generateButton.isEnabled = true
+                    btnLoadModel.isEnabled = false
                 }
-                LLMManager.conversation?.sendMessageAsync("[SYSTEM: PREWARM]", prewarmCallback)
             }
 
             override fun onError(e: Exception) {

@@ -240,19 +240,25 @@ object ToolManager {
 
         if (query.isBlank()) return emptyList()
         
-        // Fast path: Keyword matching (0ms)
         val q = query.lowercase()
-        val exactMatches = allToolsFiltered.filter { tool ->
-            tool.keywords?.any { q.contains(it) } == true
+        
+        // Semantic Search with keyword boosting
+        val scoredTools = SemanticSearchManager.searchWithScores(query, 20)
+        
+        val enhancedScores = scoredTools.map { (tool, score) ->
+            val isKeywordMatch = tool.keywords?.any { q.contains(it) } == true
+            val finalScore = if (isKeywordMatch) score + 0.3f else score
+            Pair(tool, finalScore)
         }
         
-        if (exactMatches.isNotEmpty()) {
-            return (exactMatches + injectedDependencies.filter { isOnline || it.offlineCapable }).distinct()
-        }
-        
-        // Slow path: Semantic Search (2000ms+)
-        val topKTools = SemanticSearchManager.search(query, 8).filter { isOnline || activeTools[it.handlerKey]?.offlineCapable == true }.toMutableList()
-        return (topKTools + injectedDependencies.filter { isOnline || it.offlineCapable }).distinct()
+        val topTools = enhancedScores
+            .sortedByDescending { it.second }
+            .take(4) // Strictly limit to top 4 tools
+            .map { it.first }
+            .filter { isOnline || it.offlineCapable }
+            .toMutableList()
+            
+        return (topTools + injectedDependencies.filter { isOnline || it.offlineCapable }).distinct()
     }
 
     /**
@@ -290,7 +296,17 @@ object ToolManager {
     fun getLlmToolsPrompt(context: Context, query: String = "", previousExecutedTools: Set<String> = emptySet()): String {
         val relevantTools = getRelevantTools(context, query, previousExecutedTools)
         if (relevantTools.isEmpty()) return ""
-        return relevantTools.map { it.promptString }.joinToString("\n")
+        
+        val builder = StringBuilder("<AvailableTools>\n")
+        for (tool in relevantTools) {
+            val keywordsText = tool.keywords?.joinToString(", ") ?: ""
+            builder.append("  - Tool: ${tool.promptString}\n")
+            if (keywordsText.isNotBlank()) {
+                builder.append("    Keywords: $keywordsText\n")
+            }
+        }
+        builder.append("</AvailableTools>")
+        return builder.toString()
     }
 
     /**

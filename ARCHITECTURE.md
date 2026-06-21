@@ -492,35 +492,38 @@ To solve the jarring visual disconnect between ultra-fast local LLM generation a
 - **Smart Sentence Regex:** A lookbehind regex `(?<=[a-z])[.!?](?:\s+|$)` ensures the TTS engine does not unnaturally pause on numbers (e.g., `1.`) or abbreviations (e.g., `U.S.`).
 - **Synchronized Visual Spooling:** The visual "typewriter" effect has been locked to exactly `65ms` per character (roughly 150 Words Per Minute). Because this perfectly matches the default Google TTS speaking rate, the visual text types out on the screen in exact synchronization with the audio playback, regardless of how fast the LLM backend generated the tokens.
 
-### 3. Dual-Path Dynamic RAG Architecture (Latency vs Accuracy)
-To achieve a **< 1.5s Time-To-First-Token (TTFT)** while maintaining robust handling of unpredictable human language, the `ToolManager` implements a Dual-Path Retrieval-Augmented Generation (RAG) architecture.
+### 3. Production-Ready Vector RAG Architecture (Hallucination Prevention)
+To achieve extreme precision and eliminate "syntax hallucinations" (where the LLM hallucinates non-existent tools like `<TOOL>decreaseHeat()</TOOL>`), the `ToolManager` was upgraded to a **Unified Vector RAG with Mathematical Keyword Boosting**.
 
-1. **Fast Path (0ms - JSON Keyword Matching):** For standard, predictable queries (e.g., "suggest places in tokyo"), the engine performs a lightning-fast `O(N)` string comparison against the `keywords` array in `vehicle_skills_registry.json`. This is 100% deterministic and adds zero database latency, guaranteeing instant response times for common automotive interactions.
-2. **Slow Path (2000ms+ - Semantic Vector Fallback):** If the user uses slang or unpredictable vocabulary that misses the JSON keywords (e.g., "I need ideas for locations in Japan"), the engine automatically falls back to `SemanticSearchManager`. This system uses mathematical embeddings (a local Vector DB cache) to understand the *meaning* of the sentence and retrieve the correct tool semantically.
+1. **Rich Semantic Embeddings:** The Universal Sentence Encoder no longer just embeds sparse keywords. It embeds dense tool schemas (e.g., `Tool: navigate. Prompt: <TOOL>navigate(DEST)</TOOL>. Keywords: drive to, route.`). This drastically increases the baseline Cosine Similarity accuracy.
+2. **Mathematical Keyword Boosting:** Instead of bypassing the RAG on keyword matches, the system calculates the raw Vector Similarity (0.0 to 1.0) and applies a hard `+0.3f` score boost if any exact JSON keyword matches the user's query. This guarantees perfect contextual ranking while maintaining semantic flexibility.
+3. **Strict Schema Injection:** The ranked results are strictly truncated to the **Top 4 Tools**. These tools are injected into the LLM context window using a rigid `<AvailableTools>` XML schema. By severely limiting the context window and strictly enforcing the XML structure, the 1.5B edge model is forced to select the exact mathematically correct tool syntax, completely eliminating hallucinations.
 
 ```mermaid
 flowchart TD
     %% Styling
     classDef user fill:#3B82F6,stroke:#2563EB,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
-    classDef fastPath fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
-    classDef slowPath fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
-    classDef db fill:#64748B,stroke:#475569,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
-    classDef llm fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef vector fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef boost fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef filter fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef llm fill:#0EA5E9,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
 
-    USER(["🗣️ User Query<br>(e.g. 'I am freezing')"]):::user
+    USER(["🗣️ User Query<br>(e.g. 'Turn down the heat')"]):::user
     
     subgraph ToolManager ["🛠️ ToolManager RAG Interceptor"]
-        CHECK{"Match JSON Keywords?"}:::db
+        VECTOR["🧠 SemanticSearchManager<br>Calculate Cosine Similarity<br>(Universal Sentence Encoder)"]:::vector
+        BOOST{"Exact Keyword Match?"}:::boost
+        APPLY_BOOST["➕ Apply +0.3f Boost to Score"]:::boost
+        FILTER["✂️ Filter to Top 4 Tools<br>Format as <AvailableTools> XML"]:::filter
         
-        FAST["⚡ Fast Path (0ms)<br>Direct array lookup"]:::fastPath
-        SLOW["🧠 Slow Path (2000ms)<br>SemanticSearchManager<br>Mathematical Embeddings"]:::slowPath
-        
-        CHECK -- Yes --> FAST
-        CHECK -- No --> SLOW
+        VECTOR --> BOOST
+        BOOST -- Yes --> APPLY_BOOST
+        BOOST -- No --> FILTER
+        APPLY_BOOST --> FILTER
     end
     
-    LLM{"🧠 LLMManager<br>Dynamic Prompt Injection"}:::llm
+    LLM{"🧠 LLMManager<br>Strict Schema Injection"}:::llm
     
-    FAST -->|"Inject Context & Tools"| LLM
-    SLOW -->|"Inject Semantic Tools"| LLM
+    FILTER -->|"Top 4 XML Context"| LLM
 ```
+

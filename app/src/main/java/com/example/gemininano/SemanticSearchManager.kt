@@ -50,8 +50,8 @@ object SemanticSearchManager {
         if (!isInitialized) return
         val tools = ToolManager.getAllTools()
         for ((cmd, def) in tools) {
-            val keywordsText = def.keywords?.joinToString(" ") ?: ""
-            val description = "${def.handlerKey} $keywordsText"
+            val keywordsText = def.keywords?.joinToString(", ") ?: ""
+            val description = "Tool: ${def.handlerKey}. Prompt: ${def.promptString}. Keywords: $keywordsText. Use this tool when the user wants to trigger these concepts."
             val vector = embedText(description)
             if (vector != null) {
                 toolEmbeddings[cmd] = vector
@@ -60,10 +60,10 @@ object SemanticSearchManager {
         Log.i(TAG, "Built tool embeddings cache. Total tools embedded: ${toolEmbeddings.size}")
     }
 
-    fun search(query: String, topK: Int = 10): List<ToolManager.ToolDefinition> {
-        if (!isInitialized) return ToolManager.getAllTools().values.take(topK).toList()
+    fun searchWithScores(query: String, topK: Int = 10): List<Pair<ToolManager.ToolDefinition, Float>> {
+        if (!isInitialized) return ToolManager.getAllTools().values.take(topK).map { Pair(it, 0f) }
         
-        val queryVector = embedText(query.lowercase()) ?: return ToolManager.getAllTools().values.take(topK).toList()
+        val queryVector = embedText(query.lowercase()) ?: return ToolManager.getAllTools().values.take(topK).map { Pair(it, 0f) }
         
         val scoredTools = mutableListOf<Pair<ToolManager.ToolDefinition, Float>>()
         
@@ -82,7 +82,7 @@ object SemanticSearchManager {
             }
         }
 
-        return scoredTools.sortedByDescending { it.second }.map { it.first }.take(topK)
+        return scoredTools.sortedByDescending { it.second }.take(topK)
     }
 
     private fun cosineSimilarity(v1: FloatArray, v2: FloatArray): Float {

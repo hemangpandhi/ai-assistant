@@ -214,7 +214,7 @@ object LLMManager {
         if (globalInstructions.isNotEmpty()) {
             basePrompt.append(globalInstructions).append("\\n")
         }
-        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>actionName(param)</TOOL>' at the very end of your response. Example: 'Adjusting climate. <TOOL>actionName(param)</TOOL>'\\n\\n")
+        basePrompt.append("CRITICAL: You are an execution agent. If the user asks you to perform an action, you MUST output the exact XML tool tag from the <AvailableTools> list. Do NOT just say you will do it. Example: 'Adjusting climate. <TOOL>actionName(param)</TOOL>'\\n\\n")
 
 
         

@@ -73,13 +73,15 @@
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
                 "temperature",
-                "hot",
-                "cold",
-                "warm",
-                "cool",
+                "set heat",
                 "ac",
+                "warm",
+                "climate",
+                "climate control",
+                "cool",
+                "hot",
                 "heater",
-                "climate"
+                "cold"
             ],
             "offline_capable": true,
             "success_message": "I've adjusted the cabin temperature.",
@@ -91,15 +93,12 @@
             "handler_key": "increaseTemperature",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "temperature",
                 "warmer",
-                "bit cold",
-                "raise temperature",
-                "ac",
-                "heater",
-                "climate",
+                "hotter",
+                "turn up",
                 "freezing",
-                "cold"
+                "cold",
+                "increase"
             ],
             "offline_capable": true,
             "success_message": "I've increased the cabin temperature.",
@@ -111,14 +110,12 @@
             "handler_key": "decreaseTemperature",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "temperature",
-                "colder",
-                "too hot",
-                "lower temperature",
+                "cooler",
+                "turn down",
                 "ac",
-                "heater",
-                "climate",
-                "heat"
+                "sweating",
+                "hot",
+                "decrease"
             ],
             "offline_capable": true,
             "success_message": "I've decreased the cabin temperature.",
@@ -423,17 +420,18 @@
             "handler_key": "setAllWindowsPosition",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "windows",
-                "window",
-                "open",
-                "close",
-                "roll",
-                "up",
-                "down",
+                "glass",
                 "position",
                 "open",
+                "all windows",
+                "up",
+                "down",
+                "roll down",
+                "windows",
                 "window",
-                "all windows"
+                "roll up",
+                "close",
+                "roll"
             ],
             "offline_capable": true,
             "success_message": "I've adjusted the window positions.",
@@ -511,10 +509,13 @@
             "area_id": 0,
             "success_message": "I've adjusted the seat heater.",
             "keywords": [
-                "seat heater",
-                "heated seat",
                 "warm seat",
-                "cold seat"
+                "heated seat",
+                "cold",
+                "seat heater",
+                "freezing",
+                "cold seat",
+                "back"
             ],
             "offline_capable": true,
             "requires_vehicle_state": true
@@ -528,10 +529,14 @@
             "area_id": 0,
             "success_message": "I've turned on the seat massager for you.",
             "keywords": [
-                "seat massage",
-                "massager",
                 "back massage",
-                "relax seat"
+                "relax",
+                "tired",
+                "massage",
+                "massager",
+                "seat massage",
+                "relax seat",
+                "back hurts"
             ],
             "offline_capable": true,
             "requires_vehicle_state": true
@@ -574,11 +579,13 @@
             "confirmation_message": "You said you're feeling cold. I can raise the cabin temperature to a comfortable level, for example 25 degrees. Should I do that?",
             "success_message": "Okay, I've increased the cabin temperature.",
             "keywords": [
+                "turn up heat",
                 "feeling cold",
-                "bit cold",
-                "raise temperature",
+                "shivering",
                 "warmer",
+                "bit cold",
                 "freezing",
+                "raise temperature",
                 "cold"
             ],
             "offline_capable": true,
@@ -650,13 +657,16 @@
             "handler_type": "CUSTOM_KOTLIN",
             "success_message": "I've turned on the defogger and directed airflow towards the windshield.",
             "keywords": [
-                "windshield is foggy",
+                "visibility",
+                "mist",
+                "fogged",
                 "fog on glass",
                 "defog",
                 "can't see",
-                "fog",
+                "defrost",
+                "windshield is foggy",
                 "windshield",
-                "fogged"
+                "fog"
             ],
             "offline_capable": true,
             "requires_vehicle_state": false
@@ -669,10 +679,13 @@
             "confirmation_message": "I can turn on or strengthen exterior lighting to help you see the road better. Do you want me to do that?",
             "success_message": "I've adjusted lighting for better visibility.",
             "keywords": [
-                "barely see the road",
                 "too dark",
+                "see better",
                 "visibility",
-                "see better"
+                "dark",
+                "can't see",
+                "barely see the road",
+                "fog"
             ],
             "offline_capable": true,
             "requires_vehicle_state": false
@@ -748,11 +761,15 @@
             "handler_key": "suggestNearbyPlaces",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "where can I go",
-                "nearby spots",
                 "mall",
+                "where can I go",
+                "tourist",
+                "around",
                 "restaurant",
-                "places to go"
+                "places to go",
+                "nearby spots",
+                "visit",
+                "sightseeing"
             ],
             "offline_capable": false,
             "requires_agentic_loop": true,
@@ -922,7 +939,11 @@
             "handler_key": "prepareForIncomingRain",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
+                "wet",
+                "umbrella",
                 "rain is coming",
+                "rain",
+                "raining",
                 "looks like rain",
                 "get ready for rain"
             ],
@@ -1120,15 +1141,13 @@
             "handler_key": "playMusic",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "music",
-                "play",
-                "song",
-                "artist",
-                "album",
                 "listen",
+                "spotify",
                 "play",
+                "artist",
+                "song",
                 "music",
-                "song"
+                "album"
             ],
             "offline_capable": false,
             "requires_agentic_loop": true,
@@ -1185,13 +1204,11 @@
             "handler_key": "callContact",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "call",
-                "phone",
                 "dial",
-                "contact",
-                "call",
                 "phone",
-                "dial"
+                "call",
+                "contact",
+                "talk to"
             ],
             "offline_capable": true,
             "requires_agentic_loop": true,
@@ -1251,17 +1268,21 @@
             "handler_key": "search",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "search",
-                "find",
+                "gas station",
                 "look up",
-                "restaurant",
-                "food",
-                "dining",
-                "nearby",
-                "suggest places",
-                "places to visit",
+                "visit",
                 "tourist",
-                "visit"
+                "search",
+                "nearby",
+                "fuel",
+                "where is",
+                "restaurant",
+                "hungry",
+                "places to visit",
+                "food",
+                "find",
+                "suggest places",
+                "dining"
             ],
             "requires_vehicle_state": false
         },
@@ -1270,18 +1291,20 @@
             "handler_key": "navigate",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "navigate",
-                "go to",
-                "directions",
-                "route",
-                "drive",
-                "restaurant",
-                "food",
-                "dining",
-                "nearby",
-                "navigate",
                 "direction",
-                "route"
+                "drive to",
+                "destination",
+                "head to",
+                "take me to",
+                "directions",
+                "go to",
+                "drive",
+                "nearby",
+                "food",
+                "navigate",
+                "restaurant",
+                "route",
+                "dining"
             ],
             "requires_vehicle_state": true
         },
@@ -1295,11 +1318,11 @@
             "value_to_write": "true",
             "success_message": "I've popped the trunk.",
             "keywords": [
-                "trunk",
                 "open",
-                "back",
+                "trunk",
+                "cargo",
                 "boot",
-                "cargo"
+                "back"
             ],
             "requires_confirmation": true,
             "confirmation_message": "Warning: Are you sure you want to open the trunk?",
@@ -1311,15 +1334,17 @@
             "handler_key": "setWindowPosition",
             "handler_type": "GENERIC_VHAL_WRITE",
             "keywords": [
-                "window",
-                "roll",
+                "glass",
+                "open",
                 "down",
                 "up",
-                "open",
-                "close",
+                "roll down",
+                "windows",
+                "window",
                 "air",
-                "open",
-                "window"
+                "roll up",
+                "close",
+                "roll"
             ],
             "property_id": 322964416,
             "data_type": "INT",
@@ -1341,13 +1366,11 @@
             "handler_key": "call",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "call",
-                "phone",
                 "dial",
-                "contact",
-                "call",
                 "phone",
-                "dial"
+                "call",
+                "contact",
+                "talk to"
             ],
             "requires_vehicle_state": false
         },
@@ -1377,11 +1400,12 @@
             "handler_key": "getBatteryLevel",
             "handler_type": "NATIVE_VHAL",
             "keywords": [
-                "battery",
-                "range",
-                "how much battery",
                 "battery level",
-                "charge"
+                "power",
+                "battery",
+                "charge",
+                "range",
+                "how much battery"
             ],
             "offline_capable": true,
             "success_message": "Checking the battery level.",
