@@ -52,7 +52,35 @@ This document outlines the complete software, hardware, and build toolchain util
 
 Transitioning to production SA8255 hardware involves two potential architectural paths to maximize Hexagon NPU TOPS (Tera Operations Per Second):
 
-## 7. Future Platform Migration (Qualcomm SA8255 Snapdragon Ride Flex)
+## 7. Local Vector RAG (Retrieval-Augmented Generation) Pipeline
+
+To prevent the LLM from hallucinating non-existent tools and to handle unpredictable human language, the toolchain implements a completely offline, zero-latency **Vector RAG** engine. 
+
+### What RAG Engine is Used?
+The project utilizes the **MediaPipe Universal Sentence Encoder** (`com.google.mediapipe:tasks-text`) to perform mathematical embedding. There is no external vector database (like Pinecone or ChromaDB); everything is cached natively in Android memory via `SemanticSearchManager.kt`.
+
+### How the Vector RAG Converts and Matches Data
+The pipeline operates in three distinct phases:
+
+1. **Initialization (Embedding the Registry):**
+   When the app boots, it parses the `vehicle_skills_registry_v2.0.json`. For every tool, it flattens the schema, description, and keywords into a single descriptive sentence (e.g., `"Tool: increaseTemperature. Prompt: <TOOL>increaseTemperature()</TOOL>. Keywords: warmer, cold."`). 
+   The Universal Sentence Encoder converts this sentence into a **dense 100-dimensional mathematical vector**. These vectors are cached in a local HashMap.
+
+2. **Semantic Matching (Cosine Similarity):**
+   When the user speaks (e.g., *"My hands are freezing"*), the same engine embeds the user's query into a mathematical vector. The system then calculates the **Cosine Similarity** (the angle between the vectors in 100-dimensional space) between the user's query and every tool in the cache. 
+   Because it is matching math rather than exact strings, it correctly maps *"freezing"* to the `increaseTemperature` tool even if the word wasn't explicitly programmed.
+
+3. **Mathematical Keyword Boosting & Context Injection:**
+   To guarantee 100% precision for deterministic automotive actions, the system applies a **`+0.3f` mathematical boost** to the cosine similarity score if any of the predefined JSON keywords exactly match the user's query. 
+   Finally, the system truncates the list to the **Top 4 Tools**. These tools are dynamically injected into the `LLMManager` system prompt inside a strict `<AvailableTools>` XML schema. By limiting the context window to only 4 highly relevant tools, the 1.5B edge LLM is forced to output the correct syntax, completely eliminating "Conversational Bypassing" and hallucinations.
+
+4. **Tool Call Extraction & Execution (The Feedback Loop):**
+   Once the LLM generates the final response (e.g., *"Adjusting climate. <TOOL>increaseTemperature()</TOOL>"*), the `ToolManager` engine takes over. 
+   *   **Regex Parsing:** It uses a strict Regular Expression (`<TOOL>(.*?)</TOOL>`) to intercept the raw string before it reaches the Text-to-Speech (TTS) engine, stripping the XML from the user's ears.
+   *   **Handler Routing:** It parses the command name and arguments, cross-references them against the `ToolHandlerRegistry`, and passes the payload to the correct handler (e.g., `HVACToolHandler` or `MediaToolHandler`).
+   *   **Hardware Actuation:** The handler finally executes the command via the Android `CarPropertyManager`, physically actuating the CAN bus.
+
+## 8. Future Platform Migration (Qualcomm SA8255 Snapdragon Ride Flex)
 
 Transitioning to production SA8255 hardware involves two potential architectural paths to maximize Hexagon NPU TOPS (Tera Operations Per Second):
 
