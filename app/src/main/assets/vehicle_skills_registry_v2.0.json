@@ -1287,7 +1287,7 @@
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
+            "prompt_string": "<TOOL>navigate(\"DEST\")</TOOL>",
             "handler_key": "navigate",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
@@ -1426,6 +1426,12 @@
             "success_message": "Adjusting seat for better alertness.",
             "error_message": "Failed to move seat.",
             "requires_vehicle_state": true
+        }
+    ],
+    "system_instructions": [
+        {
+            "instruction": "Whenever passing a parameter to a tool, you MUST wrap the entire function call in exact <TOOL> tags. DO NOT output the function without the XML wrapper. Example: <TOOL>navigate(\"Tokyo\")</TOOL>",
+            "keywords": ["navigate", "drive", "destination", "go to"]
         }
     ]
 }
