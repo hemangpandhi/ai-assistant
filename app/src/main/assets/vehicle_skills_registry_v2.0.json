@@ -1287,8 +1287,8 @@
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>navigate(\"DEST\")</TOOL>",
-            "handler_key": "navigate",
+            "prompt_string": "<TOOL>startNavigationTo(\"DEST\")</TOOL>",
+            "handler_key": "startNavigationTo",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
                 "direction",

@@ -1,0 +1,43 @@
+app_prefs.xml: 1 file pushed, 0 skipped. 1.5 MB/s (207 bytes in 0.000s)
+Starting: Intent { cmp=com.example.gemininano/.LocalLLMActivity }
+Starting: Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] pkg=temperature cmp=com.example.gemininano/.LocalLLMActivity (has extras) }
+06-18 04:51:13.648  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:14.395  1311  1311 W ActivityManager: pid 1311 system sent binder code 2 with flags 1 to frozen apps and got error -32
+06-18 04:51:14.451  1311  1311 W ActivityManager: pid 1311 system sent binder code 2 with flags 1 to frozen apps and got error -32
+06-18 04:51:14.451  1311  1311 D ActivityManager: Too many transaction errors, throttling freezer binder callback.
+06-18 04:51:14.650  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:15.653  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:16.655  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:16.947 28181 28227 W litert  : [npu_registry.cc:34] NPU accelerator could not be loaded and registered: kLiteRtStatusErrorInvalidArgument.
+06-18 04:51:17.287  9046  9046 E native  : E0000 00:00:1781754677.286975    9046 re2.cc:250] Error parsing '^|[^\p{Letter}\\]': invalid character class range: \p{Letter}
+06-18 04:51:17.287  9046  9046 E native  : E0000 00:00:1781754677.287073    9046 replacement_rule.cc:151] Error creating replacement rule.
+06-18 04:51:17.287  9046  9046 E native  : E0000 00:00:1781754677.287085    9046 regexp_rewriter.cc:35] Error creating rule MessageLite at 0xb400006f20a7ffd0.
+06-18 04:51:17.651 28181 28227 E LLMManager: Error initializing model
+06-18 04:51:17.651 28181 28227 E LLMManager: com.google.ai.edge.litertlm.LiteRtLmJniException: Failed to create engine: INTERNAL: ERROR: [third_party/odml/litert_lm/runtime/executor/llm_litert_compiled_model_executor.cc:1928]
+06-18 04:51:17.651 28181 28227 E LLMManager: └ ERROR: [./third_party/odml/litert/litert/cc/litert_compiled_model.h:1780]
+06-18 04:51:17.658  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:17.681  1311  3039 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+06-18 04:51:17.681  1311  3039 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+06-18 04:51:17.682  1311  3039 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+06-18 04:51:17.855 28181 28227 W litert  : [npu_registry.cc:34] NPU accelerator could not be loaded and registered: kLiteRtStatusErrorInvalidArgument.
+06-18 04:51:18.661  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:19.668  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:20.670  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:21.673  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:22.676  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:23.028  1311  3039 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+06-18 04:51:23.028  1311  3039 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+06-18 04:51:23.029  1311  3039 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+06-18 04:51:23.677  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:24.679  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:25.683  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:26.687  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:27.322 28181 28830 I LLMLatency: [LocalLLMActivity] Time to First Token (TTFT): 6213ms (+0ms)
+06-18 04:51:27.690  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:28.692  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:29.696  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:30.699  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:31.705  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:32.711  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:33.718  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-18 04:51:34.726  1976  2063 E CAR.EVS.REARVIEW: Transition failed: error = -1

@@ -6,7 +6,7 @@ object ToolHandlerRegistry {
     fun getHandler(handlerKey: String, toolDefinition: ToolManager.ToolDefinition): ToolHandler? {
         val hvacHandlers = setOf("setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature", "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager", "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster", "handleFeelingCold", "enableFreshAirIntake", "protectFromPollutedAir", "defogWindshield", "movePassengerSeatForward")
         val mediaHandlers = setOf("playMusic", "pauseMusic", "nextTrack", "prevTrack", "adjustBgmForSituation")
-        val navHandlers = setOf("navigate", "searchNearby", "search", "suggestNearbyPlaces", "provideLaneLevelGuidance", "suggestAlternateRoute")
+        val navHandlers = setOf("startNavigationTo", "searchNearby", "search", "suggestNearbyPlaces", "provideLaneLevelGuidance", "suggestAlternateRoute")
         val commHandlers = setOf("call", "bookRestaurant", "queryMemory", "callContact", "sendText")
         val systemHandlers = setOf("remember", "getWeather", "openApp", "sendUpcomingEventReminder", "explainChildSeatInstallation", "suggestUmbrellaIfRainy", "getNewsHighlights")
         val windowHandlers = setOf("setAllWindowsPosition", "openWindowsSlightly", "closeAllWindows")

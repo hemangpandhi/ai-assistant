@@ -10,7 +10,7 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
 
     override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         return when (handlerKey) {
-            "navigate" -> {
+            "startNavigationTo" -> {
                 val dest = toolCall.substringAfter("(").substringBefore(")")
                 val spokenDest = dest.trim().replace("\"", "")
                 
