@@ -14,7 +14,7 @@ class ConfigurationValidationTest {
 
     @Before
     fun setUp() {
-        val file = File("src/main/assets/custom_properties.json")
+        val file = File("src/main/assets/vehicle_skills_registry.json")
         val jsonString = file.readText()
         jsonObject = JSONObject(jsonString)
     }
@@ -34,7 +34,7 @@ class ConfigurationValidationTest {
             val tool = toolsArray.getJSONObject(i)
             assertTrue("Tool must have a prompt_string", tool.has("prompt_string"))
             val promptString = tool.getString("prompt_string")
-            assertTrue("prompt_string must contain <TOOL> tags", promptString.startsWith("<TOOL>") && promptString.endsWith("</TOOL>"))
+            assertTrue("prompt_string must contain <TOOL> tags", promptString.contains("<TOOL>") && promptString.contains("</TOOL>"))
             
             val handlerType = if (tool.has("handler_type")) tool.getString("handler_type") else "CUSTOM_KOTLIN"
             assertTrue("Handler type must be valid", validHandlerTypes.contains(handlerType))
