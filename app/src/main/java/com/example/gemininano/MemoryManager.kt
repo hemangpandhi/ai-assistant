@@ -99,11 +99,18 @@ object MemoryManager {
                 // some of the turns we intended to collapse.
                 synchronized(conversationHistory) {
                     val summarizedContents = turnsToCollapse.map { it.content }.toSet()
+                    // Find the first turn that was NOT part of the summarized batch.
+                    // `firstUnsummarizedIndex` > 0 → that many leading turns belong to the summary;
+                    // == 0 → every remaining turn is already beyond the summarized range;
+                    // == -1 → all remaining turns were themselves summarized/removed — fall back to
+                    //         dropping at most `turnsToCollapse.size` turns to avoid over-clearing.
                     val firstUnsummarizedIndex = conversationHistory.indexOfFirst {
                         it.role != "Summary" && !summarizedContents.contains(it.content)
                     }
-                    val safeDropCount = if (firstUnsummarizedIndex > 0) firstUnsummarizedIndex
-                                        else minOf(turnsToCollapse.size, conversationHistory.size)
+                    val safeDropCount = when {
+                        firstUnsummarizedIndex > 0 -> firstUnsummarizedIndex
+                        else -> minOf(turnsToCollapse.size, conversationHistory.size)
+                    }
                     val remaining = conversationHistory.drop(safeDropCount)
                     conversationHistory.clear()
                     conversationHistory.add(Turn("Summary", "[Earlier context: $summaryText]"))

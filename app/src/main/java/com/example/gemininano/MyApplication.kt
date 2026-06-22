@@ -68,9 +68,9 @@ class MyApplication : Application() {
                     LLMManager.resetConversation()
                 }
             }
-            // Send a short representative automotive query to exercise the same GPU shader
-            // paths that real user queries will use. Output is discarded — this inference
-            // exists solely to trigger GPU kernel compilation and KV-cache pre-allocation.
+            // Send a short dummy prompt to trigger GPU shader compilation and KV-cache
+            // pre-allocation. Output is discarded — the goal is to exercise the inference
+            // pipeline, not to produce a meaningful response.
             conversation.sendMessageAsync(Contents.of(Content.Text("warmup")), dummyCallback, emptyMap())
         } catch (e: Exception) {
             Log.w(TAG, "Silent pre-warm inference failed (non-fatal)", e)

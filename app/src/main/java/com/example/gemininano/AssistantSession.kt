@@ -491,13 +491,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         if (navChoices != null && !isAgenticObservation) {
             LLMManager.pendingNavigationChoices = null
             val q = query.lowercase().trim()
-            // Resolve the choice by index first (most reliable), then by exact name match,
-            // then by the query containing the full place name (one-way to avoid substring
-            // false positives like "one" matching "the First Street Cafe").
+            // Resolve the choice by index first (most reliable), using word-boundary regex so
+            // phrases like "the first one" and "I want the second" match correctly without
+            // false-positiving on unrelated words in longer utterances.
+            val ordinalRegex = listOf(
+                Regex("\\b(1|one|first)\\b"),
+                Regex("\\b(2|two|second)\\b"),
+                Regex("\\b(3|three|third)\\b")
+            )
             val choiceIndex: Int = when {
-                q == "1" || q.startsWith("1.") || q == "one" || q == "first" -> 0
-                q == "2" || q.startsWith("2.") || q == "two" || q == "second" -> 1
-                q == "3" || q.startsWith("3.") || q == "three" || q == "third" -> 2
+                ordinalRegex[0].containsMatchIn(q) -> 0
+                ordinalRegex[1].containsMatchIn(q) -> 1
+                ordinalRegex[2].containsMatchIn(q) -> 2
                 else -> navChoices.indexOfFirst { (name, _) ->
                     // Only accept if the user's query contains the full place name (case-insensitive)
                     // to avoid over-matching short or common words.
@@ -907,6 +912,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             
         try {
             if (LocalLLMActivity.isCloudModelActive) {
+                // Cloud path — getRelevantTools is called once here only (mutually exclusive
+                // with the local path below, so there is no double computation).
                 CoroutineScope(Dispatchers.IO).launch {
                     var systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
                     systemPrompt += "\n\n[Current State: ${VehicleManager.getLLMContextString(context)}]"
@@ -922,8 +929,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
                 }
             } else {
-                // Cloud/local hybrid routing: if no tools matched (pure conversation) and Gemini is
-                // configured, automatically route to cloud for better open-domain responses.
+                // Local path — getRelevantTools is only called when autoRouting is enabled
+                // (mutually exclusive with the cloud path above, so no double computation).
                 val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
                 val autoRouting = prefs.getBoolean("auto_routing_enabled", false)
                 val apiKey = GeminiManager.apiKey
