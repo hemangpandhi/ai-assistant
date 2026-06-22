@@ -112,42 +112,55 @@ object MemoryManager {
         }
     }
     
+    private const val SUMMARIZATION_PROMPT = "Summarize the following conversation in one sentence:"
+    
     /**
-     * Asks the local LLM to summarize [text] in one sentence.
-     * Returns a short plain-text summary string.
+     * Summarizes [text] using a **separate, ephemeral** LLM conversation so the main
+     * chat conversation's KV cache and history are never contaminated.
+     *
+     * A dedicated [Conversation] is created from the same [Engine], used only for this
+     * single inference, and then closed. If no engine is available, falls back to simple
+     * extractive truncation.
      */
     private suspend fun summarizeWithLlm(text: String): String {
-        val conversation = LLMManager.conversation
-        if (conversation == null || LLMManager.isFirstMessage) {
-            // LLM not ready — fall back immediately
+        val engine = LLMManager.engine ?: return buildFallbackSummary(text)
+        
+        // Create an isolated one-shot conversation purely for summarization.
+        val summarizationConversation = try {
+            engine.createConversation(com.google.ai.edge.litertlm.ConversationConfig())
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not create summarization conversation: ${e.message}")
             return buildFallbackSummary(text)
         }
         
-        // Send a summarization request on the existing conversation.
-        // This is a "background" inference that doesn't affect the main chat flow.
-        val prompt = "Summarize the following conversation in exactly one sentence:\n\n$text\n\nSummary:"
+        val prompt = "$SUMMARIZATION_PROMPT\n\n$text\n\nSummary:"
         val resultBuilder = StringBuilder()
         
-        suspendCancellableCoroutine<Unit> { cont ->
-            try {
-                val cb = object : com.google.ai.edge.litertlm.MessageCallback {
-                    override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
-                        resultBuilder.append(message.toString())
+        try {
+            suspendCancellableCoroutine<Unit> { cont ->
+                try {
+                    val cb = object : com.google.ai.edge.litertlm.MessageCallback {
+                        override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+                            resultBuilder.append(message.toString())
+                        }
+                        override fun onDone() { if (cont.isActive) cont.resumeWith(Result.success(Unit)) }
+                        override fun onError(t: Throwable) { if (cont.isActive) cont.resumeWith(Result.success(Unit)) }
                     }
-                    override fun onDone() { if (cont.isActive) cont.resumeWith(Result.success(Unit)) }
-                    override fun onError(t: Throwable) { if (cont.isActive) cont.resumeWith(Result.success(Unit)) }
+                    summarizationConversation.sendMessageAsync(
+                        com.google.ai.edge.litertlm.Contents.of(
+                            com.google.ai.edge.litertlm.Content.Text(prompt)
+                        ),
+                        cb,
+                        emptyMap()
+                    )
+                } catch (e: Exception) {
+                    Log.w(TAG, "LLM summarization call failed: ${e.message}")
+                    if (cont.isActive) cont.resumeWith(Result.success(Unit))
                 }
-                conversation.sendMessageAsync(
-                    com.google.ai.edge.litertlm.Contents.of(
-                        com.google.ai.edge.litertlm.Content.Text(prompt)
-                    ),
-                    cb,
-                    emptyMap()
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "LLM summarization call failed: ${e.message}")
-                if (cont.isActive) cont.resumeWith(Result.success(Unit))
             }
+        } finally {
+            // Always close the ephemeral conversation to release its KV-cache slot.
+            try { summarizationConversation.close() } catch (e: Exception) { /* non-fatal */ }
         }
         
         val summary = resultBuilder.toString().trim().takeIf { it.isNotEmpty() }

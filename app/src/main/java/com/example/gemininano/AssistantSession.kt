@@ -483,13 +483,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         if (navChoices != null && !isAgenticObservation) {
             LLMManager.pendingNavigationChoices = null
             val q = query.lowercase().trim()
+            // Resolve the choice by index first (most reliable), then by exact name match,
+            // then by the query containing the full place name (one-way to avoid substring
+            // false positives like "one" matching "the First Street Cafe").
             val choiceIndex: Int = when {
-                q == "1" || q.startsWith("1.") || q.contains("first") || q.contains("one") -> 0
-                q == "2" || q.startsWith("2.") || q.contains("second") || q.contains("two") -> 1
-                q == "3" || q.startsWith("3.") || q.contains("third") || q.contains("three") -> 2
+                q == "1" || q.startsWith("1.") || q.startsWith("one") || q == "first" -> 0
+                q == "2" || q.startsWith("2.") || q.startsWith("two") || q == "second" -> 1
+                q == "3" || q.startsWith("3.") || q.startsWith("three") || q == "third" -> 2
                 else -> navChoices.indexOfFirst { (name, _) ->
+                    // Only accept if the user's query contains the full place name (case-insensitive)
+                    // to avoid over-matching short or common words.
                     val n = name.lowercase()
-                    q.contains(n) || n.contains(q)
+                    n.length >= 3 && q.contains(n)
                 }
             }
             if (choiceIndex in navChoices.indices) {
@@ -538,12 +543,23 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val qStr = interceptedQuery.lowercase()
         val expectFollowup = false
         
-        // Use prefetched dynamic context if it was kicked off from onPartialResults() for this query.
-        val dynCtx = prefetchedDynCtx?.let { deferred ->
+        // Use the prefetched dynamic context only when the final query and the partial that
+        // triggered the prefetch share the same leading intent (first 8 chars), ensuring we
+        // don't serve a "find restaurant" context for a query that became "find a gas station".
+        val prefetchMatchesFinal = prefetchedForQuery.isNotBlank() &&
+            interceptedQuery.lowercase().take(8) == prefetchedForQuery.lowercase().take(8)
+        val dynCtx = if (prefetchMatchesFinal) {
+            val deferred = prefetchedDynCtx
             prefetchedDynCtx = null
             prefetchedForQuery = ""
-            try { deferred.await() } catch (e: Exception) { null }
-        } ?: LLMManager.getDynamicContext(context, interceptedQuery)
+            try { deferred?.await() } catch (e: Exception) { null }
+                ?: LLMManager.getDynamicContext(context, interceptedQuery)
+        } else {
+            prefetchedDynCtx?.cancel()
+            prefetchedDynCtx = null
+            prefetchedForQuery = ""
+            LLMManager.getDynamicContext(context, interceptedQuery)
+        }
         
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
@@ -890,9 +906,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         // Use lower temperature (0.1) for tool-execution queries (HVAC, navigation,
                         // calls) to reduce hallucinated tool names/args; use higher temperature (0.8)
                         // for creative/conversational queries where variety is desirable.
-                        val relevantTools = ToolManager.getRelevantTools(interceptedQuery)
-                        val isToolQuery = relevantTools.isNotEmpty()
-                        val geminiTemperature = if (isToolQuery) 0.1 else 0.8
+                        val geminiTemperature = if (ToolManager.getRelevantTools(interceptedQuery).isNotEmpty()) 0.1 else 0.8
                         GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback, geminiTemperature)
                     } else {
                         AnthropicManager.sendMessageAsync(systemPrompt, interceptedQuery, callback)
@@ -903,8 +917,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 // configured, automatically route to cloud for better open-domain responses.
                 val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
                 val autoRouting = prefs.getBoolean("auto_routing_enabled", false)
-                val relevantTools = ToolManager.getRelevantTools(interceptedQuery)
                 val apiKey = GeminiManager.apiKey
+                // Cache the relevant-tools result — used for both routing and temperature decisions.
+                val relevantTools = ToolManager.getRelevantTools(interceptedQuery)
                 if (autoRouting && relevantTools.isEmpty() &&
                     apiKey.isNotEmpty() && apiKey != "Enter API Key") {
                     // No vehicle tool matched → pure conversation → route to Gemini cloud.
