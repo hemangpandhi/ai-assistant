@@ -518,7 +518,13 @@ object VehicleManager {
     }
 
 
-    suspend fun setPropertyVerified(propertyId: Int, targetAreaId: Int, value: String, dataType: String, timeoutMs: Long = 1500, maxRetries: Int = 3): Boolean {
+    suspend fun setPropertyVerified(propertyId: Int, requestedAreaId: Int, value: String, dataType: String, timeoutMs: Long = 1500, maxRetries: Int = 3): Boolean {
+        var targetAreaId = requestedAreaId
+        val config = carPropertyManager?.getCarPropertyConfig(propertyId)
+        if (targetAreaId == 0 && config != null && config.areaIds.isNotEmpty()) {
+            targetAreaId = config.areaIds.first()
+        }
+
         // Pre-check if the value is already set to avoid VHAL timeout (VHAL doesn't fire onChange if value didn't change)
         try {
             val currentValue = when (dataType.uppercase()) {

@@ -39,11 +39,11 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 ### 4. Intelligent Navigation & Sightseeing (Nominatim & Intents)
 *Test the integration with live GPS coordinates and Google Maps routing.*
 * **Prompt:** *"Navigate me to Tokyo Tower"*
-  * **Expected Output:** The AI immediately triggers `<TOOL>navigate(Tokyo Tower)</TOOL>`, which dispatches a `google.navigation:q=Tokyo Tower` Intent to launch the map app.
+  * **Expected Output:** The AI immediately triggers `<TOOL>startNavigationTo(Tokyo Tower)</TOOL>`, which dispatches a `google.navigation:q=Tokyo Tower` Intent to launch the map app.
 * **Prompt:** *"Suggest nearby places to visit around Tokyo"*
   * **Expected Output:** The AI queries the Nominatim endpoint using your live GPS location, lists several real sightseeing locations, and finishes by asking: *"Which places would you like to visit?"*
 * **Follow-up Prompt:** *"The second one."*
-  * **Expected Output:** The AI remembers the context, parses your choice, and automatically executes `<TOOL>navigate(DEST)</TOOL>` to route you there.
+  * **Expected Output:** The AI remembers the context, parses your choice, and automatically executes `<TOOL>startNavigationTo(DEST)</TOOL>` to route you there.
 
 ---
 
@@ -56,7 +56,7 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
   * **User:** *"Let's do Italian instead."*
   * **AI:** The AI silently queries Nominatim in the background for Italian food, reads the result, and speaks to you: *"I found these options nearby: 1. Olive Garden, 2. Mario's. Which one would you like to navigate to?"*
   * **User:** *"Mario's."*
-  * **AI:** (Outputs `<TOOL>navigate(Mario's)</TOOL>`) *"Setting destination to Mario's."*
+  * **AI:** (Outputs `<TOOL>startNavigationTo(Mario's)</TOOL>`) *"Setting destination to Mario's."*
 
 * **4.2 Smart Fuel & Charging Routing:**
   * **User:** *"I am running out of fuel."*
@@ -68,14 +68,14 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
   * **User:** *"I'm heading home."*
   * **AI:** Checks the `VehicleManager` for the outside temperature. If it's cold, it asks: *"Navigating home. Should I turn on the heater for your drive?"*
   * **User:** *"Yes, please."*
-  * **AI:** (Outputs `<TOOL>navigate(Home)</TOOL>` and `<TOOL>setTemperature(72)</TOOL>`)
+  * **AI:** (Outputs `<TOOL>startNavigationTo(Home)</TOOL>` and `<TOOL>setTemperature(72)</TOOL>`)
 
 ---
 
 ### 6. Telephony & Media Controls
 *Test the seamless bridging of Android Intents.*
 * **Prompt:** *"I need to talk to my mom."*
-  * **Expected Output:** The AI triggers `<TOOL>call(Mom)</TOOL>`, opening the system dialer with an `ACTION_DIAL` intent.
+  * **Expected Output:** The AI triggers `<TOOL>callContact(Mom)</TOOL>`, opening the system dialer with an `ACTION_DIAL` intent.
 * **Prompt:** *"Play some classic rock music."*
   * **Expected Output:** The AI triggers the `<TOOL>playMusic(classic rock)</TOOL>` tag, which seamlessly dispatches a media search intent to open the default music app (like Spotify) and starts playback.
 * **Prompt:** *"Play music by Adele."*
@@ -90,7 +90,7 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 * **Prompt:** *"Why is my check engine light on?"*
   * **Expected AI logic:** It reads the `OBD2_DIAGNOSTICS` state (e.g., P0420 code) and explains there is an issue with the catalytic converter. It may then ask if you want to call a mechanic.
 * **Prompt:** *"What's wrong with my car?"*
-  * **Expected AI logic:** Same as above. It reads the telemetry and offers to `<TOOL>call(mechanic)</TOOL>`.
+  * **Expected AI logic:** Same as above. It reads the telemetry and offers to `<TOOL>callContact(mechanic)</TOOL>`.
 
 ---
 
@@ -105,4 +105,4 @@ Here is a comprehensive list of all the advanced use-cases you can test right no
 ### 9. Persistent Context & Rule Retention
 *Test the memory consistency across long conversations.*
 * **Prompt:** Talk about random topics, ask for a joke, then suddenly say *"Take me to the nearest gas station."*
-  * **Expected Output:** Because the core rulebook is now statically preserved in the LiteRT KV Cache, the AI will never forget the exact `<TOOL>navigate(...)</TOOL>` syntax, regardless of how long the conversation has drifted.
+  * **Expected Output:** Because the core rulebook is now statically preserved in the LiteRT KV Cache, the AI will never forget the exact `<TOOL>startNavigationTo(...)</TOOL>` syntax, regardless of how long the conversation has drifted.

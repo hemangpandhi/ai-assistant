@@ -260,9 +260,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 3000L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 1500L)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
 
@@ -387,7 +384,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private fun startThinkingAnimation() {
         CoroutineScope(Dispatchers.Main).launch {
             statusText.visibility = View.VISIBLE
-            startDotAnimation("Thinking")
+            startDotAnimation("")
             voiceAnimation.state = VoiceAnimationView.State.THINKING
         }
     }
@@ -886,6 +883,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 }
             
         try {
+            if (interceptedQuery.isBlank()) {
+                return
+            }
+
+            android.util.Log.e("AssistantSession", "==== USER SAID: $interceptedQuery ====")
+
             if (LocalLLMActivity.isCloudModelActive) {
                 CoroutineScope(Dispatchers.IO).launch {
                     var systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)

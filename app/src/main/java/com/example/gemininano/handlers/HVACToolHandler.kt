@@ -53,6 +53,20 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                 val success = VehicleManager.writeFanSpeedToVhalVerified(value)
                 if (success) ToolExecutionResult(true, "I've set the fan speed to level $value.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
+            "setAirflowDirection" -> {
+                val argStr = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
+                val hvacFanDirectionPropertyId = 356517121 // android.car.VehiclePropertyIds.HVAC_FAN_DIRECTION
+                var valueToWrite = 1 // FACE
+                when {
+                    argStr.contains("face and floor") || argStr.contains("both") -> valueToWrite = 3 // FACE_AND_FLOOR
+                    argStr.contains("defrost and floor") -> valueToWrite = 6 // DEFROST_AND_FLOOR
+                    argStr.contains("defrost") -> valueToWrite = 4 // DEFROST
+                    argStr.contains("floor") || argStr.contains("feet") -> valueToWrite = 2 // FLOOR
+                    argStr.contains("face") -> valueToWrite = 1 // FACE
+                }
+                val success = VehicleManager.setGenericVhalProperty(hvacFanDirectionPropertyId, 0, valueToWrite.toString(), "INT")
+                if (success) ToolExecutionResult(true, "I've adjusted the airflow direction.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+            }
             "setSeatHeater" -> {
                 var areaId = 0
                 if (matchedTool.areaMappingStrategy == "DYNAMIC_BY_AUDIO_ZONE") {

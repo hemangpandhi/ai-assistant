@@ -40,9 +40,9 @@ class LLMValidationTestSuite {
     private class TestCase(val prompt: String, val expectedToolTag: Regex)
 
     private val testCases = listOf(
-        TestCase("I'm freezing", Regex("<TOOL>(increaseTemperature|handleFeelingCold)\\(.*\\)</TOOL>")),
+        TestCase("I'm freezing", Regex("<TOOL>(increaseTemperature|handleFeelingCold|setSeatHeater)\\(.*\\)</TOOL>")),
         TestCase("Turn down the heat", Regex("<TOOL>decreaseTemperature\\(.*\\)</TOOL>")),
-        TestCase("Navigate to San Francisco", Regex("<TOOL>navigate\\(.*\\)</TOOL>")),
+        TestCase("Navigate to San Francisco", Regex("<TOOL>startNavigationTo\\(.*\\)</TOOL>")),
         TestCase("Call my mechanic", Regex("<TOOL>(call|callContact)\\(.*\\)</TOOL>")),
         TestCase("Play some relaxing music", Regex("<TOOL>playMusic\\(.*\\)</TOOL>")),
         TestCase("Open the driver window", Regex("<TOOL>setWindowPosition\\(.*\\)</TOOL>")),

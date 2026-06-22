@@ -73,15 +73,12 @@
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
                 "temperature",
-                "set heat",
-                "ac",
-                "warm",
-                "climate",
-                "climate control",
-                "cool",
-                "hot",
-                "heater",
-                "cold"
+                "degrees",
+                "hotter",
+                "colder",
+                "warmer",
+                "cooler",
+                "set temp"
             ],
             "offline_capable": true,
             "success_message": "I've adjusted the cabin temperature.",
@@ -93,12 +90,10 @@
             "handler_key": "increaseTemperature",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
+                "increase temperature",
                 "warmer",
                 "hotter",
-                "turn up",
-                "freezing",
-                "cold",
-                "increase"
+                "raise temp"
             ],
             "offline_capable": true,
             "success_message": "I've increased the cabin temperature.",
@@ -110,12 +105,10 @@
             "handler_key": "decreaseTemperature",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
+                "decrease temperature",
                 "cooler",
-                "turn down",
-                "ac",
-                "sweating",
-                "hot",
-                "decrease"
+                "colder",
+                "lower temp"
             ],
             "offline_capable": true,
             "success_message": "I've decreased the cabin temperature.",
@@ -129,9 +122,8 @@
             "keywords": [
                 "fan",
                 "speed",
-                "ac",
                 "blower",
-                "air"
+                "set fan"
             ],
             "offline_capable": true,
             "success_message": "I've adjusted the fan speed.",
@@ -142,14 +134,11 @@
             "handler_key": "increaseFanSpeed",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "fan",
-                "speed",
-                "ac",
-                "blower",
-                "air",
-                "up",
-                "increase",
-                "higher"
+                "increase fan",
+                "fan up",
+                "blow harder",
+                "more fan",
+                "higher fan"
             ],
             "offline_capable": true,
             "success_message": "I've increased the fan speed.",
@@ -160,21 +149,18 @@
             "handler_key": "decreaseFanSpeed",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "fan",
-                "speed",
-                "ac",
-                "blower",
-                "air",
-                "down",
-                "decrease",
-                "lower"
+                "decrease fan",
+                "fan down",
+                "blow softer",
+                "less fan",
+                "lower fan"
             ],
             "offline_capable": true,
             "success_message": "I've decreased the fan speed.",
             "requires_vehicle_state": false
         },
         {
-            "prompt_string": "<TOOL>setAirflowDirection(face|floor|face and floor|defrost)</TOOL>",
+            "prompt_string": "<TOOL>setAirflowDirection(direction)</TOOL>",
             "handler_key": "setAirflowDirection",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
@@ -200,12 +186,11 @@
             "value_to_write": "true",
             "success_message": "I've turned on the AC.",
             "keywords": [
-                "ac",
-                "air",
-                "conditioning",
-                "cool",
-                "cold",
-                "on"
+                "turn on ac",
+                "start ac",
+                "activate ac",
+                "ac on",
+                "turn on air conditioning"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -220,14 +205,11 @@
             "value_to_write": "false",
             "success_message": "I've turned off the AC.",
             "keywords": [
-                "ac",
-                "air",
-                "conditioning",
-                "cool",
-                "cold",
-                "off",
-                "turn off",
-                "air conditioner"
+                "turn off ac",
+                "stop ac",
+                "deactivate ac",
+                "ac off",
+                "turn off air conditioning"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -243,8 +225,11 @@
             "success_message": "I've turned on automatic climate control.",
             "keywords": [
                 "auto",
-                "automatic",
-                "climate"
+                "turn on climate",
+                "climate",
+                "turn on automatic",
+                "turn on auto",
+                "automatic"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -259,9 +244,12 @@
             "value_to_write": "false",
             "success_message": "I've disabled automatic climate control.",
             "keywords": [
+                "turn off automatic",
+                "turn off auto",
                 "auto",
-                "automatic",
-                "climate"
+                "turn off climate",
+                "climate",
+                "automatic"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -276,10 +264,10 @@
             "value_to_write": "true",
             "success_message": "I've turned on air recirculation.",
             "keywords": [
-                "recirculation",
-                "recirculate",
-                "inside air",
-                "pollution"
+                "turn on recirculation",
+                "recirculate air",
+                "inside air only",
+                "block outside air"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -294,10 +282,10 @@
             "value_to_write": "false",
             "success_message": "I've turned off air recirculation.",
             "keywords": [
-                "recirculation",
-                "recirculate",
+                "turn off recirculation",
                 "fresh air",
-                "outside air"
+                "allow outside air",
+                "stop recirculating"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -312,11 +300,10 @@
             "value_to_write": "true",
             "success_message": "I've turned on the climate control system.",
             "keywords": [
-                "hvac",
-                "climate",
-                "power",
-                "system",
-                "on"
+                "turn on hvac",
+                "start climate control",
+                "power on climate",
+                "turn on climate"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -331,11 +318,10 @@
             "value_to_write": "false",
             "success_message": "I've turned off the climate control system.",
             "keywords": [
-                "hvac",
-                "climate",
-                "power",
-                "system",
-                "off"
+                "turn off hvac",
+                "stop climate control",
+                "power off climate",
+                "turn off climate"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -350,11 +336,9 @@
             "value_to_write": "true",
             "success_message": "Activating front defroster.",
             "keywords": [
-                "defroster",
-                "defrost",
-                "fog",
-                "windshield",
-                "front window"
+                "turn on front defroster",
+                "defrost front windshield",
+                "clear front window"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -369,11 +353,9 @@
             "value_to_write": "false",
             "success_message": "Deactivating front defroster.",
             "keywords": [
-                "defroster",
-                "defrost",
-                "fog",
-                "windshield",
-                "front window"
+                "turn off front defroster",
+                "stop defrosting front",
+                "front defroster off"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -388,10 +370,9 @@
             "value_to_write": "true",
             "success_message": "Activating rear defroster.",
             "keywords": [
-                "rear",
-                "defroster",
-                "defrost",
-                "back window"
+                "turn on rear defroster",
+                "defrost rear window",
+                "clear back window"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -406,43 +387,19 @@
             "value_to_write": "false",
             "success_message": "Deactivating rear defroster.",
             "keywords": [
-                "rear",
-                "defroster",
-                "defrost",
-                "back window"
+                "turn off rear defroster",
+                "stop defrosting rear",
+                "rear defroster off"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
             "requires_vehicle_state": true
         },
         {
-            "prompt_string": "<TOOL>setAllWindowsPosition(PCT)</TOOL>",
-            "handler_key": "setAllWindowsPosition",
-            "handler_type": "CUSTOM_KOTLIN",
-            "keywords": [
-                "glass",
-                "position",
-                "open",
-                "all windows",
-                "up",
-                "down",
-                "roll down",
-                "windows",
-                "window",
-                "roll up",
-                "close",
-                "roll"
-            ],
-            "offline_capable": true,
-            "success_message": "I've adjusted the window positions.",
-            "requires_vehicle_state": false
-        },
-        {
             "prompt_string": "<TOOL>openWindowsSlightly()</TOOL>",
             "handler_key": "openWindowsSlightly",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "fresh air",
                 "open windows slightly",
                 "crack the windows",
                 "little bit open"
@@ -473,10 +430,9 @@
             "value_to_write": "1",
             "success_message": "I've turned on the cabin lights.",
             "keywords": [
-                "cabin light",
-                "interior light",
-                "light on",
-                "brighten cabin"
+                "turn on cabin lights",
+                "turn on interior lights",
+                "lights on inside"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -491,10 +447,9 @@
             "value_to_write": "0",
             "success_message": "I've turned off the cabin lights.",
             "keywords": [
-                "cabin light",
-                "interior light",
-                "light off",
-                "darken cabin"
+                "turn off cabin lights",
+                "turn off interior lights",
+                "lights off inside"
             ],
             "offline_capable": true,
             "error_message": "The vehicle hardware did not confirm the change.",
@@ -511,11 +466,8 @@
             "keywords": [
                 "warm seat",
                 "heated seat",
-                "cold",
                 "seat heater",
-                "freezing",
-                "cold seat",
-                "back"
+                "warm up my seat"
             ],
             "offline_capable": true,
             "requires_vehicle_state": true
@@ -730,13 +682,9 @@
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
                 "optimize charging",
-                "charging rate",
                 "charge faster",
-                "battery health",
-                "low battery",
-                "battery",
-                "charge",
-                "range"
+                "charging rate",
+                "battery health"
             ],
             "offline_capable": true,
             "success_message": "I've analyzed the battery and suggested an optimized charging rate.",
@@ -754,26 +702,6 @@
             "offline_capable": false,
             "requires_agentic_loop": true,
             "success_message": "I've checked your upcoming events and prepared a reminder.",
-            "requires_vehicle_state": false
-        },
-        {
-            "prompt_string": "<TOOL>suggestNearbyPlaces()</TOOL>",
-            "handler_key": "suggestNearbyPlaces",
-            "handler_type": "CUSTOM_KOTLIN",
-            "keywords": [
-                "mall",
-                "where can I go",
-                "tourist",
-                "around",
-                "restaurant",
-                "places to go",
-                "nearby spots",
-                "visit",
-                "sightseeing"
-            ],
-            "offline_capable": false,
-            "requires_agentic_loop": true,
-            "success_message": "I've found some nearby places you might like.",
             "requires_vehicle_state": false
         },
         {
@@ -815,7 +743,10 @@
             ],
             "offline_capable": false,
             "success_message": "Here are today's news highlights.",
-            "requires_vehicle_state": false
+            "requires_vehicle_state": false,
+            "context_dependencies": [
+                "startNavigationTo"
+            ]
         },
         {
             "prompt_string": "<TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>",
@@ -1107,13 +1038,10 @@
             "handler_key": "explainLowRange",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "range lower than usual",
                 "why is my range low",
-                "battery range dropped",
-                "range issue",
-                "battery",
-                "charge",
-                "range"
+                "range dropped",
+                "low range",
+                "battery drain"
             ],
             "offline_capable": true,
             "success_message": "I've analyzed possible reasons for the lower range.",
@@ -1268,43 +1196,29 @@
             "handler_key": "search",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "gas station",
                 "look up",
-                "visit",
-                "tourist",
-                "search",
-                "nearby",
-                "fuel",
-                "where is",
-                "restaurant",
-                "hungry",
-                "places to visit",
-                "food",
                 "find",
+                "where is",
                 "suggest places",
-                "dining"
+                "search",
+                "search for"
             ],
-            "requires_vehicle_state": false
+            "requires_vehicle_state": false,
+            "context_dependencies": [
+                "startNavigationTo"
+            ]
         },
         {
             "prompt_string": "<TOOL>startNavigationTo(\"DEST\")</TOOL>",
             "handler_key": "startNavigationTo",
             "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "direction",
                 "drive to",
-                "destination",
-                "head to",
-                "take me to",
+                "navigate to",
+                "route to",
                 "directions",
-                "go to",
-                "drive",
-                "nearby",
-                "food",
-                "navigate",
-                "restaurant",
-                "route",
-                "dining"
+                "take me to",
+                "go to"
             ],
             "requires_vehicle_state": true
         },
@@ -1334,17 +1248,10 @@
             "handler_key": "setWindowPosition",
             "handler_type": "GENERIC_VHAL_WRITE",
             "keywords": [
-                "glass",
-                "open",
-                "down",
-                "up",
-                "roll down",
-                "windows",
-                "window",
-                "air",
-                "roll up",
-                "close",
-                "roll"
+                "roll down window",
+                "roll up window",
+                "glass position",
+                "window position"
             ],
             "property_id": 322964416,
             "data_type": "INT",
@@ -1360,19 +1267,6 @@
             ],
             "requires_vehicle_state": true,
             "error_message": "The vehicle hardware did not confirm the change."
-        },
-        {
-            "prompt_string": "<TOOL>call(NAME)</TOOL>",
-            "handler_key": "call",
-            "handler_type": "CUSTOM_KOTLIN",
-            "keywords": [
-                "dial",
-                "phone",
-                "call",
-                "contact",
-                "talk to"
-            ],
-            "requires_vehicle_state": false
         },
         {
             "prompt_string": "<TOOL>unlockDoors()</TOOL>",
@@ -1395,43 +1289,51 @@
             "requires_vehicle_state": true,
             "error_message": "The vehicle hardware did not confirm the change."
         },
+
         {
-            "prompt_string": "<TOOL>getBatteryLevel()</TOOL>",
-            "handler_key": "getBatteryLevel",
-            "handler_type": "NATIVE_VHAL",
+            "prompt_string": "<TOOL>searchNearby(amenity)</TOOL>",
+            "handler_key": "searchNearby",
+            "handler_type": "CUSTOM_KOTLIN",
             "keywords": [
-                "battery level",
-                "power",
-                "battery",
-                "charge",
-                "range",
-                "how much battery"
+                "search on map",
+                "find nearby on map",
+                "navigate to nearest",
+                "show me nearby",
+                "map search"
             ],
-            "offline_capable": true,
-            "success_message": "Checking the battery level.",
-            "error_message": "Failed to read battery.",
-            "requires_vehicle_state": true
-        },
-        {
-            "prompt_string": "<TOOL>adjustSeatPosition(direction)</TOOL>",
-            "handler_key": "adjustSeatPosition",
-            "handler_type": "NATIVE_VHAL",
-            "keywords": [
-                "seat",
-                "position",
-                "sleepy",
-                "alertness"
-            ],
-            "offline_capable": true,
-            "success_message": "Adjusting seat for better alertness.",
-            "error_message": "Failed to move seat.",
-            "requires_vehicle_state": true
+            "requires_vehicle_state": false,
+            "offline_capable": false
         }
     ],
     "system_instructions": [
         {
-            "instruction": "Whenever passing a parameter to a tool, you MUST wrap the entire function call in exact <TOOL> tags. DO NOT output the function without the XML wrapper. Example: <TOOL>navigate(\"Tokyo\")</TOOL>",
-            "keywords": ["navigate", "drive", "destination", "go to"]
+            "instruction": "When setting airflow direction, you MUST use exactly one of these parameters: face, floor, face and floor, or defrost. Example: <TOOL>setAirflowDirection(face and floor)</TOOL>",
+            "keywords": [
+                "airflow",
+                "vents",
+                "direction"
+            ]
+        },
+        {
+            "instruction": "Whenever passing a parameter to a tool, you MUST wrap the entire function call in exact <TOOL> tags. DO NOT output the function without the XML wrapper. Example: <TOOL>startNavigationTo(\"Tokyo\")</TOOL>",
+            "keywords": [
+                "navigate",
+                "drive",
+                "destination",
+                "go to"
+            ]
+        },
+        {
+            "instruction": "Provide rich, detailed explanations and conversational depth when the user asks for recommendations, sightseeing, or general knowledge.",
+            "keywords": [
+                "suggest",
+                "recommend",
+                "visit",
+                "sightseeing",
+                "places to go",
+                "tourist",
+                "best places"
+            ]
         }
     ]
 }
