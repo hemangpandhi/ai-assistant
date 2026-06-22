@@ -61,9 +61,18 @@ object SemanticSearchManager {
     }
 
     fun search(query: String, topK: Int = 10): List<ToolManager.ToolDefinition> {
-        if (!isInitialized) return ToolManager.getAllTools().values.take(topK).toList()
+        return searchWithScores(query, topK).map { it.first }
+    }
+
+    /**
+     * Returns the top-K tools scored by cosine similarity to [query].
+     * Scores are in [0, 1]; use a minimum threshold to avoid injecting
+     * low-relevance tools into the system prompt for off-domain queries.
+     */
+    fun searchWithScores(query: String, topK: Int = 10): List<Pair<ToolManager.ToolDefinition, Float>> {
+        if (!isInitialized) return ToolManager.getAllTools().values.take(topK).map { it to 0.5f }
         
-        val queryVector = embedText(query.lowercase()) ?: return ToolManager.getAllTools().values.take(topK).toList()
+        val queryVector = embedText(query.lowercase()) ?: return ToolManager.getAllTools().values.take(topK).map { it to 0.5f }
         
         val scoredTools = mutableListOf<Pair<ToolManager.ToolDefinition, Float>>()
         
@@ -82,7 +91,7 @@ object SemanticSearchManager {
             }
         }
 
-        return scoredTools.sortedByDescending { it.second }.map { it.first }.take(topK)
+        return scoredTools.sortedByDescending { it.second }.take(topK)
     }
 
     private fun cosineSimilarity(v1: FloatArray, v2: FloatArray): Float {

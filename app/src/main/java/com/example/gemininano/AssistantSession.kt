@@ -53,6 +53,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var currentHighlightStart = -1
     private var currentHighlightEnd = -1
     
+    // STT partial-results context pre-fetch: start getDynamicContext() as soon as intent
+    // keywords appear in the partial transcript so the Overpass API response is ready by
+    // the time onResults() fires (saves 0.5–1.5 s for food/fuel/navigation queries).
+    private var prefetchedDynCtx: kotlinx.coroutines.Deferred<String>? = null
+    private var prefetchedForQuery: String = ""
+    
     // Typewriter Effect Variables
     private var typewriterJob: kotlinx.coroutines.Job? = null
     private var targetDisplayMessage = ""
@@ -293,7 +299,26 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             override fun onPartialResults(partialResults: Bundle?) {
                 val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
-                    etInput.setText(matches[0])
+                    val partial = matches[0]
+                    etInput.setText(partial)
+                    
+                    // Pre-fetch dynamic context as soon as intent keywords are detected in
+                    // the partial transcript. By the time onResults() fires with the final
+                    // transcript the Overpass API response is already cached and ready.
+                    val q = partial.lowercase()
+                    val hasNavigationIntent = q.contains("food") || q.contains("hungry") ||
+                        q.contains("eat") || q.contains("restaurant") || q.contains("fuel") ||
+                        q.contains("gas") || q.contains("charging") || q.contains("navigate") ||
+                        q.contains("italian") || q.contains("mexican") || q.contains("chinese") ||
+                        q.contains("pizza") || q.contains("burger") || q.contains("sushi") ||
+                        q.contains("indian") || q.contains("thai") || q.contains("japanese")
+                    if (hasNavigationIntent && partial != prefetchedForQuery) {
+                        prefetchedForQuery = partial
+                        prefetchedDynCtx?.cancel()
+                        prefetchedDynCtx = CoroutineScope(Dispatchers.IO).async {
+                            LLMManager.getDynamicContext(context, partial)
+                        }
+                    }
                 }
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
@@ -451,6 +476,42 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         var interceptedQuery = query
         
+        // Client-side navigation choice resolution (replaces "INTERNAL RULE FOR NEXT TURN" anti-pattern).
+        // When the previous turn stored Overpass API search results, resolve the user's choice
+        // directly without routing through the LLM — saving an entire inference round-trip.
+        val navChoices = LLMManager.pendingNavigationChoices
+        if (navChoices != null && !isAgenticObservation) {
+            LLMManager.pendingNavigationChoices = null
+            val q = query.lowercase().trim()
+            val choiceIndex: Int = when {
+                q == "1" || q.startsWith("1.") || q.contains("first") || q.contains("one") -> 0
+                q == "2" || q.startsWith("2.") || q.contains("second") || q.contains("two") -> 1
+                q == "3" || q.startsWith("3.") || q.contains("third") || q.contains("three") -> 2
+                else -> navChoices.indexOfFirst { (name, _) ->
+                    val n = name.lowercase()
+                    q.contains(n) || n.contains(q)
+                }
+            }
+            if (choiceIndex in navChoices.indices) {
+                val (name, coords) = navChoices[choiceIndex]
+                android.util.Log.i("AssistantSession", "Client-side nav choice resolved: $name -> navigate($coords)")
+                MemoryManager.addTurn("User", query)
+                val confirmMsg = "Navigating to $name."
+                MemoryManager.addTurn("Assistant", confirmMsg)
+                
+                CoroutineScope(Dispatchers.Main).launch {
+                    stopThinkingAnimation()
+                    responseText.text = confirmMsg
+                    tts?.speak(confirmMsg, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "NAV_CHOICE")
+                    btnSend.isEnabled = true
+                    isQueryProcessed = true
+                }
+                executeToolCall("navigate($coords)")
+                return
+            }
+            // No match — fall through to LLM with cleared choices.
+        }
+        
         // Security: Native User Validation
         if (pendingConfirmationTool != null) {
             val q = query.lowercase()
@@ -477,7 +538,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val qStr = interceptedQuery.lowercase()
         val expectFollowup = false
         
-        val dynCtx = LLMManager.getDynamicContext(context, interceptedQuery)
+        // Use prefetched dynamic context if it was kicked off from onPartialResults() for this query.
+        val dynCtx = prefetchedDynCtx?.let { deferred ->
+            prefetchedDynCtx = null
+            prefetchedForQuery = ""
+            try { deferred.await() } catch (e: Exception) { null }
+        } ?: LLMManager.getDynamicContext(context, interceptedQuery)
+        
         val finalPrompt: String
         if (LLMManager.isFirstMessage) {
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
@@ -820,17 +887,39 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     systemPrompt += "\n\n[Current State: ${VehicleManager.getLLMContextString(context)}]"
                     
                     if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
-                        GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback)
+                        // Use lower temperature (0.1) for tool-execution queries (HVAC, navigation,
+                        // calls) to reduce hallucinated tool names/args; use higher temperature (0.8)
+                        // for creative/conversational queries where variety is desirable.
+                        val relevantTools = ToolManager.getRelevantTools(interceptedQuery)
+                        val isToolQuery = relevantTools.isNotEmpty()
+                        val geminiTemperature = if (isToolQuery) 0.1 else 0.8
+                        GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback, geminiTemperature)
                     } else {
                         AnthropicManager.sendMessageAsync(systemPrompt, interceptedQuery, callback)
                     }
                 }
             } else {
-                LLMManager.conversation!!.sendMessageAsync(
-                    Contents.of(Content.Text(finalPrompt)),
-                    callback,
-                    emptyMap()
-                )
+                // Cloud/local hybrid routing: if no tools matched (pure conversation) and Gemini is
+                // configured, automatically route to cloud for better open-domain responses.
+                val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+                val autoRouting = prefs.getBoolean("auto_routing_enabled", false)
+                val relevantTools = ToolManager.getRelevantTools(interceptedQuery)
+                val apiKey = GeminiManager.apiKey
+                if (autoRouting && relevantTools.isEmpty() &&
+                    apiKey.isNotEmpty() && apiKey != "Enter API Key") {
+                    // No vehicle tool matched → pure conversation → route to Gemini cloud.
+                    CoroutineScope(Dispatchers.IO).launch {
+                        val systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery) +
+                            "\n\n[Current State: ${VehicleManager.getLLMContextString(context)}]"
+                        GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback, temperature = 0.8)
+                    }
+                } else {
+                    LLMManager.conversation!!.sendMessageAsync(
+                        Contents.of(Content.Text(finalPrompt)),
+                        callback,
+                        emptyMap()
+                    )
+                }
             }
         } catch (e: Exception) {
             statusText.text = "Error"

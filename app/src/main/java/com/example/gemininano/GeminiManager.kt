@@ -19,7 +19,7 @@ object GeminiManager {
         MemoryManager.clearMemory()
     }
 
-    suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, callback: CloudMessageCallback) {
+    suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, callback: CloudMessageCallback, temperature: Double = 0.7) {
         withContext(Dispatchers.IO) {
             if (apiKey.isEmpty() || apiKey == "Enter API Key") {
                 callback.onMessage("Error: Please enter a valid Gemini API Key in the settings.")
@@ -35,7 +35,7 @@ object GeminiManager {
                     put("parts", JSONArray().put(JSONObject().put("text", systemPrompt)))
                 })
                 put("generationConfig", JSONObject().apply {
-                    put("temperature", 0.7)
+                    put("temperature", temperature)
                     put("maxOutputTokens", 1024)
                 })
             }

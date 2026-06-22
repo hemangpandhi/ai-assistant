@@ -33,6 +33,14 @@ object LLMManager {
     var isFirstMessage = true
     private var appContext: Context? = null
 
+    /**
+     * Stores navigation choices from the last Overpass API search result.
+     * When non-null, AssistantSession resolves the next user turn client-side
+     * (by index "1"/"2" or name match) and calls navigate() directly, skipping
+     * an LLM inference round-trip. Cleared after use or on conversation reset.
+     */
+    var pendingNavigationChoices: List<Pair<String, String>>? = null
+
 
     interface InitCallback {
         fun onSuccess()
@@ -299,8 +307,10 @@ object LLMManager {
                         
                         if (places.isNotEmpty()) {
                             val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-                            val coordInstructions = placesWithCoords.mapIndexed { index, pair -> "If user chooses ${index + 1} (${pair.first}), output EXACTLY <TOOL>navigate(${pair.second})</TOOL>" }.joinToString(". ")
-                            return@withContext "\n\n[System Note: Do NOT use any <TOOL> tags yet. You MUST reply to the user with EXACTLY this text. Do NOT translate the names, read them EXACTLY as written: \"I found these options nearby: $placesStr. Which one would you like to navigate to?\" INTERNAL RULE FOR NEXT TURN: $coordInstructions]"
+                            // Store choices client-side so AssistantSession can resolve the next
+                            // user turn (e.g. "1", "the first one", "Mario's") without an LLM round-trip.
+                            pendingNavigationChoices = placesWithCoords
+                            return@withContext "\n\n[System Note: Do NOT use any <TOOL> tags yet. You MUST reply to the user with EXACTLY this text. Do NOT translate the names, read them EXACTLY as written: \"I found these options nearby: $placesStr. Which one would you like to navigate to?\"]"
                         }
                     }
                     return@withContext ""
@@ -459,11 +469,11 @@ object LLMManager {
             
             basePrompt.append("Example 12:\n")
             basePrompt.append("User: \"Italian.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. Luigi's, 2. Roma. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: If user chooses 1 (Luigi's), output EXACTLY <TOOL>navigate(35.123,139.123)</TOOL>.\n\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. Luigi's, 2. Roma. Which one would you like to navigate to?\n\n")
             
             basePrompt.append("Example 13:\n")
             basePrompt.append("User: \"1.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(35.123,139.123)</TOOL>\n\n")
+            basePrompt.append("Assistant: Navigating to Luigi's.\n\n")
             
             basePrompt.append("Example 14:\n")
             basePrompt.append("User: \"I am running out of fuel.\"\n")
@@ -471,9 +481,9 @@ object LLMManager {
             
             basePrompt.append("Example 15:\n")
             basePrompt.append("User: \"I need charging.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. ENEOS, 2. Cosmo. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: If user chooses 1 (ENEOS), output EXACTLY <TOOL>navigate(35.6324,139.4211)</TOOL>. If user chooses 2 (Cosmo), output EXACTLY <TOOL>navigate(35.6274,139.4038)</TOOL>\n")
+            basePrompt.append("Assistant: I found these options nearby: 1. ENEOS, 2. Cosmo. Which one would you like to navigate to?\n")
             basePrompt.append("User: \"The second one.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(35.6274,139.4038)</TOOL>\n\n")
+            basePrompt.append("Assistant: Navigating to Cosmo.\n\n")
         }
 
         if (isNav || q.isEmpty()) {
@@ -535,6 +545,8 @@ object LLMManager {
 
     fun resetConversation(context: Context? = null) {
         if (engine == null) return
+        
+        pendingNavigationChoices = null
         
         try {
             conversation?.close()

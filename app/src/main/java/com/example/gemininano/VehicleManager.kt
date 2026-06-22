@@ -18,6 +18,9 @@ object VehicleManager {
     private var currentSeatHeaterLevel: Int = 0
     private var currentTemperature: Float = 22f // Store raw VHAL value (usually Celsius)
     private var currentFuelLevel: Float = 50f
+    
+    /** Exposes the CarPropertyManager so ProactiveAmbientEngine can register additional callbacks. */
+    fun getCarPropertyManager(): CarPropertyManager? = carPropertyManager
     private var currentGear: Int = 4
     
     // Dynamic Custom JSON Properties
@@ -172,6 +175,18 @@ object VehicleManager {
     }
     fun getRawTemperature(): Float = currentTemperature
     fun getFuelLevel(): Float = currentFuelLevel
+    
+    /**
+     * Returns the exterior (outside) temperature in Fahrenheit from VHAL, or null if unavailable.
+     * Used by ProactiveAmbientEngine for freeze-warning alerts.
+     */
+    fun getExteriorTemperatureFahrenheit(): Float? {
+        return try {
+            // VehiclePropertyIds.HVAC_OUTSIDE_TEMPERATURE = 289408515 (0x11400703)
+            val value = getFloatPropertyQuietly(289408515, Float.NaN)
+            if (value.isNaN()) null else value * 9f / 5f + 32f
+        } catch (e: Exception) { null }
+    }
     
     fun getRealFanSpeed(): Int {
         return getIntPropertyQuietly(android.car.VehiclePropertyIds.HVAC_FAN_SPEED, 3)

@@ -113,12 +113,18 @@ object ToolManager {
 
     /**
      * Primitive Tool RAG Engine.
-     * Evaluates the user query against the tool keywords.
-     * Returns the top matching tools (plus any default generic ones).
+     * Evaluates the user query against the tool keywords via semantic similarity.
+     * Only returns tools that score above [SIMILARITY_THRESHOLD] — returning an empty
+     * list for off-domain queries (e.g. "tell me a joke") so the LLM enters pure
+     * conversation mode without spurious tool injection.
      */
+    private const val SIMILARITY_THRESHOLD = 0.25f
+
     fun getRelevantTools(query: String): List<ToolDefinition> {
         if (query.isBlank()) return activeTools.values.toList()
-        return SemanticSearchManager.search(query, 30)
+        val scored = SemanticSearchManager.searchWithScores(query, 30)
+        val filtered = scored.filter { (_, score) -> score >= SIMILARITY_THRESHOLD }
+        return if (filtered.isEmpty()) emptyList() else filtered.map { it.first }.take(4)
     }
 
     /**
