@@ -68,8 +68,10 @@ class MyApplication : Application() {
                     LLMManager.resetConversation()
                 }
             }
-            // A single space triggers a minimal token-generation pass without real context.
-            conversation.sendMessageAsync(Contents.of(Content.Text(" ")), dummyCallback, emptyMap())
+            // Send a short representative automotive query to exercise the same GPU shader
+            // paths that real user queries will use. Output is discarded — this inference
+            // exists solely to trigger GPU kernel compilation and KV-cache pre-allocation.
+            conversation.sendMessageAsync(Contents.of(Content.Text("warmup")), dummyCallback, emptyMap())
         } catch (e: Exception) {
             Log.w(TAG, "Silent pre-warm inference failed (non-fatal)", e)
             LLMManager.resetConversation()

@@ -93,13 +93,20 @@ object MemoryManager {
                 val collapsed = turnsToCollapse.joinToString("\n") { "${it.role}: ${it.content}" }
                 val summaryText = summarizeWithLlm(collapsed)
                 
-                // Replace the summarized turns with a single compact System turn.
+                // Replace the summarized turns with a single compact [Summary] turn.
+                // Recalculate the overlap within the synchronized block to handle concurrent
+                // modifications from getSlidingWindowContext() that may have already removed
+                // some of the turns we intended to collapse.
                 synchronized(conversationHistory) {
-                    // Remove only the turns we collapsed (they may have already been partially
-                    // truncated by getSlidingWindowContext if it ran before this job finished).
-                    val remaining = conversationHistory.drop(turnsToCollapse.size)
+                    val summarizedContents = turnsToCollapse.map { it.content }.toSet()
+                    val firstUnsummarizedIndex = conversationHistory.indexOfFirst {
+                        it.role != "Summary" && !summarizedContents.contains(it.content)
+                    }
+                    val safeDropCount = if (firstUnsummarizedIndex > 0) firstUnsummarizedIndex
+                                        else minOf(turnsToCollapse.size, conversationHistory.size)
+                    val remaining = conversationHistory.drop(safeDropCount)
                     conversationHistory.clear()
-                    conversationHistory.add(Turn("System", "[Earlier context summary: $summaryText]"))
+                    conversationHistory.add(Turn("Summary", "[Earlier context: $summaryText]"))
                     conversationHistory.addAll(remaining)
                 }
                 Log.i(TAG, "Summarization complete. History compacted to ${conversationHistory.size} turns.")
@@ -172,7 +179,7 @@ object MemoryManager {
         synchronized(conversationHistory) {
             val remaining = conversationHistory.drop(turns.size)
             conversationHistory.clear()
-            conversationHistory.add(Turn("System", "[Earlier context summary: ${buildFallbackSummary(turns.joinToString(" ") { it.content })}]"))
+            conversationHistory.add(Turn("Summary", "[Earlier context: ${buildFallbackSummary(turns.joinToString(" ") { it.content })}]"))
             conversationHistory.addAll(remaining)
         }
     }

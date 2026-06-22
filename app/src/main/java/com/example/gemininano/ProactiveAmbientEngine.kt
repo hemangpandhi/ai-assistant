@@ -184,12 +184,17 @@ object ProactiveAmbientEngine {
     // TTS helper
     // -------------------------------------------------------------------------
 
+    /**
+     * Speaks the proactive [alert] text. Uses [TextToSpeech.QUEUE_FLUSH] to interrupt any
+     * currently-playing utterance so time-sensitive safety alerts (low fuel, freeze warning)
+     * are heard immediately rather than queued behind a long assistant response.
+     */
     private fun speakAlert(text: String) {
         Log.i(TAG, "Proactive alert: $text")
         CoroutineScope(Dispatchers.Main).launch {
             val tts = AssistantSession.globalTts
             if (tts != null) {
-                tts.speak(text, TextToSpeech.QUEUE_ADD, null, "AMBIENT_${System.currentTimeMillis()}")
+                tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "AMBIENT_${System.currentTimeMillis()}")
             } else {
                 Log.w(TAG, "TTS not available — ambient alert suppressed: $text")
             }

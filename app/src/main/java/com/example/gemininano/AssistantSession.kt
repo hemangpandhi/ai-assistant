@@ -43,6 +43,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var lastResponseBuilder = java.lang.StringBuilder()
     companion object {
         var globalTts: TextToSpeech? = null
+        
+        /**
+         * Number of leading characters compared between the partial-results transcript and the
+         * final transcript to decide whether the prefetched dynamic context (Overpass API) is
+         * still valid. 8 characters is enough to confirm the query intent hasn't changed
+         * (e.g. "find ita" vs "find ita" → still Italian restaurant query).
+         */
+        private const val PREFETCH_INTENT_PREFIX_LENGTH = 8
     }
     private var tts: TextToSpeech?
         get() = globalTts
@@ -487,9 +495,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             // then by the query containing the full place name (one-way to avoid substring
             // false positives like "one" matching "the First Street Cafe").
             val choiceIndex: Int = when {
-                q == "1" || q.startsWith("1.") || q.startsWith("one") || q == "first" -> 0
-                q == "2" || q.startsWith("2.") || q.startsWith("two") || q == "second" -> 1
-                q == "3" || q.startsWith("3.") || q.startsWith("three") || q == "third" -> 2
+                q == "1" || q.startsWith("1.") || q == "one" || q == "first" -> 0
+                q == "2" || q.startsWith("2.") || q == "two" || q == "second" -> 1
+                q == "3" || q.startsWith("3.") || q == "three" || q == "third" -> 2
                 else -> navChoices.indexOfFirst { (name, _) ->
                     // Only accept if the user's query contains the full place name (case-insensitive)
                     // to avoid over-matching short or common words.
@@ -544,10 +552,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val expectFollowup = false
         
         // Use the prefetched dynamic context only when the final query and the partial that
-        // triggered the prefetch share the same leading intent (first 8 chars), ensuring we
-        // don't serve a "find restaurant" context for a query that became "find a gas station".
+        // triggered the prefetch share the same leading intent, ensuring we don't serve a
+        // "find restaurant" context for a query that became "find a gas station".
         val prefetchMatchesFinal = prefetchedForQuery.isNotBlank() &&
-            interceptedQuery.lowercase().take(8) == prefetchedForQuery.lowercase().take(8)
+            interceptedQuery.lowercase().take(PREFETCH_INTENT_PREFIX_LENGTH) ==
+            prefetchedForQuery.lowercase().take(PREFETCH_INTENT_PREFIX_LENGTH)
         val dynCtx = if (prefetchMatchesFinal) {
             val deferred = prefetchedDynCtx
             prefetchedDynCtx = null
@@ -918,10 +927,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
                 val autoRouting = prefs.getBoolean("auto_routing_enabled", false)
                 val apiKey = GeminiManager.apiKey
-                // Cache the relevant-tools result — used for both routing and temperature decisions.
-                val relevantTools = ToolManager.getRelevantTools(interceptedQuery)
-                if (autoRouting && relevantTools.isEmpty() &&
-                    apiKey.isNotEmpty() && apiKey != "Enter API Key") {
+                if (autoRouting && apiKey.isNotEmpty() && apiKey != "Enter API Key" &&
+                    ToolManager.getRelevantTools(interceptedQuery).isEmpty()) {
                     // No vehicle tool matched → pure conversation → route to Gemini cloud.
                     CoroutineScope(Dispatchers.IO).launch {
                         val systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery) +
