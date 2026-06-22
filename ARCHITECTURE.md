@@ -113,6 +113,7 @@ flowchart TD
     subgraph Orchestration ["3. Core AI Orchestration (Kotlin Singleton)"]
         LLM{"🧠 LLMManager<br/>(Prompt & State Control)"}:::logic
         TM["🛠️ ToolManager<br/>(Semantic Router & RAG)"]:::logic
+        HANDLERS{"⚙️ ToolHandlers<br/>(HVAC, Media, Navigation, System)"}:::logic
         MEM["🧠 MemoryManager<br/>(Short-Term Context Window)"]:::logic
         JSON[("📄 vehicle_skills_registry.json<br/>(Zero-Code Definitions)")]:::config
         PREFS[("💾 SharedPreferences<br/>(Long-Term User Memory)")]:::config
@@ -164,14 +165,18 @@ flowchart TD
     TTS -->|"Synthesized Audio"| SPK
     
     LLM -->|"<TOOL> Execution Tag"| TM
-    TM -->|"VHAL Payload"| CPM
+    TM -->|"Routes Command"| HANDLERS
+    
+    HANDLERS -->|"VHAL Payload"| CPM
     CPM -->|"Cross-Process IPC"| CARSERVICE
     CARSERVICE -->|"HIDL / AIDL"| VHAL
     VHAL -->|"Electrical Actuation"| CAN
 
-    TM -->|"Standard Android Intent"| INTENTS
+    HANDLERS -->|"Standard Android Intent"| INTENTS
     INTENTS -->|"Launch & Media Routing"| MEDIA
     INTENTS -->|"Launch Dialer"| PHONE
+    
+    HANDLERS -.->|"Tool Feedback (Agentic Loop)"| LLM
 ```
 
 ### AOSP Vertical Integration Stack
@@ -233,6 +238,7 @@ classDiagram
     class AssistantSession {
         +onShow(args, showFlags)
         -handleQuery(query)
+        -handleAgenticFollowUp()
     }
 
     class LLMManager {
@@ -245,8 +251,32 @@ classDiagram
     class ToolManager {
         <<Singleton>>
         +executeToolCall()
-        -dispatchIntent()
-        -dispatchMediaKeyEvent()
+        +getLlmToolsPrompt()
+    }
+
+    class ToolHandler {
+        <<Interface>>
+        +execute(context, toolCall, args)
+    }
+
+    class HVACToolHandler {
+        <<Implementation>>
+        +execute()
+    }
+
+    class MediaToolHandler {
+        <<Implementation>>
+        +execute()
+    }
+
+    class NavigationToolHandler {
+        <<Implementation>>
+        +execute()
+    }
+
+    class SystemToolHandler {
+        <<Implementation>>
+        +execute()
     }
 
     class MemoryManager {
@@ -266,6 +296,7 @@ classDiagram
         +ActivityManager
         +AudioManager
         +MediaBrowserService
+        +SpeechRecognizer
     }
 
     class vehicle_skills_registry.json {
@@ -277,13 +308,17 @@ classDiagram
     %% Relationships
     LocalLLMActivity ..> LLMManager : Initializes
     AssistantSession ..> MemoryManager : Logs Query
-    LocalLLMActivity ..> MemoryManager : Logs Query
     MemoryManager --> LLMManager : Feeds Context
     AssistantSession ..> LLMManager : Queries
-    LocalLLMActivity ..> ToolManager : Executes Tools
     AssistantSession ..> ToolManager : Executes Tools
-    ToolManager --> VehicleManager : Actuates Hardware (VHAL)
-    ToolManager --> AndroidFramework : Dispatches Intents (Media/Phone)
+    ToolManager --> ToolHandler : Routes Command
+    ToolHandler <|-- HVACToolHandler
+    ToolHandler <|-- MediaToolHandler
+    ToolHandler <|-- NavigationToolHandler
+    ToolHandler <|-- SystemToolHandler
+    HVACToolHandler --> VehicleManager : Actuates Hardware (VHAL)
+    MediaToolHandler --> AndroidFramework : Dispatches Intents (Media)
+    NavigationToolHandler --> AndroidFramework : Maps / Search
     LLMManager --> VehicleManager : Reads Telemetry
     vehicle_skills_registry.json ..> ToolManager : Parsed dynamically
     vehicle_skills_registry.json ..> VehicleManager : Parsed dynamically
@@ -310,12 +345,12 @@ If it finds a matching `GENERIC_VHAL_WRITE` handler, the `ToolManager` uses refl
 
 ## How to Add a New Action and Property
 
-Adding a new feature to the assistant is a simple two-step process using `vehicle_skills_registry.json` and, optionally, `LLMManager.kt` if you want to explicitly guide the AI's behavior.
+Adding a new feature to the assistant is now a pure **Zero-Code** process using only `vehicle_skills_registry.json`. You no longer need to modify Kotlin code.
 
 ### Scenario: Adding Control for the Sunroof
 
-#### Step 1: Update `vehicle_skills_registry.json`
-To give the AI the ability to open the sunroof, define a new tool in the JSON array. You need the exact AOSP or Vendor VHAL Property ID (e.g., `320865540` for `WINDOW_POS`).
+#### Step 1: Add the Tool to `vehicle_skills_registry.json`
+To give the AI the ability to open the sunroof, define a new tool in the JSON array. You need the exact AOSP or Vendor VHAL Property ID (e.g., `320865540` for `WINDOW_POS`). Note the use of `requires_vehicle_state` so the LLM knows if the roof is already open.
 
 ```json
 {
@@ -325,29 +360,25 @@ To give the AI the ability to open the sunroof, define a new tool in the JSON ar
   "data_type": "INT",
   "area_id": 16, 
   "value_to_write": "100",
-  "success_message": "Opening the sunroof now."
-}
-```
-* **`prompt_string`**: The exact syntax you want the LLM to output.
-* **`handler_type`**: `GENERIC_VHAL_WRITE` tells the `ToolManager` to bypass custom Kotlin logic and automatically write the value to the VHAL.
-* **`property_id`**: The target VHAL ID.
-* **`area_id`**: The specific zone (e.g., `16` represents the roof zone in AOSP).
-* **`value_to_write`**: The payload (e.g., `100` means 100% open).
-
-#### Step 2: (Optional) Guide the AI in `LLMManager.kt`
-While the JSON injects the tool definition into the prompt automatically, you can add a strict rule in `LLMManager.getSystemPrompt()` to ensure the LLM understands *when* to use it, especially if the prompt length is constrained.
-
-Open `LLMManager.kt` and locate the `getSystemPrompt()` method. Add a new contextual rule:
-
-```kotlin
-val isSunroof = q.contains("sunroof") || q.contains("roof") || q.contains("sky")
-
-if (isSunroof || q.isEmpty()) {
-    basePrompt.append("8. SUNROOF: If the user asks to open the sunroof or see the sky, you MUST output the EXACT syntax <TOOL>openSunroof()</TOOL>.\n")
+  "success_message": "Opening the sunroof now.",
+  "keywords": ["sunroof", "roof", "sky"],
+  "requires_vehicle_state": true
 }
 ```
 
-That's it! Restart the app, and the AI will now securely actuate the sunroof when asked, without you needing to manually implement `CarPropertyManager` callbacks.
+#### Step 2: (Optional) Guide the AI via `system_instructions`
+If the tool requires complex logic (like checking the weather before opening the roof), you do NOT edit `LLMManager.kt`. Instead, add a rule to the `system_instructions` array in the JSON. The RAG engine will dynamically inject it only when the keywords are triggered.
+
+```json
+"system_instructions": [
+    {
+        "instruction": "SUNROOF: If the user asks to open the sunroof, briefly warn them if it is raining outside before executing <TOOL>openSunroof()</TOOL>.",
+        "keywords": ["sunroof", "roof", "sky"]
+    }
+]
+```
+
+That's it! Restart the app, and the AI will now securely actuate the sunroof when asked, adhering to your custom instruction without any Kotlin recompilation.
 
 ## Main Components Detail
 
@@ -460,3 +491,39 @@ When the LLM triggers a tool (e.g., querying the Nominatim API for restaurants),
 To solve the jarring visual disconnect between ultra-fast local LLM generation and slower Text-to-Speech (TTS) synthesis, the architecture employs a tightly coupled timing lock:
 - **Smart Sentence Regex:** A lookbehind regex `(?<=[a-z])[.!?](?:\s+|$)` ensures the TTS engine does not unnaturally pause on numbers (e.g., `1.`) or abbreviations (e.g., `U.S.`).
 - **Synchronized Visual Spooling:** The visual "typewriter" effect has been locked to exactly `65ms` per character (roughly 150 Words Per Minute). Because this perfectly matches the default Google TTS speaking rate, the visual text types out on the screen in exact synchronization with the audio playback, regardless of how fast the LLM backend generated the tokens.
+
+### 3. Production-Ready Vector RAG Architecture (Hallucination Prevention)
+To achieve extreme precision and eliminate "syntax hallucinations" (where the LLM hallucinates non-existent tools like `<TOOL>decreaseHeat()</TOOL>`), the `ToolManager` was upgraded to a **Unified Vector RAG with Mathematical Keyword Boosting**.
+
+1. **Rich Semantic Embeddings:** The Universal Sentence Encoder no longer just embeds sparse keywords. It embeds dense tool schemas (e.g., `Tool: navigate. Prompt: <TOOL>navigate(DEST)</TOOL>. Keywords: drive to, route.`). This drastically increases the baseline Cosine Similarity accuracy.
+2. **Mathematical Keyword Boosting:** Instead of bypassing the RAG on keyword matches, the system calculates the raw Vector Similarity (0.0 to 1.0) and applies a hard `+0.3f` score boost if any exact JSON keyword matches the user's query. This guarantees perfect contextual ranking while maintaining semantic flexibility.
+3. **Strict Schema Injection:** The ranked results are strictly truncated to the **Top 4 Tools**. These tools are injected into the LLM context window using a rigid `<AvailableTools>` XML schema. By severely limiting the context window and strictly enforcing the XML structure, the 1.5B edge model is forced to select the exact mathematically correct tool syntax, completely eliminating hallucinations.
+
+```mermaid
+flowchart TD
+    %% Styling
+    classDef user fill:#3B82F6,stroke:#2563EB,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef vector fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef boost fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef filter fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef llm fill:#0EA5E9,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+
+    USER(["🗣️ User Query<br>(e.g. 'Turn down the heat')"]):::user
+    
+    subgraph ToolManager ["🛠️ ToolManager RAG Interceptor"]
+        VECTOR["🧠 SemanticSearchManager<br>Calculate Cosine Similarity<br>(Universal Sentence Encoder)"]:::vector
+        BOOST{"Exact Keyword Match?"}:::boost
+        APPLY_BOOST["➕ Apply +0.3f Boost to Score"]:::boost
+        FILTER["✂️ Filter to Top 4 Tools<br>Format as <AvailableTools> XML"]:::filter
+        
+        VECTOR --> BOOST
+        BOOST -- Yes --> APPLY_BOOST
+        BOOST -- No --> FILTER
+        APPLY_BOOST --> FILTER
+    end
+    
+    LLM{"🧠 LLMManager<br>Strict Schema Injection"}:::llm
+    
+    FILTER -->|"Top 4 XML Context"| LLM
+```
+

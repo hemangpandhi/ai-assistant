@@ -1,0 +1,1046 @@
+--------- beginning of main
+06-17 14:24:45.685  8015  8075 D CarPrivacyChipViewController: updatePrivacyChipView
+06-17 14:24:45.700   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:45.701   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:45.701   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:45.702   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+--------- beginning of system
+06-17 14:24:45.826 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:45.829 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:45.830 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:45.830 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:45.830 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:45.830 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+--------- beginning of kernel
+06-17 14:24:45.859   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:45.855 11880 11924 W ServiceManagerCppClient: Service com.google.edgetpu.IEdgeTpuAppService/default didn't start. Returning NULL
+06-17 14:24:45.855 11880 11924 E gle.android.tts: Internal: Failed to connect to the EdgeTPU service
+06-17 14:24:45.855 11880 11924 E native  : E0000 00:00:1781702685.855428   11924 remote_edgetpu_client_wrapper.cc:102] INTERNAL: Failed to open device fd from EdgeTPU service. errno=Invalid argument. If you are running a test tool, this may be a permission error. Please follow this link for recommended fix: go/darwinn-app-permissions
+06-17 14:24:45.855 11880 11924 E native  : === Source Location Trace: === 
+06-17 14:24:45.855 11880 11924 E native  : third_party/darwinn/edgetpu_service/remote_edgetpu_client_wrapper.cc:102
+06-17 14:24:45.855 11880 11924 E native  : 
+06-17 14:24:45.855 11880 11924 E native  : Stack trace:
+06-17 14:24:45.855 11880 11924 E native  : E0000 00:00:1781702685.855826   11924 util.cc:55] Encountered unresolved custom op: edgetpu-custom-op-2.
+06-17 14:24:45.855 11880 11924 E native  : See instructions: https://www.tensorflow.org/lite/guide/ops_custom 
+06-17 14:24:45.855 11880 11924 E native  : E0000 00:00:1781702685.855869   11924 util.cc:55] Node number 0 (edgetpu-custom-op-2) failed to prepare.
+06-17 14:24:45.866 11880 11924 I native  : I0000 00:00:1781702685.866653   11924 resource.cc:168]  name: en_us.language_rescorer session resource build: 5.027402061s status: ABORTED: [/data/user/10/com.google.android.tts/files/datadownload/shared/public/datadownloadfile_1749784873475/endtoendmodel/large-rank_candidates.tflite] Failed to create allocations for the TfLite model
+06-17 14:24:45.866 11880 11924 I native  : === Source Location Trace: === 
+06-17 14:24:45.866 11880 11924 I native  : speech/greco3/tflite/tflite_session.cc:278
+06-17 14:24:45.866 11880 11924 I native  : speech/greco3/tflite/tflite_session.cc:222
+06-17 14:24:45.866 11880 11924 I native  : speech/greco3/tflite/tflite_session.cc:943
+06-17 14:24:45.866 11880 11924 I native  : ./speech/greco3/resource/resource.h:414
+06-17 14:24:45.866 11880 11924 E native  : E0000 00:00:1781702685.866813   11924 pipeline_builder.cc:332] Serial load failed for resource: en_us.language_rescorer
+06-17 14:24:45.866 11880 11924 E native  : .[/data/user/10/com.google.android.tts/files/datadownload/shared/public/datadownloadfile_1749784873475/endtoendmodel/large-rank_candidates.tflite] Failed to create allocations for the TfLite model
+06-17 14:24:45.868 11880 11924 E native  : E0000 00:00:1781702685.868161   11924 google_recognizer.cc:160] ABORTED: [/data/user/10/com.google.android.tts/files/datadownload/shared/public/datadownloadfile_1749784873475/endtoendmodel/large-rank_candidates.tflite] Failed to create allocations for the TfLite model
+06-17 14:24:45.868 11880 11924 E native  : === Source Location Trace: === 
+06-17 14:24:45.868 11880 11924 E native  : speech/greco3/tflite/tflite_session.cc:278
+06-17 14:24:45.868 11880 11924 E native  : speech/greco3/tflite/tflite_session.cc:222
+06-17 14:24:45.868 11880 11924 E native  : speech/greco3/tflite/tflite_session.cc:943
+06-17 14:24:45.868 11880 11924 E native  : ./speech/greco3/resource/resource.h:414
+06-17 14:24:45.868 11880 11924 E native  : speech/greco3/pipeline/pipeline_builder.cc:523
+06-17 14:24:45.868 11880 11924 E native  : speech/greco3/api/base_recognizer.cc:449
+06-17 14:24:45.985  1676  1699 I pixel-thermal: THERMAL_GENL_EVENT_TZ_TRIP_UP
+06-17 14:24:46.012   267   267 I         : s2mpg13-spmic-thermal s2mpg13-spmic-thermal: PMIC_THERM[0] IRQ, 399 ot_irq:1
+06-17 14:24:45.985  1676  1699 I pixel-thermal: Thermal zone id: 26
+06-17 14:24:45.985  1676  1699 I pixel-thermal: Thermal zone trip id: 0
+06-17 14:24:45.985  1676  1699 I pixel-thermal: TZ Path: /sys/devices/virtual/thermal/thermal_zone26/type
+06-17 14:24:45.985  1676  1699 I pixel-thermal: TZ type: charger_skin_therm
+06-17 14:24:45.985  1676  1699 I pixel-thermal: charger_skin_therm:39.563 raw data: charger_skin_therm:39563 
+06-17 14:24:46.014   267   267 I         : s2mpg13-spmic-thermal s2mpg13-spmic-thermal: PMIC_THERM[2] IRQ, 401 ot_irq:1
+06-17 14:24:46.000  1676  1699 I pixel-thermal: VIRTUAL-BACK-CHARGER:33.943 raw data: VIRTUAL-BACK-CHARGER:33943 charger_skin_therm:39563 disp_therm:32240 neutral_therm:49834 quiet_therm:41158 
+06-17 14:24:46.020 11880 11924 W native  : W0000 00:00:1781702686.020480   11924 processor_factory_impl.cc:99] INTERNAL: Failed to start recognizer with error code: 2
+06-17 14:24:46.020 11880 11924 W native  : === Source Location Trace: === 
+06-17 14:24:46.020 11880 11924 W native  : speech/audio/processor/asr/greco_session.cc:665
+06-17 14:24:46.020 11880 11924 W native  : speech/audio/processor/asr/greco_session.cc:367
+06-17 14:24:46.020 11880 11924 W native  : speech/audio/processor/asr/greco_session_module.cc:50
+06-17 14:24:46.020 11880 11924 W native  : speech/audio/processor/asr/asr_processor.cc:51
+06-17 14:24:46.020 11880 11924 W native  : speech/soda/modules/asr_module.cc:112
+06-17 14:24:46.020 11880 11924 E native  : E0000 00:00:1781702686.020814   11924 soda_impl.cc:877] Terse enabled but could not initialize processor: Terse Processor: Failed to start recognizer with error code: 2
+06-17 14:24:46.020 11880 11924 I native  : I0000 00:00:1781702686.020862   11924 soda_async_impl.cc:522] Will attempt to run SODA at thread priority 10
+06-17 14:24:46.020 11880 11924 I native  : I0000 00:00:1781702686.020903   11924 hybrid_selector_impl.cc:100] HybridSelector: Disabled
+06-17 14:24:46.021 11880 11924 I ConcurrentSodaManager: Initialized SODA with status: 5
+06-17 14:24:46.021 11880 11924 I native  : I0000 00:00:1781702686.021745   11924 soda_async_impl.cc:1196] Deleted soda_impl.
+06-17 14:24:46.024 11880 32660 I native  : I0000 00:00:1781702686.023560   32660 soda_jni_event_delegate.cc:96] Done
+06-17 14:24:46.024 11880 11924 I native  : I0000 00:00:1781702686.024419   11924 enrollment_manager_impl.cc:2318] Shutting down ..
+06-17 14:24:46.026 11880 12301 E SodaSpeechRecognizer: Soda recognizer failed to initialize: ConfigStatus 5!
+06-17 14:24:46.026 11880 11925 I SodaSpeechRecognizer: Offline recognizer - stop detection
+06-17 14:24:46.036   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:46.038   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:46.040   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:46.041   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:46.069 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 188us,2.500ms total 682.739ms
+06-17 14:24:46.140  1049  1049 D AOC     : F1:[Idle Tracker] long no idle:[0] average between idle:[0.141709ms] max no idle:[19.448366ms]
+06-17 14:24:46.375   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:46.377   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:46.382   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:46.384   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:46.573 30755 30755 W aoc_audio_control: 9 callbacks suppressed
+06-17 14:24:46.573 30755 30755 I alsa    : alsa-aoc cmd [output] id 0x00c9, size 10, cntr 23545
+06-17 14:24:46.573 30755 30755 I alsa    : be_shutdown: dai TDM_0_RX id 0x80000006
+06-17 14:24:46.574 30755 30755 I alsa    : The hr_timer was still in use...
+06-17 14:24:46.576 30755 30755 I alsa    : aoc_path_put: set ep 1 hw_id 0x6 enable 0 chip 0000000071585dcd
+06-17 14:24:46.576 30755 30755 I alsa    : unbind: src:1 - sink:0!
+06-17 14:24:46.576 30755 30755 I alsa    : alsa-aoc cmd [output] id 0x010f, size 11, cntr 23546
+06-17 14:24:46.578 30755 30755 I cs35l41 spi7.2: main amp event 8
+06-17 14:24:46.543  1049  1049 D AOC     : F1:MSG: controller.cc, 275: AudioOutCtrl: cmd ID: 0x00c9, tag: 0xf8 [cntr = 13111]
+06-17 14:24:46.543  1049  1049 D AOC     : F1:MSG: controller.cc, 899: AudioOutCtrl: ipc: audio_output_co, cmd ID: 0x00c9, tag: 0xf8, rc: 0
+06-17 14:24:46.544 12315 30755 D audio_hw: shutdown: low-latency-playback
+06-17 14:24:46.545 12315 30755 E audio_route: unable to find path 'speaker-safe-post'
+06-17 14:24:46.545 12315 30755 D audio_hw_aoc_route: speaker-safe-post 0
+06-17 14:24:46.546  1049  1049 D AOC     : F1:MSG: controller.cc, 275: AudioOutCtrl: cmd ID: 0x010f, tag: 0xf9 [cntr = 13112]
+06-17 14:24:46.546  1049  1049 D AOC     : F1:Unregistered Source 1 from Sink 0 
+06-17 14:24:46.547 12315 30755 D audio_hw_aoc_route: low-latency-playbackP 0
+06-17 14:24:46.547 12315 30755 W audio_hw_35l41: cs35l41_amp_common_event: ret: 0, event: 3, state: 3, device: 7
+06-17 14:24:46.547  1049  1049 D AOC     : F1:AT Map:0 (LL:0), 0 EPs active, Power: Yes, Config: No
+06-17 14:24:46.547  1049  1049 D AOC     : F1:Mixer 0 configuration changed: (0)
+06-17 14:24:46.548  1049  1049 D AOC     : F1:Sink 0 Configuration changed: ULL (disabled)
+06-17 14:24:46.548  1049  1049 D AOC     : F1:MSG: controller.cc, 899: AudioOutCtrl: ipc: audio_output_co, cmd ID: 0x010f, tag: 0xf9, rc: 0
+06-17 14:24:46.548  1049  1049 D AOC     : H0:Mixer AMixSPKR: 480 samples (0000/0000) (OFF SC)
+06-17 14:24:46.548  1049  1049 D AOC     : H0:Mixer configuration updated
+06-17 14:24:46.548  1049  1049 D AOC     : H0:[Idle Tracker] long no idle:[0] average between idle:[3.984553ms] max no idle:[6.530029ms]
+06-17 14:24:46.548 14272 14435 I native  : I0000 00:00:1781702686.548291   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:46.548 14272 14435 I native  : 
+06-17 14:24:46.548 14272 14435 I native  : I0000 00:00:1781702686.548910   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:46.551 14272 14435 W native  : W0000 00:00:1781702686.551364   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:46.552 14085 23624 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:46.581 30755 30755 I cs35l41 spi7.2: cs35l41_hibernate event 0x8 hibernate state 3
+06-17 14:24:46.581 30755 30755 I cs35l41 spi7.1: main amp event 8
+06-17 14:24:46.584 30755 30755 I cs35l41 spi7.1: cs35l41_hibernate event 0x8 hibernate state 3
+06-17 14:24:46.584 30755 30755 I cs35l41 spi7.3: main amp event 8
+06-17 14:24:46.586 30755 30755 I cs35l41 spi7.3: cs35l41_hibernate event 0x8 hibernate state 3
+06-17 14:24:46.587 30755 30755 I cs35l41 spi7.0: main amp event 8
+06-17 14:24:46.589 30755 30755 I cs35l41 spi7.0: cs35l41_hibernate event 0x8 hibernate state 3
+06-17 14:24:46.560 14272 14435 W native  : W0000 00:00:1781702686.560743   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:46.560 12315 30755 D audio_hw_aoc_route: speaker-safe 0
+06-17 14:24:46.561 14272 14435 W native  : W0000 00:00:1781702686.561084   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:46.561 14272 14435 W native  : W0000 00:00:1781702686.561353   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:46.561 14272 14435 I native  : I0000 00:00:1781702686.561423   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:46.562 12315 30755 W audio_hw_35l41: cs35l41_amp_common_event: ret: 0, event: 4, state: 2, device: 7
+06-17 14:24:46.562 12315 30755 D audio_hw_soundtrigger: st_comm_aud_event_monitor:codec dev:7 inactive
+06-17 14:24:46.562 12315 30755 D audio_hw_soundtrigger: st_uc_monitor:uc:low-latency-playback inactive
+06-17 14:24:46.562 12315 30755 I audio_hw_aoc: Mode Ambient is already selected
+06-17 14:24:46.562 12315 30755 D audio_hw_waves: waves_usecase_event: low-latency-playback stop
+06-17 14:24:46.563 12475 12507 E AppOps  : Operation not found: uid=1041 pkg=audioserver(null) op=WAKE_LOCK
+06-17 14:24:46.591 30755 30755 I cs35l41 spi7.2: cs35l41_bp_current_limit_put: value 3500
+06-17 14:24:46.591 30755 30755 I cs35l41 spi7.1: cs35l41_bp_current_limit_put: value 3500
+06-17 14:24:46.591 30755 30755 I cs35l41 spi7.3: cs35l41_bp_current_limit_put: value 3500
+06-17 14:24:46.591 30755 30755 I cs35l41 spi7.0: cs35l41_bp_current_limit_put: value 3500
+06-17 14:24:46.569 14272 14435 I native  : I0000 00:00:1781702686.569200   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:46.591 30755 30755 I alsa    : aoc_path_put: set ep 8 hw_id 0x7 enable 0 chip 0000000071585dcd
+06-17 14:24:46.618 32036 32036 D VehicleManager: Custom property updated: ENV_OUTSIDE_TEMPERATURE = 25.0
+06-17 14:24:46.723   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:46.725   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:46.726   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:46.726   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:46.832 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:46.592 30755 30755 I alsa    : be_shutdown: dai TDM_0_TX id 0xc0000007
+06-17 14:24:46.865   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:46.835 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:46.835 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:46.836 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:46.836 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:46.836 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:46.846 12475 12630 D WifiClientModeImpl[34933266:wlan0]: updateLinkLayerStatsRssiSpeedFrequencyCapabilities rssi=-60 TxLinkspeed=650 freq=5240 RxLinkSpeed=526
+06-17 14:24:46.846 12475 12630 D WifiDataStall: tx tput in kbps: 526246
+06-17 14:24:46.846 12475 12630 D WifiDataStall: rx tput in kbps: 495179
+06-17 14:24:46.847 12475 12630 V WifiConfigManager: Updating scan detail cache freq=5240 BSSID=90:32:4b:d3:f0:6b RSSI=-59 for "90324BD3F068-5G"WPA_PSK
+06-17 14:24:46.847 12475 12630 D WifiChannelUtilization:  freq: 5240 onTime: 1520348 busyTime: 1713457 onTimeDiff: 3697 busyTimeDiff: 76868 utilization: -1 utilization t0: -1
+06-17 14:24:46.847 12475 12630 D WifiDataStall:  use default cca Level
+06-17 14:24:46.847 12475 12630 D WifiDataStall:  ccaLevel = 15
+06-17 14:24:46.847 12475 12630 D WifiDataStall: L2 txTputKbps: 397744, rxTputKbps: 495179, L3 txTputKbps: 18, rxTputKbps: 58, TxTrafficHigh: true, RxTrafficHigh: true, Throughput Sufficient: true
+06-17 14:24:46.847 12475 12630 D WifiScoreCard: BSSID update SIGNAL_POLL ID: 704467292 SSID: "90324BD3F068-5G", BSSID: 90:32:4b:d3:f0:6b, MAC: f6:c0:33:a7:e0:0c, IP: /192.168.3.5, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 5, RSSI: -60, Link speed: 650Mbps, Tx Link speed: 650Mbps, Max Supported Tx Link speed: 866Mbps, Rx Link speed: 526Mbps, Max Supported Rx Link speed: 866Mbps, Frequency: 5240MHz, Net ID: 1, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>"90324BD3F068-5G"wpa2-pskMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>
+06-17 14:24:46.848 12475 12630 D WifiScoreCard: txRate: 13 txSpeed: 650
+06-17 14:24:46.848 12475 12630 D WifiScoreCard: network update SIGNAL_POLL "90324BD3F068-5G" ID: 910622593 RSSI -60 txSpeed 650
+06-17 14:24:46.848 12475 12630 D WifiClientModeImpl[34933266:wlan0]:  ClientModeImpl$L2ConnectedState screen=on 1 0 "90324BD3F068-5G" 90:32:4b:d3:f0:6b rssi=-60 f=5240 sc=60 link=650 tx=9.3, 3.5, 0.0 rx=14.0 bcn=2537595 [on:553 tx:10 rx:4 period:3058] from screen [on:21190327 period:261838686] score=60
+06-17 14:24:47.065   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:47.068   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:47.070   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:47.073   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:47.238 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:47.238 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:47.242 14272 14435 W native  : W0000 00:00:1781702687.242838   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:47.243 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:47.243 14272 14435 W native  : W0000 00:00:1781702687.243913   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:47.244 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:47.244 14272 14435 W native  : W0000 00:00:1781702687.244190   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:47.244 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:47.413   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:47.416   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:47.419   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:47.421   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:47.620 32036 32036 D VehicleManager: Custom property updated: ENV_OUTSIDE_TEMPERATURE = 25.0
+06-17 14:24:47.757   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:47.759   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:47.764   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:47.767   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:47.837 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:47.838 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:47.839 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:47.839 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:47.839 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:47.839 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:47.869   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:47.896 14272 14435 I native  : I0000 00:00:1781702687.896177   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:47.897 14272 14435 I native  : 
+06-17 14:24:47.897 14272 14435 I native  : I0000 00:00:1781702687.897109   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:47.900 14085 23624 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:47.900 14272 14435 W native  : W0000 00:00:1781702687.900539   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:47.902 14272 14435 W native  : W0000 00:00:1781702687.902155   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:47.902 14272 14435 W native  : W0000 00:00:1781702687.902512   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:47.902 14272 14435 W native  : W0000 00:00:1781702687.902881   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:47.903 14272 14435 I native  : I0000 00:00:1781702687.902977   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:47.909 14272 14435 I native  : I0000 00:00:1781702687.909189   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:48.102   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:48.104   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:48.105   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:48.105 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:48.105 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:48.105   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:48.106 14272 14435 W native  : W0000 00:00:1781702688.106863   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:48.107 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:48.107 14272 14435 W native  : W0000 00:00:1781702688.107395   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:48.107 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:48.107 14272 14435 W native  : W0000 00:00:1781702688.107582   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:48.107 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:48.174 12475 13089 W ActivityManager: Unable to start service Intent { act=grpc.io.action.BIND cmp=com.google.android.apps.geo.automotive.adas/.bulkdata.access.BulkDataAccessAndroidService } U=10: not found
+06-17 14:24:48.174 12475 13089 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@e4b1a52
+06-17 14:24:48.442   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:48.445   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:48.475  1056  1056 W [13:24:48.444843][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:24:48.447   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:48.449   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:48.612 32036 32036 D VehicleManager: Custom property updated: ENV_OUTSIDE_TEMPERATURE = 25.0
+06-17 14:24:48.617 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 265us,2.630ms total 529.348ms
+06-17 14:24:48.785   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:48.786   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:48.787   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:48.788   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:48.840 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:48.841 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:48.841 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:48.841 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:48.841 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:48.841 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:48.871   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:48.928 12475 12512 W VoiceInteractionServiceManager: Reset power boost INTERACTION because reaching max timeout.
+06-17 14:24:49.072  1676  1699 I pixel-thermal: disp_therm:32.24 raw data: disp_therm:32240 
+06-17 14:24:49.081  1676  1699 I pixel-thermal: Power rails total power: 5085.19 mW for 60015 ms
+06-17 14:24:49.081  1676  1699 I pixel-thermal: Power rails [S6M_LLDO1: 142.69 mW] [L7S_SENSORS: 5.07 mW] [S10M_VDD_TPU: 0.00 mW] [S8M_LLDO2: 47.05 mW] [S4M_VDD_CPUCL0: 510.68 mW] [S2M_VDD_CPUCL2: 1113.29 mW] 
+06-17 14:24:49.081  1676  1699 I pixel-thermal: Power rails [S1M_VDD_MIF: 328.92 mW] [S8S_VDD_G3D_L2: 26.31 mW] [L2M_ALIVE: 48.99 mW] [S9M_LLDO3: 61.66 mW] [L2S_PLL_MIPI_UFS: 63.77 mW] [L1M_ALIVE: 17.08 mW] 
+06-17 14:24:49.081  1676  1699 I pixel-thermal: Power rails [S3M_VDD_CPUCL1: 729.51 mW] [S5S_VDDQ_MEM: 52.01 mW] [L14S_ALIVE: 1.21 mW] [S9S_VDD_AOC: 20.77 mW] [S4S_VDD2H_MEM: 349.18 mW] [S2S_VDD_G3D: 128.77 mW] 
+06-17 14:24:49.081  1676  1699 I pixel-thermal: Power rails [S1S_VDD_CAM: 44.24 mW] [S5M_VDD_INT: 71.79 mW] [VSYS_PWR_DISPLAY: 1194.79 mW] [L21S_VDD2L_MEM: 1.31 mW] [L15M_VDD_SLC_M: 41.43 mW] [VSYS_PWR_WLAN_BT: 84.67 mW] 
+06-17 14:24:49.122   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:49.124   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:49.125   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:49.126   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:49.154 14085 20148 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:49.159 14272 14435 I native  : I0000 00:00:1781702689.158728   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:49.159 14272 14435 I native  : 
+06-17 14:24:49.159 14272 14435 I native  : I0000 00:00:1781702689.159423   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:49.162 14272 14435 W native  : W0000 00:00:1781702689.162149   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:49.163 14272 14435 W native  : W0000 00:00:1781702689.163284   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:49.163 14272 14435 W native  : W0000 00:00:1781702689.163404   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:49.163 14272 14435 W native  : W0000 00:00:1781702689.163524   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:49.163 14272 14435 I native  : I0000 00:00:1781702689.163556   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:49.165 14272 14435 I native  : I0000 00:00:1781702689.165226   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:49.312 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:49.312 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:49.314 14272 14435 W native  : W0000 00:00:1781702689.314091   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:49.314 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:49.314 14272 14435 W native  : W0000 00:00:1781702689.314535   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:49.314 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:49.314 14272 14435 W native  : W0000 00:00:1781702689.314702   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:49.314 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:49.317 12475 13089 W ActivityManager: Unable to start service Intent { act=grpc.io.action.BIND cmp=com.google.android.apps.geo.automotive.adas/.bulkdata.access.BulkDataAccessAndroidService } U=10: not found
+06-17 14:24:49.317 12475 13089 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@56b6123
+06-17 14:24:49.461   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:49.464   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:49.465   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:49.467   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:49.612 32036 32036 D VehicleManager: Custom property updated: ENV_OUTSIDE_TEMPERATURE = 25.0
+06-17 14:24:49.806   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:49.809   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:49.811   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:49.813   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:49.843 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:49.874   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:49.845 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:49.845 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:49.845 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:49.845 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:49.845 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:49.883  1056  1056 E logbuffer_pcie1: [423329] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:24:49.899   925   925 I s3c2410-wdt 10070000.watchdog_cl1: Watchdog cluster 1 keepalive!, old_wtcnt = 7751, wtcnt = cc8c
+06-17 14:24:49.915  1056  1056 I logbuffer_pcie1: [423330] D state: 0, LTSSM: 0
+06-17 14:24:49.915  1056  1056 I logbuffer_pcie1: [423331] L0(0x11)
+06-17 14:24:49.918  1056  1056 W [13:24:49.888395][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:24:49.940 12475 12630 D WifiClientModeImpl[34933266:wlan0]: updateLinkLayerStatsRssiSpeedFrequencyCapabilities rssi=-59 TxLinkspeed=650 freq=5240 RxLinkSpeed=650
+06-17 14:24:49.940 12475 12630 D WifiDataStall: tx tput in kbps: 397744
+06-17 14:24:49.941 12475 12630 D WifiDataStall: rx tput in kbps: 495179
+06-17 14:24:49.941 12475 12630 V WifiConfigManager: Updating scan detail cache freq=5240 BSSID=90:32:4b:d3:f0:6b RSSI=-59 for "90324BD3F068-5G"WPA_PSK
+06-17 14:24:49.941 12475 12630 D WifiChannelUtilization:  freq: 5240 onTime: 1520697 busyTime: 1726228 onTimeDiff: 4046 busyTimeDiff: 89639 utilization: -1 utilization t0: -1
+06-17 14:24:49.941 12475 12630 D WifiDataStall:  use default cca Level
+06-17 14:24:49.941 12475 12630 D WifiDataStall:  ccaLevel = 15
+06-17 14:24:49.941 12475 12630 D WifiDataStall: L2 txTputKbps: 611914, rxTputKbps: 611914, L3 txTputKbps: 4, rxTputKbps: 6, TxTrafficHigh: true, RxTrafficHigh: true, Throughput Sufficient: true
+06-17 14:24:49.942 12475 12630 D WifiScoreCard: BSSID update SIGNAL_POLL ID: 704467292 SSID: "90324BD3F068-5G", BSSID: 90:32:4b:d3:f0:6b, MAC: f6:c0:33:a7:e0:0c, IP: /192.168.3.5, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 5, RSSI: -59, Link speed: 650Mbps, Tx Link speed: 650Mbps, Max Supported Tx Link speed: 866Mbps, Rx Link speed: 650Mbps, Max Supported Rx Link speed: 866Mbps, Frequency: 5240MHz, Net ID: 1, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>"90324BD3F068-5G"wpa2-pskMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>
+06-17 14:24:49.942 12475 12630 D WifiScoreCard: txRate: 7 txSpeed: 650
+06-17 14:24:49.942 12475 12630 D WifiScoreCard: network update SIGNAL_POLL "90324BD3F068-5G" ID: 910622593 RSSI -59 txSpeed 650
+06-17 14:24:49.942 12475 12630 D WifiClientModeImpl[34933266:wlan0]:  ClientModeImpl$L2ConnectedState screen=on 1 0 "90324BD3F068-5G" 90:32:4b:d3:f0:6b rssi=-59 f=5240 sc=60 link=650 tx=5.2, 1.2, 0.0 rx=8.2 bcn=2537624 [on:350 tx:5 rx:1 period:3094] from screen [on:21190677 period:261841780] score=60
+06-17 14:24:50.148   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:50.150   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:50.150   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:50.151   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:50.432 14085 32380 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:50.465  1056  1056 W [13:24:50.434854][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:24:50.444 14272 14435 I native  : I0000 00:00:1781702690.444003   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:50.444 14272 14435 I native  : 
+06-17 14:24:50.444 14272 14435 I native  : I0000 00:00:1781702690.444720   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:50.447 14272 14435 W native  : W0000 00:00:1781702690.447313   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:50.448 14272 14435 W native  : W0000 00:00:1781702690.448872   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:50.449 14272 14435 W native  : W0000 00:00:1781702690.449185   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:50.449 14272 14435 W native  : W0000 00:00:1781702690.449481   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:50.449 14272 14435 I native  : I0000 00:00:1781702690.449536   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:50.453 14272 14435 I native  : I0000 00:00:1781702690.453549   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:50.486   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:50.488   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:50.490   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:50.491   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:50.612 32036 32036 D VehicleManager: Custom property updated: ENV_OUTSIDE_TEMPERATURE = 25.0
+06-17 14:24:50.772 12475 12507 W ActivityManager: Unable to start service Intent { act=grpc.io.action.BIND cmp=com.google.android.apps.geo.automotive.adas/.bulkdata.access.BulkDataAccessAndroidService } U=10: not found
+06-17 14:24:50.772 12475 12507 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@a633620
+06-17 14:24:50.825   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:50.827   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:50.829   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:50.830   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:50.846 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:50.848 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:50.878   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:50.848 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:50.848 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:50.849 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:50.849 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:51.099 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:51.099 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:51.101 14272 14435 W native  : W0000 00:00:1781702691.101522   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:51.101 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:51.102 14272 14435 W native  : W0000 00:00:1781702691.102088   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:51.102 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:51.102 14272 14435 W native  : W0000 00:00:1781702691.102254   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:51.102 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:51.144   243   243 W maxfg 06: 62FF FF:606E 1F:0CC2 05:0CDD 10:0CDD 35:0CFE 23:0D3D 4C:0DBB 4D:0DA4 45:0659 46:5FE3 0C:0022 3D:1008 28:247E 39:0A02 29:C623 0F:0CE3 4A:0CDB 09:D7CC 0A:FB60 38:06A4 17:05C6 CC:6602000
+06-17 14:24:51.169   883   883 W healthd : battery l=100 v=4315 t=30.1 h=2 st=5 c=-455937 fc=6778000 cc=14 chg=u
+06-17 14:24:51.144  8015 11332 D PowerUI : can't show warning due to - plugged: true status unknown: false
+06-17 14:24:51.165   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:51.166   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:51.167   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:51.169   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:51.236  1056  1056 E logbuffer_pcie1: [423332] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:24:51.267  1056  1056 I logbuffer_pcie1: [423333] D state: 0, LTSSM: 0
+06-17 14:24:51.267  1056  1056 I logbuffer_pcie1: [423334] L0(0x11)
+06-17 14:24:51.271  1056  1056 W [13:24:51.241294][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:24:51.344 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 1.278ms,1.656ms total 268.100ms
+06-17 14:24:51.504   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:51.505   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:51.507   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:51.508   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:51.612 32036 32036 D VehicleManager: Custom property updated: ENV_OUTSIDE_TEMPERATURE = 25.0
+06-17 14:24:51.685 32036 32649 I native  : I0000 00:00:1781702691.685087   32649 session_basic.cc:395] RunPrefillAsync status: OK
+06-17 14:24:51.685 32036 32649 I native  : I0000 00:00:1781702691.685239   32649 session_basic.cc:515] RunDecodeAsync
+06-17 14:24:51.722 14085 32380 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:51.729 14272 14435 I native  : I0000 00:00:1781702691.728980   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:51.729 14272 14435 I native  : 
+06-17 14:24:51.729 14272 14435 I native  : I0000 00:00:1781702691.729664   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:51.732 14272 14435 W native  : W0000 00:00:1781702691.732445   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:51.733 14272 14435 W native  : W0000 00:00:1781702691.733815   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:51.734 14272 14435 W native  : W0000 00:00:1781702691.734000   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:51.734 14272 14435 W native  : W0000 00:00:1781702691.734274   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:51.734 14272 14435 I native  : I0000 00:00:1781702691.734331   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:51.738 14272 14435 I native  : I0000 00:00:1781702691.738756   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:51.810  4042  4503 I cn_CronetUrlRequestContext: destroyNativeStreamLocked org.chromium.net.impl.CronetBidirectionalStream@6572fbc
+06-17 14:24:51.843   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+--------- beginning of crash
+06-17 14:24:51.843 32036 32649 F libc    : Fatal signal 11 (SIGSEGV), code 2 (SEGV_ACCERR), fault addr 0xb40000797b409000 in tid 32649 (engine/32649), pid 32036 (mple.gemininano)
+06-17 14:24:51.844   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:51.845   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:51.845   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:51.850 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:51.851 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:51.851 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:51.851 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:51.851 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:51.851 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:51.881   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:51.921 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:51.921 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:51.922 14272 14435 W native  : W0000 00:00:1781702691.922541   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:51.922 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:51.923 14272 14435 W native  : W0000 00:00:1781702691.922986   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:51.923 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:51.923 14272 14435 W native  : W0000 00:00:1781702691.923142   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:51.923 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:51.970   452   452 E DEBUG   : failed to readlink /proc/32649/fd/132: No such file or directory
+06-17 14:24:51.970   452   452 E DEBUG   : failed to readlink /proc/32649/fd/135: No such file or directory
+06-17 14:24:51.970   452   452 E DEBUG   : failed to readlink /proc/32649/fd/142: No such file or directory
+06-17 14:24:52.063   452   452 I crash_dump64: obtaining output fd from tombstoned, type: kDebuggerdTombstoneProto
+06-17 14:24:52.063   631   631 I tombstoned: received crash request for pid 32649
+06-17 14:24:52.064   452   452 I crash_dump64: performing dump of process 32036 (target tid = 32649)
+06-17 14:24:52.180   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:52.181   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:52.182   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:52.183   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:52.187   452   452 W crash_dump64: type=1400 audit(0.0:2283): avc:  denied  { search } for  name="10" dev="tmpfs" ino=38 scontext=u:r:crash_dump:s0:c522,c768 tcontext=u:object_r:mnt_user_file:s0 tclass=dir permissive=0
+06-17 14:24:52.187   452   452 W crash_dump64: type=1400 audit(0.0:2284): avc:  denied  { search } for  name="10" dev="tmpfs" ino=38 scontext=u:r:crash_dump:s0:c522,c768 tcontext=u:object_r:mnt_user_file:s0 tclass=dir permissive=0
+06-17 14:24:52.187   452   452 W crash_dump64: type=1400 audit(0.0:2285): avc:  denied  { search } for  name="10" dev="tmpfs" ino=38 scontext=u:r:crash_dump:s0:c522,c768 tcontext=u:object_r:mnt_user_file:s0 tclass=dir permissive=0
+06-17 14:24:52.187   452   452 W crash_dump64: type=1400 audit(0.0:2286): avc:  denied  { search } for  name="10" dev="tmpfs" ino=38 scontext=u:r:crash_dump:s0:c522,c768 tcontext=u:object_r:mnt_user_file:s0 tclass=dir permissive=0
+06-17 14:24:52.187   452   452 W crash_dump64: type=1400 audit(0.0:2287): avc:  denied  { search } for  name="10" dev="tmpfs" ino=38 scontext=u:r:crash_dump:s0:c522,c768 tcontext=u:object_r:mnt_user_file:s0 tclass=dir permissive=0
+06-17 14:24:52.219   452   452 W audit   : audit_lost=1909 audit_rate_limit=5 audit_backlog_limit=64
+06-17 14:24:52.219   452   452 E audit   : rate limit exceeded
+06-17 14:24:52.335   473   473 I logd    : logdr: UID=1010192 GID=1010192 PID=452 n tail=500 logMask=8 pid=32036 start=0ns deadline=0ns
+06-17 14:24:52.444   473   473 I logd    : logdr: UID=1010192 GID=1010192 PID=452 n tail=500 logMask=1 pid=32036 start=0ns deadline=0ns
+06-17 14:24:52.449  1056  1056 W [13:24:52.419068][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:24:52.518   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:52.520   452   452 F DEBUG   : *** *** *** *** *** *** *** *** *** *** *** *** *** *** *** ***
+06-17 14:24:52.520   452   452 F DEBUG   : Build fingerprint: 'Google/aosp_tangorpro_car/tangorpro:14/AP1A.240405.002/eng.ccs.20250607.232136:userdebug/test-keys'
+06-17 14:24:52.520   452   452 F DEBUG   : Revision: 'MP1.0'
+06-17 14:24:52.520   452   452 F DEBUG   : ABI: 'arm64'
+06-17 14:24:52.520   452   452 F DEBUG   : Timestamp: 2026-06-17 14:24:52.080367352+0100
+06-17 14:24:52.520   452   452 F DEBUG   : Process uptime: 14s
+06-17 14:24:52.520   452   452 F DEBUG   : Cmdline: com.example.gemininano
+06-17 14:24:52.520   452   452 F DEBUG   : pid: 32036, tid: 32649, name: engine/32649  >>> com.example.gemininano <<<
+06-17 14:24:52.520   452   452 F DEBUG   : uid: 1010192
+06-17 14:24:52.520   452   452 F DEBUG   : tagged_addr_ctrl: 0000000000000001 (PR_TAGGED_ADDR_ENABLE)
+06-17 14:24:52.520   452   452 F DEBUG   : signal 11 (SIGSEGV), code 2 (SEGV_ACCERR), fault addr 0xb40000797b409000
+06-17 14:24:52.520   452   452 F DEBUG   :     x0  b400007877bf0a80  x1  b40000797b408fc0  x2  0000000000000100  x3  b400007877bf0a80
+06-17 14:24:52.520   452   452 F DEBUG   :     x4  b40000797b4090c0  x5  b400007877bf0b80  x6  0000000000000000  x7  0000007964324e20
+06-17 14:24:52.520   452   452 F DEBUG   :     x8  0000000000080000  x9  b40000797b388fc0  x10 0000000000000100  x11 0000000000000004
+06-17 14:24:52.520   452   452 F DEBUG   :     x12 0000007a00000001  x13 0000007964324e00  x14 0000000000000000  x15 0000007964326c00
+06-17 14:24:52.520   452   452 F DEBUG   :     x16 0000007a04d925d0  x17 0000007d4449b240  x18 0000007963338000  x19 0000007964324f08
+06-17 14:24:52.520   452   452 F DEBUG   :     x20 0000000000000000  x21 0000000000000100  x22 00000000000003b1  x23 0000000000000001
+06-17 14:24:52.520   452   452 F DEBUG   :     x24 00000000000009b0  x25 0000000000000000  x26 0000000000000000  x27 0000000000000000
+06-17 14:24:52.521   452   452 F DEBUG   :     x28 0000000000000000  x29 0000000000000800
+06-17 14:24:52.521   452   452 F DEBUG   :     lr  0000007a04af1c8c  sp  0000007964324de0  pc  0000007d4449b33c  pst 00000000a0001000
+06-17 14:24:52.521   452   452 F DEBUG   : 24 total frames
+06-17 14:24:52.521   452   452 F DEBUG   : backtrace:
+06-17 14:24:52.521   452   452 F DEBUG   :       #00 pc 000000000005733c  /apex/com.android.runtime/lib64/bionic/libc.so (__memcpy_aarch64_simd+252) (BuildId: 33ad5959e2b38fc822cda3c642e16c94)
+06-17 14:24:52.521   452   452 F DEBUG   :       #01 pc 0000000000bfbc88  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #02 pc 0000000000bf9d14  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #03 pc 0000000000d8c350  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #04 pc 0000000000d8bcdc  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #05 pc 0000000000d8657c  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #06 pc 00000000007c59f8  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #07 pc 00000000007c5fac  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #08 pc 00000000007c5e60  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #09 pc 00000000007bfb00  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #10 pc 00000000006f6138  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #11 pc 00000000006f5f64  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #12 pc 00000000006f5cf8  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #13 pc 000000000070b838  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #14 pc 000000000070b588  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #15 pc 00000000007101c8  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #16 pc 0000000000705b20  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #17 pc 0000000000705438  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #18 pc 0000000000701da4  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #19 pc 0000000000704d28  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #20 pc 0000000000732aa8  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #21 pc 0000000000733398  /data/app/~~UhbVwAsLImEW1dt4cwFnZw==/com.example.gemininano-IeOeqI4--kX34bZ6Ki9hzw==/lib/arm64/liblitertlm_jni.so (BuildId: c2c27170ba409dbd0bc01820fa738580)
+06-17 14:24:52.521   452   452 F DEBUG   :       #22 pc 00000000000ca7cc  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+204) (BuildId: 33ad5959e2b38fc822cda3c642e16c94)
+06-17 14:24:52.521   452   452 F DEBUG   :       #23 pc 00000000000607b0  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+64) (BuildId: 33ad5959e2b38fc822cda3c642e16c94)
+06-17 14:24:52.521   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:52.522   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:52.525   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:52.539 12475   488 I DropBoxManagerService: add tag=system_app_native_crash isTagEnabled=true flags=0x2
+06-17 14:24:52.542   631   631 E tombstoned: Tombstone written to: tombstone_39
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: failed to open /data/tombstones/tombstone_39.pb
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: java.io.FileNotFoundException: open failed: ENOENT (No such file or directory)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at android.os.ParcelFileDescriptor.openInternal(ParcelFileDescriptor.java:351)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at android.os.ParcelFileDescriptor.open(ParcelFileDescriptor.java:230)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager.handleProtoTombstone(NativeTombstoneManager.java:168)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager.handleTombstone(NativeTombstoneManager.java:137)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager.-$$Nest$mhandleTombstone(NativeTombstoneManager.java:0)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager$TombstoneWatcher.lambda$onEvent$0(NativeTombstoneManager.java:589)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager$TombstoneWatcher.$r8$lambda$A74hOANgR204PBre_Brq7oIduOU(NativeTombstoneManager.java:0)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at com.android.server.os.NativeTombstoneManager$TombstoneWatcher$$ExternalSyntheticLambda0.run(R8$$SyntheticClass:0)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at android.os.Handler.handleCallback(Handler.java:959)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at android.os.Handler.dispatchMessage(Handler.java:100)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at android.os.Looper.loopOnce(Looper.java:232)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at android.os.Looper.loop(Looper.java:317)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at android.os.HandlerThread.run(HandlerThread.java:68)
+06-17 14:24:52.543 12475 12580 W NativeTombstoneManager: 	at com.android.server.ServiceThread.run(ServiceThread.java:46)
+06-17 14:24:52.549 12475 12580 I BootReceiver: Copying /data/tombstones/tombstone_39 to DropBox (SYSTEM_TOMBSTONE)
+06-17 14:24:52.550 12475 12580 I DropBoxManagerService: add tag=SYSTEM_TOMBSTONE isTagEnabled=true flags=0x6
+06-17 14:24:52.590     1     1 I init    : Untracked pid 452 exited with status 0
+06-17 14:24:52.590     1     1 I init    : Untracked pid 452 did not have an associated service entry and will not be reaped
+06-17 14:24:52.565 12475 12580 E NativeTombstoneManager: Tombstone has invalid selinux label (u:r:platform_app:s0:c522,c768À€), ignoring
+06-17 14:24:52.570 12475 12580 I DropBoxManagerService: add tag=SYSTEM_TOMBSTONE_PROTO_WITH_HEADERS isTagEnabled=true flags=0x4
+06-17 14:24:52.585   626   811 W powerhal-libperfmgr: sched_setattr failed for thread 32619, err=3
+06-17 14:24:52.585   626   811 W powerhal-libperfmgr: sched_setattr failed for thread 32620, err=3
+06-17 14:24:52.585   626   811 W powerhal-libperfmgr: sched_setattr failed for thread 32618, err=3
+06-17 14:24:52.713     1     1 I init    : Untracked pid 454 exited with status 0
+06-17 14:24:52.713     1     1 I init    : Untracked pid 454 did not have an associated service entry and will not be reaped
+06-17 14:24:52.783 12327 12379 E BpTransactionCompletedListener: Failed to transact (-32)
+06-17 14:24:52.814 12379 12379 I binder_alloc: 32036: binder_alloc_buf, no vma
+06-17 14:24:52.814 12379 12379 I binder  : 12327:12379 transaction failed 29189/-3, size 388-24 line 3360
+06-17 14:24:52.798 12475 15179 I ActivityManager: Process com.example.gemininano (pid 32036) has died: vis FGS 
+06-17 14:24:52.799 12475 12507 I WindowManager: WIN DEATH: Window{b6d278d u10 VoiceInteractionSession}
+06-17 14:24:52.799 12475 15180 I ImeTracker: com.example.gemininano:1a18fcbd: onRequestHide at ORIGIN_SERVER_HIDE_INPUT reason HIDE_REMOVE_CLIENT
+06-17 14:24:52.828 16839 16839 I binder  : undelivered transaction 89521214, process died.
+06-17 14:24:52.828 16839 16839 I binder  : undelivered transaction 89521231, process died.
+06-17 14:24:52.829 12475 12475 I binder  : 12475:12475 transaction failed 29189/-22, size 112-0 line 3161
+06-17 14:24:52.800 12475 15180 I ImeTracker: com.example.gemininano:1a18fcbd: onCancelled at PHASE_SERVER_SHOULD_HIDE
+06-17 14:24:52.800 12475 14053 D TextToSpeechManagerPerUserService: Unbinding TTS engine: com.google.android.tts. Reason: client process death is reported
+06-17 14:24:52.800 12475 12507 W InputManager-JNI: Input channel object 'b6d278d VoiceInteractionSession (client)' was disposed without first being removed with the input manager!
+06-17 14:24:52.800   511   511 I DefaultVehicleHal_v2_0: unsubscribe propId: 0x11600703
+06-17 14:24:52.800 12475 12475 W ActivityManager: pid 12475 system sent binder code 2 with flags 1 to frozen apps and got error -32
+06-17 14:24:52.800 12329 12329 I Zygote  : Process 32036 exited due to signal 11 (Segmentation fault)
+06-17 14:24:52.801 12475 12529 I libprocessgroup: Successfully killed process cgroup uid 1010192 pid 32036 in 0ms
+06-17 14:24:52.801   511   511 I DefaultVehicleHal_v2_0: unsubscribe propId: 0x13400bc0
+06-17 14:24:52.804 12475 15223 W WindowManager: Cannot find window which accessibility connection is added to
+06-17 14:24:52.805 12475 15179 W ActivityManager: Scheduling restart of crashed service com.example.gemininano/.WakeWordService in 3600000ms for start-requested
+06-17 14:24:52.805 12475 15179 W ActivityManager: Scheduling restart of crashed service com.example.gemininano/.AssistantVoiceInteractionService in 3610000ms for connection
+06-17 14:24:52.805 12475 15179 W ActivityManager: Scheduling restart of crashed service com.example.gemininano/.AssistantSessionService in 1000ms for connection
+06-17 14:24:52.805  8015  8015 D CarSystemBarController: refreshSystemBar: locked?: false homeDisabled: false notificationDisabled: false qcDisabled: false systemIconsDisabled: false
+06-17 14:24:52.806 12475 12513 D DisplayManagerService: Drop pending events for gone uid 1010192
+06-17 14:24:52.837 12475 13089 I ImeTracker: com.google.android.apps.maps:bf44d1e: onRequestHide at ORIGIN_SERVER_HIDE_INPUT reason HIDE_UNSPECIFIED_WINDOW
+06-17 14:24:52.837 12475 13089 I ImeTracker: com.google.android.apps.maps:bf44d1e: onCancelled at PHASE_SERVER_SHOULD_HIDE
+06-17 14:24:52.838  6070  6070 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2259 
+06-17 14:24:52.839  6070  6070 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 0, locked = false
+06-17 14:24:52.839  6070  6070 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1446 onStartInput(EditorInfo{EditorInfo{packageName=com.google.android.apps.maps, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+06-17 14:24:52.839  6070  6070 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 1, locked = false
+06-17 14:24:52.847 12327 12327 E BpTransactionCompletedListener: Failed to transact (-32)
+06-17 14:24:52.852 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:52.853 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:52.854 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:52.854 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:52.854 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:52.854 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:52.854 12475 15179 W ProcessStats: Tracking association SourceState{487f048 com.android.car.carlauncher/1010078 BTop #228785} whose proc state 2 is better than process ProcessState{89a1b05 com.spotify.music/1010169 pkg=com.spotify.music} proc state 3 (9 skipped)
+06-17 14:24:52.854 12475 13089 W PackageConfigPersister: App-specific configuration not found for packageName: com.google.android.apps.maps and userId: 10
+06-17 14:24:52.855 12475 12515 W ActivityManager: setHasOverlayUi called on unknown pid: 32036
+06-17 14:24:52.855 12475 12515 V WindowManager: Unknown focus tokens, dropping reportFocusChanged
+06-17 14:24:52.856 12475 12475 W ActivityManager: pid 12475 system sent binder code 9 with flags 1 to frozen apps and got error -32
+06-17 14:24:52.856 12475 12475 D ActivityManager: Too many transaction errors, throttling freezer binder callback.
+06-17 14:24:52.856 12475 12475 W VoiceInteractionServiceManager: Voice interation session already dead
+06-17 14:24:52.884   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:52.857 11880 11880 W RecognitionService: #cancel received for a listener which has not started a session - ignoring this call.
+06-17 14:24:52.857 12475 12475 W TextToSpeechManagerPerUserService: Disconnected from TTS engine
+06-17 14:24:52.858 12475 12475 W ActivityManager: pid 12475 system sent binder code 2 with flags 1 to frozen apps and got error -32
+06-17 14:24:52.858 12475 12475 D ActivityManager: Too many transaction errors, throttling freezer binder callback.
+06-17 14:24:52.858 12475 12475 I TextToSpeechManagerPerUserService: Failed running callback method: android.os.DeadObjectException
+06-17 14:24:52.858 12475 12475 W ServiceConnector.Impl: mayInterruptIfRunning not supported - ignoring
+06-17 14:24:52.858 12475 12475 I RemoteSpeechRecognitionService: Connection to speech recognition service lost, but no #startListening has been invoked yet.
+06-17 14:24:52.859 12475 12475 W ServiceConnector.Impl: mayInterruptIfRunning not supported - ignoring
+06-17 14:24:52.859   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:52.860   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:52.861   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:52.862   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:52.975  1056  1056 E logbuffer_pcie1: [423335] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:24:53.007  1056  1056 I logbuffer_pcie1: [423336] D state: 0, LTSSM: 0
+06-17 14:24:53.007  1056  1056 I logbuffer_pcie1: [423337] L0(0x11)
+06-17 14:24:53.011  1056  1056 W [13:24:52.981387][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:24:53.000  1676  1699 I pixel-thermal: charger_skin_therm:40.03 raw data: charger_skin_therm:40030 
+06-17 14:24:53.021  1676  1699 I pixel-thermal: VIRTUAL-BACK-CHARGER:34.2218 raw data: VIRTUAL-BACK-CHARGER:34221.8 charger_skin_therm:40030 disp_therm:32306 neutral_therm:51975 quiet_therm:42143 
+06-17 14:24:53.022  1676  1699 I pixel-thermal: THERMAL_GENL_EVENT_TZ_TRIP_UP
+06-17 14:24:53.022  1676  1699 I pixel-thermal: Thermal zone id: 24
+06-17 14:24:53.022  1676  1699 I pixel-thermal: Thermal zone trip id: 0
+06-17 14:24:53.022  1676  1699 I pixel-thermal: TZ Path: /sys/devices/virtual/thermal/thermal_zone24/type
+06-17 14:24:53.022  1676  1699 I pixel-thermal: TZ type: neutral_therm
+06-17 14:24:53.022  1676  1699 I pixel-thermal: neutral_therm:51.975 raw data: neutral_therm:51975 
+06-17 14:24:53.022 14085  2917 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:53.023  1676  1699 I pixel-thermal: VIRTUAL-SKIN:36.2131 raw data: VIRTUAL-BACK-CHARGER:34221.8 VIRTUAL-BACK-SOC:36213.1 VIRTUAL-FRONT-BL:33270.7 VIRTUAL-FRONT-SOC:31764.1 VIRTUAL-SKIN:36213.1 charger_skin_therm:40030 disp_therm:32306 neutral_therm:51975 quiet_therm:42143 
+06-17 14:24:53.023  1676  1699 I pixel-thermal: VIRTUAL-SKIN-HINT:36.2131 raw data: VIRTUAL-SKIN:36213.1 VIRTUAL-SKIN-HINT:36213.1 
+06-17 14:24:53.023  1676  1699 I pixel-thermal: VIRTUAL-SKIN-CPU-GPU:36.2131 raw data: VIRTUAL-SKIN:36213.1 VIRTUAL-SKIN-CPU-GPU:36213.1 
+06-17 14:24:53.027 14272 14435 I native  : I0000 00:00:1781702693.026485   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:53.027 14272 14435 I native  : 
+06-17 14:24:53.027 14272 14435 I native  : I0000 00:00:1781702693.027262   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:53.028 12475 12630 D WifiClientModeImpl[34933266:wlan0]: updateLinkLayerStatsRssiSpeedFrequencyCapabilities rssi=-60 TxLinkspeed=650 freq=5240 RxLinkSpeed=468
+06-17 14:24:53.028 12475 12630 D WifiDataStall: tx tput in kbps: 611914
+06-17 14:24:53.028 12475 12630 D WifiDataStall: rx tput in kbps: 611914
+06-17 14:24:53.028 12475 12630 V WifiConfigManager: Updating scan detail cache freq=5240 BSSID=90:32:4b:d3:f0:6b RSSI=-59 for "90324BD3F068-5G"WPA_PSK
+06-17 14:24:53.028 12475 12630 D WifiChannelUtilization:  freq: 5240 onTime: 1521005 busyTime: 1739001 onTimeDiff: 4354 busyTimeDiff: 102412 utilization: -1 utilization t0: -1
+06-17 14:24:53.028 12475 12630 D WifiDataStall:  use default cca Level
+06-17 14:24:53.028 12475 12630 D WifiDataStall:  ccaLevel = 15
+06-17 14:24:53.028 12475 12630 D WifiDataStall: L2 txTputKbps: 581318, rxTputKbps: 440578, L3 txTputKbps: 4, rxTputKbps: 1, TxTrafficHigh: false, RxTrafficHigh: false, Throughput Sufficient: true
+06-17 14:24:53.028 12475 12630 D WifiScoreCard: BSSID update SIGNAL_POLL ID: 704467292 SSID: "90324BD3F068-5G", BSSID: 90:32:4b:d3:f0:6b, MAC: f6:c0:33:a7:e0:0c, IP: /192.168.3.5, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 5, RSSI: -60, Link speed: 650Mbps, Tx Link speed: 650Mbps, Max Supported Tx Link speed: 866Mbps, Rx Link speed: 468Mbps, Max Supported Rx Link speed: 866Mbps, Frequency: 5240MHz, Net ID: 1, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>"90324BD3F068-5G"wpa2-pskMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>
+06-17 14:24:53.029 12475 12630 D WifiScoreCard: txRate: 4 txSpeed: 650
+06-17 14:24:53.029 12475 12630 D WifiScoreCard: network update SIGNAL_POLL "90324BD3F068-5G" ID: 910622593 RSSI -60 txSpeed 650
+06-17 14:24:53.029 12475 12630 D WifiClientModeImpl[34933266:wlan0]:  ClientModeImpl$L2ConnectedState screen=on 1 0 "90324BD3F068-5G" 90:32:4b:d3:f0:6b rssi=-60 f=5240 sc=60 link=650 tx=2.9, 0.4, 0.0 rx=4.1 bcn=2537654 [on:317 tx:5 rx:0 period:3087] from screen [on:21190994 period:261844867] score=60
+06-17 14:24:53.030 14272 14435 W native  : W0000 00:00:1781702693.030437   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:53.031 14272 14435 W native  : W0000 00:00:1781702693.031719   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:53.031 14272 14435 W native  : W0000 00:00:1781702693.031891   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:53.032 14272 14435 W native  : W0000 00:00:1781702693.032147   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:53.032 14272 14435 I native  : I0000 00:00:1781702693.032193   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:53.035 14272 14435 I native  : I0000 00:00:1781702693.035891   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:53.197   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:53.198   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:53.199   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:53.200   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:53.200 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:53.200 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:53.202 14272 14435 W native  : W0000 00:00:1781702693.202036   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:53.202 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:53.202 14272 14435 W native  : W0000 00:00:1781702693.202478   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:53.202 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:53.202 14272 14435 W native  : W0000 00:00:1781702693.202624   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:53.202 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:53.367 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 128us,1.690ms total 183.781ms
+06-17 14:24:53.534   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:53.536   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:53.537   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:53.537   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:53.707 12475 15223 W ActivityManager: Unable to start service Intent { act=grpc.io.action.BIND cmp=com.google.android.apps.geo.automotive.adas/.bulkdata.access.BulkDataAccessAndroidService } U=10: not found
+06-17 14:24:53.709 12475 15223 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@22f6f61
+06-17 14:24:53.855 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:53.857 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:53.857 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:53.857 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:53.857 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:53.857 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:53.887   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:53.872   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:53.874   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:53.875   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:53.875   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:54.078  1056  1056 W [13:24:54.048081][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:24:54.211   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:54.213   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:54.214   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:54.215   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:54.334 14085 31430 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:54.340 14272 14435 I native  : I0000 00:00:1781702694.340456   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:54.340 14272 14435 I native  : 
+06-17 14:24:54.340 14272 14435 I native  : I0000 00:00:1781702694.340839   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:54.342 14272 14435 W native  : W0000 00:00:1781702694.342490   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:54.343 14272 14435 W native  : W0000 00:00:1781702694.343180   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:54.343 14272 14435 W native  : W0000 00:00:1781702694.343265   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:54.343 14272 14435 W native  : W0000 00:00:1781702694.343396   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:54.343 14272 14435 I native  : I0000 00:00:1781702694.343422   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:54.345 14272 14435 I native  : I0000 00:00:1781702694.345374   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:54.476 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:54.476 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:54.477 14272 14435 W native  : W0000 00:00:1781702694.477845   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:54.477 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:54.478 14272 14435 W native  : W0000 00:00:1781702694.478276   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:54.478 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:54.478 14272 14435 W native  : W0000 00:00:1781702694.478441   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:54.478 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:54.552   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:54.554   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:54.554   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:54.555   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:54.859 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:54.890   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:54.861 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:54.861 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:54.861 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:54.861 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:54.861 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:54.890   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:54.893   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:54.894   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:54.895   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:55.229   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:55.231   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:55.231   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:55.232   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:55.433  1056  1056 E logbuffer_pcie1: [423338] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:24:55.467  1056  1056 I logbuffer_pcie1: [423339] D state: 0, LTSSM: 0
+06-17 14:24:55.467  1056  1056 I logbuffer_pcie1: [423340] L0(0x11)
+06-17 14:24:55.471  1056  1056 W [13:24:55.440850][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:24:55.569   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:55.570   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:55.571   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:55.572   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:55.657 14085  7912 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:55.666 14272 14435 I native  : I0000 00:00:1781702695.665775   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:55.666 14272 14435 I native  : 
+06-17 14:24:55.666 14272 14435 I native  : I0000 00:00:1781702695.666086   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:55.667 14272 14435 W native  : W0000 00:00:1781702695.667546   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:55.668 14272 14435 W native  : W0000 00:00:1781702695.668320   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:55.668 14272 14435 W native  : W0000 00:00:1781702695.668407   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:55.668 14272 14435 W native  : W0000 00:00:1781702695.668596   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:55.668 14272 14435 I native  : I0000 00:00:1781702695.668633   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:55.670 14272 14435 I native  : I0000 00:00:1781702695.670855   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:55.807 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:55.807 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:55.808 14272 14435 W native  : W0000 00:00:1781702695.808930   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:55.809 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:55.809 14272 14435 W native  : W0000 00:00:1781702695.809409   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:55.809 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:55.809 14272 14435 W native  : W0000 00:00:1781702695.809567   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:55.809 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:55.862 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:55.863 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:55.863 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:55.863 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:55.863 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:55.863 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:55.893   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:55.908   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:55.909   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:55.910   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:55.910   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:55.979 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 166us,1.753ms total 189.110ms
+06-17 14:24:56.017  1056  1056 W [13:24:55.986906][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:24:56.065  1056  1056 E logbuffer_pcie1: [423341] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:24:56.097  1056  1056 I logbuffer_pcie1: [423342] D state: 0, LTSSM: 0
+06-17 14:24:56.097  1056  1056 I logbuffer_pcie1: [423343] L0(0x11)
+06-17 14:24:56.101  1056  1056 W [13:24:56.071065][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:24:56.119 12475 12630 D WifiClientModeImpl[34933266:wlan0]: updateLinkLayerStatsRssiSpeedFrequencyCapabilities rssi=-59 TxLinkspeed=650 freq=5240 RxLinkSpeed=468
+06-17 14:24:56.119 12475 12630 D WifiDataStall: tx tput in kbps: 581318
+06-17 14:24:56.120 12475 12630 D WifiDataStall: rx tput in kbps: 440578
+06-17 14:24:56.120 12475 12630 V WifiConfigManager: Updating scan detail cache freq=5240 BSSID=90:32:4b:d3:f0:6b RSSI=-59 for "90324BD3F068-5G"WPA_PSK
+06-17 14:24:56.121 12475 12630 D WifiChannelUtilization:  freq: 5240 onTime: 1521075 busyTime: 1751742 onTimeDiff: 4424 busyTimeDiff: 115153 utilization: -1 utilization t0: -1
+06-17 14:24:56.121 12475 12630 D WifiDataStall:  use default cca Level
+06-17 14:24:56.121 12475 12630 D WifiDataStall:  ccaLevel = 15
+06-17 14:24:56.121 12475 12630 D WifiDataStall: L2 txTputKbps: 581318, rxTputKbps: 440578, L3 txTputKbps: 0, rxTputKbps: 0, TxTrafficHigh: false, RxTrafficHigh: false, Throughput Sufficient: true
+06-17 14:24:56.122 12475 12630 D WifiScoreCard: BSSID update SIGNAL_POLL ID: 704467292 SSID: "90324BD3F068-5G", BSSID: 90:32:4b:d3:f0:6b, MAC: f6:c0:33:a7:e0:0c, IP: /192.168.3.5, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 5, RSSI: -59, Link speed: 650Mbps, Tx Link speed: 650Mbps, Max Supported Tx Link speed: 866Mbps, Rx Link speed: 468Mbps, Max Supported Rx Link speed: 866Mbps, Frequency: 5240MHz, Net ID: 1, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>"90324BD3F068-5G"wpa2-pskMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>
+06-17 14:24:56.122 12475 12630 D WifiScoreCard: txRate: 2 txSpeed: 650
+06-17 14:24:56.122 12475 12630 D WifiScoreCard: network update SIGNAL_POLL "90324BD3F068-5G" ID: 910622593 RSSI -59 txSpeed -1
+06-17 14:24:56.123 12475 12630 D WifiClientModeImpl[34933266:wlan0]:  ClientModeImpl$L2ConnectedState screen=on 1 0 "90324BD3F068-5G" 90:32:4b:d3:f0:6b rssi=-59 f=5240 sc=60 link=650 tx=1.0, 0.1, 0.0 rx=1.4 bcn=2537683 [on:69 tx:4 rx:0 period:3094] from screen [on:21191063 period:261847961] score=60
+06-17 14:24:56.245   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:56.247   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:56.247   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:56.248   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:56.585   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:56.588   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:56.589   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:56.590   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:56.864 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:56.866 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:56.866 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:56.866 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:56.866 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:56.866 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:56.896   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:56.925   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:56.927   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:56.928   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:56.929   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:56.970 14085 20148 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:56.978 14272 14435 I native  : I0000 00:00:1781702696.978624   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:56.979 14272 14435 I native  : 
+06-17 14:24:56.979 14272 14435 I native  : I0000 00:00:1781702696.979082   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:56.981 14272 14435 W native  : W0000 00:00:1781702696.981747   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:56.982 14272 14435 W native  : W0000 00:00:1781702696.982876   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:56.982 14272 14435 W native  : W0000 00:00:1781702696.982972   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:56.983 14272 14435 W native  : W0000 00:00:1781702696.983134   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:56.983 14272 14435 I native  : I0000 00:00:1781702696.983164   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:56.985 14272 14435 I native  : I0000 00:00:1781702696.985742   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:57.115 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:57.115 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:57.117 14272 14435 W native  : W0000 00:00:1781702697.117416   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:57.117 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:57.117 14272 14435 W native  : W0000 00:00:1781702697.117851   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:57.117 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:57.118 14272 14435 W native  : W0000 00:00:1781702697.118009   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:57.118 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:57.161  1056  1056 W [13:24:57.130705][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:24:57.266   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:57.268   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:57.269   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:57.270   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:57.606   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:57.612   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:57.613   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:57.614   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:57.868 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:57.870 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:57.870 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:57.870 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:57.870 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:57.870 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:57.900   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:57.951   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:57.954   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:57.956   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:57.957   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:58.290 14085 20148 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:58.292   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:58.294   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:58.294   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:58.295   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:58.297 14272 14435 I native  : I0000 00:00:1781702698.297043   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:58.297 14272 14435 I native  : 
+06-17 14:24:58.297 14272 14435 I native  : I0000 00:00:1781702698.297341   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:58.298 14272 14435 W native  : W0000 00:00:1781702698.298817   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:58.299 14272 14435 W native  : W0000 00:00:1781702698.299530   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:58.299 14272 14435 W native  : W0000 00:00:1781702698.299612   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:58.299 14272 14435 W native  : W0000 00:00:1781702698.299750   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:58.299 14272 14435 I native  : I0000 00:00:1781702698.299820   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:58.301 14272 14435 I native  : I0000 00:00:1781702698.301839   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:58.428 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:58.428 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:58.429 14272 14435 W native  : W0000 00:00:1781702698.429798   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:58.429 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:58.430 14272 14435 W native  : W0000 00:00:1781702698.430255   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:58.430 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:58.430 14272 14435 W native  : W0000 00:00:1781702698.430415   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:58.430 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:58.511 12475 15223 W ActivityManager: Unable to start service Intent { act=grpc.io.action.BIND cmp=com.google.android.apps.geo.automotive.adas/.bulkdata.access.BulkDataAccessAndroidService } U=10: not found
+06-17 14:24:58.512 12475 15223 W ActivityManager: Unbind failed: could not find connection for android.os.BinderProxy@e12a09d
+06-17 14:24:58.598 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 178us,1.664ms total 186.837ms
+06-17 14:24:58.629   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:58.630   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:58.631   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:58.631   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:58.747   267   267 I         : s2mpg13-spmic-thermal s2mpg13-spmic-thermal: PMIC_THERM[0] IRQ, 407 ot_irq:0
+06-17 14:24:58.717  1676  1699 I pixel-thermal: THERMAL_GENL_EVENT_TZ_TRIP_DOWN
+06-17 14:24:58.718  1676  1699 I pixel-thermal: Thermal zone id: 24
+06-17 14:24:58.718  1676  1699 I pixel-thermal: Thermal zone trip id: 0
+06-17 14:24:58.718  1676  1699 I pixel-thermal: TZ Path: /sys/devices/virtual/thermal/thermal_zone24/type
+06-17 14:24:58.718  1676  1699 I pixel-thermal: TZ type: neutral_therm
+06-17 14:24:58.719  1676  1699 I pixel-thermal: neutral_therm:47.61 raw data: neutral_therm:47610 
+06-17 14:24:58.728  1676  1699 I pixel-thermal: VIRTUAL-SKIN:37.4279 raw data: VIRTUAL-BACK-CHARGER:35460.6 VIRTUAL-BACK-SOC:37427.9 VIRTUAL-FRONT-BL:32673.9 VIRTUAL-FRONT-SOC:33899.5 VIRTUAL-SKIN:37427.9 charger_skin_therm:39340 disp_therm:32329 neutral_therm:47610 quiet_therm:42166 
+06-17 14:24:58.728  1676  1699 I pixel-thermal: VIRTUAL-SKIN-HINT:37.4279 raw data: VIRTUAL-SKIN:37427.9 VIRTUAL-SKIN-HINT:37427.9 
+06-17 14:24:58.728  1676  1699 I pixel-thermal: VIRTUAL-SKIN-CPU-GPU:37.4279 raw data: VIRTUAL-SKIN:37427.9 VIRTUAL-SKIN-CPU-GPU:37427.9 
+06-17 14:24:58.729  1676  1699 I pixel-thermal: VIRTUAL-SKIN-HINT send powerhint: NONE:1 LIGHT:1 MODERATE:0 CRITICAL:0 EMERGENCY:0 
+06-17 14:24:58.761  3150  3150 I         : [acpm_tmu] tz 0 threshold: 0:20 1:60 2:0 3:55 4:94 5:96 6:100 7:115
+06-17 14:24:58.762  3150  3150 I         : [acpm_tmu] tz 1 threshold: 0:20 1:60 2:0 3:55 4:94 5:96 6:100 7:115
+06-17 14:24:58.762  3150  3150 I         : [acpm_tmu] tz 2 threshold: 0:20 1:60 2:0 3:55 4:94 5:96 6:100 7:115
+06-17 14:24:58.763  3150  3150 I         : [acpm_tmu] tz 3 threshold: 0:20 1:60 2:0 3:0 4:94 5:96 6:100 7:115
+06-17 14:24:58.764  3150  3150 I         : [acpm_tmu] tz 5 threshold: 0:20 1:60 2:0 3:0 4:94 5:96 6:100 7:115
+06-17 14:24:58.767     1     1 I init    : processing action (vendor.powerhal.dalvik.vm.dex2oat-threads=*) from (/vendor/etc/init/android.hardware.power-service.pixel-libperfmgr.rc:22)
+06-17 14:24:58.772     1     1 I init    : processing action (vendor.powerhal.dalvik.vm.dex2oat-cpu-set=*) from (/vendor/etc/init/android.hardware.power-service.pixel-libperfmgr.rc:26)
+06-17 14:24:58.872 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:58.873 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:58.873 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:58.873 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:58.873 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:58.873 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:58.903   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:58.969   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:58.973   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:58.974   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:58.975   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:59.160  1056  1056 E logbuffer_pcie1: [423344] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:24:59.194  1056  1056 I logbuffer_pcie1: [423345] D state: 0, LTSSM: 0
+06-17 14:24:59.194  1056  1056 I logbuffer_pcie1: [423346] L0(0x11)
+06-17 14:24:59.198  1056  1056 W [13:24:59.168049][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:24:59.217 12475 12630 D WifiClientModeImpl[34933266:wlan0]: updateLinkLayerStatsRssiSpeedFrequencyCapabilities rssi=-59 TxLinkspeed=650 freq=5240 RxLinkSpeed=468
+06-17 14:24:59.218 12475 12630 D WifiDataStall: tx tput in kbps: 581318
+06-17 14:24:59.218 12475 12630 D WifiDataStall: rx tput in kbps: 440578
+06-17 14:24:59.218 12475 12630 V WifiConfigManager: Updating scan detail cache freq=5240 BSSID=90:32:4b:d3:f0:6b RSSI=-59 for "90324BD3F068-5G"WPA_PSK
+06-17 14:24:59.219 12475 12630 D WifiChannelUtilization:  freq: 5240 onTime: 1521134 busyTime: 1764482 onTimeDiff: 4483 busyTimeDiff: 127893 utilization: -1 utilization t0: -1
+06-17 14:24:59.219 12475 12630 D WifiDataStall:  use default cca Level
+06-17 14:24:59.219 12475 12630 D WifiDataStall:  ccaLevel = 15
+06-17 14:24:59.219 12475 12630 D WifiDataStall: L2 txTputKbps: 581318, rxTputKbps: 440578, L3 txTputKbps: 0, rxTputKbps: 0, TxTrafficHigh: false, RxTrafficHigh: false, Throughput Sufficient: true
+06-17 14:24:59.222 12475 12630 D WifiScoreCard: BSSID update SIGNAL_POLL ID: 704467292 SSID: "90324BD3F068-5G", BSSID: 90:32:4b:d3:f0:6b, MAC: f6:c0:33:a7:e0:0c, IP: /192.168.3.5, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 5, RSSI: -59, Link speed: 650Mbps, Tx Link speed: 650Mbps, Max Supported Tx Link speed: 866Mbps, Rx Link speed: 468Mbps, Max Supported Rx Link speed: 866Mbps, Frequency: 5240MHz, Net ID: 1, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>"90324BD3F068-5G"wpa2-pskMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>
+06-17 14:24:59.222 12475 12630 D WifiScoreCard: txRate: 1 txSpeed: 650
+06-17 14:24:59.223 12475 12630 D WifiScoreCard: network update SIGNAL_POLL "90324BD3F068-5G" ID: 910622593 RSSI -59 txSpeed -1
+06-17 14:24:59.223 12475 12630 D WifiClientModeImpl[34933266:wlan0]:  ClientModeImpl$L2ConnectedState screen=on 1 0 "90324BD3F068-5G" 90:32:4b:d3:f0:6b rssi=-59 f=5240 sc=60 link=650 tx=0.3, 0.0, 0.0 rx=0.5 bcn=2537713 [on:51 tx:4 rx:0 period:3100] from screen [on:21191114 period:261851061] score=60
+06-17 14:24:59.312   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:59.313   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:59.314   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:59.315   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:59.572 14085 20148 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:24:59.575 14272 14435 I native  : I0000 00:00:1781702699.575152   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:24:59.575 14272 14435 I native  : 
+06-17 14:24:59.575 14272 14435 I native  : I0000 00:00:1781702699.575414   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:24:59.576 14272 14435 W native  : W0000 00:00:1781702699.576350   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:24:59.576 14272 14435 W native  : W0000 00:00:1781702699.576856   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:24:59.576 14272 14435 W native  : W0000 00:00:1781702699.576917   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:24:59.577 14272 14435 W native  : W0000 00:00:1781702699.577013   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:24:59.577 14272 14435 I native  : I0000 00:00:1781702699.577033   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:24:59.578 14272 14435 I native  : I0000 00:00:1781702699.578319   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:24:59.650   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:59.652   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:59.653   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:59.654   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:24:59.715 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:24:59.715 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:24:59.717 14272 14435 W native  : W0000 00:00:1781702699.717238   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:24:59.717 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:24:59.717 14272 14435 W native  : W0000 00:00:1781702699.717657   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:24:59.717 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:24:59.717 14272 14435 W native  : W0000 00:00:1781702699.717800   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:24:59.717 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:24:59.901   925   925 I s3c2410-wdt 10070000.watchdog_cl1: Watchdog cluster 1 keepalive!, old_wtcnt = 774d, wtcnt = cc8c
+06-17 14:24:59.875 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:24:59.877 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:24:59.877 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:24:59.877 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:24:59.877 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:24:59.877 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:24:59.907   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:24:59.990   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:24:59.991   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:24:59.993   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:24:59.994   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:00.012  1676  1699 I pixel-thermal: charger_skin_therm:39.34 raw data: charger_skin_therm:39340 
+06-17 14:25:00.029  1676  1699 I pixel-thermal: VIRTUAL-BACK-CHARGER:35.4606 raw data: VIRTUAL-BACK-CHARGER:35460.6 
+06-17 14:25:00.269  1056  1056 W [13:25:00.238945][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:25:00.349  1056  1056 E logbuffer_pcie1: [423347] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:25:00.329   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:00.330   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:00.331   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:00.332   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:00.379  1056  1056 I logbuffer_pcie1: [423348] D state: 0, LTSSM: 0
+06-17 14:25:00.379  1056  1056 I logbuffer_pcie1: [423349] L0(0x11)
+06-17 14:25:00.383  1056  1056 W [13:25:00.352769][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:25:00.588  8015  8015 D PrivacyChip: Transition set: invisibleFromInactive
+06-17 14:25:00.669   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:00.673   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:00.674   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:00.675   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:00.876 14085  2917 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:25:00.879 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:25:00.910   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:25:00.880 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:25:00.880 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:25:00.880 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:25:00.880 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:25:00.880 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:25:00.883 14272 14435 I native  : I0000 00:00:1781702700.882667   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:25:00.883 14272 14435 I native  : 
+06-17 14:25:00.883 14272 14435 I native  : I0000 00:00:1781702700.883335   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:25:00.887 14272 14435 W native  : W0000 00:00:1781702700.886948   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:25:00.887 14272 14435 W native  : W0000 00:00:1781702700.887918   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:25:00.888 14272 14435 W native  : W0000 00:00:1781702700.888005   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:25:00.888 14272 14435 W native  : W0000 00:00:1781702700.888138   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:25:00.888 14272 14435 I native  : I0000 00:00:1781702700.888162   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:25:00.890 14272 14435 I native  : I0000 00:00:1781702700.890309   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:25:01.041  1056  1056 W [13:25:01.010701][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:25:01.018 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:25:01.018 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:25:01.020 14272 14435 W native  : W0000 00:00:1781702701.020205   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:25:01.020 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:25:01.020 14272 14435 W native  : W0000 00:00:1781702701.020703   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:25:01.020 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:25:01.020 14272 14435 W native  : W0000 00:00:1781702701.020872   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:25:01.020 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:25:01.170   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:01.171   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:01.171   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:01.172   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:01.192 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 183us,1.725ms total 189.924ms
+06-17 14:25:01.508   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:01.510   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:01.510   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:01.511   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:01.583  1056  1056 E logbuffer_pcie1: [423350] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:25:01.615  1056  1056 I logbuffer_pcie1: [423351] D state: 0, LTSSM: 0
+06-17 14:25:01.615  1056  1056 I logbuffer_pcie1: [423352] L0(0x11)
+06-17 14:25:01.619  1056  1056 W [13:25:01.588908][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:25:01.846   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:01.848   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:01.849   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:01.850   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:01.881 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:25:01.912   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:25:01.882 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:25:01.882 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:25:01.882 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:25:01.882 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:25:01.882 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:25:02.161  1056  1056 W [13:25:02.130949][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:25:02.172 14085 23624 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:25:02.175 14272 14435 I native  : I0000 00:00:1781702702.175426   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:25:02.175 14272 14435 I native  : 
+06-17 14:25:02.175 14272 14435 I native  : I0000 00:00:1781702702.175662   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:25:02.176 14272 14435 W native  : W0000 00:00:1781702702.176880   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:25:02.177 14272 14435 W native  : W0000 00:00:1781702702.177478   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:25:02.177 14272 14435 W native  : W0000 00:00:1781702702.177548   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:25:02.177 14272 14435 W native  : W0000 00:00:1781702702.177664   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:25:02.177 14272 14435 I native  : I0000 00:00:1781702702.177689   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:25:02.179 14272 14435 I native  : I0000 00:00:1781702702.179226   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:25:02.184   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:02.186   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:02.187   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:02.189   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:02.257  1056  1056 E logbuffer_pcie1: [423353] OC Initial Status check: 0x5FC(0xf0)
+06-17 14:25:02.289  1056  1056 I logbuffer_pcie1: [423354] D state: 0, LTSSM: 0
+06-17 14:25:02.289  1056  1056 I logbuffer_pcie1: [423355] L0(0x11)
+06-17 14:25:02.292  1056  1056 W [13:25:02.262253][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 1
+06-17 14:25:02.297 12475 12630 D WifiClientModeImpl[34933266:wlan0]: updateLinkLayerStatsRssiSpeedFrequencyCapabilities rssi=-59 TxLinkspeed=650 freq=5240 RxLinkSpeed=468
+06-17 14:25:02.297 12475 12630 D WifiDataStall: tx tput in kbps: 581318
+06-17 14:25:02.297 12475 12630 D WifiDataStall: rx tput in kbps: 440578
+06-17 14:25:02.298 12475 12630 V WifiConfigManager: Updating scan detail cache freq=5240 BSSID=90:32:4b:d3:f0:6b RSSI=-59 for "90324BD3F068-5G"WPA_PSK
+06-17 14:25:02.298 12475 12630 D WifiChannelUtilization:  freq: 5240 onTime: 1521246 busyTime: 1777234 onTimeDiff: 4595 busyTimeDiff: 140645 utilization: -1 utilization t0: -1
+06-17 14:25:02.298 12475 12630 D WifiDataStall:  use default cca Level
+06-17 14:25:02.298 12475 12630 D WifiDataStall:  ccaLevel = 15
+06-17 14:25:02.298 12475 12630 D WifiDataStall: L2 txTputKbps: 581318, rxTputKbps: 440578, L3 txTputKbps: 0, rxTputKbps: 2, TxTrafficHigh: false, RxTrafficHigh: false, Throughput Sufficient: true
+06-17 14:25:02.298 12475 12630 D WifiScoreCard: BSSID update SIGNAL_POLL ID: 704467292 SSID: "90324BD3F068-5G", BSSID: 90:32:4b:d3:f0:6b, MAC: f6:c0:33:a7:e0:0c, IP: /192.168.3.5, Security type: 2, Supplicant state: COMPLETED, Wi-Fi standard: 5, RSSI: -59, Link speed: 650Mbps, Tx Link speed: 650Mbps, Max Supported Tx Link speed: 866Mbps, Rx Link speed: 468Mbps, Max Supported Rx Link speed: 866Mbps, Frequency: 5240MHz, Net ID: 1, Metered hint: false, score: 60, isUsable: true, CarrierMerged: false, SubscriptionId: -1, IsPrimary: 1, Trusted: true, Restricted: false, Ephemeral: false, OEM paid: false, OEM private: false, OSU AP: false, FQDN: <none>, Provider friendly name: <none>, Requesting package name: <none>"90324BD3F068-5G"wpa2-pskMLO Information: , Is TID-To-Link negotiation supported by the AP: false, AP MLD Address: <none>, AP MLO Link Id: <none>, AP MLO Affiliated links: <none>
+06-17 14:25:02.298 12475 12630 D WifiScoreCard: txRate: 1 txSpeed: 650
+06-17 14:25:02.298 12475 12630 D WifiScoreCard: network update SIGNAL_POLL "90324BD3F068-5G" ID: 910622593 RSSI -59 txSpeed -1
+06-17 14:25:02.299 12475 12630 D WifiClientModeImpl[34933266:wlan0]:  ClientModeImpl$L2ConnectedState screen=on 1 0 "90324BD3F068-5G" 90:32:4b:d3:f0:6b rssi=-59 f=5240 sc=60 link=650 tx=0.3, 0.0, 0.0 rx=0.1 bcn=2537744 [on:123 tx:4 rx:0 period:3076] from screen [on:21191237 period:261854137] score=60
+06-17 14:25:02.312 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:25:02.312 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:25:02.313 14272 14435 W native  : W0000 00:00:1781702702.313722   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:25:02.313 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:25:02.314 14272 14435 W native  : W0000 00:00:1781702702.314116   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:25:02.314 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:25:02.314 14272 14435 W native  : W0000 00:00:1781702702.314252   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:25:02.314 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:25:02.524   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:02.526   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:02.527   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:02.528   895  1653 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:02.865   895  1653 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:02.868   895  1653 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:02.868   895  1653 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:02.869   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:02.883 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:25:02.884 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:25:02.885 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:25:02.885 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:25:02.885 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:25:02.885 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:25:02.915   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:25:02.900 12475 12586 D ActivityManager: freezing 18227 com.android.car.media
+06-17 14:25:02.902 12475 12586 D ActivityManager: freezing 13974 com.android.car.radio:appService
+06-17 14:25:02.903 12475 12586 D ActivityManager: freezing 8255 com.android.car.radio
+06-17 14:25:03.203   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:03.206   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:03.207   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:03.208   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:03.451 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.456 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.458 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.460 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.463 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.465 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.466 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.468 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.469 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.471 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.473 12865 31357 E BpfNetMapsReader: getDataSaverEnabled is not expected to be called on pre-V devices
+06-17 14:25:03.479 14085 20148 I VmsSimpleModuleUtil: VmsLayerTypeAndVersion with same type, same major version and different minor versions. Base layer: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2; Layer to Compare: Layer name: SEGMENT_GEOMETRY_TYPE, Channel: 2
+06-17 14:25:03.487 14272 14435 I native  : I0000 00:00:1781702703.486652   14435 horizon_provider.cc:1019] MLP before updating with location: path id: 2789, route tree: 1, mlp: 1, [{SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt20\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "bu\203\357$\224\331M" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\372\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "|\372g\343w\034\205\333" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\370\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "^\360G\030\234B\025\252" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\367\006\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\310_\367\017\254Z\210\342" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt25\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\336\032\t\235\220\201\352o" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt26\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\306)\276\026\230\364E\263" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt27\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\275\010\314\221{M;\310" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt28\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\037N\327\366\r\"7" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt29\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\205{@n\016\371\205\003" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2C\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\177h=\264h\242\035\017" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2B\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\200\203\367\237\020\341\354\001" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2?\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\203\351\\\205\225\"2" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2@\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "Dn\305\035\304 \362\323" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\200\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2439\246\341E\215~\356" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2|\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "6\203\366\247\307=\332C" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2y\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "(\254E\216a\216L\001" type: branch, Direction: Reverse}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2z\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\365\352x\360?\310\250G" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\206\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\2058UU\334\331\345)" type: branch, Direction: Forward}, {SegmentId: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\212\025\000" type: segment, BranchId: provider: 3 epoch: 8032653443333 id: "\024\033\242\373/H\222\376" typ
+06-17 14:25:03.487 14272 14435 I native  : 
+06-17 14:25:03.487 14272 14435 I native  : I0000 00:00:1781702703.487393   14435 horizon_provider.cc:986] Update MLP with location succeeded.
+06-17 14:25:03.490 14272 14435 W native  : W0000 00:00:1781702703.490534   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3cd0. Current path length: 731.536. Is MLP: true
+06-17 14:25:03.492 14272 14435 W native  : W0000 00:00:1781702703.492044   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 181.314. Is MLP: false
+06-17 14:25:03.492 14272 14435 W native  : W0000 00:00:1781702703.492185   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 66.4977. Is MLP: false
+06-17 14:25:03.492 14272 14435 W native  : W0000 00:00:1781702703.492470   14435 path.cc:355] No child branches found for branch MessageLite at 0x7a0c8a3c00. Current path length: 138.078. Is MLP: false
+06-17 14:25:03.492 14272 14435 I native  : I0000 00:00:1781702703.492574   14435 horizon_provider.cc:1232] horizon length in meters: mlp: 700.706 number of subpaths: 3 cumulative subpath length: 385.89
+06-17 14:25:03.496 14272 14435 I native  : I0000 00:00:1781702703.496719   14435 vms_message_cache.cc:954] Handling packet of type VEHICLE_LOCATION_TYPE in cache
+06-17 14:25:03.546   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:03.548   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:03.548   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:03.549   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:03.673  1056  1056 W [13:25:03.643168][dhd][wlan]dhd_plat_l1ss_ctrl: Control L1ss RC side 0
+06-17 14:25:03.806 14272 14435 I VmsConsoleModule: PathViewInfo: MLP SegmentGeometry list size: 27
+06-17 14:25:03.806 14272 14435 I VmsConsoleModule: PathViewInfo: number of paths in horizon: 4
+06-17 14:25:03.808 14272 14435 W native  : W0000 00:00:1781702703.808013   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2\310\033\000" type: segment
+06-17 14:25:03.808 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyyBsA, direction=kReverse
+06-17 14:25:03.808 14272 14435 W native  : W0000 00:00:1781702703.808457   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2-\025\000" type: segment
+06-17 14:25:03.808 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyLRUA, direction=kReverse
+06-17 14:25:03.808 14272 14435 W native  : W0000 00:00:1781702703.808643   14435 meta_segment.cc:521] Traffic notice has no minimum speed limit. for segment id: provider: 4 epoch: 8032653443335 id: "\001e\274[\000\220qt2+\025\000" type: segment
+06-17 14:25:03.808 14272 14435 W PathViewManager: SegmentId with unset speedlimit: base64Id=AWW8WwCQcXQyKxUA, direction=kForward
+06-17 14:25:03.885   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:03.886   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:03.886 12732 12824 I CAR.EVS.REARVIEW: Transition requested: UNAVAILABLE -> INACTIVE
+06-17 14:25:03.887 12732 12824 E CarServiceJNI: android.hardware.automotive.evs.IEvsEnumerator/default is not available.
+06-17 14:25:03.887 12732 12824 E CarServiceJNI: Failed to connect to EVS service.
+06-17 14:25:03.887 12732 12824 E CarServiceJNI: Failed to initialize a service context
+06-17 14:25:03.887 12732 12824 E CAR.EVS.REARVIEW: Transition failed: error = -1
+06-17 14:25:03.887 12732 12824 I CAR.EVS : Failed to connect to EvsManager service. Retrying after 1000 ms.
+06-17 14:25:03.887   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:03.888   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:03.917   465   465 I servicemanager: Could not find android.hardware.automotive.evs.IEvsEnumerator/default in the VINTF manifest. No alternative instances declared in VINTF.
+06-17 14:25:03.980 14272 14290 I ent.console.car: Background concurrent mark compact GC freed 100MB AllocSpace bytes, 0(0B) LOS objects, 61% free, 60MB/156MB, paused 168us,1.681ms total 190.242ms
+06-17 14:25:04.222   895   895 D usf_sensor_hal: magnetometer: Enter Flush
+06-17 14:25:04.224   895   895 D usf_sensor_hal: linear acceleration: Enter Flush
+06-17 14:25:04.225   895   895 D usf_sensor_hal: gravity: Enter Flush
+06-17 14:25:04.226   895   895 D usf_sensor_hal: gyroscope: Enter Flush
+06-17 14:25:04.388   473   473 I logd    : logdr: UID=0 GID=0 PID=839 n tail=1000 logMask=99 pid=0 start=0ns deadline=0ns

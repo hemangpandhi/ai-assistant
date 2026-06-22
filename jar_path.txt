@@ -1,0 +1,1 @@
+/home/hemang/.gradle/caches/8.10.2/transforms/88d4102040ef0461eecea47bbd004ed1/transformed/litertlm-android-0.11.0-api.jar

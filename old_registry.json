@@ -1,0 +1,283 @@
+{
+  "properties": [
+    {
+      "name": "ADAS_OSE_DOOR_ALERT",
+      "id": 639631617,
+      "type": "BOOLEAN",
+      "instruction": "If the user asks about the door status, you MUST read the ADAS_OSE_DOOR_ALERT property from the Current State and answer exactly what it says."
+    },
+    {
+      "name": "EV_BATTERY_LEVEL",
+      "id": 291504905,
+      "type": "FLOAT"
+    },
+    {
+      "name": "TIRE_PRESSURE",
+      "id": 392565865,
+      "type": "FLOAT"
+    },
+    {
+      "name": "ENV_OUTSIDE_TEMPERATURE",
+      "id": 291505923,
+      "type": "FLOAT"
+    },
+    {
+      "name": "OBD2_DIAGNOSTICS",
+      "id": 299896065,
+      "type": "STRING"
+    }
+  ],
+  "tools": [
+    {
+      "prompt_string": "<TOOL>setTemperature(VAL)</TOOL>",
+      "handler_key": "setTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "temperature",
+        "hot",
+        "cold",
+        "warm",
+        "cool",
+        "ac",
+        "heater",
+        "climate"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
+      "handler_key": "increaseTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "temperature",
+        "hot",
+        "cold",
+        "warm",
+        "cool",
+        "ac",
+        "heater",
+        "climate"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
+      "handler_key": "decreaseTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "temperature",
+        "hot",
+        "cold",
+        "warm",
+        "cool",
+        "ac",
+        "heater",
+        "climate"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
+      "handler_key": "setSeatHeater",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "seat",
+        "heater",
+        "hot",
+        "warm",
+        "bottom",
+        "butt"
+      ],
+      "property_id": 356517131,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've adjusted the seat heater."
+    },
+    {
+      "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
+      "handler_key": "setSeatMassager",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "seat",
+        "massage",
+        "massager",
+        "back",
+        "relax"
+      ],
+      "property_id": 356519253,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've turned on the seat massager for you."
+    },
+    {
+      "prompt_string": "<TOOL>turnOnDefroster()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865540,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "value_to_write": "true",
+      "success_message": "I've turned on the defroster.",
+      "keywords": [
+        "defroster",
+        "defrost",
+        "fog",
+        "window",
+        "windshield"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865540,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "value_to_write": "false",
+      "success_message": "I've turned off the defroster.",
+      "keywords": [
+        "defroster",
+        "defrost",
+        "fog",
+        "window",
+        "windshield"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
+      "handler_key": "setWindowPosition",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "window",
+        "roll",
+        "down",
+        "up",
+        "open",
+        "close",
+        "air"
+      ],
+      "property_id": 322964416,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've adjusted the windows.",
+      "constraints": [
+        {
+          "property_id": 291504647,
+          "operator": "<",
+          "value": 70,
+          "error_msg": "Safety Warning: Speed is too high to safely open the windows."
+        }
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
+      "handler_key": "navigate",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "navigate",
+        "go to",
+        "directions",
+        "route",
+        "drive",
+        "restaurant",
+        "food",
+        "dining",
+        "nearby"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>search(search_term)</TOOL>",
+      "handler_key": "search",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "search",
+        "find",
+        "look up",
+        "restaurant",
+        "food",
+        "dining",
+        "nearby"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>playMusic(SONG)</TOOL>",
+      "handler_key": "playMusic",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "music",
+        "play",
+        "song",
+        "artist",
+        "album",
+        "listen"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>call(NAME)</TOOL>",
+      "handler_key": "call",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "call",
+        "phone",
+        "dial",
+        "contact"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>remember(FACT)</TOOL>",
+      "handler_key": "remember",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "remember",
+        "fact",
+        "note",
+        "save"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>getWeather(CITY)</TOOL>",
+      "handler_key": "getWeather",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "weather",
+        "rain",
+        "sunny",
+        "forecast",
+        "cloudy"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>openTrunk()</TOOL>",
+      "handler_key": "openTrunk",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865540,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "value_to_write": "true",
+      "success_message": "I've popped the trunk.",
+      "keywords": [
+        "trunk",
+        "open",
+        "back",
+        "boot",
+        "cargo"
+      ],
+      "requires_confirmation": true,
+      "confirmation_message": "Warning: Are you sure you want to open the trunk?"
+    },
+    {
+      "prompt_string": "<TOOL>unlockDoors()</TOOL>",
+      "handler_key": "unlockDoors",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865541,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "value_to_write": "true",
+      "success_message": "I've unlocked the doors.",
+      "keywords": [
+        "unlock",
+        "door",
+        "doors",
+        "open",
+        "latch"
+      ],
+      "requires_confirmation": true,
+      "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?"
+    }
+  ]
+}

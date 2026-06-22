@@ -52,6 +52,19 @@ class WakeWordService : Service() {
                 Log.e("WakeWord", "Failed to unpack model: ${exception.message}") 
             }
         )
+        
+        // Background Pre-warming of Gemini Nano
+        CoroutineScope(Dispatchers.Main).launch {
+            LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
+                override fun onSuccess() {
+                    CoroutineScope(Dispatchers.Main).launch {
+                    }
+                }
+                override fun onError(e: Exception) {
+                    Log.e("WakeWord", "Background LLM Init Failed", e)
+                }
+            })
+        }
     }
 
     private fun updateWakeWord() {
@@ -71,11 +84,12 @@ class WakeWordService : Service() {
             Log.e("WakeWord", "Failed to init recognizer: ${e.message}")
         }
     }
+    private var listeningJob: kotlinx.coroutines.Job? = null
     
     private fun startCustomListening() {
         if (isRecording) return
         isRecording = true
-        CoroutineScope(Dispatchers.IO).launch {
+        listeningJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
                 
@@ -116,20 +130,34 @@ class WakeWordService : Service() {
             }
         }
     }
-    
+    private var restartJob: kotlinx.coroutines.Job? = null
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "ACTION_RESTART_LISTENING") {
-            CoroutineScope(Dispatchers.Main).launch {
+            restartJob?.cancel()
+            restartJob = CoroutineScope(Dispatchers.Main).launch {
                 try {
                     // Wait 2500ms to allow async media apps (like Spotify) to claim Audio Focus 
                     // and trigger AudioFlinger DSP routing changes before we grab the mic.
                     delay(2500)
+                    
+                    // 1. Tell IO thread to stop
                     isRecording = false
+                    
+                    // 2. Unblock the IO thread's AudioRecord.read() by stopping the microphone
                     try {
                         customAudioRecord?.stop()
-                        customAudioRecord?.release()
                     } catch(e: Exception) {}
-                    customAudioRecord = null
+                    
+                    // 3. WAIT for the IO thread to fully exit the acceptWaveForm loop!
+                    listeningJob?.join()
+                    
+                    // 4. Safely close the C++ Recognizer now that no thread is using it
+                    try {
+                        customRecognizer?.close()
+                    } catch (e: Exception) {}
+                    customRecognizer = null
+                    
                     recognizerSetup()
                     Log.d("WakeWord", "Restarting listener after Assistant UI closed")
                 } catch (e: Exception) {

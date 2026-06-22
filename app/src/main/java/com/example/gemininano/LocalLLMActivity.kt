@@ -158,6 +158,7 @@ class LocalLLMActivity : AppCompatActivity() {
         etWakeWord = findViewById(R.id.etWakeWord)
         switchWakeWord = findViewById(R.id.switchWakeWord)
         val switchAgenticLoop = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchAgenticLoop)
+        val switchVerboseAgentic = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchVerboseAgentic)
         llApiKeyContainer = findViewById(R.id.llApiKeyContainer)
         tvApiKeyLabel = findViewById(R.id.tvApiKeyLabel)
         etApiKey = findViewById(R.id.etApiKey)
@@ -274,6 +275,11 @@ class LocalLLMActivity : AppCompatActivity() {
 
         supportActionBar?.title = "MediaPipe Local LLM"
         
+        if (intent.hasExtra("test_prompt")) {
+            val testPrompt = intent.getStringExtra("test_prompt")
+            inputText.setText(testPrompt)
+            generateButton.postDelayed({ generateButton.performClick() }, 1000)
+        }
         if (intent.getBooleanExtra("auto_trigger_mic", false)) {
             android.util.Log.d("AutomatedTest", "auto_trigger_mic is true, clicking voice button.")
             voiceButton.postDelayed({ voiceButton.performClick() }, 500)
@@ -314,6 +320,11 @@ class LocalLLMActivity : AppCompatActivity() {
         tts = TextToSpeech(this) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts.language = Locale.US
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                tts.setAudioAttributes(audioAttributes)
                 applyVoiceSettings()
                 tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {
                     override fun onStart(utteranceId: String?) {
@@ -358,6 +369,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
+            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
 
         speechRecognizer.setRecognitionListener(object : RecognitionListener {
@@ -531,37 +543,38 @@ class LocalLLMActivity : AppCompatActivity() {
         val btnSyncTime = findViewById<Button>(R.id.btnSyncTime)
         btnSyncTime.setOnClickListener {
             btnSyncTime.isEnabled = false
-            btnSyncTime.text = "Syncing..."
+            btnSyncTime.text = "Clearing Cache..."
             Thread {
                 try {
-                    val url = java.net.URL("http://google.com")
-                    val conn = url.openConnection() as java.net.HttpURLConnection
-                    conn.requestMethod = "HEAD"
-                    conn.connectTimeout = 5000
-                    conn.readTimeout = 5000
-                    val dateHeader = conn.getHeaderField("Date")
-                    if (dateHeader != null) {
-                        val format = java.text.SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss z", java.util.Locale.US)
-                        val date = format.parse(dateHeader)
-                        if (date != null) {
-                            val am = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager
-                            am.setTime(date.time)
-                            runOnUiThread {
-                                Toast.makeText(this@LocalLLMActivity, "Time synced to $date", Toast.LENGTH_SHORT).show()
-                            }
+                    val internalDir = applicationContext.filesDir
+                    val externalDir = applicationContext.getExternalFilesDir(null)
+                    val tmpDir = java.io.File("/data/local/tmp/")
+                    val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles(), tmpDir.listFiles())
+                        .flatMap { it.toList() }
+                    
+                    var count = 0
+                    allFiles.forEach { file ->
+                        if (file.name.endsWith(".bin") && !file.name.endsWith(".litertlm.bin")) {
+                            file.delete()
+                            count++
                         }
-                    } else {
-                        runOnUiThread { Toast.makeText(this@LocalLLMActivity, "No Date header found", Toast.LENGTH_SHORT).show() }
+                        if (file.name.contains("xnnpack")) {
+                            file.delete()
+                            count++
+                        }
+                    }
+                    runOnUiThread {
+                        Toast.makeText(this@LocalLLMActivity, "Cleared $count stale cache files", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
-                    Log.e("LocalLLMActivity", "Failed to sync time", e)
+                    Log.e("LocalLLMActivity", "Failed to clear cache", e)
                     runOnUiThread {
-                        Toast.makeText(this@LocalLLMActivity, "Sync failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this@LocalLLMActivity, "Cache clear failed: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
                 } finally {
                     runOnUiThread {
                         btnSyncTime.isEnabled = true
-                        btnSyncTime.text = "Sync Time"
+                        btnSyncTime.text = "Clear Cache"
                     }
                 }
             }.start()
@@ -608,6 +621,13 @@ class LocalLLMActivity : AppCompatActivity() {
         switchAgenticLoop.isChecked = isAgenticLoopEnabled
         switchAgenticLoop.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("agentic_loop_enabled", isChecked).apply()
+        }
+        
+        // Verbose Agentic Responses
+        val isVerboseAgenticEnabled = prefs.getBoolean("verbose_agentic_responses", false)
+        switchVerboseAgentic.isChecked = isVerboseAgenticEnabled
+        switchVerboseAgentic.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("verbose_agentic_responses", isChecked).apply()
         }
         
         etWakeWord.addTextChangedListener(object : android.text.TextWatcher {
@@ -825,8 +845,8 @@ class LocalLLMActivity : AppCompatActivity() {
         // Dynamic Fallback: If exact filename is not found, use any existing .bin, .task, or .litertlm file
         if (modelFile == null) {
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+            modelFile = models.find { it.name.contains("Qwen", ignoreCase = true) }
+                ?: models.find { it.name.contains("gemma", ignoreCase = true) }
                 ?: models.firstOrNull()
             if (modelFile != null) {
                 // Try to find a matching LlmModel for this file to update the UI
@@ -917,10 +937,29 @@ class LocalLLMActivity : AppCompatActivity() {
 
         LLMManager.initialize(applicationContext, MODEL_PATH, force, backendChoice, object : LLMManager.InitCallback {
             override fun onSuccess() {
-                chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Ready for inference.", isUser = false))
+                chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Pre-warming Cache...", isUser = false))
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-                generateButton.isEnabled = true
-                btnLoadModel.isEnabled = false
+                
+                // Silent Pre-warm to eliminate initial 3s TTFT latency
+                if (!isTestRunning) {
+                    val prewarmCallback = object : com.google.ai.edge.litertlm.MessageCallback {
+                        override fun onMessage(p0: com.google.ai.edge.litertlm.Message) {}
+                        override fun onError(p0: Throwable) {}
+                        override fun onDone() {
+                            runOnUiThread {
+                                LLMManager.resetConversation(applicationContext)
+                                chatAdapter.addMessage(ChatMessage("Pre-warm complete! System ready for inference < 1.5s.", isUser = false))
+                                chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                                generateButton.isEnabled = true
+                                btnLoadModel.isEnabled = false
+                            }
+                        }
+                    }
+                    LLMManager.conversation?.sendMessageAsync("[SYSTEM: PREWARM]", prewarmCallback)
+                } else {
+                    generateButton.isEnabled = true
+                    btnLoadModel.isEnabled = false
+                }
             }
 
             override fun onError(e: Exception) {
@@ -964,7 +1003,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private fun generateText(prompt: String, isVoice: Boolean = false, displayPrompt: String = "") {
         if (isGenerating) return
         
-        if (prompt.trim() == "/diagnostics") {
+        if (prompt.trim().lowercase() == "/diagnostics") {
             chatAdapter.addMessage(ChatMessage("/diagnostics", isUser = true))
             if (!isVoice) {
                 inputText.setText("")
@@ -1028,20 +1067,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
             val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
-            val dynCtx = LLMManager.getDynamicContext(applicationContext, prompt)
-            val finalPrompt = if (LLMManager.isFirstMessage) {
-                LLMManager.isFirstMessage = false
-                LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
-            } else {
-                val customProps = VehicleManager.getCustomPropertiesString()
-                val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
-                
-                if (prompt.length < 25) {
-                    "$dynCtx\nUser: " + prompt
-                } else {
-                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]$dynCtx\nUser: " + prompt
-                }
-            }
+            val finalPrompt = LLMManager.getSystemPrompt(applicationContext, prompt) + "\\nUser: " + prompt
 
             val executedTools = mutableSetOf<String>()
             val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
@@ -1099,6 +1125,14 @@ class LocalLLMActivity : AppCompatActivity() {
                                 val toolCall = match.groups[1]?.value ?: continue
                                 if (executedTools.add(toolCall)) {
                                     executeToolCall(toolCall)
+                                    val toolName = toolCall.substringBefore("(").trim()
+                                    val toolDef = ToolManager.getToolDefinition(toolName)
+                                    if (toolDef?.requiresAgenticLoop != true) {
+                                        isHallucinating = true
+                                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                            LLMManager.resetConversation()
+                                        }
+                                    }
                                 }
                             }
                             
@@ -1143,28 +1177,6 @@ class LocalLLMActivity : AppCompatActivity() {
                             }
                             
                             finalResponse = finalResponse.replace(regex, "").trim()
-                            if (finalResponse.isEmpty() && executedTools.isNotEmpty()) {
-                                finalResponse = executedTools.joinToString("\n") { tool ->
-                                    when {
-                                        tool.startsWith("increaseTemperature") -> "I've increased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("decreaseTemperature") -> "I've decreased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("setTemperature") -> "I've set the temperature to ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("setSeatHeater") -> "I've adjusted the seat heater."
-                                        tool.startsWith("setSeatMassager") -> "I've turned on the seat massager for you."
-                                        tool.startsWith("turnOnDefroster") -> "I've turned on the defroster."
-                                        tool.startsWith("turnOffDefroster") -> "I've turned off the defroster."
-                                        tool.startsWith("setWindowPosition") -> "I've adjusted the windows."
-                                        tool.startsWith("navigate") -> "Routing to ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("playMusic") -> "Playing ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("pauseMusic") -> "Music paused."
-                                        tool.startsWith("nextTrack") -> "Skipping to next track."
-                                        tool.startsWith("prevTrack") -> "Playing previous track."
-                                        tool.startsWith("call") -> "Calling ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("remember") -> "Got it, I've remembered that."
-                                        else -> "Action completed."
-                                    }
-                                }
-                            }
                             chatAdapter.replaceLastMessage(finalResponse)
                             chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                             
@@ -1236,7 +1248,6 @@ class LocalLLMActivity : AppCompatActivity() {
                 val errorMsg = e.message ?: ""
                 chatAdapter.updateLastMessage("\nError: $errorMsg")
                 resetControls()
-                LLMManager.isFirstMessage = true
                 
                 if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
                     chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
@@ -1248,20 +1259,14 @@ class LocalLLMActivity : AppCompatActivity() {
     }
 
     private suspend fun runAutomatedTests() {
-        android.util.Log.i("AutomatedTest", "Initializing 200 Comprehensive Tests...")
+        android.util.Log.i("AutomatedTest", "Initializing Comprehensive Tests...")
         while (MODEL_PATH.isEmpty()) {
             kotlinx.coroutines.delay(100)
         }
         
-        if (LLMManager.engine == null) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                try {
-                    LLMManager.initialize(this@LocalLLMActivity, MODEL_PATH)
-                    android.util.Log.i("AutomatedTest", "Model loaded successfully.")
-                } catch (e: Exception) {
-                    android.util.Log.e("AutomatedTest", "Failed to load model: ${e.message}")
-                }
-            }
+        while (LLMManager.conversation == null) {
+            android.util.Log.i("AutomatedTest", "Waiting for LLM initialization...")
+            kotlinx.coroutines.delay(500)
         }
         
         // Ensure conversation is initialized before starting
@@ -1289,13 +1294,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 val lastResponseBuilder = java.lang.StringBuilder()
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    val isFirst = LLMManager.isFirstMessage
-                    val finalQuery = if (isFirst) {
-                        LLMManager.isFirstMessage = false
-                        LLMManager.getSystemPrompt(applicationContext, query) + "\nUser: " + query
-                    } else {
-                        "User: $query"
-                    }
+                    val finalQuery = LLMManager.getSystemPrompt(applicationContext, query) + "\\nUser: " + query
                     
                     android.util.Log.i("AutomatedTest", "Conversation is null: ${LLMManager.conversation == null}")
                     

@@ -4,25 +4,46 @@ object AutomatedTestSuite {
     data class TestCase(val prompt: String, val expectedToolPrefix: String)
 
     val testCases = mutableListOf<TestCase>().apply {
-        // Temperature (Increase) - 20 cases
-        for (i in 1..20) add(TestCase("I'm cold, it's freezing. Warm it up by $i degrees please.", "<TOOL>increaseTemperature"))
-        // Temperature (Decrease) - 20 cases
-        for (i in 1..20) add(TestCase("It is too hot in here, lower the temp by $i degrees.", "<TOOL>decreaseTemperature"))
-        // Temperature (Set) - 20 cases
-        for (i in 60..79) add(TestCase("Set the cabin temperature to exactly $i degrees.", "<TOOL>setTemperature"))
-        // Windows - 20 cases
-        for (i in 1..20) add(TestCase("Roll down the windows to ${i * 5} percent.", "<TOOL>setWindowPosition"))
-        // Seat Heater - 20 cases
-        for (i in 1..20) add(TestCase("Turn on the seat heater, my back is cold.", "<TOOL>setSeatHeater"))
-        // Defroster - 20 cases
-        for (i in 1..20) add(TestCase("The windshield is foggy, turn on the defroster.", "<TOOL>turnOnDefroster"))
-        // Navigation - 30 cases
-        val places = listOf("McDonalds", "Starbucks", "Gas Station", "Home", "Work", "Airport")
-        for (i in 1..30) add(TestCase("Navigate me to ${places[i % places.size]}.", "<TOOL>navigate"))
-        // Call - 30 cases
-        val names = listOf("John", "Mom", "Wife", "Mechanic", "Boss")
-        for (i in 1..30) add(TestCase("Call ${names[i % names.size]} right now.", "<TOOL>call"))
-        // Diagnostic - 20 cases
-        for (i in 1..20) add(TestCase("What's wrong with my car? Check the engine light.", "Do you want me to call a mechanic"))
+        // 1. HVAC & Climate
+        add(TestCase("Increase temperature", "<TOOL>increaseTemperature"))
+        add(TestCase("Decrease temperature", "<TOOL>decreaseTemperature"))
+        add(TestCase("Set temperature to 72 degrees", "<TOOL>setTemperature"))
+        add(TestCase("I am feeling cold", "<TOOL>handleFeelingCold"))
+        add(TestCase("Turn on climate control", "<TOOL>setTemperature"))
+        add(TestCase("Increase FAN speed", "<TOOL>increaseFanSpeed"))
+        add(TestCase("Set Airflow direction to face and feet", "<TOOL>setAirflowDirection"))
+        add(TestCase("My window is freezing", "<TOOL>defogWindshield"))
+
+        // 2. Wellness & Seating
+        add(TestCase("My back is freezing.", "<TOOL>setSeatHeater"))
+        add(TestCase("I am tired and my back hurts.", "<TOOL>setSeatMassager"))
+
+        // 3. World Knowledge to Physical Action
+        add(TestCase("Where was the Hollywood movie Inception filmed in Tokyo?", "<TOOL>search"))
+
+        // 4. Navigation
+        add(TestCase("Navigate me to Tokyo Tower", "<TOOL>navigate"))
+        add(TestCase("Suggest nearby places to visit around Tokyo", "<TOOL>suggestNearbyPlaces"))
+        
+        // 5. Agentic Loops
+        add(TestCase("I am running out of fuel.", "<TOOL>search"))
+        add(TestCase("I'm heading home.", "<TOOL>navigate"))
+
+        // 6. Telephony & Media
+        add(TestCase("I need to talk to my mom.", "<TOOL>callContact"))
+        add(TestCase("Play some classic rock music.", "<TOOL>playMusic"))
+        add(TestCase("Play YOASOBI.", "<TOOL>playMusic"))
+
+        // 7. Diagnostics
+        add(TestCase("Why is my check engine light on?", "diagnostics"))
+        add(TestCase("What's wrong with my car?", "diagnostics"))
+
+        // 8. Hardware Safety Guardrails
+        add(TestCase("Roll down the windows.", "<TOOL>setWindowPosition"))
+        
+        // General Intents
+        add(TestCase("Give me today's top news highlights.", "<TOOL>getNewsHighlights"))
+        add(TestCase("It's about to rain, prepare the cabin.", "<TOOL>prepareForIncomingRain"))
+        add(TestCase("It is very foggy outside, I can't see the road well.", "<TOOL>improveRoadVisibility"))
     }
 }
