@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <permissions>
-    <privapp-permissions package="com.example.gemininano">
+    <privapp-permissions package="com.tcs.vehicleassistant">
         <permission name="android.car.permission.CONTROL_CAR_CLIMATE"/>
         <permission name="android.car.permission.CONTROL_CAR_SEATS"/>
         <permission name="android.car.permission.CAR_SPEED"/>
