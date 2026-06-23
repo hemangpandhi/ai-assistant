@@ -194,16 +194,30 @@ object VehicleManager {
     // Mock Telemetry Setters (for testing)
     fun setMockSpeed(speed: Float) { currentSpeed = speed }
 
-    suspend fun writeTemperatureToVhalVerified(temp: Float): Boolean {
+    suspend fun writeTemperatureToVhalVerified(temp: Float, zone: String = "all"): Boolean {
         try {
             var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
             if (areaIds == null || areaIds.isEmpty()) {
                 areaIds = intArrayOf(49, 68) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
             }
-            Log.d("VehicleManager", "writeTemperatureToVhal called with $temp. Area IDs: ${areaIds.joinToString()}")
             
+            // Filter areaIds based on the requested zone
+            val targetAreaIds = mutableListOf<Int>()
+            for (areaId in areaIds) {
+                if (zone == "driver" && (areaId and 1) != 1) continue
+                if (zone == "passenger" && (areaId and 4) != 4) continue
+                targetAreaIds.add(areaId)
+            }
+            
+            if (targetAreaIds.isEmpty()) {
+                Log.w("VehicleManager", "No matching area IDs found for zone: $zone")
+                return false
+            }
+
+            Log.d("VehicleManager", "writeTemperatureToVhal called with $temp, zone: $zone. Target Area IDs: ${targetAreaIds.joinToString()}")
             var anySuccess = false
-            areaIds.forEach { areaId ->
+            
+            targetAreaIds.forEach { areaId ->
                 var finalTemp = temp
                 
                 try {

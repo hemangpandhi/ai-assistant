@@ -251,25 +251,41 @@ object ToolManager {
                     "I've set the airflow direction to $directionName."
                 }
                 "increaseTemperature" -> {
-                    val argStr = toolCall.substringAfter("(").substringBefore(")")
-                    val value = Regex("-?\\d+(\\.\\d+)?").find(argStr)?.value?.toDoubleOrNull() ?: 2.0
+                    val argsStr = toolCall.substringAfter("(").substringBeforeLast(")")
+                    val args = if (argsStr.isEmpty()) emptyList() else argsStr.split(",").map { it.trim() }
+                    val value = args.getOrNull(0)?.toFloatOrNull() ?: 2.0f
+                    var zone = args.getOrNull(1)?.trim()?.lowercase()
+                    if (zone == null && args.getOrNull(0)?.toFloatOrNull() == null) {
+                        zone = args.getOrNull(0)?.trim()?.lowercase() // In case it's increaseTemperature(driver)
+                    }
+                    val finalZone = if (zone == "driver" || zone == "passenger") zone else "all"
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                    Log.d(TAG, "increaseTemperature: parsed value=$value, currentTemp=$currentTemp")
-                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat())
-                    if (success) "I've increased the temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                    Log.d(TAG, "increaseTemperature: parsed value=$value, zone=$finalZone, currentTemp=$currentTemp")
+                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat(), finalZone)
+                    if (success) "I've increased the ${if (finalZone == "all") "" else "$finalZone "}temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "decreaseTemperature" -> {
-                    val argStr = toolCall.substringAfter("(").substringBefore(")")
-                    val value = Regex("-?\\d+(\\.\\d+)?").find(argStr)?.value?.toDoubleOrNull() ?: 2.0
+                    val argsStr = toolCall.substringAfter("(").substringBeforeLast(")")
+                    val args = if (argsStr.isEmpty()) emptyList() else argsStr.split(",").map { it.trim() }
+                    val value = args.getOrNull(0)?.toFloatOrNull() ?: 2.0f
+                    var zone = args.getOrNull(1)?.trim()?.lowercase()
+                    if (zone == null && args.getOrNull(0)?.toFloatOrNull() == null) {
+                        zone = args.getOrNull(0)?.trim()?.lowercase() // In case it's decreaseTemperature(driver)
+                    }
+                    val finalZone = if (zone == "driver" || zone == "passenger") zone else "all"
                     val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                    Log.d(TAG, "decreaseTemperature: parsed value=$value, currentTemp=$currentTemp")
-                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat())
-                    if (success) "I've decreased the temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                    Log.d(TAG, "decreaseTemperature: parsed value=$value, zone=$finalZone, currentTemp=$currentTemp")
+                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat(), finalZone)
+                    if (success) "I've decreased the ${if (finalZone == "all") "" else "$finalZone "}temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "setTemperature" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
-                    val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat())
-                    if (success) "I've set the temperature to $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                    val argsStr = toolCall.substringAfter("(").substringBeforeLast(")")
+                    val args = if (argsStr.isEmpty()) emptyList() else argsStr.split(",").map { it.trim() }
+                    val value = args.getOrNull(0) ?: "72"
+                    val zone = args.getOrNull(1)?.trim()?.lowercase() ?: "all"
+                    val finalZone = if (zone == "driver" || zone == "passenger") zone else "all"
+                    val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat(), finalZone)
+                    if (success) "I've set the ${if (finalZone == "all") "" else "$finalZone "}temperature to $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "increaseFanSpeed" -> {
                     val argStr = toolCall.substringAfter("(").substringBefore(")")

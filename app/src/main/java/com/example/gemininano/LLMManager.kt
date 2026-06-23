@@ -194,6 +194,7 @@ object LLMManager {
         basePrompt.append("- If user gives an exact number: \"I've set the temperature to [VAL] degrees. <TOOL>setTemperature(VAL)</TOOL>\"\n")
         basePrompt.append("- If user is cold or wants to increase it: \"I'm warming it up. <TOOL>increaseTemperature()</TOOL>\"\n")
         basePrompt.append("- If user is hot or wants to decrease it: \"I'm cooling it down. <TOOL>decreaseTemperature()</TOOL>\"\n")
+        basePrompt.append("- If the user specifies the driver or passenger zone, pass it as an argument! Example: <TOOL>increaseTemperature(2, driver)</TOOL> or <TOOL>setTemperature(70, passenger)</TOOL>.\n")
         basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
 
         basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
