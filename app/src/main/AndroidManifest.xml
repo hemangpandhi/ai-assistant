@@ -57,6 +57,7 @@
         android:allowBackup="true"
         android:label="VehicleEdgeAssistant"
         android:supportsRtl="true"
+        android:extractNativeLibs="true"
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
         
         <activity
