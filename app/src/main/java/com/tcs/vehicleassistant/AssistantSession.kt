@@ -318,7 +318,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 
                 CoroutineScope(Dispatchers.Main).launch {
                     kotlinx.coroutines.delay(2000)
-                    if (statusText.text == errorMsg) {
+                    if (statusText.text.toString() == errorMsg) {
                         statusText.text = ""
                         statusText.visibility = View.GONE
                         finish()
