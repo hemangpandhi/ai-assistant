@@ -143,7 +143,7 @@ adb root
 adb remount
 
 # Push the permission whitelist XML
-adb push app/src/main/res/xml/privapp-permissions-com.example.gemininano.xml /etc/permissions/
+adb push privapp-permissions-com.tcs.vehicleassistant.xml /etc/permissions/
 
 # Create the directory and push the APK
 adb shell mkdir -p /system/priv-app/GeminiNano
