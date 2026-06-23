@@ -121,6 +121,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     private var currentLayoutStyle = -1
     private var speechRecognizerIntent: Intent? = null
+    private var unloadJob: kotlinx.coroutines.Job? = null
 
     override fun onHide() {
         super.onHide()
@@ -133,6 +134,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val restartIntent = Intent(context, WakeWordService::class.java)
         restartIntent.action = "ACTION_RESTART_LISTENING"
         context.startService(restartIntent)
+        
+        unloadJob?.cancel()
+        unloadJob = CoroutineScope(Dispatchers.Main).launch {
+            kotlinx.coroutines.delay(60_000)
+            LLMManager.unload()
+        }
     }
 
     override fun onCreateContentView(): View {
@@ -343,6 +350,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
+        
+        unloadJob?.cancel()
         
         setupSpeechRecognizer()
         

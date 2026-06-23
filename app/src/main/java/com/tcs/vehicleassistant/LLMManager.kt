@@ -283,4 +283,19 @@ object LLMManager {
             }
         }
     }
+
+    fun unload() {
+        try {
+            conversation?.close()
+            engine?.close()
+        } catch (e: Exception) {
+            Log.w("LLMManager", "Failed to cleanly close inference instance during unload.", e)
+        } finally {
+            conversation = null
+            engine = null
+            isFirstMessage = true
+            System.gc()
+            Log.i("LLMManager", "LLM Model unloaded from memory to save resources.")
+        }
+    }
 }
