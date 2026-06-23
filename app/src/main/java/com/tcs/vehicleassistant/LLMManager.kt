@@ -186,11 +186,11 @@ object LLMManager {
         basePrompt.append("=== TOOLS ===\n")
         basePrompt.append("${ToolManager.getLlmToolsPrompt()}\n\n")
         
-        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response. Example: 'Playing relaxing music now. <TOOL>playMusic(relaxing music)</TOOL>'\n\n")
+        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response.\n\n")
         
         basePrompt.append("=== STRICT RULES ===\n")
         
-        basePrompt.append("9. CONVERSATION: If the user asks a general question, tells a joke, or asks for a joke, you MUST answer it creatively and humorously! Feel free to tell jokes.\n")
+        basePrompt.append("9. CONVERSATION: If the user asks a general question, tells a joke, or asks for a joke, you MUST answer it creatively and humorously! Feel free to tell jokes. NEVER append a <TOOL> tag when answering conversational questions!\n")
         basePrompt.append("10. IDENTITY: You are Nissan Assistant, a helpful AI in a Nissan car. Do not mention that you are an AI or Google. Be concise, friendly, and entertaining.\n")
         basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax AFTER your text:\n")
         basePrompt.append("- If user gives an exact number: \"I've set the temperature to [VAL] degrees. <TOOL>setTemperature(VAL)</TOOL>\"\n")
