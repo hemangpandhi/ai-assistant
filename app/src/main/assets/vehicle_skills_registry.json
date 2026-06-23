@@ -429,7 +429,7 @@
       ]
     },
     {
-      "prompt_string": "<TOOL>search(search_term)</TOOL>",
+      "prompt_string": "If the user explicitly asks to 'show' places on the 'map', output exactly <TOOL>search(search_term)</TOOL>. Otherwise, if they just ask for suggestions, do NOT use this tool and just reply normally.",
       "handler_key": "search",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
@@ -439,7 +439,10 @@
         "restaurant",
         "food",
         "dining",
-        "nearby"
+        "nearby",
+        "places",
+        "map",
+        "show"
       ]
     },
     {

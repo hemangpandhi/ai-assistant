@@ -335,7 +335,7 @@ class LocalLLMActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             delay(2000)
             val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
-            java.io.File(getExternalFilesDir(null), "diag_report.md").writeText(report)
+            java.io.File(filesDir, "diag_report.md").writeText(report)
         }
 
         // Setup Permissions
