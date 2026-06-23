@@ -171,151 +171,6 @@ object LLMManager {
     }
     
     suspend fun getDynamicContext(context: android.content.Context, prompt: String): String {
-        val q = prompt.lowercase()
-        val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFoodQuery = q.contains("hungry") || q.contains("food") || q.contains("eat") || q.contains("restaurant") || q.contains("italian") || q.contains("mexican") || q.contains("chinese") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("indian") || q.contains("thai") || q.contains("japanese") || q.contains("vegetarian") || q.contains("vegan") || q.contains("american") || q.contains("fast food")
-        val isFuelQuery = q.contains("fuel") || q.contains("gas") || q.contains("petrol") || q.contains("charging")
-        
-        val isFollowUpToSearch = (mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("navigate to any of these options")) && !isFoodQuery && !isFuelQuery
-        val isFollowUpToFuel = (mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")) && !isFoodQuery
-        
-        val isNav = q.contains("navigate") || q.contains("go to") || q.contains("directions") || q.contains("route") || q.contains("take me") || (q.length <= 2 && q.toIntOrNull() != null) || isFollowUpToSearch
-        val isFood = isFoodQuery && !isFollowUpToSearch
-        val isFuel = (isFuelQuery || isFollowUpToFuel) && !isFollowUpToSearch
-        val isSightseeing = (q.contains("visit") || q.contains("interesting") || q.contains("places") || q.contains("sightseeing") || q.contains("tourist") || q.contains("what to do") || q.contains("where to go") || q.contains("city") || q.contains("see")) && !isNav
-        
-        if ((isFood || isFuel) && prompt.length < 50) {
-            try {
-                var overpassQuery = "node[\"amenity\"=\"restaurant\"]"
-                var isCuisineSpecific = false
-                if (isFuel) {
-                    if (!isFollowUpToFuel) {
-                        return "\n\n[System Note: Do NOT use any <TOOL> tags. You MUST reply to the user with EXACTLY this text: \"Your fuel level is low. Should I find a nearby gas station?\"]"
-                    }
-                    overpassQuery = if (q.contains("charging") || mem.contains("charging")) "node[\"amenity\"=\"charging_station\"]" else "node[\"amenity\"=\"fuel\"]"
-                } else {
-                    if (q.contains("italian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"italian\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("mexican")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"mexican\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("chinese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"chinese\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("pizza")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"pizza\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("burger") || q.contains("fast food") || q.contains("american")) { overpassQuery = "node[\"amenity\"=\"fast_food\"][\"cuisine\"~\"burger|american\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("sushi") || q.contains("japanese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"japanese|sushi\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("indian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"indian\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("thai")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"thai\",i]"; isCuisineSpecific = true }
-                    else if (q.contains("vegetarian") || q.contains("vegan")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"diet:vegan\"~\"yes\",i]"; isCuisineSpecific = true }
-                    else {
-                        return "\n\n[System Note: Do NOT use any <TOOL> tags. You MUST reply to the user with EXACTLY this text: \"Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\"]"
-                    }
-                }
-
-                var bbox = "35.47,139.27,35.67,139.47" // south,west,north,east Default Sagamihara, Japan fallback
-                try {
-                    val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-                    val locationOverride = prefs.getString("location_override", "139.37, 35.57") ?: "139.37, 35.57" // Default Sagamihara lon, lat
-                    var lat = 0.0
-                    var lon = 0.0
-                    var useOverride = false
-                    
-                    if (locationOverride.isNotEmpty() && locationOverride.contains(",")) {
-                        try {
-                            val parts = locationOverride.split(",")
-                            lon = parts[0].trim().toDouble()
-                            lat = parts[1].trim().toDouble()
-                            useOverride = true
-                        } catch (e: Exception) {
-                            android.util.Log.e("LLMManager", "Invalid location override format", e)
-                        }
-                    }
-
-                    if (useOverride) {
-                        val left = lon - 0.1
-                        val bottom = lat - 0.1
-                        val right = lon + 0.1
-                        val top = lat + 0.1
-                        bbox = "$bottom,$left,$top,$right"
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-
-                return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                    val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 10;"
-                    val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
-                    val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.connectTimeout = 10000
-                    connection.readTimeout = 10000
-                    connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
-                    connection.requestMethod = "GET"
-                    
-                    if (connection.responseCode == 200) {
-                        val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        val jsonObj = org.json.JSONObject(response)
-                        var elements = jsonObj.optJSONArray("elements") ?: org.json.JSONArray()
-                        
-                        if (elements.length() == 0 && isFood && isCuisineSpecific) {
-                            // Fallback to generic restaurant if specific cuisine fails
-                            val fallbackQuery = "[out:json][timeout:10];node[\"amenity\"~\"restaurant|fast_food\"]($bbox);out 10;"
-                            val fbEncodedQuery = java.net.URLEncoder.encode(fallbackQuery, "UTF-8")
-                            val fallbackUrl = java.net.URL("https://overpass-api.de/api/interpreter?data=$fbEncodedQuery")
-                            val fallbackConn = fallbackUrl.openConnection() as java.net.HttpURLConnection
-                            fallbackConn.connectTimeout = 10000
-                            fallbackConn.readTimeout = 10000
-                            fallbackConn.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
-                            fallbackConn.requestMethod = "GET"
-                            if (fallbackConn.responseCode == 200) {
-                                val fallbackResponse = fallbackConn.inputStream.bufferedReader().use { it.readText() }
-                                val fallbackObj = org.json.JSONObject(fallbackResponse)
-                                elements = fallbackObj.optJSONArray("elements") ?: org.json.JSONArray()
-                            }
-                        }
-                        val places = mutableListOf<String>()
-                        val placesWithCoords = mutableListOf<Pair<String, String>>()
-                        for (i in 0 until elements.length()) {
-                            val element = elements.getJSONObject(i)
-                            val tags = element.optJSONObject("tags") ?: continue
-                            var name = tags.optString("name", tags.optString("name:en", "")).trim()
-                            val brand = tags.optString("brand", tags.optString("brand:en", "")).trim()
-                            
-                            val lat = element.optDouble("lat")
-                            val lon = element.optDouble("lon")
-                            
-                            if (name.isEmpty() && brand.isNotEmpty()) {
-                                name = brand
-                            }
-                            
-                            if (name.isNotEmpty() && !places.contains(name)) {
-                                places.add(name)
-                                placesWithCoords.add(Pair(name, "$lat,$lon"))
-                                if (places.size >= 3) break
-                            }
-                        }
-                        
-                        // If we found elements but NONE of them had a name, use a generic fallback
-                        if (places.isEmpty() && elements.length() > 0) {
-                            val firstLat = elements.getJSONObject(0).optDouble("lat")
-                            val firstLon = elements.getJSONObject(0).optDouble("lon")
-                            if (isFuel) {
-                                places.add("Local Gas Station")
-                                placesWithCoords.add(Pair("Local Gas Station", "$firstLat,$firstLon"))
-                            } else if (isFood) {
-                                places.add("Local Restaurant")
-                                placesWithCoords.add(Pair("Local Restaurant", "$firstLat,$firstLon"))
-                            }
-                        }
-                        
-                        if (places.isNotEmpty()) {
-                            val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-                            val coordInstructions = placesWithCoords.mapIndexed { index, pair -> "If user chooses ${index + 1} (${pair.first}), output EXACTLY <TOOL>navigate(${pair.second})</TOOL>" }.joinToString(". ")
-                            return@withContext "\n\n[System Note: Do NOT use any <TOOL> tags yet. You MUST reply to the user with EXACTLY this text. Do NOT translate the names, read them EXACTLY as written: \"I found these options nearby: $placesStr. Which one would you like to navigate to?\" INTERNAL RULE FOR NEXT TURN: $coordInstructions]"
-                        }
-                    }
-                    return@withContext ""
-                }
-            } catch(e: Exception) {
-                e.printStackTrace()
-            }
-        }
         return ""
     }
     
@@ -323,83 +178,40 @@ object LLMManager {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
-        val dynCtx = getDynamicContext(context, query)
-        val q = (query + " " + MemoryManager.getSlidingWindowContext(500)).lowercase()
-        val userQuery = query.lowercase()
-        val isHvac = userQuery.contains("temperature") || userQuery.contains("hot") || userQuery.contains("cold") || userQuery.contains("warm") || userQuery.contains("cool") || userQuery.contains("ac") || userQuery.contains("heater") || userQuery.contains("defroster") || userQuery.contains("increase") || userQuery.contains("decrease") || userQuery.contains("fog") || userQuery.contains("window")
-        val isSightseeing = userQuery.contains("visit") || userQuery.contains("interesting") || userQuery.contains("places") || userQuery.contains("sightseeing") || userQuery.contains("tourist") || userQuery.contains("what to do") || userQuery.contains("where to go") || userQuery.contains("city")
-        val isFoodQuery = userQuery.contains("hungry") || userQuery.contains("food") || userQuery.contains("eat") || userQuery.contains("restaurant") || userQuery.contains("italian") || userQuery.contains("mexican") || userQuery.contains("chinese") || userQuery.contains("pizza") || userQuery.contains("burger") || userQuery.contains("sushi") || userQuery.contains("indian") || userQuery.contains("thai") || userQuery.contains("japanese") || userQuery.contains("vegetarian") || userQuery.contains("vegan") || userQuery.contains("american") || userQuery.contains("fast food")
-        val isFuelQuery = userQuery.contains("fuel") || userQuery.contains("gas") || userQuery.contains("petrol") || userQuery.contains("charging")
-        
-        val mem = MemoryManager.getSlidingWindowContext(200).lowercase()
-        val isFollowUpToSearch = (mem.contains("would you like to navigate") || mem.contains("found these options nearby") || mem.contains("which places would you like to visit") || mem.contains("navigate to any of these options")) && !isFoodQuery && !isFuelQuery
-        val isFollowUpToFuel = (mem.contains("navigate you to a nearby gas station") || mem.contains("find a nearby gas station") || mem.contains("nearby charging station")) && !isFoodQuery
-        
-        val isNav = (userQuery.contains("navigate") || userQuery.contains("go to") || userQuery.contains("directions") || userQuery.contains("route")) && !isSightseeing && !isFoodQuery || isFollowUpToSearch
-        val isAmbient = userQuery.contains("home") || userQuery.contains("work")
-        val isDiag = userQuery.contains("wrong") || userQuery.contains("broken") || userQuery.contains("issue") || userQuery.contains("light") || userQuery.contains("code") || userQuery.contains("door") || userQuery.contains("diagnos") || userQuery.contains("obd") || userQuery.contains("ob2") || userQuery.contains("engine") || userQuery.contains("service")
-        val isWellness = userQuery.contains("pain") || userQuery.contains("hurt") || userQuery.contains("tired") || userQuery.contains("sore") || userQuery.contains("ache")
-        val isMusic = userQuery.contains("music") || userQuery.contains("play") || userQuery.contains("song") || userQuery.contains("pause") || userQuery.contains("stop") || userQuery.contains("next") || userQuery.contains("previous")
-        val isLocationKnowledge = userQuery.contains("where was") || userQuery.contains("filmed") || userQuery.contains("located") || userQuery.contains("location of") || userQuery.contains("address of")
-        
-        val isFood = isFoodQuery && !isFollowUpToSearch
-        val isFuel = (isFuelQuery || isFollowUpToFuel) && !isFollowUpToSearch
-        
         val basePrompt = StringBuilder()
         basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
         
-        val isComplexQuery = isHvac || isSightseeing || isFoodQuery || isFuelQuery || isNav || isDiag || isWellness || isAmbient || isLocationKnowledge
-        
-        if (isComplexQuery) {
-            basePrompt.append("=== VEHICLE STATE ===\n")
-            basePrompt.append("${VehicleManager.getLLMContextString(context)}\n")
-            basePrompt.append("Memory: $userMemory\n\n")
-        }
+        basePrompt.append("Memory: $userMemory\n\n")
         
         basePrompt.append("=== TOOLS ===\n")
-        basePrompt.append("${ToolManager.getLlmToolsPrompt(query)}\n\n")
+        basePrompt.append("${ToolManager.getLlmToolsPrompt()}\n\n")
         
         basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response. Example: 'Playing relaxing music now. <TOOL>playMusic(relaxing music)</TOOL>'\n\n")
         
-        if (isComplexQuery) {
-            basePrompt.append("=== STRICT RULES ===\n")
-            
-            basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax AFTER your text:\n")
-            basePrompt.append("- If user gives an exact number: \"I've set the temperature to [VAL] degrees. <TOOL>setTemperature(VAL)</TOOL>\"\n")
-            basePrompt.append("- If user is cold or wants to increase it: \"I'm warming it up. <TOOL>increaseTemperature()</TOOL>\"\n")
-            basePrompt.append("- If user is hot or wants to decrease it: \"I'm cooling it down. <TOOL>decreaseTemperature()</TOOL>\"\n")
-            basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
-
-            basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
-
-            basePrompt.append("3. NAVIGATION: To navigate, briefly acknowledge the destination and then use the syntax <TOOL>navigate(DEST)</TOOL> at the end. Example: \"Setting destination to Tokyo. <TOOL>navigate(Tokyo)</TOOL>\"\n")
-
-            basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"Heading Home. Should I turn on the heater? <TOOL>navigate(Home)</TOOL>\"\n")
-
-            basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
-            basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the tool <TOOL>search(QUERY)</TOOL> where QUERY is exactly what they asked for (e.g. <TOOL>search(best places to visit in tokyo)</TOOL>).\n")
-            basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.\n")
-            
-            if (isFood || q.isEmpty()) {
-                if (dynCtx.isNotEmpty()) {
-                    basePrompt.append("8. FOOD CHOICES: $dynCtx\n")
-                } else {
-                    basePrompt.append("8. FOOD CHOICES: If the user is hungry and hasn't specified a cuisine, DO NOT use tools. Just ask them what kind of food they want.\n")
-                }
-            }
-            
-            if (isFuel || q.isEmpty()) {
-                if (dynCtx.isNotEmpty()) {
-                    basePrompt.append("9. FUEL/CHARGING CHOICES: $dynCtx\n")
-                } else {
-                    basePrompt.append("9. FUEL/CHARGING: If the user says they are out of fuel or battery, DO NOT USE ANY TOOLS. ALWAYS ask first EXACTLY: \"Should I find a nearby gas station?\"\n")
-                }
-            }
-        }
+        basePrompt.append("=== STRICT RULES ===\n")
         
+        basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax AFTER your text:\n")
+        basePrompt.append("- If user gives an exact number: \"I've set the temperature to [VAL] degrees. <TOOL>setTemperature(VAL)</TOOL>\"\n")
+        basePrompt.append("- If user is cold or wants to increase it: \"I'm warming it up. <TOOL>increaseTemperature()</TOOL>\"\n")
+        basePrompt.append("- If user is hot or wants to decrease it: \"I'm cooling it down. <TOOL>decreaseTemperature()</TOOL>\"\n")
+        basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
+
+        basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
+
+        basePrompt.append("3. NAVIGATION: To navigate, briefly acknowledge the destination and then use the syntax <TOOL>navigate(DEST)</TOOL> at the end. Example: \"Setting destination to Tokyo. <TOOL>navigate(Tokyo)</TOOL>\"\n")
+
+        basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"Heading Home. Should I turn on the heater? <TOOL>navigate(Home)</TOOL>\"\n")
+
+        basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
+        basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the tool <TOOL>search(QUERY)</TOOL> where QUERY is exactly what they asked for (e.g. <TOOL>search(best places to visit in tokyo)</TOOL>).\n")
+        basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.\n")
+        
+        basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they ask to find a specific food place nearby, output exactly: <TOOL>searchNearby(QUERY)</TOOL> where QUERY is what they want.\n")
+        
+        basePrompt.append("9. FUEL/CHARGING: If the user says they are out of fuel or battery, DO NOT USE ANY TOOLS. ALWAYS ask first EXACTLY: \"Should I find a nearby gas station?\". If they say yes, output exactly <TOOL>searchNearby(gas station)</TOOL>\n")
 
         val customInstructions = VehicleManager.getCustomPropertyInstructions()
-        if (customInstructions.isNotEmpty() && isComplexQuery) {
+        if (customInstructions.isNotEmpty()) {
             basePrompt.append("\n=== DYNAMIC VEHICLE SENSOR RULES ===\n")
             customInstructions.forEachIndexed { index, inst ->
                 basePrompt.append("${10 + index}. $inst\n")

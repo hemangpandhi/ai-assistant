@@ -491,30 +491,21 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 interceptedQuery.lowercase().contains("navigate") || 
                 interceptedQuery.lowercase().contains("diagnos")
         
-        val dynCtx = LLMManager.getDynamicContext(context, interceptedQuery)
         val finalPrompt: String
+        val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
+        val vehicleState = "[Current State: ${VehicleManager.getLLMContextString(context)}]"
         
         if (LLMManager.isFirstMessage) {
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
             
             if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nAssistant:"
+                finalPrompt = "$sysPrompt\n$reminder\n\n$vehicleState\n[Conversation History]\n$slidingHistory\nAssistant:"
             } else {
-                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery" else "$reminder$dynCtx\n\nUser: $interceptedQuery"
+                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder\n\n$vehicleState\nUser: $interceptedQuery" else "$reminder\n\n$vehicleState\nUser: $interceptedQuery"
             }
             LLMManager.isFirstMessage = false
         } else {
-            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            if (isAgenticObservation) {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
-            } else {
-                if (interceptedQuery.length < 25) {
-                    finalPrompt = "$dynCtx\n$interceptedQuery"
-                } else {
-                    finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
-                }
-            }
+            finalPrompt = "$vehicleState$reminder\n$interceptedQuery"
         }
 
         val executedTools = mutableSetOf<String>()

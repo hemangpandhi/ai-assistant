@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wake Word Crash Analysis</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        h1, h2, h3 {
+            color: #38bdf8;
+        }
+        h1 {
+            border-bottom: 2px solid #38bdf8;
+            padding-bottom: 0.5rem;
+        }
+        .container {
+            background-color: #1e293b;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+        .error-log {
+            background-color: #000000;
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+            font-family: 'Courier New', Courier, monospace;
+            border-left: 4px solid #ef4444;
+        }
+        .fix-block {
+            background-color: #064e3b;
+            color: #d1fae5;
+            padding: 1rem;
+            border-radius: 4px;
+            border-left: 4px solid #10b981;
+            margin-top: 1rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 0.75rem;
+            border-bottom: 1px solid #475569;
+        }
+        th {
+            background-color: #334155;
+            color: #cbd5e1;
+        }
+        code {
+            background-color: #334155;
+            padding: 0.2rem 0.4rem;
+            border-radius: 4px;
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Incident Report: Wake Word Service Crash</h1>
+    <p><strong>Date:</strong> 2026-06-23</p>
+    <p><strong>Component:</strong> <code>WakeWordService.kt</code> (Vosk Offline Acoustic Model)</p>
+
+    <h2>1. Executive Summary</h2>
+    <p>The offline wake word listener ("Hey Auto") is consistently failing to initialize, causing the <code>WakeWordService</code> to crash in the background. The crash is triggered by a fatal signal (SIGSEGV/SIGABRT) originating from the <code>libvosk.so</code> C++ binary. This prevents the Assistant from responding to voice activation.</p>
+
+    <h2>2. Technical Analysis</h2>
+    <p>Analysis of the device Tombstone logs reveals that the crash occurs the moment the Java layer instantiates the native C++ Recognizer:</p>
+    
+    <div class="error-log">
+        F DEBUG : #00 pc 0000000000404548 /data/app/~~.../base.apk!libvosk.so (Model::Ref()+4)<br>
+        F DEBUG : #01 pc 00000000003618ec /data/app/~~.../base.apk!libvosk.so (Recognizer::Recognizer(Model*, float)+88)<br>
+        F DEBUG : #13 pc 0000000000073c10 /data/app/~~.../base.apk (org.vosk.Recognizer.&lt;init&gt;+0)
+    </div>
+
+    <h3>2.1 The FUSE & Android 14 Restriction</h3>
+    <p>To reduce installation footprints, Android 14 (API 34) defaults the <code>extractNativeLibs</code> property to <code>false</code>. When this happens, the Android OS does not unpack <code>.so</code> (Shared Object) files into the app's internal storage (<code>/data/data/com.example.gemininano/lib/</code>). Instead, it maps them directly from within the compressed <code>.apk</code> archive.</p>
+    
+    <p>While some Android JNI libraries can operate this way, <strong>Vosk relies heavily on direct filesystem paths</strong> to map its acoustic graphs, vocabulary vectors, and configuration files into RAM. When <code>libvosk.so</code> attempts to read memory pointers from a file descriptor that points inside an APK, it violates strict memory alignment rules, resulting in an immediate Segmentation Fault in <code>Model::Ref()</code>.</p>
+
+    <h2>3. The Resolution</h2>
+    <p>The fix requires forcing the Android Package Manager to physically extract all native libraries to the filesystem during installation.</p>
+    
+    <div class="fix-block">
+        <strong>Applied Fix:</strong> Modified <code>app/src/main/AndroidManifest.xml</code> to explicitly include <code>android:extractNativeLibs="true"</code> inside the <code>&lt;application&gt;</code> tag.
+    </div>
+
+    <pre style="background: #0f172a; padding: 1rem; border-radius: 4px; color: #a5b4fc;"><code>
+&lt;application
+    android:allowBackup="true"
+    android:label="VehicleEdgeAssistant"
+    android:supportsRtl="true"
+    <span style="color: #34d399; font-weight: bold;">android:extractNativeLibs="true"</span>
+    android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar"&gt;
+    </code></pre>
+
+    <h2>4. Build Environment Correction</h2>
+    <p>During the compilation of this fix, a secondary issue was encountered:</p>
+    <table>
+        <tr>
+            <th>Issue</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>Gradle Daemon Mismatch</td>
+            <td>The system's default JDK is Java 8, but Android Gradle Plugin 8.2.2 requires a minimum of Java 11 (optimally Java 17) to compile successfully.</td>
+        </tr>
+        <tr>
+            <td>Action Taken</td>
+            <td>The compilation step was rerouted to utilize the explicitly installed Java 17 environment via <code>JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64</code>.</td>
+        </tr>
+    </table>
+    
+    <p style="margin-top: 2rem; border-top: 1px solid #475569; padding-top: 1rem; font-size: 0.9em; color: #94a3b8;">
+        <em>Report generated by VehicleEdge Assistant Diagnostics Engine.</em>
+    </p>
+</div>
+
+</body>
+</html>

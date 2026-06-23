@@ -148,7 +148,7 @@ object ToolManager {
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
     fun getLlmToolsPrompt(query: String = ""): String {
-        val relevantTools = getRelevantTools(query)
+        val relevantTools = activeTools.values.toList()
         if (relevantTools.isEmpty()) return ""
         return relevantTools.map { it.promptString }.joinToString("\n")
     }

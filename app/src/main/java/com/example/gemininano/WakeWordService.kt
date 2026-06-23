@@ -42,16 +42,22 @@ class WakeWordService : Service() {
         
         updateWakeWord()
 
-        StorageService.unpack(this, "model", "model",
-            { m: Model ->
-                model = m
-                sharedModel = m
-                recognizerSetup()
-            },
-            { exception: java.io.IOException -> 
-                Log.e("WakeWord", "Failed to unpack model: ${exception.message}") 
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                val destDir = java.io.File(filesDir, "model")
+                if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {
+                    copyAssetFolder(assets, "model", destDir.absolutePath)
+                }
+                val m = Model(destDir.absolutePath)
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    model = m
+                    sharedModel = m
+                    recognizerSetup()
+                }
+            } catch (e: Exception) {
+                Log.e("WakeWord", "Failed to manually unpack/load model: ${e.message}", e)
             }
-        )
+        }
         
         // Background Pre-warming of Gemini Nano
         CoroutineScope(Dispatchers.Main).launch {
@@ -220,5 +226,19 @@ class WakeWordService : Service() {
         }
     }
 
-
+    private fun copyAssetFolder(assetManager: android.content.res.AssetManager, fromAssetPath: String, toPath: String) {
+        val files = assetManager.list(fromAssetPath)
+        if (files.isNullOrEmpty()) {
+            assetManager.open(fromAssetPath).use { input ->
+                java.io.File(toPath).outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            }
+        } else {
+            java.io.File(toPath).mkdirs()
+            for (file in files) {
+                copyAssetFolder(assetManager, "$fromAssetPath/$file", "$toPath/$file")
+            }
+        }
+    }
 }
