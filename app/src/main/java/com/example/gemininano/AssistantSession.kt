@@ -228,6 +228,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
         
         btnMic.setOnClickListener {
+            if (!isQueryProcessed) {
+                android.util.Log.w("AssistantSession", "Ignoring mic trigger because query is still being processed.")
+                return@setOnClickListener
+            }
             LatencyLogger.reset()
             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
             tts?.stop()
@@ -308,7 +312,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 CoroutineScope(Dispatchers.Main).launch {
                     kotlinx.coroutines.delay(3000)
                     if (statusText.text == errorMsg) {
-                        statusText.text = "Hi, how can I help you?"
+                        statusText.text = "Say 'Hey Gemini' to wake"
+                        statusText.visibility = View.GONE
                     }
                 }
             }

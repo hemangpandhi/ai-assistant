@@ -316,8 +316,15 @@ object ToolManager {
                     val success = VehicleManager.writeFanSpeedToVhalVerified(value)
                     if (success) "I've set the fan speed to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
-                "setSeatHeater" -> {
-                    var value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 2
+                "setSeatHeater", "turnOnSeatHeater", "turnOffSeatHeater" -> {
+                    var value = 2
+                    if (matchedTool.handlerKey == "turnOffSeatHeater") {
+                        value = 0
+                    } else if (matchedTool.handlerKey == "turnOnSeatHeater") {
+                        value = 2
+                    } else {
+                        value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 2
+                    }
                     // AOSP Tangorpro/Cuttlefish emulator max seat heat level is 2 (Off, Low, High).
                     value = value.coerceIn(0, 2)
                     val success = VehicleManager.writeSeatHeaterToVhalVerified(value)

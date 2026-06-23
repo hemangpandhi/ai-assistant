@@ -133,6 +133,36 @@
       "success_message": "I've adjusted the seat heater."
     },
     {
+      "prompt_string": "<TOOL>turnOnSeatHeater()</TOOL>",
+      "handler_key": "turnOnSeatHeater",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "seat",
+        "heater",
+        "hot",
+        "warm"
+      ],
+      "property_id": 356517131,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've turned on the seat heater."
+    },
+    {
+      "prompt_string": "<TOOL>turnOffSeatHeater()</TOOL>",
+      "handler_key": "turnOffSeatHeater",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "seat",
+        "heater",
+        "off",
+        "stop"
+      ],
+      "property_id": 356517131,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've turned off the seat heater."
+    },
+    {
       "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
       "handler_key": "setSeatMassager",
       "handler_type": "CUSTOM_KOTLIN",
