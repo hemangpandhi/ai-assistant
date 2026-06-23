@@ -343,11 +343,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
         }
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            delay(2000)
-            val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
-            java.io.File(getExternalFilesDir(null), "diag_report.md").writeText(report)
-        }
+
 
         // Setup Permissions
         val perms = arrayOf(
@@ -1260,7 +1256,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
     private suspend fun runAutomatedTests() {
         android.util.Log.i("AutomatedTest", "Initializing Comprehensive Tests...")
-        while (MODEL_PATH.isEmpty()) {
+        while (LLMManager.engine == null) {
             kotlinx.coroutines.delay(100)
         }
         
@@ -1294,7 +1290,9 @@ class LocalLLMActivity : AppCompatActivity() {
                 val lastResponseBuilder = java.lang.StringBuilder()
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    val finalQuery = LLMManager.getSystemPrompt(applicationContext, query) + "\\nUser: " + query
+                    LLMManager.resetConversation()
+                    val sysPrompt = LLMManager.getSystemPrompt(applicationContext, query)
+                    val finalQuery = "<start_of_turn>user\n$sysPrompt\nUser: $query<end_of_turn>\n<start_of_turn>model\n"
                     
                     android.util.Log.i("AutomatedTest", "Conversation is null: ${LLMManager.conversation == null}")
                     
@@ -1359,7 +1357,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val finalReport = reportHeader + resultsBuilder.toString()
         
         try {
-            val file = java.io.File(getExternalFilesDir(null), "test_results.md")
+            val file = java.io.File(filesDir, "test_results.md")
             file.writeText(finalReport)
             android.util.Log.i("AutomatedTest", "Test suite complete. Results written to ${file.absolutePath}")
         } catch (e: Exception) {

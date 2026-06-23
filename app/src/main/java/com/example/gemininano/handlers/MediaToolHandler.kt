@@ -17,7 +17,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
             "playMusic" -> {
                 val argStr = toolCall.substringAfter("(").substringBefore(")").replace("\"", "").trim()
                 if (argStr.isBlank() || argStr.equals("SONG", ignoreCase = true) || argStr.equals("music", ignoreCase = true)) {
-                    return ToolExecutionResult(false, "Prompt Error: What song or artist would you like to listen to?")
+                    return ToolExecutionResult(false, "What kind of music are you in the mood for?")
                 }
                 val query = argStr.trim().replace("\"", "")
                 
@@ -38,7 +38,6 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                         val searchIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
                         searchIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
                         searchIntent.putExtra(android.app.SearchManager.QUERY, query)
-                        searchIntent.setPackage("com.spotify.music")
                         searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
                         success = true
@@ -49,7 +48,6 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                         val searchIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
                         searchIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
                         searchIntent.putExtra(android.app.SearchManager.QUERY, query)
-                        searchIntent.setPackage("com.spotify.music")
                         searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
                         success = true
@@ -103,6 +101,16 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
             }
             "adjustBgmForSituation" -> {
                 ToolExecutionResult(true, "I've adjusted the background music to match the current driving situation.")
+            }
+            "increaseVolume" -> {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_RAISE, 0)
+                ToolExecutionResult(true, "I've increased the volume.")
+            }
+            "decreaseVolume" -> {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_LOWER, 0)
+                ToolExecutionResult(true, "I've decreased the volume.")
             }
             else -> ToolExecutionResult(false, "System Error: Media Handler not recognized.")
         }

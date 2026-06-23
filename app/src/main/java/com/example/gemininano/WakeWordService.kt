@@ -38,7 +38,11 @@ class WakeWordService : Service() {
             .setContentText("Say your wake word to summon assistant")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .build()
-        startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        try {
+            startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        } catch (e: Exception) {
+            android.util.Log.e("WakeWordService", "Failed to start foreground: ${e.message}")
+        }
         
         updateWakeWord()
 
@@ -78,8 +82,12 @@ class WakeWordService : Service() {
 
     private fun recognizerSetup() {
         try {
-            customRecognizer = Recognizer(model, 16000.0f)
-            startCustomListening()
+            if (model != null) {
+                customRecognizer = Recognizer(model, 16000.0f)
+                startCustomListening()
+            } else {
+                Log.e("WakeWord", "Model is null, cannot init recognizer")
+            }
         } catch (e: Exception) {
             Log.e("WakeWord", "Failed to init recognizer: ${e.message}")
         }

@@ -115,10 +115,21 @@ object LLMManager {
                     else -> Backend.GPU() // Auto defaults to GPU
                 }
 
+                // IMPORTANT: GPU backend requires massive VRAM for the KV Cache.
+                // On Pixel Tablet (Mali GPU) or other mobile GPUs, requesting 2048 tokens
+                // often causes shader allocation failures (INTERNAL: ERROR 1928).
+                // We cap it to 1024 specifically for GPU to ensure successful initialization.
+                val safeMaxTokens = if (backend is Backend.GPU && maxTokens > 1024) {
+                    Log.w("LLMManager", "Capping maxTokens to 1024 for GPU backend to prevent shader allocation failure (OOM)")
+                    1024
+                } else {
+                    maxTokens
+                }
+
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
-                    maxNumTokens = maxTokens
+                    maxNumTokens = safeMaxTokens
                 )
 
                 engine = Engine(engineConfig)
@@ -349,35 +360,26 @@ object LLMManager {
         val isFuel = (isFuelQuery || isFollowUpToFuel) && !isFollowUpToSearch
         
         val basePrompt = StringBuilder()
-        basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
+        basePrompt.append("You are an In-Car AI. Perform actions using EXACT <TOOL>command()</TOOL> syntax BEFORE your text response. Keep responses brief.\n\n")
         
         basePrompt.append("=== VEHICLE STATE ===\n")
         basePrompt.append("${VehicleManager.getLLMContextString(context)}\n")
-        basePrompt.append("Memory: $userMemory\n\n")
+        if (userMemory.isNotBlank()) basePrompt.append("Memory: $userMemory\n\n")
         
         basePrompt.append("=== TOOLS ===\n")
-        basePrompt.append("${ToolManager.getLlmToolsPrompt(query)}\n\n")
+        basePrompt.append("${ToolManager.getLlmToolsPrompt(context, query)}\n\n")
         
-        basePrompt.append("=== STRICT RULES ===\n")
-        basePrompt.append("IMPORTANT: If you use a tool, YOUR RESPONSE MUST EXACTLY START WITH THE XML TAG '<TOOL>'. Do NOT omit it.\n")
+        basePrompt.append("=== RULES ===\n")
+        basePrompt.append("1. If using a tool, output exactly <TOOL>name(args)</TOOL> first.\n")
+        basePrompt.append("2. DO NOT mention current temperature after setting it.\n")
+        basePrompt.append("3. For navigation, output ONLY <TOOL>navigate(DEST)</TOOL>.\n")
         
-        basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax BEFORE your text:\n")
-        basePrompt.append("- If user gives an exact number: \"<TOOL>setTemperature(VAL)</TOOL> I've set the temperature to [VAL] degrees.\"\n")
-        basePrompt.append("- If user is cold or wants to increase it: \"<TOOL>increaseTemperature()</TOOL> I'm warming it up.\"\n")
-        basePrompt.append("- If user is hot or wants to decrease it: \"<TOOL>decreaseTemperature()</TOOL> I'm cooling it down.\"\n")
-        basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
-
         if (isWellness || q.isEmpty()) {
-            basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
+            basePrompt.append("4. WELLNESS: Ask first before playing music or turning on massager.\n")
         }
-        basePrompt.append("3. NAVIGATION: To navigate, you MUST reply ONLY with the EXACT syntax <TOOL>navigate(DEST)</TOOL> and NO other text. Example: \"<TOOL>navigate(Tokyo)</TOOL>\"\n")
-
-
-        basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"<TOOL>navigate(Home)</TOOL> Should I turn on the heater?\"\n")
-
-        basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
-        basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the tool <TOOL>search(QUERY)</TOOL> where QUERY is exactly what they asked for (e.g. <TOOL>search(best places to visit in tokyo)</TOOL>).\n")
-        basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.\n")
+        
+        basePrompt.append(ToolManager.getGlobalSystemInstructions(query))
+        
         if (isFood || q.isEmpty()) {
             if (dynCtx.isNotEmpty()) {
                 basePrompt.append("8. FOOD CHOICES: $dynCtx\n")
@@ -418,106 +420,27 @@ object LLMManager {
 
         basePrompt.append("\n")
 
-        if (isHvac || q.isEmpty()) {
-            basePrompt.append("Example 1:\n")
-            basePrompt.append("User: \"Increase temperature.\"\n")
-            basePrompt.append("Assistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n\n")
-            basePrompt.append("Example 2:\n")
-            basePrompt.append("User: \"Decrease temperature by 5 degrees.\"\n")
-            basePrompt.append("Assistant: <TOOL>decreaseTemperature(5)</TOOL> I'm cooling it down by 5 degrees.\n\n")
-            basePrompt.append("Example 3:\n")
-            basePrompt.append("User: \"Set the temperature to 70.\"\n")
-            basePrompt.append("Assistant: <TOOL>setTemperature(70)</TOOL> I've set the temperature to 70 degrees.\n\n")
-            basePrompt.append("Example 4:\n")
-            basePrompt.append("User: \"I am feeling cold.\"\n")
-            basePrompt.append("Assistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n\n")
-            basePrompt.append("Example 5:\n")
-            basePrompt.append("User: \"My windows are fogging up.\"\n")
-            basePrompt.append("Assistant: <TOOL>turnOnDefroster()</TOOL> Activating front defroster.\n\n")
+        basePrompt.append("\n=== EXAMPLES ===\n")
+        
+        // Dynamically include few-shot examples based on intent to save prompt tokens
+        if (isHvac || q.isEmpty() || isWellness || q.contains("window") || q.contains("back") || q.contains("auto")) {
+            basePrompt.append("User: \"Increase temperature.\"\nAssistant: <TOOL>increaseTemperature()</TOOL> I'm warming it up.\n\n")
+            basePrompt.append("User: \"Turn on automatic climate control.\"\nAssistant: <TOOL>turnOnAutoClimate()</TOOL> Turning on auto climate.\n\n")
+            basePrompt.append("User: \"Turn off automatic climate control.\"\nAssistant: <TOOL>turnOffAutoClimate()</TOOL> Turning off auto climate.\n\n")
+            basePrompt.append("User: \"Increase fan speed.\"\nAssistant: <TOOL>increaseFanSpeed()</TOOL> Turning up the fan.\n\n")
+            basePrompt.append("User: \"Turn on the HVAC system.\"\nAssistant: <TOOL>turnOnHvacPower()</TOOL> Turning on climate control.\n\n")
+            basePrompt.append("User: \"My back is freezing.\"\nAssistant: <TOOL>setSeatHeater(3)</TOOL> Turning on your seat heater.\n\n")
+            basePrompt.append("User: \"My window is freezing.\"\nAssistant: <TOOL>defogWindshield()</TOOL> Defogging the windshield.\n\n")
         }
-
-        if (isSightseeing || q.isEmpty()) {
-            basePrompt.append("Example 6:\n")
-            basePrompt.append("User: \"What are some sightseeing places to visit?\"\n")
-            basePrompt.append("Assistant: I recommend visiting the Tokyo Skytree, Senso-ji Temple, and Meiji Shrine. Which places would you like to visit?\n\n")
-
-            basePrompt.append("Example 6.5:\n")
-            basePrompt.append("User: \"Show me places to visit near Tokyo on map\"\n")
-            basePrompt.append("Assistant: <TOOL>search(places to visit near Tokyo)</TOOL>\n\n")
-
-            basePrompt.append("Example 7:\n")
-            basePrompt.append("User: \"Where was the Hollywood movie Inception filmed in Tokyo?\"\n")
-            basePrompt.append("Assistant: <TOOL>search(Ark Hills, Tokyo)</TOOL> The Hollywood movie Inception was filmed at Ark Hills in Tokyo. Would you like me to navigate there?\n\n")
-
-            basePrompt.append("Example 8:\n")
-            basePrompt.append("User: \"No thanks.\"\n")
-            basePrompt.append("Assistant: OK, let me know if I can do something else for you.\n\n")
-
-            basePrompt.append("Example 9:\n")
-            basePrompt.append("User: \"Yes please.\"\n")
-            basePrompt.append("Assistant: Which destination would you like to navigate to?\n\n")
-
-            basePrompt.append("Example 10:\n")
-            basePrompt.append("User: \"The Eiffel Tower.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Eiffel Tower)</TOOL>\n\n")
+        
+        if (isNav || isSightseeing || isFood || isFuel || q.isEmpty()) {
+            basePrompt.append("User: \"Akihabara.\"\nAssistant: <TOOL>navigate(Akihabara)</TOOL>\n\n")
+            basePrompt.append("User: \"I'm hungry.\"\nAssistant: Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\n\n")
+            basePrompt.append("User: \"Where was the Hollywood movie Inception filmed in Tokyo?\"\nAssistant: <TOOL>search(Ark Hills, Tokyo)</TOOL> The Hollywood movie Inception was filmed at Ark Hills in Tokyo. Would you like me to navigate there?\n\n")
         }
-
-        if (isFood || isFuel || isSightseeing || q.isEmpty()) {
-            basePrompt.append("Example 11:\n")
-            basePrompt.append("User: \"I'm hungry.\"\n")
-            basePrompt.append("Assistant: Which food would you like to eat? e.g. Italian, Indian, Japanese, American, Pizza?\n\n")
-            
-            basePrompt.append("Example 12:\n")
-            basePrompt.append("User: \"Italian.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. Luigi's, 2. Roma. Which one would you like to navigate to?\n\n")
-            
-            basePrompt.append("Example 13:\n")
-            basePrompt.append("User: \"1.\"\n")
-            basePrompt.append("Assistant: Navigating to Luigi's.\n\n")
-            
-            basePrompt.append("Example 14:\n")
-            basePrompt.append("User: \"I am running out of fuel.\"\n")
-            basePrompt.append("Assistant: Your fuel level is low. Should I navigate you to a nearby gas station?\n\n")
-            
-            basePrompt.append("Example 15:\n")
-            basePrompt.append("User: \"I need charging.\"\n")
-            basePrompt.append("Assistant: I found these options nearby: 1. ENEOS, 2. Cosmo. Which one would you like to navigate to?\n")
-            basePrompt.append("User: \"The second one.\"\n")
-            basePrompt.append("Assistant: Navigating to Cosmo.\n\n")
-        }
-
-        if (isNav || q.isEmpty()) {
-            basePrompt.append("Example 16:\n")
-            basePrompt.append("User: \"Navigate to Tokyo\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Tokyo)</TOOL>\n\n")
-
-            basePrompt.append("Example 17:\n")
-            basePrompt.append("User: \"Akihabara.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Akihabara)</TOOL>\n\n")
-        }
-
-
-            
-        if (isAmbient || q.isEmpty()) {
-            basePrompt.append("[Ambient Routine Confirmation]\n")
-            basePrompt.append("User: \"I'm heading home.\"\n")
-            basePrompt.append("Assistant: <TOOL>navigate(Home)</TOOL> Navigating home. I noticed it's freezing outside. Would you like me to turn on the heater and seat warmers for your drive?\n")
-            basePrompt.append("User: \"Yes, please.\"\n")
-            basePrompt.append("Assistant: <TOOL>setTemperature(72)</TOOL><TOOL>setSeatHeater(3)</TOOL>\n\n")
-        }
-
-
-
+        
         if (isDiag || q.isEmpty()) {
-            basePrompt.append("[Contextual Diagnostics & Servicing]\n")
-            basePrompt.append("User: \"What's wrong with my car?\"\n")
-            basePrompt.append("Assistant: Your check engine light is on with code P0420 (Catalytic Converter). Would you like me to call your preferred mechanic?\n")
-            basePrompt.append("User: \"Yes, call the mechanic.\"\n")
-            basePrompt.append("Assistant: <TOOL>call(Mechanic)</TOOL>\n\n")
-
-            basePrompt.append("[Door Alert Check]\n")
-            basePrompt.append("User: \"Check if any door is open.\"\n")
-            basePrompt.append("Assistant: I checked the ADAS_OSE_DOOR_ALERT system. The current status is: All Doors Closed.\n\n")
+            basePrompt.append("User: \"What's wrong with my car?\"\nAssistant: Your check engine light is on with code P0420. Would you like me to call your preferred mechanic?\n\n")
         }
 
         val customInstructions = VehicleManager.getCustomPropertyInstructions()
@@ -552,10 +475,11 @@ object LLMManager {
             conversation?.close()
         } catch (e: Exception) {
             Log.w("LLMManager", "Error closing previous conversation", e)
+        } finally {
+            conversation = null
         }
         
         isFirstMessage = true
-        
         val conversationConfig = ConversationConfig()
         
         try {

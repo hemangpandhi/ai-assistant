@@ -61,17 +61,30 @@ object ToolManager {
         val safetyConstraints: SafetyConstraints? = null,
         val parameters: ToolParameters? = null,
         val emulatedBypass: Boolean = false,
-        val diagnosticPayload: String? = null
+        val diagnosticPayload: String? = null,
+        val aliases: List<String>? = null
     )
     
     // Maps command prefix -> ToolDefinition
     private val activeTools = mutableMapOf<String, ToolDefinition>()
+
+    // Maps lowercase alias -> canonical handlerKey, built from the registry at initialize() time.
+    // This replaces any hardcoded alias logic — all aliases live in vehicle_skills_registry_v2.0.json.
+    private val aliasMap = mutableMapOf<String, String>()
     
     private val systemInstructions = mutableListOf<SystemInstruction>()
     
     private var mediaPlayer: android.media.MediaPlayer? = null
     
     var isInitialized = false
+        private set
+
+    /**
+     * The prewarm query read from the registry's [config.prewarm_query] field.
+     * Used by MyApplication to prime the LLM KV cache at startup.
+     * Default covers the broadest set of tools if the field is absent.
+     */
+    var prewarmQuery: String = "control climate navigation music windows"
         private set
 
     fun initialize(context: Context) {
@@ -85,7 +98,16 @@ object ToolManager {
             
             val jsonStr = String(buffer, Charsets.UTF_8)
             val jsonObject = JSONObject(jsonStr)
-            
+
+            // Parse top-level config block — all runtime tuning lives here.
+            if (jsonObject.has("config")) {
+                val config = jsonObject.getJSONObject("config")
+                if (config.has("prewarm_query")) {
+                    prewarmQuery = config.getString("prewarm_query")
+                    Log.d(TAG, "Prewarm query loaded from registry: '$prewarmQuery'")
+                }
+            }
+
             if (jsonObject.has("system_instructions")) {
                 val instructionsArray = jsonObject.getJSONArray("system_instructions")
                 for (i in 0 until instructionsArray.length()) {
@@ -180,6 +202,12 @@ object ToolManager {
                         }
                     }
 
+                    val aliasesList = mutableListOf<String>()
+                    if (toolObj.has("aliases")) {
+                        val arr = toolObj.getJSONArray("aliases")
+                        for (j in 0 until arr.length()) aliasesList.add(arr.getString(j))
+                    }
+
                     activeTools[commandName] = ToolDefinition(
                         handlerType, promptString, handlerKey, propertyId, dataType, areaId, valueToWrite, successMessage, errorMessage,
                         if (keywordsList.isNotEmpty()) keywordsList else null,
@@ -198,8 +226,17 @@ object ToolManager {
                         safetyConstraints = safetyConstraints,
                         parameters = parameters,
                         emulatedBypass = if (toolObj.has("emulated_bypass")) toolObj.getBoolean("emulated_bypass") else false,
-                        diagnosticPayload = if (toolObj.has("diagnostic_payload")) toolObj.getString("diagnostic_payload") else null
+                        diagnosticPayload = if (toolObj.has("diagnostic_payload")) toolObj.getString("diagnostic_payload") else null,
+                        aliases = if (aliasesList.isNotEmpty()) aliasesList else null
                     )
+
+                    // Register all aliases into the reverse-lookup map.
+                    // Aliases are case-insensitive; both sides are lowercased during lookup.
+                    for (alias in aliasesList) {
+                        aliasMap[alias.lowercase()] = commandName
+                        Log.d(TAG, "Alias registered: '${alias.lowercase()}' -> '$commandName'")
+                    }
+
                     Log.i(TAG, "Registered Tool: $commandName ($handlerType) -> $promptString")
                 }
             }
@@ -243,7 +280,7 @@ object ToolManager {
         val q = query.lowercase()
         
         // Semantic Search with keyword boosting
-        val scoredTools = SemanticSearchManager.searchWithScores(query, 20)
+        val scoredTools = SemanticSearchManager.searchWithScores(query, 30)
         
         val enhancedScores = scoredTools.map { (tool, score) ->
             val isKeywordMatch = tool.keywords?.any { q.contains(it) } == true
@@ -251,9 +288,10 @@ object ToolManager {
             Pair(tool, finalScore)
         }
         
+        val limit = 20
         val topTools = enhancedScores
             .sortedByDescending { it.second }
-            .take(4) // Strictly limit to top 4 tools
+            .take(limit) // Strictly limit to top tools (or all tools if prewarming)
             .map { it.first }
             .filter { isOnline || it.offlineCapable }
             .toMutableList()
@@ -299,11 +337,7 @@ object ToolManager {
         
         val builder = StringBuilder("<AvailableTools>\n")
         for (tool in relevantTools) {
-            val keywordsText = tool.keywords?.joinToString(", ") ?: ""
             builder.append("  - Tool: ${tool.promptString}\n")
-            if (keywordsText.isNotBlank()) {
-                builder.append("    Keywords: $keywordsText\n")
-            }
         }
         builder.append("</AvailableTools>")
         return builder.toString()
@@ -313,8 +347,26 @@ object ToolManager {
      * Executes the requested tool call if it is enabled in vehicle_skills_registry_v2.0.json.
      * Returns a string summarizing the outcome for the chat UI.
      */
+    /**
+     * Normalizes LLM-generated tool names to their canonical registered counterparts
+     * using the [aliasMap] built from the "aliases" field in vehicle_skills_registry_v2.0.json.
+     *
+     * This is fully data-driven — no aliases are hardcoded here. To add or change an alias,
+     * edit vehicle_skills_registry_v2.0.json only.
+     */
+    private fun normalizeToolCall(rawCall: String): String {
+        val name = rawCall.substringBefore("(").trim()
+        val args = rawCall.substringAfter("(").substringBefore(")").trim()
+            .replace("F", "").replace("°", "").trim()
+        val canonicalName = aliasMap[name.lowercase()]
+        return if (canonicalName != null) {
+            Log.w(TAG, "Alias resolved: '$name' -> '$canonicalName'")
+            if (args.isNotBlank()) "$canonicalName($args)" else "$canonicalName()"
+        } else rawCall
+    }
+
     suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
-        val toolCall = rawToolCall.trim()
+        val toolCall = normalizeToolCall(rawToolCall.trim())
         Log.d(TAG, "Executing toolCall: $toolCall")
         try {
             // Check if the requested tool corresponds to an enabled handler

@@ -57,6 +57,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         set(value) { globalTts = value }
     private var speechRecognizer: SpeechRecognizer? = null
     private var dotAnimatorJob: kotlinx.coroutines.Job? = null
+    private var autoDismissJob: kotlinx.coroutines.Job? = null
     private var pendingConfirmationTool: String? = null
     private var currentHighlightStart = -1
     private var currentHighlightEnd = -1
@@ -109,7 +110,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         }
                     }
                 }
-                CoroutineScope(Dispatchers.Main).launch {
+                autoDismissJob = CoroutineScope(Dispatchers.Main).launch {
                     if (utteranceId == "QUESTION_FINAL") {
                         btnMic.performClick()
                     } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
@@ -336,6 +337,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         
+        // Cancel any pending auto-dismissal from the previous turn so the UI doesn't disappear
+        autoDismissJob?.cancel()
+        
         // Re-inflate if layout setting changed
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         if (prefs.getInt("ui_layout_pref", 0) != currentLayoutStyle) {
@@ -484,6 +488,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         var interceptedQuery = query
         
+        if (interceptedQuery.isBlank()) {
+            return
+        }
+
+        android.util.Log.e("AssistantSession", "==== USER SAID: $interceptedQuery ====")
+        
         // Client-side navigation choice resolution (replaces "INTERNAL RULE FOR NEXT TURN" anti-pattern).
         // When the previous turn stored Overpass API search results, resolve the user's choice
         // directly without routing through the LLM — saving an entire inference round-trip.
@@ -576,22 +586,41 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         }
         
         val finalPrompt: String
-        if (LLMManager.isFirstMessage) {
-            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+        val isCloud = LocalLLMActivity.isCloudModelActive
+
+        if (isCloud) {
+            // Cloud API is stateless: it needs the full system prompt and history every time.
+            val perTurnSysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
             val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            
-            if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory\nUser: $interceptedQuery\nAssistant:"
+            if (slidingHistory.isNotEmpty()) {
+                finalPrompt = "<start_of_turn>user\n$perTurnSysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory<end_of_turn>\n<start_of_turn>model\n"
             } else {
-                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery" else "$reminder$dynCtx\n\nUser: $interceptedQuery"
+                finalPrompt = "<start_of_turn>user\n$perTurnSysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery<end_of_turn>\n<start_of_turn>model\n"
             }
-            LLMManager.isFirstMessage = false
         } else {
-            val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-            if (isAgenticObservation) {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
+            // Local LiteRT API is stateful: it natively accumulates context in the KV cache!
+            if (LLMManager.isFirstMessage) {
+                // First turn (or if prewarm was skipped): send the full system prompt to prime the KV cache
+                val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+                val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
+                
+                if (slidingHistory.isNotEmpty()) {
+                    finalPrompt = "<start_of_turn>user\n$sysPrompt\n$reminder$dynCtx\n\n[Conversation History]\n$slidingHistory<end_of_turn>\n<start_of_turn>model\n"
+                } else {
+                    finalPrompt = "<start_of_turn>user\n$sysPrompt\n$reminder$dynCtx\n\nUser: $interceptedQuery<end_of_turn>\n<start_of_turn>model\n"
+                }
+                LLMManager.isFirstMessage = false
             } else {
-                finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\nUser: $interceptedQuery"
+                // Subsequent turns: ONLY send the new user query and the updated vehicle state.
+                // Do NOT resend the sysPrompt or slidingHistory, otherwise the KV cache will overflow
+                // and crash with 'Status Code 13: Memory is not mapped on the GPU'.
+                val stateContext = "[Current State: ${VehicleManager.getLLMContextString(context)}]"
+                val reminder = "\n(Reminder: Use <TOOL> tags)"
+                if (isAgenticObservation) {
+                    finalPrompt = "<start_of_turn>user\n$stateContext$dynCtx$reminder\n$interceptedQuery<end_of_turn>\n<start_of_turn>model\n"
+                } else {
+                    finalPrompt = "<start_of_turn>user\n$stateContext$dynCtx$reminder\nUser: $interceptedQuery<end_of_turn>\n<start_of_turn>model\n"
+                }
             }
         }
 
@@ -879,7 +908,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 if (isQuestion) {
                                     btnMic.performClick()
                                 } else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) {
-                                    CoroutineScope(Dispatchers.Main).launch {
+                                    autoDismissJob = CoroutineScope(Dispatchers.Main).launch {
                                         for (job in currentPendingTools) {
                                             try { job.await() } catch (e: Exception) {}
                                         }
@@ -887,7 +916,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         finish()
                                     }
                                 } else {
-                                    CoroutineScope(Dispatchers.Main).launch {
+                                    autoDismissJob = CoroutineScope(Dispatchers.Main).launch {
                                         kotlinx.coroutines.delay(2000)
                                         finish()
                                     }
@@ -922,7 +951,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         // Use lower temperature (0.1) for tool-execution queries (HVAC, navigation,
                         // calls) to reduce hallucinated tool names/args; use higher temperature (0.8)
                         // for creative/conversational queries where variety is desirable.
-                        val geminiTemperature = if (ToolManager.getRelevantTools(interceptedQuery).isNotEmpty()) 0.1 else 0.8
+                        val geminiTemperature = if (ToolManager.getRelevantTools(context, interceptedQuery).isNotEmpty()) 0.1 else 0.8
                         GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback, geminiTemperature)
                     } else {
                         AnthropicManager.sendMessageAsync(systemPrompt, interceptedQuery, callback)
@@ -935,7 +964,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 val autoRouting = prefs.getBoolean("auto_routing_enabled", false)
                 val apiKey = GeminiManager.apiKey
                 if (autoRouting && apiKey.isNotEmpty() && apiKey != "Enter API Key" &&
-                    ToolManager.getRelevantTools(interceptedQuery).isEmpty()) {
+                    ToolManager.getRelevantTools(context, interceptedQuery).isEmpty()) {
                     // No vehicle tool matched → pure conversation → route to Gemini cloud.
                     CoroutineScope(Dispatchers.IO).launch {
                         val systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery) +
@@ -943,14 +972,23 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         GeminiManager.sendMessageAsync(systemPrompt, interceptedQuery, callback, temperature = 0.8)
                     }
                 } else {
-                    LLMManager.conversation!!.sendMessageAsync(
-                        Contents.of(Content.Text(finalPrompt)),
-                        callback,
-                        emptyMap()
-                    )
+                    android.util.Log.e("AssistantSession", "Sending to LiteRT: $finalPrompt")
+                    try {
+                        val conv = LLMManager.conversation
+                        if (conv == null) throw IllegalStateException("Conversation is null")
+                        conv.sendMessageAsync(
+                            Contents.of(Content.Text(finalPrompt)),
+                            callback,
+                            emptyMap()
+                        )
+                    } catch (e: Exception) {
+                        android.util.Log.e("AssistantSession", "LiteRT failed locally", e)
+                        throw e
+                    }
                 }
             }
         } catch (e: Exception) {
+            android.util.Log.e("AssistantSession", "Caught Exception in processQuery:", e)
             statusText.text = "Error"
             stopThinkingAnimation()
             responseText.text = "An unexpected error occurred."

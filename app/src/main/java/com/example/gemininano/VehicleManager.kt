@@ -237,12 +237,16 @@ object VehicleManager {
     // Mock Telemetry Setters (for testing)
     fun setMockSpeed(speed: Float) { currentSpeed = speed }
 
-    suspend fun writeTemperatureToVhalVerified(temp: Float): Boolean {
+    suspend fun writeTemperatureToVhalVerified(temp: Float, targetAreaId: Int = 0): Boolean {
         return kotlinx.coroutines.coroutineScope {
             try {
                 var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
                 if (areaIds == null || areaIds.isEmpty()) {
                     areaIds = intArrayOf(1, 4) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
+                }
+                
+                if (targetAreaId > 0 && areaIds.contains(targetAreaId)) {
+                    areaIds = intArrayOf(targetAreaId)
                 }
                 Log.d("VehicleManager", "writeTemperatureToVhal called with $temp. Area IDs: ${areaIds.joinToString()}")
                 

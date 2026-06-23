@@ -14,7 +14,7 @@ class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        prewarmLlm()
+        prewarmLlm() 
     }
 
     /**
@@ -30,11 +30,12 @@ class MyApplication : Application() {
             try {
                 LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
-                        CoroutineScope(Dispatchers.IO).launch {
-                            runSilentPrewarmInference()
-                        }
-                        // Start proactive ambient monitoring now that VehicleManager is up
-                        // (autoInitialize also triggers VehicleManager via the normal boot path).
+                        // Prime the KV cache with the real system prompt BEFORE the user speaks.
+                        // After this completes, isFirstMessage=false and all user queries
+                        // hit the cheap per-turn path (~80 tokens) → TTFT < 2s.
+                        runSilentPrewarmInference()
+
+                        // Start proactive ambient monitoring now that VehicleManager is up.
                         ProactiveAmbientEngine.start()
                     }
 
@@ -50,31 +51,52 @@ class MyApplication : Application() {
 
     private fun runSilentPrewarmInference() {
         val conversation = LLMManager.conversation ?: return
-        Log.i(TAG, "Running silent pre-warm inference to compile GPU shaders...")
-        try {
-            val dummyCallback = object : MessageCallback {
-                override fun onMessage(message: Message) {
-                    // Discard output — this inference exists only to warm up GPU kernels.
+        Log.i(TAG, "[Prewarm] Starting system-prompt prewarm to prime KV cache...")
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            android.widget.Toast.makeText(applicationContext, "AI Engine: Prewarming KV cache (10-20s)...", android.widget.Toast.LENGTH_LONG).show()
+        }
+
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+            try {
+                // Build the real system prompt using the prewarm query from the registry.
+                // This drives RAG/semantic tool selection entirely from vehicle_skills_registry_v2.0.json.
+                // To change the prewarm scope, edit config.prewarm_query in the registry — no code changes needed.
+                val warmupQuery = ToolManager.prewarmQuery
+                val sysPrompt = LLMManager.getSystemPrompt(applicationContext, warmupQuery)
+                val prewarmPrompt = "<start_of_turn>user\n$sysPrompt\n(Reminder: Use exact <TOOL> XML tags for car actions.)\n\n[PREWARM] Ready.<end_of_turn>\n<start_of_turn>model\n"
+
+                val dummyCallback = object : com.google.ai.edge.litertlm.MessageCallback {
+                    override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+                        // Discard — prewarm output is not shown to the user.
+                    }
+
+                    override fun onDone() {
+                        // IMPORTANT: Do NOT call resetConversation() here.
+                        // The KV cache now contains the system prompt. Setting isFirstMessage=false
+                        // ensures all future user queries use the cheap per-turn prompt path.
+                        LLMManager.isFirstMessage = false
+                        Log.i(TAG, "[Prewarm] Complete. KV cache primed. isFirstMessage=false. TTFT will be <2s.")
+                        android.os.Handler(android.os.Looper.getMainLooper()).post {
+                            android.widget.Toast.makeText(applicationContext, "AI Engine: Prewarm complete. Ready for instant replies.", android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+
+                    override fun onError(throwable: Throwable) {
+                        Log.w(TAG, "[Prewarm] Inference failed (non-fatal). Resetting to clean state.", throwable)
+                        // Only reset on failure so the first real user query gets a safe clean start.
+                        LLMManager.resetConversation(applicationContext)
+                    }
                 }
 
-                override fun onDone() {
-                    Log.i(TAG, "Pre-warm inference complete. GPU shaders compiled, KV-cache ready.")
-                    // Reset so the first real user query starts with a clean conversation.
-                    LLMManager.resetConversation()
-                }
-
-                override fun onError(throwable: Throwable) {
-                    Log.w(TAG, "Pre-warm inference error (non-fatal, resetting conversation)", throwable)
-                    LLMManager.resetConversation()
-                }
+                conversation.sendMessageAsync(
+                    com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(prewarmPrompt)),
+                    dummyCallback,
+                    emptyMap()
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "[Prewarm] Setup failed (non-fatal). Resetting to clean state.", e)
+                LLMManager.resetConversation(applicationContext)
             }
-            // Send a short dummy prompt to trigger GPU shader compilation and KV-cache
-            // pre-allocation. Output is discarded — the goal is to exercise the inference
-            // pipeline, not to produce a meaningful response.
-            conversation.sendMessageAsync(Contents.of(Content.Text("warmup")), dummyCallback, emptyMap())
-        } catch (e: Exception) {
-            Log.w(TAG, "Silent pre-warm inference failed (non-fatal)", e)
-            LLMManager.resetConversation()
         }
     }
 

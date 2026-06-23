@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    android:sharedUserId="android.uid.system">
+    android:extractNativeLibs="true">
 
     <!-- Package Visibility for Navigation intents -->
     <queries>
@@ -62,7 +62,7 @@
         android:roundIcon="@drawable/ic_launcher"
         android:label="VehicleEdgeAssistant"
         android:supportsRtl="true"
-        android:extractNativeLibs="false"
+        
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
         
         <uses-native-library android:name="libOpenCL.so" android:required="false" />

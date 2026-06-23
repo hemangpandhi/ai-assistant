@@ -4,8 +4,8 @@ import com.example.gemininano.ToolManager
 
 object ToolHandlerRegistry {
     fun getHandler(handlerKey: String, toolDefinition: ToolManager.ToolDefinition): ToolHandler? {
-        val hvacHandlers = setOf("setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature", "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager", "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster", "handleFeelingCold", "enableFreshAirIntake", "protectFromPollutedAir", "defogWindshield", "movePassengerSeatForward")
-        val mediaHandlers = setOf("playMusic", "pauseMusic", "nextTrack", "prevTrack", "adjustBgmForSituation")
+        val hvacHandlers = setOf("setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature", "setDriverTemperature", "setPassengerTemperature", "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager", "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster", "turnOnAC", "turnOffAC", "turnOnAutoClimate", "turnOffAutoClimate", "turnOnHvacPower", "turnOffHvacPower", "handleFeelingCold", "enableFreshAirIntake", "protectFromPollutedAir", "defogWindshield", "movePassengerSeatForward")
+        val mediaHandlers = setOf("playMusic", "pauseMusic", "nextTrack", "prevTrack", "adjustBgmForSituation", "increaseVolume", "decreaseVolume")
         val navHandlers = setOf("startNavigationTo", "searchNearby", "search", "suggestNearbyPlaces", "provideLaneLevelGuidance", "suggestAlternateRoute")
         val commHandlers = setOf("call", "bookRestaurant", "queryMemory", "callContact", "sendText")
         val systemHandlers = setOf("remember", "getWeather", "openApp", "sendUpcomingEventReminder", "explainChildSeatInstallation", "suggestUmbrellaIfRainy", "getNewsHighlights")
