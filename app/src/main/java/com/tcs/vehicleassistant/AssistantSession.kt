@@ -137,7 +137,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         unloadJob?.cancel()
         unloadJob = CoroutineScope(Dispatchers.Main).launch {
-            kotlinx.coroutines.delay(60_000)
+            kotlinx.coroutines.delay(600_000) // Increased to 10 minutes to reduce TTFT initialization latency
             LLMManager.unload()
         }
     }
