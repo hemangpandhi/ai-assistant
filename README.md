@@ -16,7 +16,7 @@ This project is a fully functional, system-level Android Digital Assistant demon
 - **Strict Prompt Engineering**: The underlying model is strictly constrained to provide concise, direct answers with zero hallucination.
 - **Voice Interactions (STT & TTS)**: Fully integrated Speech-to-Text and Android Text-to-Speech (TTS). Talk to the Assistant naturally, and it will speak its precise confirmations aloud.
 - **Multiple Model Support**: Includes a dynamic fallback scanner to load any supported LiteRT model (SmolLM, Gemma, Qwen, Phi) placed in the external storage directory.
-
+U
 ---
 
 ## Architecture

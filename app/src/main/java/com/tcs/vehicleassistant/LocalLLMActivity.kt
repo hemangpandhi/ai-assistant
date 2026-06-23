@@ -598,16 +598,16 @@ class LocalLLMActivity : AppCompatActivity() {
         val isWakeWordEnabled = prefs.getBoolean("wake_word_enabled", false)
         switchWakeWord.isChecked = isWakeWordEnabled
         if (isWakeWordEnabled) {
-            startForegroundService(Intent(this, WakeWordService::class.java))
+            try { startService(Intent(this, WakeWordService::class.java)) } catch (e: Exception) {}
         }
         
         switchWakeWord.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("wake_word_enabled", isChecked).apply()
             val intent = Intent(this, WakeWordService::class.java)
             if (isChecked) {
-                startForegroundService(intent)
+                try { startService(intent) } catch (e: Exception) {}
             } else {
-                stopService(intent)
+                try { stopService(intent) } catch (e: Exception) {}
             }
         }
         
@@ -625,7 +625,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 prefs.edit().putString("wake_word", s.toString().lowercase()).apply()
                 if (switchWakeWord.isChecked) {
                     val intent = Intent(this@LocalLLMActivity, WakeWordService::class.java)
-                    startForegroundService(intent)
+                    try { startService(intent) } catch (e: Exception) {}
                 }
             }
         })

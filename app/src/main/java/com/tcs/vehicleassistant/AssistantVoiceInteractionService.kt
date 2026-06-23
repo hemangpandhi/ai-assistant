@@ -50,7 +50,7 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
         super.onReady()
         VehicleManager.initialize(this) // 'this' is a Service, which is a valid Context for Car Service binding!
         try {
-            startForegroundService(Intent(this, WakeWordService::class.java))
+            startService(Intent(this, WakeWordService::class.java))
         } catch (e: Exception) {}
     }
 
