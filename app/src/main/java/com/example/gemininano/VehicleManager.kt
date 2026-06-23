@@ -198,7 +198,7 @@ object VehicleManager {
         try {
             var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
             if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(1, 4) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
+                areaIds = intArrayOf(49, 68) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
             }
             Log.d("VehicleManager", "writeTemperatureToVhal called with $temp. Area IDs: ${areaIds.joinToString()}")
             
@@ -284,7 +284,7 @@ object VehicleManager {
             val config = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_FAN_SPEED)
             var areaIds = config?.areaIds
             if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(1) // Fallback for ROW_1 in AOSP
+                areaIds = intArrayOf(117) // Fallback for HVAC_FAN_SPEED
             }
             
             var anySuccess = false
@@ -337,11 +337,17 @@ object VehicleManager {
     
     suspend fun writeDefrosterToVhalVerified(on: Boolean): Boolean {
         try {
-            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_DEFROSTER)
-            val areaId = config?.areaIds?.firstOrNull() ?: 0
-            val success = setPropertyVerified(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on.toString(), "BOOLEAN")
-            if (!success) return false
-            return true
+            var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_DEFROSTER)?.areaIds
+            if (areaIds == null || areaIds.isEmpty()) {
+                areaIds = intArrayOf(1, 2) // Fallback for WINDOW_FRONT and WINDOW_REAR
+            }
+            
+            var anySuccess = false
+            areaIds.forEach { areaId ->
+                val success = setPropertyVerified(VehiclePropertyIds.HVAC_DEFROSTER, areaId, (if(on) 1 else 0).toString(), "BOOLEAN")
+                if (success) anySuccess = true
+            }
+            return anySuccess
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL defroster", e)
             return false
@@ -352,11 +358,16 @@ object VehicleManager {
         try {
             // Android Automotive uses HVAC_ELECTRIC_DEFROSTER_ON (0x13200514) for the rear window defroster
             val HVAC_ELECTRIC_DEFROSTER_ON = 320865556
-            val config = carPropertyManager?.getCarPropertyConfig(HVAC_ELECTRIC_DEFROSTER_ON)
-            val areaId = config?.areaIds?.firstOrNull() ?: 0
-            val success = setPropertyVerified(HVAC_ELECTRIC_DEFROSTER_ON, areaId, on.toString(), "BOOLEAN")
-            if (!success) return false
-            return true
+            var areaIds = carPropertyManager?.getCarPropertyConfig(HVAC_ELECTRIC_DEFROSTER_ON)?.areaIds
+            if (areaIds == null || areaIds.isEmpty()) {
+                areaIds = intArrayOf(2) // Fallback for WINDOW_REAR
+            }
+            var anySuccess = false
+            areaIds.forEach { areaId ->
+                val success = setPropertyVerified(HVAC_ELECTRIC_DEFROSTER_ON, areaId, on.toString(), "BOOLEAN")
+                if (success) anySuccess = true
+            }
+            return anySuccess
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL rear defroster", e)
             return false
@@ -366,7 +377,13 @@ object VehicleManager {
     suspend fun writeSeatHeaterToVhalVerified(level: Int): Boolean {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
-            config?.areaIds?.forEach { areaId ->
+            var areaIds = config?.areaIds
+            if (areaIds == null || areaIds.isEmpty()) {
+                areaIds = intArrayOf(1, 4) // Fallback for SEAT_1_LEFT and SEAT_1_RIGHT
+            }
+            
+            var anySuccess = false
+            areaIds.forEach { areaId ->
                 var finalLevel = level
                 var maxLvl = 3
                 var minLvl = -3
@@ -377,9 +394,9 @@ object VehicleManager {
                 if (finalLevel > maxLvl) finalLevel = maxLvl
                 if (finalLevel < minLvl) finalLevel = minLvl
                 val success = setPropertyVerified(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel.toString(), "INT")
-                if (!success) return false
+                if (success) anySuccess = true
             }
-            return true
+            return anySuccess
         } catch (e: Exception) {
             Log.e("VehicleManager", "Failed to write VHAL seat heater", e)
             return false
