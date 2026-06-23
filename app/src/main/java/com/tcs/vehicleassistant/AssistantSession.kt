@@ -640,9 +640,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                                     !(q.contains("italian") || q.contains("mexican") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("vegetarian") || q.contains("vegan") || q.contains("indian") || q.contains("thai") || q.contains("japanese"))
                                 
                                 val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("diagnos") || q.contains("obd") || q.contains("ob2") || q.contains("engine") || q.contains("service")
-                                val isShortFollowUp = q.length < 20 && !q.contains("search") && !q.contains("find") && !q.contains("look up")
                                 
-                                if ((toolName == "navigate" || toolName == "search") && (isGenericFood || isDiag || (toolName == "search" && isShortFollowUp))) {
+                                if ((toolName == "navigate" || toolName == "search") && (isGenericFood || isDiag)) {
                                     android.util.Log.w("AssistantSession", "Intercepted hallucinatory tool call: $toolCall")
                                     continue
                                 }
