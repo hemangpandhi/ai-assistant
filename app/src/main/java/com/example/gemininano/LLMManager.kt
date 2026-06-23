@@ -257,8 +257,8 @@ object LLMManager {
     suspend fun prewarm(context: Context) {
         if (engine == null || conversation == null || !isFirstMessage) return
         
+        isPrewarming = true
         withContext(Dispatchers.IO) {
-            isPrewarming = true
             try {
                 Log.d("LLMManager", "Starting background pre-warm sequence...")
                 val sysPrompt = getSystemPrompt(context, "")

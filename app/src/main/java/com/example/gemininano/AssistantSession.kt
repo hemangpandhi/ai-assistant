@@ -15,6 +15,7 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.TextView
+import android.widget.Toast
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -428,6 +429,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     }
 
     private fun handleQuery(query: String, retryCount: Int = 0) {
+        if (LLMManager.isPrewarming) {
+            Toast.makeText(context, "Model is prewarming, please wait a moment...", Toast.LENGTH_SHORT).show()
+            return
+        }
         if (LLMManager.engine == null || LLMManager.conversation == null) return
         
         startThinkingAnimation()
