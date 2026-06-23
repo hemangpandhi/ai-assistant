@@ -305,12 +305,16 @@ object ToolManager {
                     // AOSP Tangorpro/Cuttlefish emulator max seat heat level is 2 (Off, Low, High).
                     value = value.coerceIn(0, 2)
                     val success = VehicleManager.writeSeatHeaterToVhalVerified(value)
-                    if (success) "I've set the seat heater to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                    if (success) {
+                        if (value == 0) "I've turned off the seat heater." else "I've set the seat heater to level $value."
+                    } else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
                 "setSeatMassager" -> {
                     val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
                     val success = VehicleManager.writeSeatMassagerToVhalVerified(value)
-                    if (success) "I've turned on the seat massager for you." else "I sent the command, but the vehicle hardware didn't confirm the change."
+                    if (success) {
+                        if (value == 0) "I've turned off the seat massager." else "I've turned on the seat massager for you."
+                    } else "I sent the command, but the vehicle hardware didn't confirm the change."
                 }
 
 
