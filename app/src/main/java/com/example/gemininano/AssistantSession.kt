@@ -307,9 +307,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onResults")
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
-                    etInput.setText(matches[0])
+                    val spokenText = matches[0]
+                    etInput.setText(spokenText)
                     tts?.stop()
-                    handleQuery(matches[0])
+                    handleQuery(spokenText)
+                } else {
+                    stopDotAnimation("I didn't hear anything.")
+                    statusText.visibility = View.VISIBLE
+                    voiceAnimation.state = VoiceAnimationView.State.IDLE
                 }
             }
             override fun onPartialResults(partialResults: Bundle?) {
@@ -495,7 +500,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         } else {
             MemoryManager.addTurn("User", interceptedQuery)
         }
-        val slidingHistory = MemoryManager.getSlidingWindowContext(3000)
+        val slidingHistory = MemoryManager.getSlidingWindowContext(500)
         
         // Anti-Hallucination Music Interceptor logic has been moved to the streaming loop
         // to allow the LLM to naturally generate a response.

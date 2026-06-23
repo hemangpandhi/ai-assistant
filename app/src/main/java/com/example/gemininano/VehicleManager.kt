@@ -388,8 +388,8 @@ object VehicleManager {
                 var maxLvl = 3
                 var minLvl = -3
                 try {
-                    maxLvl = config.getMaxValue(areaId) as? Int ?: 3
-                    minLvl = config.getMinValue(areaId) as? Int ?: -3
+                    maxLvl = config?.getMaxValue(areaId) as? Int ?: 3
+                    minLvl = config?.getMinValue(areaId) as? Int ?: -3
                 } catch (e: Exception) { }
                 if (finalLevel > maxLvl) finalLevel = maxLvl
                 if (finalLevel < minLvl) finalLevel = minLvl
@@ -413,8 +413,8 @@ object VehicleManager {
                 var maxLvl = 3
                 var minLvl = 0
                 try {
-                    maxLvl = config.getMaxValue(areaId) as? Int ?: 3
-                    minLvl = config.getMinValue(areaId) as? Int ?: 0
+                    maxLvl = config?.getMaxValue(areaId) as? Int ?: 3
+                    minLvl = config?.getMinValue(areaId) as? Int ?: 0
                 } catch (e: Exception) { }
                 if (finalLevel > maxLvl) finalLevel = maxLvl
                 if (finalLevel < minLvl) finalLevel = minLvl

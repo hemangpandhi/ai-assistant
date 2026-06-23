@@ -197,7 +197,8 @@ object LLMManager {
         basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n")
 
         basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
-
+        
+        basePrompt.append("3. NAVIGATION: If the user asks to navigate somewhere, use the EXACT syntax: \"Setting the destination to [Location]. <TOOL>navigate([Location])</TOOL>\"\n")
         basePrompt.append("3. NAVIGATION: To navigate, briefly acknowledge the destination and then use the syntax <TOOL>navigate(DEST)</TOOL> at the end. Example: \"Setting destination to Tokyo. <TOOL>navigate(Tokyo)</TOOL>\"\n")
 
         basePrompt.append("5. AMBIENT: If heading home and Ext Temp <40F, ask if they want the heater on while navigating. Example: \"Heading Home. Should I turn on the heater? <TOOL>navigate(Home)</TOOL>\"\n")
