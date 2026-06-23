@@ -532,11 +532,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
         val vehicleState = "[Current State: ${VehicleManager.getLLMContextString(context)}]"
         
-        if (!LocalLLMActivity.isCloudModelActive) {
-            // WORKAROUND: Force stateless generation to prevent MediaPipe SIGSEGV on multi-turn
-            LLMManager.resetConversation()
-        }
-        
         if (LLMManager.isFirstMessage) {
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
             

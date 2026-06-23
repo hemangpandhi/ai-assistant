@@ -94,7 +94,7 @@ object LLMManager {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 // Removed Math.max(..., 4096) constraint so physical devices like Pixel Tablet can lower the KV Cache to prevent GPU OOM crashes
-                val maxTokens = prefs.getInt("max_tokens", 2048)
+                val maxTokens = prefs.getInt("max_tokens", 4096)
                 
                 try {
                     try {
