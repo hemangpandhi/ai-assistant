@@ -167,9 +167,9 @@ class WakeWordService : Service() {
             restartJob?.cancel()
             restartJob = CoroutineScope(Dispatchers.Main).launch {
                 try {
-                    // Wait 300ms to ensure the Assistant's SpeechRecognizer has fully released the mic hardware
+                    // Wait 50ms to ensure the Assistant's SpeechRecognizer has fully released the mic hardware
                     // before the WakeWord engine grabs it again.
-                    delay(300)
+                    delay(50)
                     
                     // 1. Tell IO thread to stop
                     isRecording = false
@@ -189,7 +189,9 @@ class WakeWordService : Service() {
                     customRecognizer = null
                     
                     recognizerSetup()
-                    Log.d("WakeWord", "Restarting listener after Assistant UI closed")
+                    Log.d("WakeWord", "Restarting listener loop after RESTART intent...")
+                    delay(50)
+                    startCustomListening()
                 } catch (e: Exception) {
                     Log.e("WakeWord", "Failed to restart: ${e.message}")
                 }
