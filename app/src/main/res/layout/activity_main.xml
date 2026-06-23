@@ -125,8 +125,20 @@
             android:id="@+id/tabInference"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:orientation="vertical"
+            android:orientation="horizontal"
             android:padding="16dp">
+
+            <!-- LEFT SIDE: Settings -->
+            <ScrollView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:layout_marginEnd="16dp">
+                
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -373,14 +385,24 @@
                 android:max="100"
                 android:visibility="gone" />
 
-            <!-- CHAT BUBBLES RECYCLERVIEW -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/chatRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:layout_marginBottom="16dp"
-                android:scrollbars="vertical" />
+                </LinearLayout>
+            </ScrollView>
+
+            <!-- RIGHT SIDE: Chat Interface -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1.5"
+                android:orientation="vertical">
+
+                <!-- CHAT BUBBLES RECYCLERVIEW -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/chatRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_marginBottom="16dp"
+                    android:scrollbars="vertical" />
 
             <!-- BOTTOM INPUT BAR -->
             <LinearLayout
@@ -443,6 +465,7 @@
                     android:textColor="#FFFFFF"
                     app:cornerRadius="20dp"
                     android:text="Clear" />
+            </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
