@@ -126,6 +126,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         super.onHide()
         try {
             speechRecognizer?.cancel()
+            speechRecognizer?.destroy()
+            speechRecognizer = null
         } catch(e: Exception) {}
         
         val restartIntent = Intent(context, WakeWordService::class.java)
@@ -141,7 +143,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             setupTtsListener()
         }
         
-        setupSpeechRecognizer()
         inflateAndBindLayout()
         
         return overlayView
@@ -237,7 +238,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
             audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_MUTE, 0)
             
-            speechRecognizer?.startListening(speechRecognizerIntent)
+            try {
+                speechRecognizer?.startListening(speechRecognizerIntent)
+            } catch (e: Exception) {
+                LatencyLogger.log("AssistantSession", "Error starting speech recognizer: ${e.message}")
+                stopDotAnimation("Error starting microphone.")
+                statusText.visibility = View.VISIBLE
+                voiceAnimation.state = VoiceAnimationView.State.IDLE
+            }
             btnMic.isEnabled = true
         }
         
@@ -330,6 +338,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
+        
+        setupSpeechRecognizer()
         
         // Re-inflate if layout setting changed
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
