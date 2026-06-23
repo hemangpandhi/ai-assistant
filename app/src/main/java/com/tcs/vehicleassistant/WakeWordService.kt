@@ -167,9 +167,9 @@ class WakeWordService : Service() {
             restartJob?.cancel()
             restartJob = CoroutineScope(Dispatchers.Main).launch {
                 try {
-                    // Wait 2500ms to allow async media apps (like Spotify) to claim Audio Focus 
-                    // and trigger AudioFlinger DSP routing changes before we grab the mic.
-                    delay(2500)
+                    // Wait 300ms to ensure the Assistant's SpeechRecognizer has fully released the mic hardware
+                    // before the WakeWord engine grabs it again.
+                    delay(300)
                     
                     // 1. Tell IO thread to stop
                     isRecording = false
