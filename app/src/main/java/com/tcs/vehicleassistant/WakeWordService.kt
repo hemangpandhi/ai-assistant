@@ -222,16 +222,18 @@ class WakeWordService : Service() {
         if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
             Log.d("WakeWord", "Vosk heard: $hypothesis")
         }
-        val isMatch = lowerHypothesis.contains(wakeWord) || lowerHypothesis.contains("hey nissan") ||
-                      (wakeWord == "hey auto" && (lowerHypothesis.contains("hey otto") || 
-                                                  lowerHypothesis.contains("hey out") || 
-                                                  lowerHypothesis.contains("hey or no") || 
-                                                  lowerHypothesis.contains("hey or don't") ||
-                                                  lowerHypothesis.contains("hey listen") ||
-                                                  lowerHypothesis.contains("hey miss on") ||
-                                                  lowerHypothesis.contains("hey reason") ||
-                                                  lowerHypothesis.contains("hey decent") ||
-                                                  lowerHypothesis.contains("hey i have a hot")))
+        val isMatch = lowerHypothesis.contains(wakeWord) || 
+                      lowerHypothesis.contains("hey nissan") ||
+                      lowerHypothesis.contains("hey nice") ||
+                      lowerHypothesis.contains("hey me") ||
+                      lowerHypothesis.contains("hey listen") ||
+                      lowerHypothesis.contains("hey auto") ||
+                      lowerHypothesis.contains("hey otto") || 
+                      lowerHypothesis.contains("hey out") || 
+                      lowerHypothesis.contains("hey miss on") ||
+                      lowerHypothesis.contains("hey reason") ||
+                      lowerHypothesis.contains("hey decent") ||
+                      lowerHypothesis.contains("hey i have a hot")
         
         if (isMatch) {
             Log.d("WakeWord", "Wake word detected: $wakeWord")
