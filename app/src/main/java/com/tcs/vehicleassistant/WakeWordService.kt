@@ -18,10 +18,11 @@ import org.vosk.android.RecognitionListener
 import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
 
-class WakeWordService : android.accessibilityservice.AccessibilityService() {
+class WakeWordService : Service() {
 
-    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {}
-    override fun onInterrupt() {}
+    override fun onBind(intent: Intent?): IBinder? {
+        return null
+    }
 
     companion object {
         var sharedModel: Model? = null
@@ -30,8 +31,27 @@ class WakeWordService : android.accessibilityservice.AccessibilityService() {
     private var model: Model? = null
     private var wakeWord = "hey auto"
 
-    override fun onServiceConnected() {
-        super.onServiceConnected()
+    override fun onCreate() {
+        super.onCreate()
+        
+        val channelId = "wake_word_channel"
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, "Wake Word Service", NotificationManager.IMPORTANCE_LOW)
+            val manager = getSystemService(NotificationManager::class.java)
+            manager.createNotificationChannel(channel)
+        }
+        val notification = Notification.Builder(this, channelId)
+            .setContentTitle("Vehicle Assistant")
+            .setContentText("Listening for wake word...")
+            .setSmallIcon(R.drawable.ic_assistant_premium)
+            .build()
+            
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+            startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+        } else {
+            startForeground(1, notification)
+        }
+
         updateWakeWord()
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
@@ -65,7 +85,7 @@ class WakeWordService : android.accessibilityservice.AccessibilityService() {
             })
         }
     }
-
+    
     private fun updateWakeWord() {
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         wakeWord = prefs.getString("wake_word", "hey auto")?.lowercase() ?: "hey auto"
