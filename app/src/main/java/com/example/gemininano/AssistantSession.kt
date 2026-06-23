@@ -406,8 +406,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
         }
     }
-
-    private var isQueryProcessed = false
+    private var isQueryProcessed = true
     private var timeoutJob: kotlinx.coroutines.Job? = null
 
     private fun startThinkingAnimation() {
