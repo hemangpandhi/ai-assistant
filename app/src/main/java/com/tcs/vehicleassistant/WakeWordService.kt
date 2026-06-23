@@ -117,7 +117,7 @@ class WakeWordService : Service() {
                 val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
                 
                 // Use standard MIC source since we are a Foreground Service
-                customAudioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+                customAudioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.MIC, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
                 
                 if (customAudioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
                     Log.e("WakeWord", "Failed to init MIC AudioRecord!")

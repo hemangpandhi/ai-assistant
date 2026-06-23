@@ -795,6 +795,14 @@ class LocalLLMActivity : AppCompatActivity() {
         }
     }
 
+    override fun onStop() {
+        super.onStop()
+        // Restart background wake word listening when the UI hides
+        val intent = Intent(this, WakeWordService::class.java)
+        intent.action = "ACTION_RESTART_LISTENING"
+        startService(intent)
+    }
+
     override fun onDestroy() {
         stopEmergencyAlarm()
         if (::tts.isInitialized) {
