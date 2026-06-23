@@ -207,6 +207,7 @@ class WakeWordService : android.accessibilityservice.AccessibilityService() {
                                                   lowerHypothesis.contains("hey out") || 
                                                   lowerHypothesis.contains("hey or no") || 
                                                   lowerHypothesis.contains("hey or don't") ||
+                                                  lowerHypothesis.contains("hey listen") ||
                                                   lowerHypothesis.contains("hey i have a hot")))
         
         if (isMatch) {
