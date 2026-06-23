@@ -287,6 +287,8 @@ object VehicleManager {
                 areaIds = intArrayOf(117) // Fallback for HVAC_FAN_SPEED
             }
             
+            ensureHvacPowerOn()
+            
             var anySuccess = false
             areaIds.forEach { areaId ->
                 var finalLevel = speedLevel
@@ -382,6 +384,8 @@ object VehicleManager {
                 areaIds = intArrayOf(1, 4) // Fallback for SEAT_1_LEFT and SEAT_1_RIGHT
             }
             
+            ensureHvacPowerOn()
+            
             var anySuccess = false
             areaIds.forEach { areaId ->
                 var finalLevel = level
@@ -408,6 +412,9 @@ object VehicleManager {
             // Seat Massage is a hidden API (added in API 33) 
             Log.i("VehicleManager", "Setting Seat Massager to level $level")
             val config = carPropertyManager?.getCarPropertyConfig(356519253) // 0x15400D55 (SEAT_MASSAGE)
+            
+            ensureHvacPowerOn()
+            
             config?.areaIds?.forEach { areaId ->
                 var finalLevel = level
                 var maxLvl = 3
@@ -478,6 +485,16 @@ object VehicleManager {
         return sb.toString()
     }
 
+    private suspend fun ensureHvacPowerOn() {
+        try {
+            // First try area 117 (0x75), then area 1
+            if (!setPropertyVerified(android.car.VehiclePropertyIds.HVAC_POWER_ON, 117, "true", "BOOLEAN", 100)) {
+                setPropertyVerified(android.car.VehiclePropertyIds.HVAC_POWER_ON, 1, "true", "BOOLEAN", 100)
+            }
+        } catch (e: Exception) {
+            Log.w("VehicleManager", "Failed to ensure HVAC power on: ${e.message}")
+        }
+    }
 
     suspend fun setPropertyVerified(propertyId: Int, targetAreaIdParam: Int, value: String, dataType: String, timeoutMs: Long = 500, maxRetries: Int = 2): Boolean {
         var targetAreaId = targetAreaIdParam
