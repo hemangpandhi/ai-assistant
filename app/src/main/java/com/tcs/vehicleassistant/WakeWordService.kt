@@ -18,7 +18,10 @@ import org.vosk.android.RecognitionListener
 import org.vosk.android.SpeechService
 import org.vosk.android.StorageService
 
-class WakeWordService : Service() {
+class WakeWordService : android.accessibilityservice.AccessibilityService() {
+
+    override fun onAccessibilityEvent(event: android.view.accessibility.AccessibilityEvent?) {}
+    override fun onInterrupt() {}
 
     companion object {
         var sharedModel: Model? = null
@@ -27,8 +30,8 @@ class WakeWordService : Service() {
     private var model: Model? = null
     private var wakeWord = "hey auto"
 
-    override fun onCreate() {
-        super.onCreate()
+    override fun onServiceConnected() {
+        super.onServiceConnected()
         val channel = NotificationChannel("wakeword", "Wake Word Service", NotificationManager.IMPORTANCE_LOW)
         val manager = getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(channel)
@@ -204,7 +207,6 @@ class WakeWordService : Service() {
         customAudioRecord = null
         customRecognizer?.close()
     }
-    override fun onBind(intent: Intent?): IBinder? = null
 
     private fun checkWakeWord(hypothesis: String) {
         val lowerHypothesis = hypothesis.lowercase()
