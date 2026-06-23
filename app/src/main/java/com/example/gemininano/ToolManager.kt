@@ -317,6 +317,9 @@ object ToolManager {
 
                 "navigate" -> {
                     val rawArgs = toolCall.substringAfter("(").substringBefore(")")
+                    if (rawArgs.trim().equals("yes", ignoreCase = true) || rawArgs.trim().isEmpty()) {
+                        return "Which place would you like to navigate to?"
+                    }
                     val args = rawArgs.split(",")
                     
                     val queryForMaps = if (args.size >= 2 && args[0].trim().toDoubleOrNull() != null && args[1].trim().toDoubleOrNull() != null) {

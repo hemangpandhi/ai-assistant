@@ -216,7 +216,7 @@ object VehicleManager {
                         val increment = if (configArray.size >= 3) configArray[2] / 10f else 0.5f
                         
                         // If max temp is > 50, the VHAL natively expects Fahrenheit
-                        if (maxTemp > 50f) {
+                        if (maxTemp > 50f || currentTemperature > 50f) {
                             isVhalFahrenheit = true
                         }
                         
@@ -236,13 +236,21 @@ object VehicleManager {
                         if (finalTemp > maxTemp) finalTemp = maxTemp
                         if (finalTemp < minTemp) finalTemp = minTemp
                     } else {
-                        // Fallback assuming Celsius
-                        if (finalTemp > 30f) {
-                            finalTemp = (finalTemp - 29.0f) / 2.0f
+                        // Fallback
+                        if (currentTemperature > 50f) {
+                            // Assume VHAL is natively Fahrenheit
+                            finalTemp = Math.round(finalTemp).toFloat()
+                            if (finalTemp > 85.0f) finalTemp = 85.0f
+                            if (finalTemp < 60.0f) finalTemp = 60.0f
+                        } else {
+                            // Assume VHAL is natively Celsius
+                            if (finalTemp > 30f) {
+                                finalTemp = (finalTemp - 29.0f) / 2.0f
+                            }
+                            finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
+                            if (finalTemp > 28.0f) finalTemp = 28.0f
+                            if (finalTemp < 16.0f) finalTemp = 16.0f
                         }
-                        finalTemp = Math.round(finalTemp * 2.0f) / 2.0f
-                        if (finalTemp > 28.0f) finalTemp = 28.0f
-                        if (finalTemp < 16.0f) finalTemp = 16.0f
                     }
                 } catch (e: Exception) {
                     // Safety fallback
@@ -454,7 +462,7 @@ object VehicleManager {
     }
 
 
-    suspend fun setPropertyVerified(propertyId: Int, targetAreaIdParam: Int, value: String, dataType: String, timeoutMs: Long = 1500, maxRetries: Int = 3): Boolean {
+    suspend fun setPropertyVerified(propertyId: Int, targetAreaIdParam: Int, value: String, dataType: String, timeoutMs: Long = 500, maxRetries: Int = 2): Boolean {
         var targetAreaId = targetAreaIdParam
         if (targetAreaId == 0) {
             val config = carPropertyManager?.getCarPropertyConfig(propertyId)
@@ -491,75 +499,41 @@ object VehicleManager {
         var currentDelay = 500L
         repeat(maxRetries) { attempt ->
             val success = kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
-                kotlinx.coroutines.suspendCancellableCoroutine<Boolean> { continuation ->
-                    val callback = object : CarPropertyManager.CarPropertyEventCallback {
-                        override fun onChangeEvent(valueRecord: CarPropertyValue<*>) {
-                            if (valueRecord.propertyId == propertyId && valueRecord.areaId == targetAreaId) {
-                                val newValue = valueRecord.value
-                                val matches = when (dataType.uppercase()) {
-                                    "INT" -> newValue == value.toFloatOrNull()?.toInt() ?: value.toIntOrNull()
-                                    "FLOAT" -> newValue == value.toFloatOrNull()
-                                    "BOOLEAN" -> newValue == value.toBoolean()
-                                    else -> newValue.toString() == value
-                                }
-                                if (matches) {
-                                    carPropertyManager?.unregisterCallback(this, propertyId)
-                                    if (continuation.isActive) continuation.resume(true)
-                                }
-                            }
-                        }
-                        override fun onErrorEvent(propId: Int, zone: Int) {
-                            if (propId == propertyId && zone == targetAreaId) {
-                                carPropertyManager?.unregisterCallback(this, propertyId)
-                                if (continuation.isActive) continuation.resume(false)
-                            }
-                        }
-                    }
-                    
-                    carPropertyManager?.registerCallback(callback, propertyId, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-                    
-                    try {
-                        val writeSuccess = setGenericVhalProperty(propertyId, targetAreaId, value, dataType)
-                        if (!writeSuccess) {
-                            carPropertyManager?.unregisterCallback(callback, propertyId)
-                            if (continuation.isActive) continuation.resume(false)
-                        }
-                    } catch (e: Exception) {
-                        Log.e("VehicleManager", "Hardware Exception in setGenericVhalProperty for $propertyId", e)
-                        carPropertyManager?.unregisterCallback(callback, propertyId)
-                        if (continuation.isActive) continuation.resume(false)
-                    }
+                try {
+                    val writeSuccess = setGenericVhalProperty(propertyId, targetAreaId, value, dataType)
+                    if (!writeSuccess) return@withTimeoutOrNull false
 
-                    continuation.invokeOnCancellation {
-                        carPropertyManager?.unregisterCallback(callback, propertyId)
+                    while (true) {
+                        val manuallyVerified = try {
+                            val currentCheck = when (dataType.uppercase()) {
+                                "INT" -> carPropertyManager?.getIntProperty(propertyId, targetAreaId)?.toString()
+                                "FLOAT" -> carPropertyManager?.getFloatProperty(propertyId, targetAreaId)?.toString()
+                                "BOOLEAN" -> carPropertyManager?.getBooleanProperty(propertyId, targetAreaId)?.toString()
+                                "STRING" -> carPropertyManager?.getProperty<Any>(Any::class.java, propertyId, targetAreaId)?.value?.toString()
+                                else -> null
+                            }
+
+                            when (dataType.uppercase()) {
+                                "INT" -> currentCheck?.toFloatOrNull()?.toInt() == value.toFloatOrNull()?.toInt()
+                                "FLOAT" -> currentCheck?.toFloatOrNull() == value.toFloatOrNull()
+                                "BOOLEAN" -> currentCheck?.toBoolean() == value.toBoolean()
+                                else -> currentCheck == value
+                            }
+                        } catch (e: Exception) { false }
+
+                        if (manuallyVerified) return@withTimeoutOrNull true
+                        kotlinx.coroutines.delay(50)
                     }
+                    false
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.e("VehicleManager", "Hardware Exception in setGenericVhalProperty for $propertyId", e)
+                    false
                 }
             } ?: false
             
             if (success) return true
-            
-            // Manual verification fallback: emulator/HAL may not fire onChangeEvent
-            val manuallyVerified = try {
-                val currentCheck = when (dataType.uppercase()) {
-                    "INT" -> carPropertyManager?.getIntProperty(propertyId, targetAreaId)?.toString()
-                    "FLOAT" -> carPropertyManager?.getFloatProperty(propertyId, targetAreaId)?.toString()
-                    "BOOLEAN" -> carPropertyManager?.getBooleanProperty(propertyId, targetAreaId)?.toString()
-                    "STRING" -> carPropertyManager?.getProperty<Any>(Any::class.java, propertyId, targetAreaId)?.value?.toString()
-                    else -> null
-                }
-                
-                when (dataType.uppercase()) {
-                    "INT" -> currentCheck?.toFloatOrNull()?.toInt() == value.toFloatOrNull()?.toInt()
-                    "FLOAT" -> currentCheck?.toFloatOrNull() == value.toFloatOrNull()
-                    "BOOLEAN" -> currentCheck?.toBoolean() == value.toBoolean()
-                    else -> currentCheck == value
-                }
-            } catch (e: Exception) { false }
-
-            if (manuallyVerified) {
-                Log.d("VehicleManager", "Property $propertyId area $targetAreaId manually verified as $value after timeout.")
-                return true
-            }
             
             if (attempt < maxRetries - 1) {
                 Log.w("VehicleManager", "Hardware command failed for property $propertyId. Retrying in ${currentDelay}ms (Attempt ${attempt + 1}/$maxRetries)...")

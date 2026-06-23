@@ -231,6 +231,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             tts?.stop()
             btnMic.isEnabled = false
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
+            
+            // Mute the system beep sound
+            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_MUTE, 0)
+            
             speechRecognizer?.startListening(speechRecognizerIntent)
             btnMic.isEnabled = true
         }
@@ -252,6 +257,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
+                // Unmute the system beep sound
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
+                
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onReadyForSpeech")
                 statusText.visibility = View.VISIBLE
                 startDotAnimation("")
@@ -263,10 +272,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
+                // Unmute just in case it was missed
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
+                
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onEndOfSpeech")
                 startThinkingAnimation()
             }
             override fun onError(error: Int) {
+                // Unmute just in case an error occurred before ready
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
+                
                 val errorMsg = when (error) {
                     SpeechRecognizer.ERROR_NETWORK -> "Network Error (No Internet/Language Pack)."
                     SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network Timeout."

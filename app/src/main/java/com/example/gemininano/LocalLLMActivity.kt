@@ -334,8 +334,12 @@ class LocalLLMActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             delay(2000)
-            val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
-            java.io.File(filesDir, "diag_report.md").writeText(report)
+            try {
+                val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
+                java.io.File(filesDir, "diag_report.md").writeText(report)
+            } catch (e: Exception) {
+                Log.e("LocalLLMActivity", "Failed to write diagnostic report", e)
+            }
         }
 
         // Setup Permissions

@@ -204,7 +204,7 @@ object LLMManager {
 
         basePrompt.append("6. SIGHTSEEING: If asked about a city, places to visit, or sightseeing, YOU MUST use your world knowledge to suggest places AND THEN YOU MUST END YOUR RESPONSE WITH THE EXACT QUESTION: \"Which places would you like to visit?\". Do NOT forget to ask this question!\n")
         basePrompt.append("6.5 SIGHTSEEING ON MAP: If the user EXPLICITLY asks to show places 'on map', you MUST use the tool <TOOL>search(QUERY)</TOOL> where QUERY is exactly what they asked for (e.g. <TOOL>search(best places to visit in tokyo)</TOOL>).\n")
-        basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there.\n")
+        basePrompt.append("7. AMBIGUITY: If the user replies with a specific place from your list, you MUST use the <TOOL>navigate(DEST)</TOOL> tool to navigate there. If the user says 'yes' to navigating but does NOT specify a place, you MUST ask 'Which place would you like to navigate to?' without using any tools.\n")
         
         basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they ask to find a specific food place nearby, output exactly: <TOOL>searchNearby(QUERY)</TOOL> where QUERY is what they want.\n")
         
