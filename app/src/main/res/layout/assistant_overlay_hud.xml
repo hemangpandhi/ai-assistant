@@ -21,7 +21,7 @@
             android:id="@+id/localAiIcon"
             android:layout_width="32dp"
             android:layout_height="32dp"
-            android:src="@drawable/ic_local_ai_brain"
+            android:src="@drawable/ic_assistant_premium"
             app:tint="#00F2FE"
             app:layout_constraintTop_toTopOf="parent"
             app:layout_constraintStart_toStartOf="parent" />

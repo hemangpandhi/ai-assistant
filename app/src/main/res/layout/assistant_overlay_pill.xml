@@ -33,7 +33,7 @@
             android:layout_height="36dp"
             android:padding="8dp"
             android:background="@drawable/bg_premium_icon"
-            android:src="@drawable/ic_local_ai_brain"
+            android:src="@drawable/ic_assistant_premium"
             app:tint="#FFFFFF"
             android:layout_marginTop="24dp"
             app:layout_constraintTop_toTopOf="parent"
