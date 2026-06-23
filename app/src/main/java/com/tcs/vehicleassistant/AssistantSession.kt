@@ -317,10 +317,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 voiceAnimation.state = VoiceAnimationView.State.IDLE
                 
                 CoroutineScope(Dispatchers.Main).launch {
-                    kotlinx.coroutines.delay(3000)
+                    kotlinx.coroutines.delay(2000)
                     if (statusText.text == errorMsg) {
-                        statusText.text = "Say 'Hey Gemini' to wake"
+                        statusText.text = ""
                         statusText.visibility = View.GONE
+                        finish()
                     }
                 }
             }
