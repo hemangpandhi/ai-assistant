@@ -144,46 +144,6 @@ class WakeWordService : Service() {
     private var restartJob: kotlinx.coroutines.Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "ACTION_RESTART_LISTENING") {
-            restartJob?.cancel()
-            restartJob = CoroutineScope(Dispatchers.Main).launch {
-                try {
-                    // Wait 2500ms to allow async media apps (like Spotify) to claim Audio Focus 
-                    // and trigger AudioFlinger DSP routing changes before we grab the mic.
-                    delay(2500)
-                    
-                    // 1. Tell IO thread to stop
-                    isRecording = false
-                    
-                    // 2. Unblock the IO thread's AudioRecord.read() by stopping the microphone
-                    try {
-                        customAudioRecord?.stop()
-                    } catch(e: Exception) {}
-                    
-                    // 3. WAIT for the IO thread to fully exit the acceptWaveForm loop!
-                    listeningJob?.join()
-                    
-                    // 4. Safely close the C++ Recognizer now that no thread is using it
-                    try {
-                        customRecognizer?.close()
-                    } catch (e: Exception) {}
-                    customRecognizer = null
-                    
-                    recognizerSetup()
-                    Log.d("WakeWord", "Restarting listener after Assistant UI closed")
-                } catch (e: Exception) {
-                    Log.e("WakeWord", "Failed to restart: ${e.message}")
-                }
-            }
-        } else if (intent?.action == "ACTION_STOP_LISTENING") {
-            Log.d("WakeWord", "ACTION_STOP_LISTENING received. Stopping HOTWORD loop.")
-            isRecording = false
-            try {
-                customAudioRecord?.stop()
-                customAudioRecord?.release()
-            } catch (e: Exception) {}
-            customAudioRecord = null
-        }
         updateWakeWord()
         return START_STICKY
     }
@@ -202,9 +162,23 @@ class WakeWordService : Service() {
 
     private fun checkWakeWord(hypothesis: String) {
         val lowerHypothesis = hypothesis.lowercase()
-        if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
-            Log.d("WakeWord", "Vosk heard: $hypothesis")
-        }
+        try {
+            if (lowerHypothesis.contains("\"partial\"")) {
+                val partial = org.json.JSONObject(hypothesis).getString("partial")
+                if (partial.isNotEmpty()) {
+                    val intent = Intent("com.example.gemininano.VOSK_PARTIAL")
+                    intent.putExtra("partial", partial)
+                    sendBroadcast(intent)
+                }
+            } else if (lowerHypothesis.contains("\"text\"")) {
+                val text = org.json.JSONObject(hypothesis).getString("text")
+                if (text.isNotEmpty()) {
+                    val intent = Intent("com.example.gemininano.VOSK_RESULT")
+                    intent.putExtra("text", text)
+                    sendBroadcast(intent)
+                }
+            }
+        } catch (e: Exception) {}
         val isMatch = lowerHypothesis.contains(wakeWord) || 
                       (wakeWord == "hey auto" && (lowerHypothesis.contains("hey otto") || 
                                                   lowerHypothesis.contains("hey out") || 
@@ -215,14 +189,6 @@ class WakeWordService : Service() {
         if (isMatch) {
             Log.d("WakeWord", "Wake word detected: $wakeWord")
             AssistantVoiceInteractionService.triggerSession(this@WakeWordService)
-            
-            // Stop listening. The AssistantSession will explicitly send ACTION_RESTART_LISTENING when it hides.
-            isRecording = false
-            try {
-                customAudioRecord?.stop()
-                customAudioRecord?.release()
-            } catch (e: Exception) {}
-            customAudioRecord = null
         }
     }
 

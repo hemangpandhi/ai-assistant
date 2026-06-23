@@ -5,10 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
+import android.content.BroadcastReceiver
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -48,7 +46,31 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var tts: TextToSpeech?
         get() = globalTts
         set(value) { globalTts = value }
-    private var speechRecognizer: SpeechRecognizer? = null
+    private var isListening = false
+    private val voskReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (!isListening) return
+
+            if (intent.action == "com.example.gemininano.VOSK_PARTIAL") {
+                val partial = intent.getStringExtra("partial")
+                if (!partial.isNullOrEmpty()) {
+                    etInput.setText(partial)
+                    startDotAnimation("")
+                    statusText.visibility = View.VISIBLE
+                    voiceAnimation.state = VoiceAnimationView.State.LISTENING
+                }
+            } else if (intent.action == "com.example.gemininano.VOSK_RESULT") {
+                val text = intent.getStringExtra("text")
+                if (!text.isNullOrEmpty()) {
+                    etInput.setText(text)
+                    isListening = false
+                    startThinkingAnimation()
+                    tts?.stop()
+                    handleQuery(text)
+                }
+            }
+        }
+    }
     private var dotAnimatorJob: kotlinx.coroutines.Job? = null
     private var pendingConfirmationTool: String? = null
     private var currentHighlightStart = -1
@@ -120,12 +142,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     }
 
     private var currentLayoutStyle = -1
-    private var speechRecognizerIntent: Intent? = null
 
     override fun onHide() {
         super.onHide()
         try {
-            speechRecognizer?.cancel()
+            isListening = false
         } catch(e: Exception) {}
         
         val restartIntent = Intent(context, WakeWordService::class.java)
@@ -141,7 +162,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             setupTtsListener()
         }
         
-        setupSpeechRecognizer()
+        context.registerReceiver(
+            voskReceiver,
+            android.content.IntentFilter().apply {
+                addAction("com.example.gemininano.VOSK_PARTIAL")
+                addAction("com.example.gemininano.VOSK_RESULT")
+            },
+            Context.RECEIVER_NOT_EXPORTED
+        )
         inflateAndBindLayout()
         
         return overlayView
@@ -237,7 +265,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
             audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_MUTE, 0)
             
-            speechRecognizer?.startListening(speechRecognizerIntent)
+            isListening = true
+            statusText.visibility = View.VISIBLE
+            startDotAnimation("")
+            voiceAnimation.state = VoiceAnimationView.State.LISTENING
             btnMic.isEnabled = true
         }
         
@@ -245,88 +276,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         setContentView(overlayView)
     }
 
-    private fun setupSpeechRecognizer() {
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-        speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 300L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 200L)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-        }
-
-        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                // Unmute the system beep sound
-                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
-                
-                LatencyLogger.log("AssistantSession", "Speech Recognizer onReadyForSpeech")
-                statusText.visibility = View.VISIBLE
-                startDotAnimation("")
-                voiceAnimation.state = VoiceAnimationView.State.LISTENING
-            }
-            override fun onBeginningOfSpeech() {
-                LatencyLogger.log("AssistantSession", "Speech Recognizer onBeginningOfSpeech")
-            }
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {
-                // Unmute just in case it was missed
-                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
-                
-                LatencyLogger.log("AssistantSession", "Speech Recognizer onEndOfSpeech")
-                startThinkingAnimation()
-            }
-            override fun onError(error: Int) {
-                // Unmute just in case an error occurred before ready
-                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
-                
-                val errorMsg = when (error) {
-                    SpeechRecognizer.ERROR_NETWORK -> "Network Error (No Internet/Language Pack)."
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network Timeout."
-                    SpeechRecognizer.ERROR_NO_MATCH -> "I didn't quite catch that."
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout."
-                    13 -> "Offline Language Pack Missing! Type instead."
-                    else -> "Voice Error: $error"
-                }
-                stopDotAnimation(errorMsg)
-                statusText.visibility = View.VISIBLE
-                voiceAnimation.state = VoiceAnimationView.State.IDLE
-                
-                CoroutineScope(Dispatchers.Main).launch {
-                    kotlinx.coroutines.delay(3000)
-                    if (statusText.text == errorMsg) {
-                        statusText.text = "Hi, how can I help you?"
-                    }
-                }
-            }
-            override fun onResults(results: Bundle?) {
-                LatencyLogger.log("AssistantSession", "Speech Recognizer onResults")
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
-                    val spokenText = matches[0]
-                    etInput.setText(spokenText)
-                    tts?.stop()
-                    handleQuery(spokenText)
-                } else {
-                    stopDotAnimation("I didn't hear anything.")
-                    statusText.visibility = View.VISIBLE
-                    voiceAnimation.state = VoiceAnimationView.State.IDLE
-                }
-            }
-            override fun onPartialResults(partialResults: Bundle?) {
-                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty()) {
-                    etInput.setText(matches[0])
-                }
-            }
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-    }
+    // SpeechRecognizer setup removed for offline Vosk pipeline
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
@@ -933,7 +883,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onDestroy() {
         tts?.stop()
-        speechRecognizer?.destroy()
+        try {
+            context.unregisterReceiver(voskReceiver)
+        } catch (e: Exception) {}
         dotAnimatorJob?.cancel()
         
         val restartIntent = Intent(context, WakeWordService::class.java)
