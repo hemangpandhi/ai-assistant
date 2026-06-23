@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 import android.content.Context
 import org.json.JSONArray

@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 import android.os.Bundle
 import android.service.voice.VoiceInteractionSession

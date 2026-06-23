@@ -59,7 +59,7 @@
             android:lineSpacingMultiplier="1.2" />
     </ScrollView>
 
-    <com.example.gemininano.VoiceAnimationView
+    <com.tcs.vehicleassistant.VoiceAnimationView
         android:id="@+id/voiceAnimation"
         android:layout_width="300dp"
         android:layout_height="100dp"

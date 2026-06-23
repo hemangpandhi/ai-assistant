@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 data class ChatMessage(
     val text: String,

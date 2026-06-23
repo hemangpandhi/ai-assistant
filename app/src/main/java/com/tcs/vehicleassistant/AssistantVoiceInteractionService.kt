@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -29,7 +29,7 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == "com.example.gemininano.WAKE_WORD_DETECTED") {
+            if (intent.action == "com.tcs.vehicleassistant.WAKE_WORD_DETECTED") {
                 triggerSession(context)
             }
         }
@@ -38,7 +38,7 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        val filter = IntentFilter("com.example.gemininano.WAKE_WORD_DETECTED")
+        val filter = IntentFilter("com.tcs.vehicleassistant.WAKE_WORD_DETECTED")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {

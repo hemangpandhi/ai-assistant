@@ -55,7 +55,7 @@
             app:layout_constraintBottom_toBottomOf="@id/localAiIcon"
             app:layout_constraintStart_toEndOf="@id/localAiIcon" />
 
-        <com.example.gemininano.VoiceAnimationView
+        <com.tcs.vehicleassistant.VoiceAnimationView
             android:id="@+id/voiceAnimation"
             android:layout_width="120dp"
             android:layout_height="50dp"

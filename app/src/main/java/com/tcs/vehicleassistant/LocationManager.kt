@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 object LocationManager {
     fun getCurrentCity(): String {

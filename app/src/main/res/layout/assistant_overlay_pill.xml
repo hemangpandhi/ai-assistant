@@ -116,7 +116,7 @@
                 android:fontFamily="sans-serif-medium"
                 android:letterSpacing="0.05" />
                 
-            <com.example.gemininano.VoiceAnimationView
+            <com.tcs.vehicleassistant.VoiceAnimationView
                 android:id="@+id/voiceAnimation"
                 android:layout_width="80dp"
                 android:layout_height="30dp"

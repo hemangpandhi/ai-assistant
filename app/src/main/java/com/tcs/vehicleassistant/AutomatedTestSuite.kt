@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 object AutomatedTestSuite {
     data class TestCase(val prompt: String, val expectedToolPrefix: String)

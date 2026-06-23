@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 import android.util.Log
 import com.google.ai.edge.litertlm.Tool

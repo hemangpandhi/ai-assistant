@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 import org.junit.Test
 import org.junit.Assert.*

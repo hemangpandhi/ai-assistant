@@ -1,4 +1,4 @@
-package com.example.gemininano
+package com.tcs.vehicleassistant
 
 import android.Manifest
 import android.car.Car
@@ -239,7 +239,7 @@ class LocalLLMActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }
         
-        if (intent.action == "com.example.gemininano.RUN_TESTS" && !isTestRunning) {
+        if (intent.action == "com.tcs.vehicleassistant.RUN_TESTS" && !isTestRunning) {
             val internalFiles = applicationContext.filesDir.listFiles()?.toList() ?: emptyList()
             val externalFiles = applicationContext.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
             val tmpFiles = java.io.File("/data/local/tmp/").listFiles()?.toList() ?: emptyList()
@@ -258,7 +258,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
         }
         
-        if (intent.action == "com.example.gemininano.DUMP_TEST_RESULTS") {
+        if (intent.action == "com.tcs.vehicleassistant.DUMP_TEST_RESULTS") {
             val file = java.io.File(getExternalFilesDir(null), "test_results.md")
             if (file.exists()) {
                 val lines = file.readLines()
@@ -630,7 +630,7 @@ class LocalLLMActivity : AppCompatActivity() {
             }
         })
 
-        val filter = IntentFilter("com.example.gemininano.DIAGNOSTICS_DUMP")
+        val filter = IntentFilter("com.tcs.vehicleassistant.DIAGNOSTICS_DUMP")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(diagnosticReceiver, filter, Context.RECEIVER_EXPORTED)
         } else {

@@ -14,11 +14,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.gemininano"
+    namespace = "com.tcs.vehicleassistant"
     compileSdk = 34
 
     defaultConfig {
-        applicationId = "com.example.gemininano"
+        applicationId = "com.tcs.vehicleassistant"
         minSdk = 34 // Android 14 is required for AICore
         targetSdk = 34
         versionCode = 1
