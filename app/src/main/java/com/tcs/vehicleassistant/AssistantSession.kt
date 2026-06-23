@@ -652,6 +652,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     continue
                                 }
                                 
+                                val isClimate = toolName.contains("Temperature") || toolName.contains("Fan") || toolName.contains("AC")
+                                val isClimateQuery = q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("freeze") || q.contains("boil") || q.contains("a/c") || q.matches(Regex(".*\\b(ac|air|temp|temperature|climate|fan|heat|heater|defrost)\\b.*"))
+                                
+                                if (isClimate && !isClimateQuery) {
+                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory climate tool call: $toolCall")
+                                    continue
+                                }
 
                                 if (executedTools.add(toolCall)) {
                                     android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")
