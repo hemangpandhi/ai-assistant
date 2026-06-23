@@ -785,6 +785,16 @@ class LocalLLMActivity : AppCompatActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent?.getBooleanExtra("auto_trigger_mic", false) == true) {
+            android.util.Log.d("AutomatedTest", "onNewIntent auto_trigger_mic is true, clicking voice button.")
+            val voiceButton = findViewById<android.widget.ImageButton>(R.id.voiceButton)
+            voiceButton.postDelayed({ voiceButton.performClick() }, 500)
+        }
+    }
+
     override fun onDestroy() {
         stopEmergencyAlarm()
         if (::tts.isInitialized) {
