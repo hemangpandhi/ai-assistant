@@ -243,7 +243,10 @@ class WakeWordService : Service() {
                       lowerHypothesis.contains("hey sam") ||
                       lowerHypothesis.contains("hey sun") ||
                       lowerHypothesis.contains("hey son") ||
-                      lowerHypothesis.contains("hey i have a hot")
+                      lowerHypothesis.contains("hey i have a hot") ||
+                      lowerHypothesis.contains("haney") ||
+                      lowerHypothesis.contains("nisa") ||
+                      lowerHypothesis.contains("haney sir")
         
         if (isMatch) {
             Log.d("WakeWord", "Wake word detected: $wakeWord")
