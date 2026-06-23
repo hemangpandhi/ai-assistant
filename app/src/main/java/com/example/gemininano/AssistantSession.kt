@@ -720,8 +720,23 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
 
                     override fun onDone() {
-                        val totalTime = System.currentTimeMillis() - startTime
-                        LatencyLogger.log("AssistantSession", "Total Generation Time: ${totalTime}ms")
+                        val totalTimeMs = System.currentTimeMillis() - startTime
+                        val ttftMs = if (firstTokenTime > 0) firstTokenTime - startTime else totalTimeMs
+                        val outputTimeMs = totalTimeMs - ttftMs
+                        
+                        val tempFinalMsg = lastResponseBuilder.toString()
+                        val estimatedTokens = Math.max(1, (tempFinalMsg.length / 4.0).toInt())
+                        val tps = if (outputTimeMs > 0) (estimatedTokens * 1000.0) / outputTimeMs else 0.0
+                        
+                        android.util.Log.i("LLMMetrics", "================ LLM GENERATION METRICS ================")
+                        android.util.Log.i("LLMMetrics", "Model Backend:    ${if (LocalLLMActivity.isCloudModelActive) "Cloud LLM API" else "Local Edge (Google MediaPipe LiteRT)"}")
+                        android.util.Log.i("LLMMetrics", "TTFT (First Token):         ${ttftMs}ms")
+                        android.util.Log.i("LLMMetrics", "Total Generation Time:      ${totalTimeMs}ms")
+                        android.util.Log.i("LLMMetrics", "Estimated Output Tokens:    ~${estimatedTokens} tokens")
+                        android.util.Log.i("LLMMetrics", "Output Speed (TPS):         ${String.format("%.2f", tps)} tokens/sec")
+                        android.util.Log.i("LLMMetrics", "========================================================")
+                        
+                        LatencyLogger.log("AssistantSession", "Total Generation Time: ${totalTimeMs}ms (TTFT: ${ttftMs}ms, TPS: ${String.format("%.2f", tps)})")
                         
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
