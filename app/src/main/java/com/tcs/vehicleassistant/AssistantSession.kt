@@ -880,12 +880,20 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
                             android.util.Log.e("AssistantSession", "LLM Error", throwable)
-                            statusText.text = "Memory full. Cleared context. Please try again."
-                            stopThinkingAnimation()
-                            responseText.text = "The AI context memory was full and has been cleared to prevent freezing."
-                            btnSend.isEnabled = true
+                            
                             LLMManager.resetConversation()
-                            isQueryProcessed = true
+                            MemoryManager.clearMemory()
+                            
+                            if (retryCount < 1) {
+                                statusText.text = "Memory full. Automatically recovering..."
+                                processQuery(query, retryCount + 1, loopCount, isAgenticObservation, previousExecutedTools)
+                            } else {
+                                statusText.text = "Memory full. Cleared context. Please try again."
+                                stopThinkingAnimation()
+                                responseText.text = "The AI context memory was full and has been cleared to prevent freezing."
+                                btnSend.isEnabled = true
+                                isQueryProcessed = true
+                            }
                         }
                     }
                 }
