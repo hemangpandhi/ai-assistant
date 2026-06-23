@@ -104,10 +104,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         for (job in currentPendingTools) {
                             try { job.await() } catch (e: Exception) {}
                         }
-                        kotlinx.coroutines.delay(2000)
+                        kotlinx.coroutines.delay(500)
                         finish()
                     } else if (utteranceId == "STATEMENT_FINAL") {
-                        kotlinx.coroutines.delay(2000)
+                        kotlinx.coroutines.delay(500)
                         finish()
                     }
                 }
