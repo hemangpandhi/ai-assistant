@@ -29,7 +29,7 @@ object SemanticSearchManager {
             Log.i(TAG, "SemanticSearchManager initialized successfully.")
             
             // Wait for ToolManager to be initialized to build cache, but we'll build it lazily or explicitly
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Failed to initialize SemanticSearchManager", e)
         }
     }
@@ -40,7 +40,7 @@ object SemanticSearchManager {
             val result = embedder?.embed(text)
             val embedding = result?.embeddingResult()?.embeddings()?.firstOrNull()
             embedding?.floatEmbedding()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.e(TAG, "Error embedding text: $text", e)
             null
         }

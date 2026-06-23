@@ -222,7 +222,11 @@
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've turned on automatic climate control.",
-      "keywords": ["auto", "automatic", "climate"]
+      "keywords": [
+        "auto",
+        "automatic",
+        "climate"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffAutoMode()</TOOL>",
@@ -232,7 +236,11 @@
       "area_id": 0,
       "value_to_write": "false",
       "success_message": "I've disabled automatic climate control.",
-      "keywords": ["auto", "automatic", "climate"]
+      "keywords": [
+        "auto",
+        "automatic",
+        "climate"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnRecirculation()</TOOL>",
@@ -242,7 +250,12 @@
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've turned on air recirculation.",
-      "keywords": ["recirculation", "recirculate", "inside", "air"]
+      "keywords": [
+        "recirculation",
+        "recirculate",
+        "inside",
+        "air"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffRecirculation()</TOOL>",
@@ -252,7 +265,12 @@
       "area_id": 0,
       "value_to_write": "false",
       "success_message": "I've turned off air recirculation.",
-      "keywords": ["recirculation", "recirculate", "fresh", "air"]
+      "keywords": [
+        "recirculation",
+        "recirculate",
+        "fresh",
+        "air"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
@@ -262,7 +280,13 @@
       "area_id": 2,
       "value_to_write": "true",
       "success_message": "Activating rear defroster.",
-      "keywords": ["rear", "defroster", "defrost", "back", "window"]
+      "keywords": [
+        "rear",
+        "defroster",
+        "defrost",
+        "back",
+        "window"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
@@ -272,7 +296,13 @@
       "area_id": 2,
       "value_to_write": "false",
       "success_message": "Deactivating rear defroster.",
-      "keywords": ["rear", "defroster", "defrost", "back", "window"]
+      "keywords": [
+        "rear",
+        "defroster",
+        "defrost",
+        "back",
+        "window"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
@@ -282,7 +312,13 @@
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've turned on the climate control system.",
-      "keywords": ["hvac", "climate", "power", "system", "on"]
+      "keywords": [
+        "hvac",
+        "climate",
+        "power",
+        "system",
+        "on"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
@@ -292,13 +328,29 @@
       "area_id": 0,
       "value_to_write": "false",
       "success_message": "I've turned off the climate control system.",
-      "keywords": ["hvac", "climate", "power", "system", "off"]
+      "keywords": [
+        "hvac",
+        "climate",
+        "power",
+        "system",
+        "off"
+      ]
     },
     {
       "prompt_string": "<TOOL>setAirflowDirection(face|floor|face and floor|defrost)</TOOL>",
       "handler_key": "setAirflowDirection",
       "handler_type": "CUSTOM_KOTLIN",
-      "keywords": ["airflow", "direction", "face", "floor", "vents", "leg", "legs", "feet", "feat"]
+      "keywords": [
+        "airflow",
+        "direction",
+        "face",
+        "floor",
+        "vents",
+        "leg",
+        "legs",
+        "feet",
+        "feat"
+      ]
     },
     {
       "prompt_string": "<TOOL>turnOnCabinLight()</TOOL>",
@@ -507,6 +559,101 @@
       ],
       "requires_confirmation": true,
       "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?"
+    },
+    {
+      "prompt_string": "<TOOL>turnOnAutoClimate()</TOOL>",
+      "handler_key": "turnOnAutoClimate",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "auto",
+        "climate",
+        "automatic"
+      ],
+      "property_id": 354419978,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "success_message": "I've turned on auto climate.",
+      "value_to_write": "true"
+    },
+    {
+      "prompt_string": "<TOOL>turnOffAutoClimate()</TOOL>",
+      "handler_key": "turnOffAutoClimate",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "auto",
+        "climate",
+        "automatic",
+        "off"
+      ],
+      "property_id": 354419978,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "success_message": "I've turned off auto climate.",
+      "value_to_write": "false"
+    },
+    {
+      "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
+      "handler_key": "turnOnHvacPower",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "hvac",
+        "power",
+        "on",
+        "climate control"
+      ],
+      "property_id": 354419984,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "success_message": "I've turned on HVAC power.",
+      "value_to_write": "true"
+    },
+    {
+      "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
+      "handler_key": "turnOffHvacPower",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "hvac",
+        "power",
+        "off",
+        "climate control"
+      ],
+      "property_id": 354419984,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "success_message": "I've turned off HVAC power.",
+      "value_to_write": "false"
+    },
+    {
+      "prompt_string": "<TOOL>turnOnAC()</TOOL>",
+      "handler_key": "turnOnAC",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "ac",
+        "air conditioning",
+        "on",
+        "cool"
+      ],
+      "property_id": 354419973,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "success_message": "I've turned on the AC.",
+      "value_to_write": "true"
+    },
+    {
+      "prompt_string": "<TOOL>turnOffAC()</TOOL>",
+      "handler_key": "turnOffAC",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "keywords": [
+        "ac",
+        "air conditioning",
+        "off",
+        "warm"
+      ],
+      "property_id": 354419973,
+      "data_type": "BOOLEAN",
+      "area_id": 0,
+      "success_message": "I've turned off the AC.",
+      "value_to_write": "false"
     }
   ]
 }

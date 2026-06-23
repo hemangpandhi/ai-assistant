@@ -97,11 +97,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 }
                 CoroutineScope(Dispatchers.Main).launch {
                     if (utteranceId == "QUESTION_FINAL") {
+                        kotlinx.coroutines.delay(500)
                         btnMic.performClick()
                     } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
                         for (job in currentPendingTools) {
                             try { job.await() } catch (e: Exception) {}
                         }
+                        kotlinx.coroutines.delay(2000)
+                        finish()
+                    } else if (utteranceId == "STATEMENT_FINAL") {
                         kotlinx.coroutines.delay(2000)
                         finish()
                     }
@@ -506,9 +510,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
             } else {
                 if (interceptedQuery.length < 25) {
-                    finalPrompt = "$dynCtx\nUser: $interceptedQuery"
+                    finalPrompt = "$dynCtx\n$interceptedQuery"
                 } else {
-                    finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\nUser: $interceptedQuery"
+                    finalPrompt = "[Current State: ${VehicleManager.getLLMContextString(context)}]$reminder$dynCtx\n$interceptedQuery"
                 }
             }
         }
@@ -612,8 +616,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         lastResponseBuilder.append(confirmMsg)
                                         isHallucinating = true // Force stop further output processing
                                     } else {
-                                        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async {
-                                            executeToolCall(toolCall)
+                                        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async { kotlinx.coroutines.withTimeoutOrNull(10000L) {
+                                            executeToolCall(toolCall) } ?: "System Error: Tool execution timed out."
                                         }
                                         currentPendingTools.add(job)
                                     }

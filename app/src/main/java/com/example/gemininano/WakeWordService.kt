@@ -79,6 +79,10 @@ class WakeWordService : Service() {
 
     private fun recognizerSetup() {
         try {
+            if (model == null) {
+                Log.w("WakeWord", "Skipping recognizerSetup because model is null. Waiting for unpack.")
+                return
+            }
             customRecognizer = Recognizer(model, 16000.0f)
             startCustomListening()
         } catch (e: Exception) {

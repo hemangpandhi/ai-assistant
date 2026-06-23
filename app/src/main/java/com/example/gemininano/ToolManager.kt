@@ -208,13 +208,15 @@ object ToolManager {
                 val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter("(").substringBefore(")")
                 
                 Log.d(TAG, "Executing GENERIC_VHAL_WRITE for propId $propId")
-                val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
                 
-                // Demo Workaround: Barebones AOSP emulators lack some hardware properties
+                // Demo Workaround: Barebones AOSP emulators lack proper support for some properties, so they never fire onChange
                 if (propId == 289410577 || propId == 354419973 || propId == 320865540 || 
                     propId == 354419978 || propId == 354419982 || propId == 354419984 || propId == 322964416) {
+                    VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
                     return matchedTool.successMessage ?: "Action completed successfully."
                 }
+                
+                val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
 
                 return if (success) {
                     matchedTool.successMessage ?: "Action completed successfully."
