@@ -104,20 +104,26 @@ class WakeWordService : Service() {
             try {
                 val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
                 
-                // Use HOTWORD (1999) to explicitly bypass CarAudioManager media ducking/silencing
-                customAudioRecord = android.media.AudioRecord(1999, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+                // Use VOICE_RECOGNITION (6) because standard MIC is silenced in the background on Android 11+
+                customAudioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
                 
                 if (customAudioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
-                    Log.e("WakeWord", "Failed to init HOTWORD AudioRecord! Attempting MIC fallback...")
-                    customAudioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.MIC, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+                    Log.e("WakeWord", "Failed to init MIC AudioRecord!")
                 }
                 
                 customAudioRecord?.startRecording()
                 val buffer = ShortArray(bufferSize)
                 
+                var loopCount = 0
                 while (isRecording) {
                     val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readSize > 0) {
+                        loopCount++
+                        if (loopCount % 20 == 0) {
+                            val maxAmplitude = buffer.maxOrNull() ?: 0
+                            Log.d("WakeWord", "Audio buffer max amplitude: $maxAmplitude")
+                        }
+                        
                         if (customRecognizer?.acceptWaveForm(buffer, readSize) == true) {
                             val result = customRecognizer?.result
                             if (result != null) checkWakeWord(result)
