@@ -32,17 +32,6 @@ class WakeWordService : android.accessibilityservice.AccessibilityService() {
 
     override fun onServiceConnected() {
         super.onServiceConnected()
-        val channel = NotificationChannel("wakeword", "Wake Word Service", NotificationManager.IMPORTANCE_LOW)
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
-
-        val notification = Notification.Builder(this, "wakeword")
-            .setContentTitle("Wake Word Listening")
-            .setContentText("Say your wake word to summon assistant")
-            .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .build()
-        startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        
         updateWakeWord()
 
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
