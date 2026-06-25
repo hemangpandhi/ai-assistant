@@ -646,7 +646,7 @@ class LocalLLMActivity : AppCompatActivity() {
         etSpeed.setText(VehicleManager.getRealSpeed().toString())
         
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-        val currentKvCache = prefs.getInt("max_tokens", 4096)
+        val currentKvCache = prefs.getInt("max_tokens", 1024)
         val currentAutoFlush = prefs.getInt("auto_flush", 25)
         val currentLocationOverride = prefs.getString("location_override", "") ?: ""
         val currentMechanicName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
