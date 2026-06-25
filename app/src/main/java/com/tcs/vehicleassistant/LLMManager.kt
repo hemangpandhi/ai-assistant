@@ -116,7 +116,8 @@ object LLMManager {
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
-                    maxNumTokens = maxTokens
+                    maxNumTokens = maxTokens,
+                    cacheDir = context.cacheDir.absolutePath
                 )
 
                 engine = Engine(engineConfig)
@@ -137,7 +138,8 @@ object LLMManager {
                         val engineConfigFallback = EngineConfig(
                             modelPath = modelPath,
                             backend = Backend.CPU(),
-                            maxNumTokens = maxTokens
+                            maxNumTokens = maxTokens,
+                            cacheDir = context.cacheDir.absolutePath
                         )
                         engine = Engine(engineConfigFallback)
                         engine!!.initialize()
