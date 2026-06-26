@@ -42,5 +42,41 @@ Below is the master table of all supported natural language requests and their c
 
 ---
 
+## Interactive Multi-Turn Conversations
+The system goes far beyond simple one-shot commands. Because it maintains conversation history, the AI handles ambiguous requests interactively just like a human concierge. 
+
+Here is how the AI currently handles conversational flows:
+
+### 1. Clarification & Discovery (e.g., Dining)
+If a command is too vague to execute immediately, the AI pauses tool execution to ask a clarifying question.
+* **Driver:** *"I'm hungry."*
+* **AI:** *"What kind of food are you in the mood for?"* (No tools executed yet)
+* **Driver:** *"I'd like some Italian."*
+* **AI:** *"Searching for nearby Italian restaurants."* -> `<TOOL>searchNearby(Italian food)</TOOL>`
+
+### 2. Concierge Selection (e.g., Tourism)
+If the driver asks for recommendations, the AI uses its world knowledge to provide options and asks the driver to choose.
+* **Driver:** *"What are the best places to visit in London?"*
+* **AI:** *"You could visit the British Museum or the Tower of London. Which would you like to navigate to?"*
+* **Driver:** *"The Tower of London."*
+* **AI:** *"Setting destination."* -> `<TOOL>navigate(Tower of London)</TOOL>`
+
+### 3. Safety Guardrails & Fallbacks (e.g., Windows)
+If a physical vehicle sensor blocks a command (e.g., speed > 70mph), the AI intercepts the error and proactively offers a safe alternative.
+* **Driver:** *"Roll down the windows."*
+* **AI Check:** The LLM checks the VHAL speed sensor (currently reading 80mph).
+* **AI:** *"It's not safe to roll down the windows at this speed due to wind noise. Would you like me to increase the AC instead?"*
+* **Driver:** *"Yes please."*
+* **AI:** *"Turning up the AC."* -> `<TOOL>increaseFanSpeed()</TOOL>`
+
+### 4. High-Risk Action Confirmation (e.g., Trunk/Doors)
+For security-sensitive physical hardware actions, the AI enforces a mandatory confirmation loop.
+* **Driver:** *"Pop the trunk."*
+* **AI:** *"Warning: Are you sure you want to open the trunk?"* (Pauses execution)
+* **Driver:** *"Yes, I'm sure."*
+* **AI:** *"Opening the trunk."* -> `<TOOL>openTrunk()</TOOL>`
+
+---
+
 ### 📝 Architecture Note for Management
 Because the underlying architecture uses a dynamic prompt engine and a local Edge LLM, adding new hardware controls (e.g., Sunroof, Ambient Lighting) requires zero model fine-tuning. The developer simply adds a new JSON block defining the `prompt_string` and the physical `property_id`, and the LLM instantly learns how to use it!
