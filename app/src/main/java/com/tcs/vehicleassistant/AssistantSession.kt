@@ -58,14 +58,32 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var typewriterJob: kotlinx.coroutines.Job? = null
     private var targetDisplayMessage = ""
     private var currentDisplayLength = 0
+    @Volatile private var ttsSpokenLength = 0
+    @Volatile private var lastTtsUpdateTime = 0L
     // Speed up typewriter effect significantly to fix UI sluggishness.
-    private val typingSpeedMs: Long = 60L
+    private val typingSpeedMs: Long = 15L
     
     private val currentPendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
 
     override fun onInit(status: Int) {
         if (status == TextToSpeech.SUCCESS) {
             tts?.language = Locale.US
+            
+            // Force a local, offline voice to prevent a 5-second network timeout from Google TTS
+            try {
+                val voices = tts?.voices
+                if (voices != null) {
+                    for (voice in voices) {
+                        if (voice.locale.language == Locale.US.language && !voice.isNetworkConnectionRequired) {
+                            tts?.voice = voice
+                            break
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                // Ignore if getVoices() is unsupported or fails, fallback to default
+            }
+            
             tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, "PREWARM")
             setupTtsListener()
         }
@@ -76,16 +94,22 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             override fun onStart(utteranceId: String?) {
                 if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
                     LatencyLogger.log("AssistantSession", "TTS Synthesis Started for $utteranceId")
+                    lastTtsUpdateTime = System.currentTimeMillis()
                 }
             }
 
             override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
-                // Highlighting disabled by user request
+                if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
+                    val sentenceStartOffset = utteranceId.substringAfter("SENTENCE_").toIntOrNull() ?: 0
+                    ttsSpokenLength = Math.max(ttsSpokenLength, sentenceStartOffset + end)
+                    lastTtsUpdateTime = System.currentTimeMillis()
+                }
             }
 
             override fun onDone(utteranceId: String?) {
                 if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
                     LatencyLogger.log("AssistantSession", "TTS Synthesis Done for $utteranceId")
+                    lastTtsUpdateTime = System.currentTimeMillis()
                     currentHighlightStart = -1
                     currentHighlightEnd = -1
                     CoroutineScope(Dispatchers.Main).launch {
@@ -288,7 +312,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onReadyForSpeech")
                 statusText.visibility = View.VISIBLE
-                startDotAnimation("Listening")
+                startDotAnimation("")
                 voiceAnimation.state = VoiceAnimationView.State.LISTENING
             }
             override fun onBeginningOfSpeech() {
@@ -433,7 +457,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private fun startThinkingAnimation() {
         CoroutineScope(Dispatchers.Main).launch {
             statusText.visibility = View.VISIBLE
-            startDotAnimation("Thinking")
+            startDotAnimation("")
             voiceAnimation.state = VoiceAnimationView.State.THINKING
         }
     }
@@ -466,6 +490,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private fun handleQuery(query: String, retryCount: Int = 0) {
         if (LLMManager.isPrewarming) {
             Toast.makeText(context, "Model is prewarming, please wait a moment...", Toast.LENGTH_SHORT).show()
+            stopThinkingAnimation()
+            voiceAnimation.state = VoiceAnimationView.State.IDLE
+            statusText.visibility = View.VISIBLE
+            btnMic.isEnabled = true
+            btnSend.isEnabled = true
+            isQueryProcessed = true
             return
         }
         if (LLMManager.engine == null || LLMManager.conversation == null) return
@@ -480,6 +510,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         lastResponseBuilder.clear()
         targetDisplayMessage = ""
         currentDisplayLength = 0
+        ttsSpokenLength = 0
+        lastTtsUpdateTime = 0L
         typewriterJob?.cancel()
         
         btnSend.isEnabled = false
@@ -595,6 +627,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         private fun handleChunk(chunkText: String) {
                             if (isHallucinating) return
                             
+                            // Throttle the LLM inference thread to prevent CPU starvation of the TTS service
+                            try {
+                                if (firstTokenTime == -1L) {
+                                    android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_LOWEST)
+                                }
+                                Thread.sleep(15)
+                            } catch (e: Exception) {}
+                            
                             if (firstTokenTime == -1L) {
                                 firstTokenTime = System.currentTimeMillis()
                                 val ttft = firstTokenTime - startTime
@@ -706,6 +746,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             if (typewriterJob == null || typewriterJob?.isActive != true) {
                                 typewriterJob = CoroutineScope(Dispatchers.Main).launch {
                                     while (isActive && currentDisplayLength < targetDisplayMessage.length) {
+                                        val timeSinceTts = System.currentTimeMillis() - lastTtsUpdateTime
+                                        val isTtsActive = lastTtsUpdateTime > 0L && timeSinceTts < 2000 // Active if TTS fired recently
+                                        
+                                        // Throttle the visual typewriter if it gets more than 3 characters ahead of the spoken audio
+                                        if (isTtsActive && currentDisplayLength > ttsSpokenLength + 3) {
+                                            kotlinx.coroutines.delay(50)
+                                            continue
+                                        }
+                                        
                                         val step = 1
                                         val dynamicDelay = typingSpeedMs
                                         
@@ -714,21 +763,22 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         
                                         responseText.text = currentSubstring
                                         
-                                        // Auto-scroll to bottom as text streams
-                                        svResponse?.post {
-                                            svResponse?.fullScroll(View.FOCUS_DOWN)
+                                        // Auto-scroll to bottom efficiently (batching to prevent message queue flooding)
+                                        if (currentDisplayLength % 5 == 0) {
+                                            svResponse?.post {
+                                                svResponse?.fullScroll(View.FOCUS_DOWN)
+                                            }
                                         }
                                         
                                         kotlinx.coroutines.delay(dynamicDelay)
                                     }
-                                    responseText.text = parseMarkdown(targetDisplayMessage)
                                 }
                             }
                             
                             // Streaming TTS Logic
                             val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
                             var remainingText = displayMsg.substring(safeStartIndex)
-                            val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.!?](?:\\s+|$))".toRegex()
+                            val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.,!?](?:\\s+|$))".toRegex()
                             var match = sentenceRegex.find(remainingText)
                             while (match != null) {
                                 val sentence = match.value
@@ -783,7 +833,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 setKeepAwake(false)
                                 
                                 val isAgenticLoopEnabled = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE).getBoolean("agentic_loop_enabled", true)
-                                if (isAgenticLoopEnabled && loopCount < 3) {
+                                
+                                val rawResponse = lastResponseBuilder.toString()
+                                val responseWithoutTags = rawResponse.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "").trim()
+                                val hasConversationalText = responseWithoutTags.length > 5
+                                val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
+                                
+                                // Smart Bypass: Skip the Agentic Loop if the AI already generated conversational text AND the tool succeeded.
+                                // This provides instant responses for terminal action tools (e.g. navigate, set_temp) without stalling the GPU.
+                                val shouldRunAgenticLoop = isAgenticLoopEnabled && loopCount < 3 && (!hasConversationalText || hasError)
+                                
+                                if (shouldRunAgenticLoop) {
                                     val feedbackString = toolFeedbacks.joinToString("\n")
                                     val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
                                     
@@ -825,8 +885,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 }
                             }
                             finalMsg = finalMsg.trim()
-                            if (finalMsg.isEmpty() && toolFeedbacks.isNotEmpty()) {
-                                finalMsg = toolFeedbacks.joinToString("\n")
+                            if (finalMsg.isEmpty()) {
+                                if (toolFeedbacks.isNotEmpty()) {
+                                    finalMsg = toolFeedbacks.joinToString("\n")
+                                } else {
+                                    finalMsg = "Executing command..."
+                                }
                             } else if (toolFeedbacks.isNotEmpty()) {
                                 finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
                             }
@@ -834,13 +898,24 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             targetDisplayMessage = finalMsg
                             if (typewriterJob == null || typewriterJob?.isActive != true) {
                                 typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+                                    kotlinx.coroutines.delay(400) // Wait for TTS engine to initialize audio buffer
                                     while (isActive && currentDisplayLength < targetDisplayMessage.length) {
+                                        val timeSinceTts = System.currentTimeMillis() - lastTtsUpdateTime
+                                        val isTtsActive = lastTtsUpdateTime > 0L && timeSinceTts < 2000 // Active if TTS fired recently
+                                        
+                                        if (isTtsActive && currentDisplayLength > ttsSpokenLength + 3) {
+                                            kotlinx.coroutines.delay(50)
+                                            continue
+                                        }
+                                        
                                         val step = 1
                                         val dynamicDelay = typingSpeedMs
                                         currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
                                         val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
                                         responseText.text = currentSubstring
-                                        svResponse?.post { svResponse?.fullScroll(View.FOCUS_DOWN) }
+                                        if (currentDisplayLength % 5 == 0) {
+                                            svResponse?.post { svResponse?.fullScroll(View.FOCUS_DOWN) }
+                                        }
                                         kotlinx.coroutines.delay(dynamicDelay)
                                     }
                                     // Apply Markdown formatting only once after typewriter finishes

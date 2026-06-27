@@ -640,6 +640,14 @@ class LocalLLMActivity : AppCompatActivity() {
             prefs.edit().putBoolean("agentic_loop_enabled", isChecked).apply()
         }
         
+        // Companion Mode Initialization
+        val switchCompanionMode = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchCompanionMode)
+        val isCompanionModeEnabled = prefs.getBoolean("companion_mode_enabled", false)
+        switchCompanionMode.isChecked = isCompanionModeEnabled
+        switchCompanionMode.setOnCheckedChangeListener { _, isChecked ->
+            prefs.edit().putBoolean("companion_mode_enabled", isChecked).apply()
+        }
+        
         etWakeWord.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
@@ -969,6 +977,11 @@ class LocalLLMActivity : AppCompatActivity() {
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                 generateButton.isEnabled = true
                 btnLoadModel.isEnabled = false
+                
+                // Automatically prewarm the KV cache to eliminate the 6-second TTFT delay on the first query
+                lifecycleScope.launch(Dispatchers.IO) {
+                    LLMManager.prewarm(applicationContext)
+                }
             }
 
             override fun onError(e: Exception) {

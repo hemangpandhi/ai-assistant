@@ -50,11 +50,13 @@ class VoiceAnimationView @JvmOverloads constructor(
                 1 -> 4f   // Intense ice-blue mid-core
                 else -> 2f // Razor-sharp white crest
             }
+            /*
             when (i) {
                 0 -> setShadowLayer(15f, 0f, 0f, Color.parseColor("#4D00E5FF"))
                 1 -> setShadowLayer(10f, 0f, 0f, Color.parseColor("#B3A8C7FA"))
                 else -> setShadowLayer(5f, 0f, 0f, Color.parseColor("#FFFFFF"))
             }
+            */
         }
     }
     
@@ -83,6 +85,7 @@ class VoiceAnimationView @JvmOverloads constructor(
     private fun startAnimation() {
         if (animator?.isRunning == true) return
         visibility = VISIBLE
+        var frameCount = 0
         animator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = 45000
             repeatCount = ValueAnimator.INFINITE
@@ -95,6 +98,11 @@ class VoiceAnimationView @JvmOverloads constructor(
                         transitionProgress = 1f
                         state = targetState
                     }
+                }
+                frameCount++
+                if (state == State.THINKING && frameCount % 2 != 0) {
+                    // Throttle to ~30fps during THINKING to save GPU bandwidth for the LLM
+                    return@addUpdateListener
                 }
                 invalidate()
             }
@@ -117,7 +125,7 @@ class VoiceAnimationView @JvmOverloads constructor(
             }
 
             val frequency = 0.012f + (i * 0.003f)
-            val baseAmplitude = 20f + (i * 4f)
+            val baseAmplitude = 12f + (i * 3f)
             
             wavePath.reset()
 

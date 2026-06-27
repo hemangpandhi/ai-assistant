@@ -418,7 +418,7 @@ object ToolManager {
                             return "I couldn't open the map because no map app is installed."
                         }
                     }
-                    "I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?"
+                    "I've displayed the search results for $query on the map. Which one would you like to navigate to?"
                 }
                 "playMusic" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")
