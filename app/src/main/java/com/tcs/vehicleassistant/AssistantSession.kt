@@ -59,7 +59,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var targetDisplayMessage = ""
     private var currentDisplayLength = 0
     // Speed up typewriter effect significantly to fix UI sluggishness.
-    private val typingSpeedMs: Long = 5L
+    private val typingSpeedMs: Long = 60L
     
     private val currentPendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
 
@@ -191,6 +191,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 modelInfoTag.text = if (modelName.isNotEmpty()) modelName else "Gemma 4 E2B"
             }
         }
+        
+        val activeBackendTag: android.widget.TextView? = overlayView.findViewById(R.id.activeBackendTag)
+        if (activeBackendTag != null) {
+            if (LocalLLMActivity.isCloudModelActive) {
+                activeBackendTag.text = "Backend: Cloud"
+            } else {
+                activeBackendTag.text = "Backend: ${LLMManager.activeBackendString}"
+            }
+        }
 
         // Global Adaptive Gravity Logic
         responseText.addTextChangedListener(object : android.text.TextWatcher {
@@ -245,9 +254,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             btnMic.isEnabled = false
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
             
-            // Mute the system beep sound
-            val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_MUTE, 0)
+            // Removed explicit system beep muting so the user hears the native "listening" chime
             
             try {
                 speechRecognizer?.startListening(speechRecognizerIntent)
@@ -277,13 +284,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
-                // Unmute the system beep sound
-                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
+                // Removed explicit system beep unmuting
                 
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onReadyForSpeech")
                 statusText.visibility = View.VISIBLE
-                startDotAnimation("")
+                startDotAnimation("Listening")
                 voiceAnimation.state = VoiceAnimationView.State.LISTENING
             }
             override fun onBeginningOfSpeech() {
@@ -428,7 +433,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private fun startThinkingAnimation() {
         CoroutineScope(Dispatchers.Main).launch {
             statusText.visibility = View.VISIBLE
-            startDotAnimation("")
+            startDotAnimation("Thinking")
             voiceAnimation.state = VoiceAnimationView.State.THINKING
         }
     }
@@ -652,8 +657,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     continue
                                 }
                                 
-                                val isClimate = toolName.contains("Temperature") || toolName.contains("Fan") || toolName.contains("AC")
-                                val isClimateQuery = q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("freeze") || q.contains("boil") || q.contains("a/c") || q.matches(Regex(".*\\b(ac|air|temp|temperature|climate|fan|heat|heater|defrost)\\b.*"))
+                                val isClimate = toolName.contains("Temperature", ignoreCase = true) || toolName.contains("Fan", ignoreCase = true) || toolName.contains("AC", ignoreCase = true)
+                                val isClimateQuery = q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("freeze") || q.contains("boil") || q.contains("a/c") || q.contains("ac") || q.contains("air") || q.contains("temp") || q.contains("climate") || q.contains("fan") || q.contains("heat") || q.contains("defrost") || q.contains("increase") || q.contains("decrease")
                                 
                                 if (isClimate && !isClimateQuery) {
                                     android.util.Log.w("AssistantSession", "Intercepted hallucinatory climate tool call: $toolCall")
@@ -753,6 +758,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         val estimatedTokens = Math.max(1, (tempFinalMsg.length / 4.0).toInt())
                         val tps = if (outputTimeMs > 0) (estimatedTokens * 1000.0) / outputTimeMs else 0.0
                         
+                        // Text generation is completely done
+                        android.util.Log.i("AssistantSession", "RAW AI TEXT: ${tempFinalMsg}")
                         android.util.Log.i("LLMMetrics", "================ LLM GENERATION METRICS ================")
                         android.util.Log.i("LLMMetrics", "Model Backend:    ${if (LocalLLMActivity.isCloudModelActive) "Cloud LLM API" else "Local Edge (Google MediaPipe LiteRT)"}")
                         android.util.Log.i("LLMMetrics", "TTFT (First Token):         ${ttftMs}ms")
@@ -855,7 +862,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                                  finalMsg.trim().endsWith("?") || 
                                                  finalMsg.contains("would you like", ignoreCase = true) || 
                                                  finalMsg.contains("if you'd like", ignoreCase = true) || 
-                                                 finalMsg.contains("do you want", ignoreCase = true) ||
+                                                 finalMsg.contains("do you want", ignoreCase = true) || 
                                                  finalMsg.contains("shall i", ignoreCase = true)
                                                  
                                 val finalUtterance = if (isQuestion) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"

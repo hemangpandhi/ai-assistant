@@ -26,7 +26,7 @@ case $choice in
         ;;
     3)
         echo "Downloading gemma-2b-it-gpu-int4.bin..."
-        wget https://storage.googleapis.com/mediapipe-models/llm/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin
+        wget https://huggingface.co/mikkir/gemma-2b-it-gpu-int4.bin/resolve/main/gemma-2b-it-gpu-int4.bin -O gemma-2b-it-gpu-int4.bin
         echo "Done!"
         ;;
     4)

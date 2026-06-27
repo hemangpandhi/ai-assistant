@@ -60,8 +60,14 @@
         android:label="VehicleEdgeAssistant"
         android:supportsRtl="true"
         android:extractNativeLibs="true"
+        android:usesCleartextTraffic="true"
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
         
+        <!-- Grant access to vendor OpenCL libraries for LiteRT GPU Backend on Android 14+ -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL-pixel.so" android:required="false" />
+        <uses-native-library android:name="libGLES_mali.so" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true">

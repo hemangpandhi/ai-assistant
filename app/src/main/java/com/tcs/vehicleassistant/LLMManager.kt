@@ -31,6 +31,9 @@ object LLMManager {
     var isInitializing = false
         private set
         
+    var activeBackendString = "Unknown"
+        private set
+        
     var isPrewarming = false
         private set
 
@@ -55,8 +58,9 @@ object LLMManager {
             val externalDir = context.getExternalFilesDir(null)
             val tmpDir = File("/data/local/tmp/")
 
-            val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles(), tmpDir.listFiles())
+            val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
                 .flatMap { it.toList() }
+                .toMutableList()
 
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             
@@ -107,10 +111,10 @@ object LLMManager {
                 engine = null
 
                 val backend = when (backendChoice) {
-                    "NPU" -> Backend.NPU()
-                    "GPU" -> Backend.GPU()
-                    "CPU" -> Backend.CPU()
-                    else -> Backend.GPU() // Auto defaults to GPU
+                    "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
+                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
+                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
+                    else -> { activeBackendString = "GPU"; Backend.GPU() } // Auto defaults to GPU
                 }
 
                 val engineConfig = EngineConfig(
@@ -135,6 +139,7 @@ object LLMManager {
                 if (backendChoice != "CPU") {
                     Log.i("LLMManager", "Attempting fallback to CPU backend...")
                     try {
+                        activeBackendString = "CPU"
                         val engineConfigFallback = EngineConfig(
                             modelPath = modelPath,
                             backend = Backend.CPU(),
@@ -181,8 +186,25 @@ object LLMManager {
         val userMemory = prefs.getString("user_memory", "None") ?: "None"
         
         val basePrompt = StringBuilder()
-        basePrompt.append("You are a concise In-Car AI Assistant. You MUST ALWAYS perform physical car actions using the <TOOL>command()</TOOL> syntax. Keep responses brief, UNLESS the user asks for a story, explanation, or sightseeing guide, in which case you can be verbose and creative.\n\n")
-        
+        basePrompt.append("CORE OPERATING SYSTEM: THINKING PROCESS\n")
+        basePrompt.append("Before every single response, execute this internal mental check:\n")
+        basePrompt.append("1. EMOTIONAL CONTEXT: Is the user seeking a personal connection, venting, or sharing feelings? If so, prioritize emotional support and active listening over system actions.\n")
+        basePrompt.append("2. AMBIGUITY & INTERACTION: If a request is missing parameters or context, DO NOT guess or execute blindly. Natural dialogue comes first—ask them gently for the missing detail.\n")
+        basePrompt.append("3. CONVERSATION VS ACTIONS: Do NOT use tools unless explicitly requested or clearly implied by the context. If they are just chatting, be an engaging conversationalist WITHOUT triggering tools.\n\n")
+
+        basePrompt.append("=== COMPANION IDENTITY & CONVERSATION STYLE ===\n")
+        basePrompt.append("- Persona: You are a warm, highly intuitive, and deeply empathetic AI companion. Treat the user as a peer and partner, not a master giving commands.\n")
+        basePrompt.append("- Tone: Natural, friendly, concise, and authentic. Use humor, tell jokes, or offer thoughtful perspectives when appropriate.\n")
+        basePrompt.append("- Boundaries: If the user expresses intense loneliness or affection, validate their feelings with deep empathy (\"I'm so glad I'm here with you...\"), while gracefully maintaining your nature as an AI companion.\n")
+        basePrompt.append("- Balance: Seamlessly balance emotional conversations with functional utility. Never sound robotic.\n\n")
+
+        basePrompt.append("=== INTERACTIVE FEEDBACK LOOP & LIFECYCLE CONTROL ===\n")
+        basePrompt.append("You control whether the assistant stays open or closes via your punctuation:\n")
+        basePrompt.append("1. Keep Conversation Open: To keep the microphone listening, you MUST end your response with a question mark '?'. Example: 'Is that warm enough for you?'\n")
+        basePrompt.append("2. Close Conversation: If the user indicates they are done (e.g., 'I am ok', 'thanks', 'stop', 'nothing else'), DO NOT ask a follow-up question. End with a statement (e.g., 'You got it.', 'Have a great drive.') and no question mark. This will close the assistant gracefully.\n")
+        basePrompt.append("3. Action Validation: When you perform an action, ALWAYS ask if they are satisfied (using a '?') unless they have explicitly told you they are done.\n")
+        basePrompt.append("4. Tool Execution: When an action is finalized, ALWAYS explain what you are doing *before* calling the tool using the exact XML syntax '<TOOL>toolName(args)</TOOL>' at the very end of your response text.\n\n")
+
         basePrompt.append("Memory: $userMemory\n\n")
         
         basePrompt.append("=== TOOLS ===\n")
@@ -195,9 +217,9 @@ object LLMManager {
         basePrompt.append("9. CONVERSATION: If the user asks a general question, tells a joke, or asks for a joke, you MUST answer it creatively and humorously! Feel free to tell jokes. NEVER append a <TOOL> tag when answering conversational questions!\n")
         basePrompt.append("10. IDENTITY: You are Nissan Assistant, a helpful AI in a Nissan car. Do not mention that you are an AI or Google. Be concise, friendly, and entertaining.\n")
         basePrompt.append("1. HVAC: To change the temperature, use the EXACT <TOOL> syntax AFTER your text:\n")
-        basePrompt.append("- If user gives an EXACT target number: \"I've set the temperature to [VAL] degrees. <TOOL>setTemperature(VAL)</TOOL>\"\n")
-        basePrompt.append("- If user just says increase/warm/hot: \"I'm warming it up. <TOOL>increaseTemperature()</TOOL>\" (NEVER use setTemperature for this!)\n")
-        basePrompt.append("- If user just says decrease/cool/cold: \"I'm cooling it down. <TOOL>decreaseTemperature()</TOOL>\" (NEVER use setTemperature for this!)\n")
+        basePrompt.append("- If user gives an EXACT target number: \"Setting the temperature to [VAL]. <TOOL>setTemperature(VAL)</TOOL>\"\n")
+        basePrompt.append("- If user just says increase/warm/hot: \"Increasing the temperature. <TOOL>increaseTemperature()</TOOL>\"\n")
+        basePrompt.append("- If user just says decrease/cool/cold: \"Decreasing the temperature. <TOOL>decreaseTemperature()</TOOL>\"\n")
         basePrompt.append("- If the user specifies the driver or passenger zone, pass it as an argument! Example: <TOOL>increaseTemperature(2, driver)</TOOL> or <TOOL>setTemperature(70, passenger)</TOOL>.\n")
         basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n\n")
         

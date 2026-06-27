@@ -125,6 +125,36 @@ class LocalLLMActivity : AppCompatActivity() {
         inputText = findViewById(R.id.inputText)
         generateButton = findViewById(R.id.generateButton)
         voiceButton = findViewById(R.id.voiceButton)
+
+        // EMERGENCY SELINUX BYPASS: Allow ADB to trigger a native file copy via ContentProvider
+        val receiver = object : android.content.BroadcastReceiver() {
+            override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+                if (intent.action == "COPY_MODEL") {
+                    Thread {
+                        try {
+                            android.util.Log.i("LLMManager", "Downloading model natively from localhost to bypass SELinux...")
+                            val url = java.net.URL("http://localhost:8080/Qwen2.5.litertlm")
+                            url.openStream().use { input ->
+                                java.io.File(context.filesDir, "Qwen2.5.litertlm").outputStream().use { output ->
+                                    input.copyTo(output)
+                                }
+                            }
+                            android.util.Log.i("LLMManager", "Copy complete! File generated natively.")
+                        } catch (e: Exception) {
+                            android.util.Log.e("LLMManager", "Failed to copy", e)
+                        }
+                    }.start()
+                }
+            }
+        }
+        val copyFilter = android.content.IntentFilter("COPY_MODEL")
+        copyFilter.addDataScheme("content")
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(receiver, copyFilter, android.content.Context.RECEIVER_EXPORTED)
+        } else {
+            registerReceiver(receiver, copyFilter)
+        }
+
         chatRecyclerView = findViewById(R.id.chatRecyclerView)
         tabLayout = findViewById(R.id.tabLayout)
         tabInference = findViewById<android.widget.LinearLayout>(R.id.tabInference)

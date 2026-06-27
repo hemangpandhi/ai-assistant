@@ -58,6 +58,22 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintEnd_toEndOf="parent" />
             
+        <!-- ACTIVE BACKEND TAG -->
+        <TextView
+            android:id="@+id/activeBackendTag"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Backend: CPU"
+            android:textColor="#8AB4F8"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.1"
+            android:layout_marginStart="24dp"
+            android:alpha="0.8"
+            app:layout_constraintTop_toTopOf="@id/assistantName"
+            app:layout_constraintBottom_toBottomOf="@id/assistantName"
+            app:layout_constraintStart_toStartOf="parent" />
+            
         <!-- MODEL INFORMATION TAG -->
         <TextView
             android:id="@+id/modelInfoTag"
