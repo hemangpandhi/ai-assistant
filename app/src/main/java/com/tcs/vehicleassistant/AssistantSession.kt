@@ -712,7 +712,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
                                         val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
                                         
-                                        responseText.text = parseMarkdown(currentSubstring)
+                                        responseText.text = currentSubstring
                                         
                                         // Auto-scroll to bottom as text streams
                                         svResponse?.post {
@@ -721,6 +721,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         
                                         kotlinx.coroutines.delay(dynamicDelay)
                                     }
+                                    responseText.text = parseMarkdown(targetDisplayMessage)
                                 }
                             }
                             
@@ -838,10 +839,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         val dynamicDelay = typingSpeedMs
                                         currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
                                         val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
-                                        responseText.text = parseMarkdown(currentSubstring)
+                                        responseText.text = currentSubstring
                                         svResponse?.post { svResponse?.fullScroll(View.FOCUS_DOWN) }
                                         kotlinx.coroutines.delay(dynamicDelay)
                                     }
+                                    // Apply Markdown formatting only once after typewriter finishes
+                                    responseText.text = parseMarkdown(targetDisplayMessage)
                                 }
                             }
                             

@@ -121,7 +121,7 @@ class VoiceAnimationView @JvmOverloads constructor(
             
             wavePath.reset()
 
-            for (x in 0..width step 6) {
+            for (x in 0..width step 16) {
                 val xF = x.toFloat()
                 val midX = w / 2f
                 val distanceFromCenter = abs(xF - midX)
