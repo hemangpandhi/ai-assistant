@@ -17,9 +17,9 @@ fi
 FILENAME=$(basename "$MODEL_PATH")
 
 # Ensure the app is installed before we do this
-adb shell pm path com.example.gemininano > /dev/null
+adb shell pm path com.tcs.vehicleassistant > /dev/null
 if [ $? -ne 0 ]; then
-    echo "Error: The app com.example.gemininano is not installed."
+    echo "Error: The app com.tcs.vehicleassistant is not installed."
     echo "Please install the APK first before pushing the model."
     exit 1
 fi
@@ -27,7 +27,7 @@ fi
 echo "Pushing $FILENAME to the Android device via ADB..."
 # Push directly to the app's external files directory
 # No chown, SELinux, or restorecon hacks needed here!
-adb shell mkdir -p /sdcard/Android/data/com.example.gemininano/files/
-adb push "$MODEL_PATH" "/sdcard/Android/data/com.example.gemininano/files/$FILENAME"
+adb shell mkdir -p /sdcard/Android/data/com.tcs.vehicleassistant/files/
+adb push "$MODEL_PATH" "/sdcard/Android/data/com.tcs.vehicleassistant/files/$FILENAME"
 
 echo "Done! You can now launch the app and it will immediately load the model!"

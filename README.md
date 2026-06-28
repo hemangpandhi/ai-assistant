@@ -155,7 +155,7 @@ adb reboot
 *(If you do not need HVAC controls and just want to test chat, you can simply run `adb install -r -g app/build/outputs/apk/debug/app-debug.apk` to install with pre-granted standard permissions.)*
 
 ### Step 3: Push the LLM Model Safely
-Android 14 imposes strict SELinux rules on internal app storage. To bypass permission denials, this application has been upgraded to read from the FUSE-backed **External App-Specific Directory** (`/sdcard/Android/data/com.example.gemininano/files/`).
+Android 14 imposes strict SELinux rules on internal app storage. To bypass permission denials, this application has been upgraded to read from the FUSE-backed **External App-Specific Directory** (`/sdcard/Android/data/com.tcs.vehicleassistant/files/`).
 
 You can use the automated script:
 ```bash
@@ -169,11 +169,11 @@ In Android Automotive, the active driver is often assigned **User ID 10** instea
 
 ```bash
 adb root
-adb shell mkdir -p /data/media/10/Android/data/com.example.gemininano/files/
+adb shell mkdir -p /data/media/10/Android/data/com.tcs.vehicleassistant/files/
 # Example for pushing Qwen 2.5:
-adb push Qwen2.5-1.5B-Instruct.litertlm /data/media/10/Android/data/com.example.gemininano/files/
+adb push Qwen2.5-1.5B-Instruct.litertlm /data/media/10/Android/data/com.tcs.vehicleassistant/files/
 # Example for pushing Gemma 4 E2B (Qualcomm SA8255):
-adb push gemma-4-E2B-it_qualcomm_qcs8275.litertlm /data/media/10/Android/data/com.example.gemininano/files/
+adb push gemma-4-E2B-it_qualcomm_qcs8275.litertlm /data/media/10/Android/data/com.tcs.vehicleassistant/files/
 ```
 
 ### Step 4: Configuration & Usage
