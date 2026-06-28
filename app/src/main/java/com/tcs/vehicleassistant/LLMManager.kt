@@ -10,6 +10,8 @@ import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.tool
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.ExperimentalApi
+import com.google.ai.edge.litertlm.ExperimentalFlags
 import android.system.Os
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -91,6 +93,7 @@ object LLMManager {
     }
     private val initMutex = kotlinx.coroutines.sync.Mutex()
 
+    @OptIn(ExperimentalApi::class)
     suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
         initMutex.withLock {
             if (!force && engine != null && currentModelPath == modelPath) {
@@ -127,6 +130,9 @@ object LLMManager {
                     maxNumTokens = maxTokens,
                     cacheDir = context.cacheDir.absolutePath
                 )
+
+                // Enable Multi-Token Prediction (MTP) / Speculative Decoding for faster token generation
+                ExperimentalFlags.enableSpeculativeDecoding = false
 
                 engine = Engine(engineConfig)
                 engine!!.initialize()

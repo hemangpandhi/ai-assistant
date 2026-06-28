@@ -1263,7 +1263,7 @@
       "offline_capable": true,
       "success_message": "I've adjusted the volume.",
       "requires_vehicle_state": false,
-      "instruction": "Sets or adjusts the media volume. If no specific amount is given, pass 'UP' or 'DOWN'. VAL can be a percentage (e.g., '50', '30'), a relative adjustment (e.g., '+20', '-10'), or 'MAX'."
+      "instruction": "Sets or adjusts the media volume. If no specific amount is given, pass 'UP' or 'DOWN'. VAL can be a percentage (MUST include '%', e.g., '50%', '30%', '+20%', '-10%') or an absolute hardware index (e.g. '2' out of 15 max). Also supports 'MAX'."
     },
     {
       "prompt_string": "<TOOL>callContact(NAME)</TOOL>",

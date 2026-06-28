@@ -132,13 +132,25 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 if (argStr.equals("MAX", ignoreCase = true)) {
                     targetVol = maxVol
                 } else if (argStr.startsWith("+") || argStr.startsWith("-")) {
-                    val percent = argStr.replace("%", "").toIntOrNull() ?: 0
-                    val delta = Math.round((percent / 100f) * maxVol).toInt()
+                    val hasPercentSign = argStr.contains("%")
+                    val parsedNum = argStr.replace("%", "").toIntOrNull() ?: 0
+                    val delta = if (hasPercentSign || Math.abs(parsedNum) > maxVol) {
+                        Math.round((parsedNum / 100f) * maxVol).toInt()
+                    } else {
+                        parsedNum
+                    }
                     targetVol = Math.max(0, Math.min(maxVol, curVol + delta))
                 } else {
-                    val percent = argStr.replace("%", "").replace("+", "").toIntOrNull()
-                    if (percent != null) {
-                        targetVol = Math.round((percent / 100f) * maxVol).toInt()
+                    val hasPercentSign = argStr.contains("%")
+                    val parsedNum = argStr.replace("%", "").replace("+", "").toIntOrNull()
+                    if (parsedNum != null) {
+                        if (hasPercentSign || parsedNum > maxVol) {
+                            // Treat as percentage
+                            targetVol = Math.round((parsedNum / 100f) * maxVol).toInt()
+                        } else {
+                            // Treat as absolute hardware index
+                            targetVol = parsedNum
+                        }
                         targetVol = Math.max(0, Math.min(maxVol, targetVol))
                     } else {
                         val isDecrease = toolCall.contains("decrease", ignoreCase = true)
