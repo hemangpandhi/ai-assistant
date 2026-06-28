@@ -486,12 +486,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         return ToolManager.executeToolCall(context.applicationContext, toolCall) { intent ->
             try {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
+                this@AssistantSession.startVoiceActivity(intent)
+                hide()
             } catch (e: Exception) {
-                android.util.Log.e("AssistantSession", "startActivity failed", e)
+                android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
                 try {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.applicationContext.startActivity(intent)
+                    hide()
                 } catch (e2: Exception) {
                     android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
                     throw e2 // Propagate to ToolManager for fallbacks
@@ -752,6 +754,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     displayMsg = displayMsg.substring(0, lastTagIndex)
                                 }
                             }
+                            // Cleanup Edge LLM stuttering
+                            displayMsg = displayMsg.replace(Regex("\\biI\\b"), "I")
+                            displayMsg = displayMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
+                            displayMsg = displayMsg.replace(Regex("^i\\s+"), "")
+                            displayMsg = displayMsg.replace(Regex("^i\\b"), "I")
                             displayMsg = displayMsg.trim()
                             
                             val displayStr = displayMsg.toString()
@@ -1027,6 +1034,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     finalMsg = finalMsg.substring(0, finalLastTagIndex)
                                 }
                             }
+                            // Cleanup Edge LLM stuttering
+                            finalMsg = finalMsg.replace(Regex("\\biI\\b"), "I")
+                            finalMsg = finalMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
+                            finalMsg = finalMsg.replace(Regex("^i\\s+"), "")
+                            finalMsg = finalMsg.replace(Regex("^i\\b"), "I")
                             finalMsg = finalMsg.trim()
                             val isQuestionBeforeFeedback = expectFollowup || 
                                              finalMsg.trim().endsWith("?") || 

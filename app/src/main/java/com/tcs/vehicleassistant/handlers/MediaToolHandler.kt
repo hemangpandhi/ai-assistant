@@ -62,7 +62,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     ToolExecutionResult(false, "System Error: Could not start media.")
                 }
             }
-            "pauseMusic" -> {
+            "pauseMusic", "stopMusic" -> {
                 try {
                     val controllers = mediaSessionManager.getActiveSessions(null)
                     if (controllers.isNotEmpty()) {

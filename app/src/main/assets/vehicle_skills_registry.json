@@ -1174,7 +1174,7 @@
       "requires_agentic_loop": false,
       "success_message": "I'll start playing music.",
       "requires_vehicle_state": false,
-      "instruction": "Plays music. You MUST replace 'SONG' with whatever the user requested (artist, song, or genre). If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their preferred genre or song (e.g., 'bollywood'), immediately execute <TOOL>playMusic(bollywood)</TOOL> replacing 'bollywood' with whatever they asked for.",
+      "instruction": "Plays music. You MUST replace 'SONG' with the EXACT FULL name of the artist, song, AND genre requested by the user. For example, if they say 'Play Hello by Adele', you must output <TOOL>playMusic(Hello by Adele)</TOOL>. Do not omit the artist name! If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their preferred genre or song (e.g., 'bollywood'), immediately execute <TOOL>playMusic(bollywood)</TOOL> replacing 'bollywood' with whatever they asked for.",
       "aliases": [
         "play",
         "playAudio",
@@ -1187,10 +1187,9 @@
       "prompt_string": "<TOOL>pauseMusic()</TOOL>",
       "handler_key": "pauseMusic",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "CRITICAL: If the user asks to pause, stop, or halt the music/audio, you MUST execute this tool. Do not just say you will do it.",
+      "instruction": "CRITICAL: If the user asks to pause or halt the music/audio, you MUST execute this tool.",
       "keywords": [
         "pause music",
-        "stop music",
         "halt music"
       ],
       "offline_capable": true,
@@ -1198,8 +1197,22 @@
       "requires_vehicle_state": false,
       "aliases": [
         "pause",
-        "stopMusic",
         "pauseAudio"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>stopMusic()</TOOL>",
+      "handler_key": "stopMusic",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "CRITICAL: If the user asks to stop the music/audio, you MUST execute this tool.",
+      "keywords": [
+        "stop music"
+      ],
+      "offline_capable": true,
+      "success_message": "I've stopped the music.",
+      "requires_vehicle_state": false,
+      "aliases": [
+        "stopMusic"
       ]
     },
     {
