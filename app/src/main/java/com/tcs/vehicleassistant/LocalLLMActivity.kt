@@ -99,6 +99,7 @@ class LocalLLMActivity : AppCompatActivity() {
         LlmModel("Phi-4-mini", "Phi-4-mini-instruct.litertlm", "https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.8GB", "Premium"),
         LlmModel("Llama 3.2 3B Instruct", "Llama-3.2-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.2GB", "Premium"),
         LlmModel("Qwen2.5 3B Instruct", "Qwen2.5-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.1GB", "Premium"),
+        LlmModel("Gemma 4-E2B IT (Google Tensor G5)", "gemma-4-E2B-it_Google_Tensor_G5.litertlm", "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_Google_Tensor_G5.litertlm", "3.6GB", "Premium Pixel"),
         LlmModel("Claude 3.5 Sonnet (Cloud)", "claude-3-5-sonnet", "api", "Cloud", "Premium"),
         LlmModel("Gemini 2.5 Flash (Cloud)", "gemini-2.5-flash", "api", "Cloud", "Premium")
     )
