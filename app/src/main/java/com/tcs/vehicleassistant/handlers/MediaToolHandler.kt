@@ -55,7 +55,12 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                         Log.e(TAG, "Fallback intent failed", e2)
                     }
                 }
-                if (success) ToolExecutionResult(true, "Playing $query in the background.") else ToolExecutionResult(false, "System Error: Could not start media.")
+                if (success) {
+                    val msg = if (query.contains("music", ignoreCase = true)) "Playing $query." else "Playing $query music."
+                    ToolExecutionResult(true, msg)
+                } else {
+                    ToolExecutionResult(false, "System Error: Could not start media.")
+                }
             }
             "pauseMusic" -> {
                 try {

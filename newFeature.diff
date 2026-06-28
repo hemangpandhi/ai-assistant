@@ -1,0 +1,550 @@
+diff --git a/app/src/main/java/com/tcs/vehicleassistant/AssistantSession.kt b/app/src/main/java/com/tcs/vehicleassistant/AssistantSession.kt
+index e646a5c8..b7a6f87c 100644
+--- a/app/src/main/java/com/tcs/vehicleassistant/AssistantSession.kt
++++ b/app/src/main/java/com/tcs/vehicleassistant/AssistantSession.kt
+@@ -29,6 +29,8 @@ import com.google.ai.edge.litertlm.MessageCallback
+ 
+ 
+ class AssistantSession(context: Context) : VoiceInteractionSession(context), TextToSpeech.OnInitListener {
++    private var audioManager: android.media.AudioManager? = null
++    private var audioFocusRequest: android.media.AudioFocusRequest? = null
+ 
+     private lateinit var overlayView: View
+     private lateinit var statusText: TextView
+@@ -63,7 +65,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+     // Speed up typewriter effect significantly to fix UI sluggishness.
+     private val typingSpeedMs: Long = 15L
+     
++    private val stateLock = Any()
++    
+     private val currentPendingTools = mutableListOf<kotlinx.coroutines.Deferred<String?>>()
++    
++    @Volatile private var lastQueuedUtteranceId: String = ""
++    @Volatile private var lastFinishedUtteranceId: String = ""
++    @Volatile private var expectedFinalUtteranceAction: String = ""
++    @Volatile private var isLlmGenerationDone: Boolean = false
+ 
+     override fun onInit(status: Int) {
+         if (status == TextToSpeech.SUCCESS) {
+@@ -84,6 +93,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                 // Ignore if getVoices() is unsupported or fails, fallback to default
+             }
+             
++            val audioAttributes = android.media.AudioAttributes.Builder()
++                .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
++                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
++                .build()
++            tts?.setAudioAttributes(audioAttributes)
++            
+             tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, "PREWARM")
+             setupTtsListener()
+         }
+@@ -110,6 +125,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                 if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
+                     LatencyLogger.log("AssistantSession", "TTS Synthesis Done for $utteranceId")
+                     lastTtsUpdateTime = System.currentTimeMillis()
++                    lastFinishedUtteranceId = utteranceId
+                     currentHighlightStart = -1
+                     currentHighlightEnd = -1
+                     CoroutineScope(Dispatchers.Main).launch {
+@@ -119,21 +135,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                             for (span in oldSpans) spannable.removeSpan(span)
+                         }
+                     }
+-                }
+-                CoroutineScope(Dispatchers.Main).launch {
+-                    if (utteranceId == "QUESTION_FINAL") {
+-                        kotlinx.coroutines.delay(500)
+-                        btnMic.performClick()
+-                    } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
+-                        for (job in currentPendingTools) {
+-                            try { job.await() } catch (e: Exception) {}
+-                        }
+-                        kotlinx.coroutines.delay(50)
+-                        finish()
+-                    } else if (utteranceId == "STATEMENT_FINAL") {
+-                        kotlinx.coroutines.delay(50)
+-                        finish()
+-                    }
++                    checkAndRunFinalAction()
+                 }
+             }
+ 
+@@ -149,6 +151,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+ 
+     override fun onHide() {
+         super.onHide()
++        audioFocusRequest?.let { audioManager?.abandonAudioFocusRequest(it) }
+         try {
+             speechRecognizer?.cancel()
+             speechRecognizer?.destroy()
+@@ -168,6 +171,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+ 
+     override fun onCreateContentView(): View {
+         VehicleManager.initialize(context.applicationContext)
++        MemoryManager.initDatabase(context.applicationContext)
+         if (tts == null) {
+             tts = TextToSpeech(context.applicationContext, this)
+         } else {
+@@ -180,6 +184,20 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+     }
+     
+     private fun inflateAndBindLayout() {
++        audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
++        val attrs = android.media.AudioAttributes.Builder()
++            .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
++            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
++            .build()
++        tts?.setAudioAttributes(attrs)
++        audioFocusRequest = android.media.AudioFocusRequest.Builder(android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
++            .setAudioAttributes(attrs)
++            .setAcceptsDelayedFocusGain(true)
++            .setOnAudioFocusChangeListener { focusChange ->
++                android.util.Log.d("AssistantSession", "Audio Focus Change: $focusChange")
++            }
++            .build()
++
+         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+         val layoutStyle = prefs.getInt("ui_layout_pref", 0)
+         currentLayoutStyle = layoutStyle
+@@ -269,8 +287,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+         
+         btnMic.setOnClickListener {
+             if (!isQueryProcessed) {
+-                android.util.Log.w("AssistantSession", "Ignoring mic trigger because query is still being processed.")
+-                return@setOnClickListener
++                android.util.Log.w("AssistantSession", "Voice Barge-In: Interrupting active generation!")
++                isQueryProcessed = true
++                typewriterJob?.cancel()
++                timeoutJob?.cancel()
++                CoroutineScope(Dispatchers.IO).launch {
++                    LLMManager.resetConversationSuspend(context)
++                }
+             }
+             LatencyLogger.reset()
+             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
+@@ -405,6 +428,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+             statusText.text = if (LLMManager.isPrewarming) "Pre-warming Model... This may take 20s" else "Initializing Model..."
+             btnOpenApp.visibility = View.GONE
+             inputControls.visibility = View.GONE
++            btnMic.isEnabled = false
++            btnMic.isClickable = false
++            btnSend.isEnabled = false
+             
+             CoroutineScope(Dispatchers.Main).launch {
+                 // Wait for prewarm to finish if it's currently running
+@@ -416,6 +442,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                     override fun onSuccess() {
+                         statusText.text = "Hi, how can I help you?"
+                         inputControls.visibility = View.VISIBLE
++                        btnMic.isEnabled = true
++                        btnMic.isClickable = true
+                         btnSend.isEnabled = true
+                         
+                         // Automatically start listening if invoked via voice match/hotword
+@@ -498,7 +526,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+             isQueryProcessed = true
+             return
+         }
+-        if (LLMManager.engine == null || LLMManager.conversation == null) return
++        if (LLMManager.engine == null || LLMManager.conversation == null) {
++            android.widget.Toast.makeText(context, "Model is still initializing...", android.widget.Toast.LENGTH_SHORT).show()
++            stopThinkingAnimation()
++            voiceAnimation.state = VoiceAnimationView.State.IDLE
++            statusText.visibility = android.view.View.VISIBLE
++            btnMic.isEnabled = true
++            btnSend.isEnabled = true
++            isQueryProcessed = true
++            return
++        }
+         
+         startThinkingAnimation()
+         
+@@ -514,6 +551,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+         lastTtsUpdateTime = 0L
+         typewriterJob?.cancel()
+         
++        lastQueuedUtteranceId = ""
++        lastFinishedUtteranceId = ""
++        expectedFinalUtteranceAction = ""
++        isLlmGenerationDone = false
++        
+         btnSend.isEnabled = false
+         isQueryProcessed = false
+         
+@@ -589,17 +631,23 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+         val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
+         val vehicleState = "[Current State: ${VehicleManager.getLLMContextString(context)}]"
+         
++        val ragResults = MemoryManager.fastRagDatabase?.search(interceptedQuery) ?: emptyList()
++        var ragContextStr = ""
++        if (ragResults.isNotEmpty()) {
++            ragContextStr = "[Relevant Past Memory]\n" + ragResults.joinToString("\n") { "${it.role}: ${it.content}" } + "\n\n"
++        }
++        
+         if (LLMManager.isFirstMessage) {
+             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+             
+             if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
+-                finalPrompt = "$sysPrompt\n$reminder\n\n$vehicleState\n[Conversation History]\n$slidingHistory\nAssistant:"
++                finalPrompt = "$sysPrompt\n$reminder\n\n$vehicleState\n$ragContextStr[Conversation History]\n$slidingHistory\nAssistant:"
+             } else {
+-                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder\n\n$vehicleState\nUser: $interceptedQuery" else "$reminder\n\n$vehicleState\nUser: $interceptedQuery"
++                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder\n\n$vehicleState\n${ragContextStr}User: $interceptedQuery" else "$reminder\n\n$vehicleState\n${ragContextStr}User: $interceptedQuery"
+             }
+             LLMManager.isFirstMessage = false
+         } else {
+-            finalPrompt = "$vehicleState$reminder\n$interceptedQuery"
++            finalPrompt = "$vehicleState$reminder\n${ragContextStr}User: $interceptedQuery"
+         }
+ 
+         val executedTools = mutableSetOf<String>()
+@@ -788,8 +836,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                                 val sentenceStartOffset = parsedSpokenLength[0]
+                                 parsedSpokenLength[0] += parsedSentence.length
+                                 
+-                                LatencyLogger.log("AssistantSession", "Sending sentence to TTS queue: SENTENCE_$sentenceStartOffset")
+-                                tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
++                                val utteranceId = "SENTENCE_$sentenceStartOffset"
++                                lastQueuedUtteranceId = utteranceId
++                                LatencyLogger.log("AssistantSession", "Sending sentence to TTS queue: $utteranceId")
++                                audioFocusRequest?.let { audioManager?.requestAudioFocus(it) }
++                                tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                                 
+                                 remainingText = displayMsg.substring(spokenTextLength[0])
+                                 match = sentenceRegex.find(remainingText)
+@@ -869,7 +920,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                                     return@launch
+                                 }
+                                 android.util.Log.w("AssistantSession", "Suspiciously short response. KV Cache full. Graceful Sliding Window Reset initiated...")
+-                                LLMManager.resetConversation()
++                                LLMManager.resetConversationSuspend()
+                                 handleQuery(query, retryCount + 1)
+                                 return@launch
+                             }
+@@ -895,7 +946,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                                 finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
+                             }
+                             
+-                            targetDisplayMessage = finalMsg
++                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
++                                targetDisplayMessage = finalMsg
++                            }
+                             if (typewriterJob == null || typewriterJob?.isActive != true) {
+                                 typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+                                     kotlinx.coroutines.delay(400) // Wait for TTS engine to initialize audio buffer
+@@ -934,7 +987,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                                     val parsedSentence = parseMarkdown(remainingSentence).toString()
+                                     val sentenceStartOffset = parsedSpokenLength[0]
+                                     parsedSpokenLength[0] += parsedSentence.length
+-                                    tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
++                                    
++
++                                    val utteranceId = "SENTENCE_$sentenceStartOffset"
++                                    lastQueuedUtteranceId = utteranceId
++                                    LatencyLogger.log("AssistantSession", "Sending fallback sentence to TTS queue: $utteranceId")
++                                    audioFocusRequest?.let { audioManager?.requestAudioFocus(it) }
++                                    tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                                 }
+                                 val isQuestion = expectFollowup || 
+                                                  finalMsg.trim().endsWith("?") || 
+@@ -943,8 +1002,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+                                                  finalMsg.contains("do you want", ignoreCase = true) || 
+                                                  finalMsg.contains("shall i", ignoreCase = true)
+                                                  
+-                                val finalUtterance = if (isQuestion) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
+-                                tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
++                                synchronized(stateLock) {
++                                    expectedFinalUtteranceAction = if (isQuestion) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
++                                    isLlmGenerationDone = true
++                                }
++                                checkAndRunFinalAction()
+                             } else {
+                                 val isQuestion = expectFollowup || 
+                                                  finalMsg.trim().endsWith("?") || 
+@@ -1075,10 +1137,43 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
+         return spannable
+     }
+ 
++    private fun checkAndRunFinalAction() {
++        var actionToRun: String? = null
++        synchronized(stateLock) {
++            if (isLlmGenerationDone && (lastQueuedUtteranceId.isEmpty() || lastFinishedUtteranceId == lastQueuedUtteranceId)) {
++                actionToRun = expectedFinalUtteranceAction
++                expectedFinalUtteranceAction = "" // Prevent duplicate triggers
++                isLlmGenerationDone = false
++            }
++        }
++        
++        if (!actionToRun.isNullOrEmpty()) {
++            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
++                // Wait for the visual typewriter to finish printing all generated text
++                while (currentDisplayLength < targetDisplayMessage.length) {
++                    kotlinx.coroutines.delay(100)
++                }
++                
++                if (actionToRun == "QUESTION_FINAL") {
++                    btnMic.performClick()
++                } else if (actionToRun == "STATEMENT_FINAL_TOOL") {
++                    for (job in currentPendingTools) { try { job.await() } catch (e: Exception) {} }
++                    kotlinx.coroutines.delay(500)
++                    finish()
++                } else if (actionToRun == "STATEMENT_FINAL") {
++                    kotlinx.coroutines.delay(500)
++                    finish()
++                }
++            }
++        }
++    }
++
+     override fun onDestroy() {
+         tts?.stop()
+         speechRecognizer?.destroy()
+         dotAnimatorJob?.cancel()
++        typewriterJob?.cancel()
++        unloadJob?.cancel()
+         
+         val restartIntent = Intent(context, WakeWordService::class.java)
+         restartIntent.action = "ACTION_RESTART_LISTENING"
+diff --git a/app/src/main/java/com/tcs/vehicleassistant/LLMManager.kt b/app/src/main/java/com/tcs/vehicleassistant/LLMManager.kt
+index 3ad5fb44..7d84f165 100644
+--- a/app/src/main/java/com/tcs/vehicleassistant/LLMManager.kt
++++ b/app/src/main/java/com/tcs/vehicleassistant/LLMManager.kt
+@@ -14,6 +14,7 @@ import android.system.Os
+ import kotlinx.coroutines.CoroutineScope
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.launch
++import kotlinx.coroutines.runBlocking
+ import kotlinx.coroutines.withContext
+ import kotlinx.coroutines.sync.withLock
+ import java.io.File
+@@ -28,16 +29,16 @@ object LLMManager {
+     var currentModelPath: String = ""
+         private set
+ 
+-    var isInitializing = false
++    @Volatile var isInitializing = false
+         private set
+         
+-    var activeBackendString = "Unknown"
++    @Volatile var activeBackendString = "Unknown"
+         private set
+         
+-    var isPrewarming = false
++    @Volatile var isPrewarming = false
+         private set
+ 
+-    var isFirstMessage = true
++    @Volatile var isFirstMessage = true
+     private var appContext: Context? = null
+ 
+ 
+@@ -117,6 +118,21 @@ object LLMManager {
+                     else -> { activeBackendString = "GPU"; Backend.GPU() } // Auto defaults to GPU
+                 }
+ 
++                try {
++                    val fd = java.io.FileInputStream(modelPath).fd
++                    val length = java.io.File(modelPath).length()
++                    // Android hides posix_fadvise from the public SDK, so we access it via reflection for the kernel hint
++                    val osClass = Class.forName("android.system.Os")
++                    val posixFadvise = osClass.getMethod("posix_fadvise", java.io.FileDescriptor::class.java, Long::class.java, Long::class.java, Int::class.java)
++                    val osConstantsClass = Class.forName("android.system.OsConstants")
++                    val sequentialFlag = osConstantsClass.getField("POSIX_FADV_SEQUENTIAL").getInt(null)
++                    
++                    posixFadvise.invoke(null, fd, 0L, length, sequentialFlag)
++                    Log.i("LLMManager", "Applied posix_fadvise POSIX_FADV_SEQUENTIAL via reflection to optimize memory caching for: $modelPath")
++                } catch (e: Exception) {
++                    Log.w("LLMManager", "posix_fadvise optimization failed or is unsupported on this kernel: ${e.message}")
++                }
++
+                 val engineConfig = EngineConfig(
+                     modelPath = modelPath,
+                     backend = backend,
+@@ -127,10 +143,13 @@ object LLMManager {
+                 engine = Engine(engineConfig)
+                 engine!!.initialize()
+ 
+-                resetConversation(context)
++                resetConversationInternal(context)
+                 currentModelPath = modelPath
+                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath")
+                 
++                // Prevent race conditions by executing the prewarm synchronously before the callback
++                prewarm(context)
++                
+                 withContext(Dispatchers.Main) { 
+                     callback?.onSuccess() 
+                 }
+@@ -149,9 +168,13 @@ object LLMManager {
+                         engine = Engine(engineConfigFallback)
+                         engine!!.initialize()
+                         
+-                        resetConversation(context)
++                        resetConversationInternal(context)
+                         currentModelPath = modelPath
+                         Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
++                        
++                        // Prevent race conditions by executing the prewarm synchronously before the callback
++                        prewarm(context)
++                        
+                         withContext(Dispatchers.Main) { callback?.onSuccess() }
+                     } catch (fallbackEx: Exception) {
+                          Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
+@@ -216,7 +239,8 @@ object LLMManager {
+         basePrompt.append("=== TOOLS ===\n")
+         basePrompt.append("${ToolManager.getLlmToolsPrompt()}\n\n")
+         
+-        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response.\n\n")
++        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST format your tools using standard XML markup tags (e.g. <TOOL>toolName(args)</TOOL>) and close out your thought chain immediately after execution to prevent truncation.\n\n")
++        basePrompt.append("MULTI-TOOL CHAINING: You are capable of executing MULTIPLE tools in a single response if the user's request requires it. Simply output multiple XML blocks back-to-back at the end of your response (e.g. <TOOL>navigate(Home)</TOOL><TOOL>setTemperature(75)</TOOL>).\n\n")
+         
+         basePrompt.append("=== STRICT RULES ===\n")
+         
+@@ -227,8 +251,8 @@ object LLMManager {
+         basePrompt.append("- If user just says increase/warm/hot: \"Increasing the temperature. <TOOL>increaseTemperature()</TOOL>\"\n")
+         basePrompt.append("- If user just says decrease/cool/cold: \"Decreasing the temperature. <TOOL>decreaseTemperature()</TOOL>\"\n")
+         basePrompt.append("- If the user specifies the driver or passenger zone, pass it as an argument! Example: <TOOL>increaseTemperature(2, driver)</TOOL> or <TOOL>setTemperature(70, passenger)</TOOL>.\n")
+-        basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n\n")
+         
++
+         basePrompt.append("1.5 FAN SPEED: To change fan speed, use <TOOL>setFanSpeed(LEVEL)</TOOL>. The maximum level is 7. If the user asks for 'maximum', you MUST use <TOOL>setFanSpeed(7)</TOOL>. Do NOT use increaseFanSpeed for maximum requests.\n")
+ 
+         basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
+@@ -269,24 +293,29 @@ object LLMManager {
+         """.trimIndent()
+     }
+ 
+-    fun resetConversation(context: Context? = null) {
++    fun resetConversation(context: android.content.Context? = null) {
++        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
++            resetConversationSuspend(context)
++        }
++    }
++
++    suspend fun resetConversationSuspend(context: android.content.Context? = null) {
++        initMutex.withLock {
++            resetConversationInternal(context)
++        }
++    }
++    
++    private fun resetConversationInternal(context: android.content.Context? = null) {
+         if (engine == null) return
+-        
+         try {
+             conversation?.close()
+-        } catch (e: Exception) {
+-            Log.w("LLMManager", "Error closing previous conversation", e)
+-        }
+-        
+-        isFirstMessage = true
+-        
+-        val conversationConfig = ConversationConfig()
+-        
+-        try {
++            
++            val conversationConfig = ConversationConfig()
+             conversation = engine!!.createConversation(conversationConfig)
+-            Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
++            isFirstMessage = true
++            android.util.Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
+         } catch (e: Exception) {
+-            Log.e("LLMManager", "Failed to reset conversation", e)
++            android.util.Log.e("LLMManager", "Failed to reset conversation", e)
+         }
+     }
+ 
+@@ -301,8 +330,9 @@ object LLMManager {
+                 val prewarmPrompt = "$sysPrompt\n\n[System Initialization: Acknowledge this configuration. Do not generate a response.]"
+                 
+                 val latch = kotlinx.coroutines.sync.Mutex(true)
+-                conversation?.sendMessageAsync(Contents.of(Content.Text(prewarmPrompt)), object : com.google.ai.edge.litertlm.MessageCallback {
++                conversation?.sendMessageAsync(Contents.of(Content.Text(prewarmPrompt)), object : com.google.ai.edge.litertlm.MessageCallback, CloudMessageCallback {
+                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {}
++                    override fun onMessage(chunk: String) {}
+                     override fun onDone() { latch.unlock() }
+                     override fun onError(throwable: Throwable) { latch.unlock() }
+                 }, emptyMap())
+@@ -318,18 +348,20 @@ object LLMManager {
+         }
+     }
+ 
+-    fun unload() {
+-        try {
+-            conversation?.close()
+-            engine?.close()
+-        } catch (e: Exception) {
+-            Log.w("LLMManager", "Failed to cleanly close inference instance during unload.", e)
+-        } finally {
+-            conversation = null
+-            engine = null
+-            isFirstMessage = true
+-            System.gc()
+-            Log.i("LLMManager", "LLM Model unloaded from memory to save resources.")
++    fun unload() = runBlocking {
++        initMutex.withLock {
++            try {
++                conversation?.close()
++                engine?.close()
++            } catch (e: Exception) {
++                Log.w("LLMManager", "Failed to cleanly close inference instance during unload.", e)
++            } finally {
++                conversation = null
++                engine = null
++                isFirstMessage = true
++                System.gc()
++                Log.i("LLMManager", "LLM Model unloaded from memory to save resources.")
++            }
+         }
+     }
+ }
+diff --git a/app/src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt b/app/src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt
+index 5b7dd336..a4aff05d 100644
+--- a/app/src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt
++++ b/app/src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt
+@@ -973,15 +973,10 @@ class LocalLLMActivity : AppCompatActivity() {
+ 
+         LLMManager.initialize(applicationContext, MODEL_PATH, force, backendChoice, object : LLMManager.InitCallback {
+             override fun onSuccess() {
+-                chatAdapter.addMessage(ChatMessage("Model Loaded successfully! Ready for inference.", isUser = false))
++                chatAdapter.addMessage(ChatMessage("Model Loaded and Pre-warmed successfully! Ready for inference.", isUser = false))
+                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                 generateButton.isEnabled = true
+                 btnLoadModel.isEnabled = false
+-                
+-                // Automatically prewarm the KV cache to eliminate the 6-second TTFT delay on the first query
+-                lifecycleScope.launch(Dispatchers.IO) {
+-                    LLMManager.prewarm(applicationContext)
+-                }
+             }
+ 
+             override fun onError(e: Exception) {
+diff --git a/app/src/main/java/com/tcs/vehicleassistant/MemoryManager.kt b/app/src/main/java/com/tcs/vehicleassistant/MemoryManager.kt
+index 349c3eea..f86849f1 100644
+--- a/app/src/main/java/com/tcs/vehicleassistant/MemoryManager.kt
++++ b/app/src/main/java/com/tcs/vehicleassistant/MemoryManager.kt
+@@ -8,9 +8,16 @@ object MemoryManager {
+     data class Turn(val role: String, val content: String)
+     
+     private val conversationHistory = mutableListOf<Turn>()
++    var fastRagDatabase: FastRagDatabase? = null
+     
++    fun initDatabase(context: android.content.Context) {
++        if (fastRagDatabase == null) {
++            fastRagDatabase = FastRagDatabase(context.applicationContext)
++        }
++    }
+     fun addTurn(role: String, content: String) {
+         conversationHistory.add(Turn(role, content))
++        fastRagDatabase?.insertTurn(role, content)
+         Log.d(TAG, "Added turn: $role. Total turns: ${conversationHistory.size}")
+     }
+     
+@@ -64,6 +71,7 @@ object MemoryManager {
+     
+     fun clearMemory() {
+         conversationHistory.clear()
++        fastRagDatabase?.clearDatabase()
+         Log.i(TAG, "Conversation memory cleared.")
+     }
+ }

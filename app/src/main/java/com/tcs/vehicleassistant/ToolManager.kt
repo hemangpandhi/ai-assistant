@@ -196,7 +196,8 @@ object ToolManager {
      */
 
 
-    fun getToolDefinition(toolCall: String): ToolDefinition? {
+    fun getToolDefinition(rawToolCall: String): ToolDefinition? {
+        val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>"), "").trim()
         val commandName = toolCall.substringBefore("(").trim()
         val directMatch = activeTools[commandName]
         if (directMatch != null) return directMatch
@@ -236,7 +237,7 @@ object ToolManager {
      * Returns a string summarizing the outcome for the chat UI.
      */
     suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
-        val toolCall = rawToolCall.trim()
+        val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>"), "").trim()
         Log.d(TAG, "Executing toolCall: $toolCall")
         try {
             // Check if the requested tool corresponds to an enabled handler

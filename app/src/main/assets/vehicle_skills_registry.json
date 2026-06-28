@@ -1174,7 +1174,7 @@
       "requires_agentic_loop": false,
       "success_message": "I'll start playing music.",
       "requires_vehicle_state": false,
-      "instruction": "Plays music. You MUST replace 'SONG' with the requested artist or song name. If the user does not specify a specific song or artist, output <TOOL>playMusic(music)</TOOL> so the system can ask them.",
+      "instruction": "Plays music. You MUST replace 'SONG' with whatever the user requested (artist, song, or genre). If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their choice (e.g., 'bollywood'), immediately execute <TOOL>playMusic(CHOICE)</TOOL>.",
       "aliases": [
         "play",
         "playAudio",
@@ -1330,6 +1330,23 @@
       "requires_vehicle_state": false
     },
     {
+      "description": "Searches for nearby amenities like restaurants, gas stations, charging stations, and food. Use this when the user is looking for nearby places and you want to offer them choices in the chat.",
+      "instruction": "Pass the specific amenity type (e.g., 'italian restaurant', 'gas', 'charging', 'pizza'). DO NOT use this for sightseeing or best places to visit.",
+      "prompt_string": "<TOOL>searchNearby(amenity)</TOOL>",
+      "handler_key": "searchNearby",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "hungry",
+        "food",
+        "restaurant",
+        "gas",
+        "fuel",
+        "charging",
+        "find nearby"
+      ],
+      "requires_vehicle_state": false
+    },
+    {
       "description": "Searches for physical locations, points of interest (POIs), businesses, or addresses on the map.",
       "instruction": "ONLY use this for map locations. DO NOT use this tool to suggest places to visit, sightseeing spots, or best places. Answer those queries directly with text without any tools.",
       "prompt_string": "<TOOL>search(search_term)</TOOL>",
@@ -1342,10 +1359,7 @@
         "search",
         "search for",
         "show on map",
-        "show me places on map",
-        "restaurant",
-        "food",
-        "nearby"
+        "show me places on map"
       ],
       "requires_vehicle_state": false,
       "context_dependencies": [

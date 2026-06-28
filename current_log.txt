@@ -1,0 +1,1005 @@
+--------- beginning of main
+06-28 10:53:07.413  2919  4905 D SomeipLib-ConnWiFiStatusStub: InternetConnectionStatus : 1
+06-28 10:53:07.413  2919  4905 D SomeipLib-ConnWiFiStatusStub: networkCapabilities : false
+06-28 10:53:07.413  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.413  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.414  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.414  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,1*33
+06-28 10:53:07.414  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+--------- beginning of system
+06-28 10:53:07.415  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,1 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,1*33
+06-28 10:53:07.415  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.415  2919  4351 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,2 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,2*30
+06-28 10:53:07.415  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,2*30
+06-28 10:53:07.415  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.416  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.416  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,3*31
+06-28 10:53:07.416  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.416  2919  4351 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,3 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,3*31
+06-28 10:53:07.417  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.417  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,4 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,4*36
+06-28 10:53:07.417  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,4*36
+06-28 10:53:07.417  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.418  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.418  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,5 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,5*37
+06-28 10:53:07.418  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,5*37
+06-28 10:53:07.418  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.418  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.419  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GPGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GPGSV,1,1,00,0*65
+06-28 10:53:07.419  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GPGSV,1,1,00,0*65
+06-28 10:53:07.419  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.419  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.420  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GLGSV,1,1,00,0*79
+06-28 10:53:07.420  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GLGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GLGSV,1,1,00,0*79
+06-28 10:53:07.420  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.420  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.420  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GAGSV,1,1,00,0*74
+06-28 10:53:07.420  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GAGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GAGSV,1,1,00,0*74
+06-28 10:53:07.421  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.421  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.421  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GBGSV,1,1,00,0*77
+06-28 10:53:07.421  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.421  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.421  2919  4351 D AllianceCarEvSettingService: NMEA Info | addressField: $GBGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GBGSV,1,1,00,0*77
+06-28 10:53:07.421  2919  4351 D AllianceCarEvSettingService: NMEA Info | addressField: $GQGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GQGSV,1,1,00,0*64
+06-28 10:53:07.421  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GQGSV,1,1,00,0*64
+06-28 10:53:07.421  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.422  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.423  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.423  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.423  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,1,0*7F
+06-28 10:53:07.423  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.423  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.423  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,2,0*7C
+06-28 10:53:07.423  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.423  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,1,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,1,0*7F
+06-28 10:53:07.423  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,2,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,2,0*7C
+06-28 10:53:07.424  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.424  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,3,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,3,0*7D
+06-28 10:53:07.424  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.424  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,3,0*7D
+06-28 10:53:07.424  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.425  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.425  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,4,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,4,0*7A
+06-28 10:53:07.426  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.426  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,4,0*7A
+06-28 10:53:07.426  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.426  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.426  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14639) -> newFrameIndex 14639 : input ts 344294470
+06-28 10:53:07.426  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,5,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,5,0*7B
+06-28 10:53:07.426  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.426  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,5,0*7B
+06-28 10:53:07.426  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.427  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14639 timestamp 344296216 inFlags 0
+06-28 10:53:07.427  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14640) -> newFrameIndex 14640 : input ts 344314470
+06-28 10:53:07.428  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14640 timestamp 344316216 inFlags 0
+06-28 10:53:07.428  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.429  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.429  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGST | messageType: Not a sentence of interest | dataFields: ,0.0000,9199192,9199192,0.0000,3758300,3758300,3758300 | rawMessage: $GNGST,,0.0000,9199192,9199192,0.0000,3758300,3758300,3758300*73
+06-28 10:53:07.429  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.429  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGST,,0.0000,9199192,9199192,0.0000,3758300,3758300,3758300*73
+06-28 10:53:07.429  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.430  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.430  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNZDA | messageType: Not a sentence of interest | dataFields: ,,,,00,00 | rawMessage: $GNZDA,,,,,00,00*56
+06-28 10:53:07.431  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.431  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGBS | messageType: Not a sentence of interest | dataFields: ,,,,,,,,, | rawMessage: $GNGBS,,,,,,,,,,*5F
+06-28 10:53:07.431  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.431  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNZDA,,,,,00,00*56
+06-28 10:53:07.431  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.431  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.431  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGBS,,,,,,,,,,*5F
+06-28 10:53:07.431  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.432  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.432  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GSPOF | messageType: Not a sentence of interest | dataFields: 1 | rawMessage: $GSPOF,1*74
+06-28 10:53:07.432  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.432  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GSPOF,1*74
+06-28 10:53:07.432  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.434  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:07.434  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.434  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.446   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:07.447  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.447  2977  3032 D CarDrivingStateService: Property Changed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344305166899, mValue=0.0}
+06-28 10:53:07.447  2977  3032 D CarDrivingStateService: mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344305166899, mValue=0.0}
+06-28 10:53:07.447  2977  3032 D CarDrivingStateService: inferDrivingStateLocked mLastGear: CarPropertyValue{mPropertyId=0x11400400, propertyName=GEAR_SELECTION, mAreaId=0x0, mStatus=0, mTimestampNanos=13443795671, mValue=4}mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344305166899, mValue=0.0}mLastIgnitionState: CarPropertyValue{mPropertyId=0x11400409, propertyName=IGNITION_STATE, mAreaId=0x0, mStatus=0, mTimestampNanos=13378545880, mValue=5}
+06-28 10:53:07.447  2977  3032 D CarDrivingStateService: Driving state new->old 0->0
+06-28 10:53:07.447  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.447  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344304673461, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:07.447  6117  6117 I ConnManFramework.co.nissan.car.factory.WifiFactoryWrapper: Wifi factory odometer callback
+06-28 10:53:07.447  6117  6117 I ConnManFramework.co.nissan.car.factory.WifiFactoryWrapper: Odometer changed: 0.0
+06-28 10:53:07.448  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14641) -> newFrameIndex 14641 : input ts 344315691
+06-28 10:53:07.448  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14641 timestamp 344336216 inFlags 0
+06-28 10:53:07.450  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:07.450  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:07.451  1364  2683 E MBP_AnalogCapture: [bstreamReadTask] Failed to read from bstream file: Connection timed out 
+06-28 10:53:07.451  1364  2683 E MBP_AnalogCapture: E_CODE (0) AT (bstreamReadTask, 473) 
+--------- beginning of kernel
+06-28 10:53:07.454  2683  2683 W BSTREAM : bs4_fifo_read-timeout
+06-28 10:53:07.468  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:07.468  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.469  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14642) -> newFrameIndex 14642 : input ts 344337114
+06-28 10:53:07.470  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14642 timestamp 344356216 inFlags 0
+06-28 10:53:07.470  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:07.481  1364  2680 D MBP_AnalogDevice: [processQuickQualityData][BGS] BGS Quality SKIP at freq:90400 qualityRate:0 | level:-15(th>=10) snr:12(th>=130) usn:228(th<=195) wam:47(th<=42) offset:0(th<=23) 
+06-28 10:53:07.481  1364  2680 I MBP_AnalogDevice: [sendQualityData][FM_BGS] Frequency=90400 , QualityRate=0 , RSSI=-15dBuV , snr=12(4%) , stereo=0 , mpxNoise=228(89%) , coch=0(0%) , dev=31(48kHz) , tune=0 
+06-28 10:53:07.481  1364  2680 D MBP_AnalogDevice: [sendQualityData][FM_BGS] fstRF=-15dBuV , offset=0(0Hz) , adj=5(52%) , mp=47(18%) , separation=0 
+06-28 10:53:07.481  1364  2411 I MBP_AMFMPlayer: [processCurrentProgramInfoUpdate] freq = 90400, tuned = 0, mode = 0  
+06-28 10:53:07.481  1364  2411 D MBP_FMStationScanner: [processDeviceNotify] freq=90400, isTuned=0, mMonitoringCount=0  
+06-28 10:53:07.485  1364  2636 D STMDriver: [Device_Get_WSP_Status] realAnsParamNum: 3, FGC DISS BW: 1(30kHz), BGC DISS BW: 5(64kHz), softmute: 19(7%), highcut: -56, lowcut: 0, stereoblend: 0(0%), highblend: 255(100%), rolloff: 400000
+06-28 10:53:07.485  1364  2636 I MBP_AnalogDevice: [sendQualityData][FM_FGT] Frequency=87700 , QualityRate=100 , RSSI=71dBuV , snr=255(100%) , stereo=0 , mpxNoise=0(0%) , coch=0(0%) , dev=0(0kHz) , rdsDeviation=14972Hz , rdsBer=100% , tune=1 
+06-28 10:53:07.485  1364  2636 D MBP_AnalogDevice: [sendQualityData][FM_FGT] fstRF=71dBuV , offset=0(0Hz) , adj=-128(0%) , mp=0(0%) , separation=0 
+06-28 10:53:07.485  1364  2408 D MBP_RadioManager: [checkSignalQuality] system = 1, quality 100, id=0x0, TuneMode = UNMUTE, audioEnabled=0, tunnelEnabled=0 
+06-28 10:53:07.485  1364  2408 D MBP_RadioManager: [processLinkingStateMachine] FM state=IDLE_LINK, DAB state= IDLE_LINK 
+06-28 10:53:07.488  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.490  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.490  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.490  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.490  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.490  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.491  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14643) -> newFrameIndex 14643 : input ts 344358673
+06-28 10:53:07.491  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.491  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.491  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.491  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14643 timestamp 344376216 inFlags 0
+06-28 10:53:07.491  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.491  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.493  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.493  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.493  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.493  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.493  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.507  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344373661482, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:07.507   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:07.507   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:07.507   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:07.508   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:07.508   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:07.508  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:07.508  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:07.511  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14644) -> newFrameIndex 14644 : input ts 344379687
+06-28 10:53:07.512  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14644 timestamp 344396216 inFlags 0
+06-28 10:53:07.528  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.533  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14645) -> newFrameIndex 14645 : input ts 344401025
+06-28 10:53:07.533  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14645 timestamp 344416216 inFlags 0
+06-28 10:53:07.534  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:07.534  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.534  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.546   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:07.547  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.547  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.547  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344404770597, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:07.549  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:07.549  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:07.554  3368  3886 D EthernetMonitor: Start to runMonitorCommand.
+06-28 10:53:07.554  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14646) -> newFrameIndex 14646 : input ts 344422432
+06-28 10:53:07.554  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14646 timestamp 344436216 inFlags 0
+06-28 10:53:07.554  3368  3886 D EthernetMonitor: getCurrentStringDate : 2026-06-28
+06-28 10:53:07.568  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:07.568  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.570  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:07.572  3368  3886 D EthernetMonitor: getEthInterface: eth0
+06-28 10:53:07.576  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14647) -> newFrameIndex 14647 : input ts 344443785
+06-28 10:53:07.576  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14647 timestamp 344456216 inFlags 0
+06-28 10:53:07.580  2919  3086 I WelcomeSequenceSomeIP: WelcomeSequenceSomeIP.sendHmiReadyInternal():102::sendHmiReadyInternal, mWelcomeSeqHmiReadyStubAail=true, ready=true
+06-28 10:53:07.580  2919  3086 I SomeipLib-Stub-WelcomeSequenceHmiReady: fireHmiReadyEvent, data=true
+06-28 10:53:07.580  1571  1619 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.580  1571  1619 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.581  1364  2413 D MBP_DeviceManager: [onScan] BGS : Radio(FM), freq(90500) 
+06-28 10:53:07.583  1364  2680 D STMDriver: [TUN_Change_Frequency] Star_Command_Communicate = 0, frequency = 90500, i2cAddr(0x64) channelID(2)
+06-28 10:53:07.588  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.589  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.589  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.589  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.589  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.589  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.590  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.590  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.590  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.590  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.591  1364  2680 D MBP_AnalogDevice: [onTuneInternal][BGS][90500] Tune result:0 for band:4, scanMode(2) mTuneMode(0) 
+06-28 10:53:07.592  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.592  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.592  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.592  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.592  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.592  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.597  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14648) -> newFrameIndex 14648 : input ts 344465021
+06-28 10:53:07.597  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14648 timestamp 344476216 inFlags 0
+06-28 10:53:07.607  3368  3886 D EthernetMonitor: getCurrentStringDate : 2026-06-28
+06-28 10:53:07.607  3368  3886 D EthernetMonitor: runMonitorCommand returned.
+06-28 10:53:07.607  3368  3886 D EthernetMonitor: MonitorThread will be restarted after 0.1 second
+06-28 10:53:07.608   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:07.608   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:07.608   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:07.608   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:07.608   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:07.608  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344473764659, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:07.609  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:07.609  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=-1ms what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:07.618  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14649) -> newFrameIndex 14649 : input ts 344486407
+06-28 10:53:07.618  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14649 timestamp 344496216 inFlags 0
+06-28 10:53:07.629  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.634  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:07.634  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.634  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.639  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14650) -> newFrameIndex 14650 : input ts 344507742
+06-28 10:53:07.640  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14650 timestamp 344516216 inFlags 0
+06-28 10:53:07.646   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:07.647  2977  3032 D CarDrivingStateService: Property Changed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344506524243, mValue=0.0}
+06-28 10:53:07.647  2977  3032 D CarDrivingStateService: mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344506524243, mValue=0.0}
+06-28 10:53:07.647  2977  3032 D CarDrivingStateService: inferDrivingStateLocked mLastGear: CarPropertyValue{mPropertyId=0x11400400, propertyName=GEAR_SELECTION, mAreaId=0x0, mStatus=0, mTimestampNanos=13443795671, mValue=4}mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344506524243, mValue=0.0}mLastIgnitionState: CarPropertyValue{mPropertyId=0x11400409, propertyName=IGNITION_STATE, mAreaId=0x0, mStatus=0, mTimestampNanos=13378545880, mValue=5}
+06-28 10:53:07.647  2977  3032 D CarDrivingStateService: Driving state new->old 0->0
+06-28 10:53:07.647  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.647  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.647  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344504853930, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:07.649  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:07.649  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:07.661  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14651) -> newFrameIndex 14651 : input ts 344529100
+06-28 10:53:07.661  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14651 timestamp 344536216 inFlags 0
+06-28 10:53:07.669  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:07.669  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.669  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 0a 83 42 04 2d 03 72 a4 00 a9 00 34
+06-28 10:53:07.669  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e26
+06-28 10:53:07.671  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:07.680   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:07.681  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.682  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14652) -> newFrameIndex 14652 : input ts 344549100
+06-28 10:53:07.683  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14652 timestamp 344556216 inFlags 0
+06-28 10:53:07.687  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.688  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.688  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.688  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.688  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.689  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.689  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.689  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.689  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.689  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.690  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.690  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.690  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.690  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.690  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.694  1364  2680 D MBP_AnalogDevice: [processQuickQualityData][BGS] BGS Quality SKIP at freq:90500 qualityRate:0 | level:-16(th>=10) snr:9(th>=130) usn:231(th<=195) wam:51(th<=42) offset:0(th<=23) 
+06-28 10:53:07.694  1364  2680 I MBP_AnalogDevice: [sendQualityData][FM_BGS] Frequency=90500 , QualityRate=0 , RSSI=-16dBuV , snr=9(3%) , stereo=0 , mpxNoise=231(90%) , coch=0(0%) , dev=32(50kHz) , tune=0 
+06-28 10:53:07.694  1364  2680 D MBP_AnalogDevice: [sendQualityData][FM_BGS] fstRF=-16dBuV , offset=0(0Hz) , adj=6(52%) , mp=51(20%) , separation=0 
+06-28 10:53:07.694  1364  2411 I MBP_AMFMPlayer: [processCurrentProgramInfoUpdate] freq = 90500, tuned = 0, mode = 0  
+06-28 10:53:07.694  1364  2411 D MBP_FMStationScanner: [processDeviceNotify] freq=90500, isTuned=0, mMonitoringCount=0  
+06-28 10:53:07.704  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14653) -> newFrameIndex 14653 : input ts 344571720
+06-28 10:53:07.704  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14653 timestamp 344576216 inFlags 0
+06-28 10:53:07.708   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:07.708   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:07.708   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:07.708   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:07.708   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:07.709  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344573908618, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:07.710  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:07.710  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:07.725  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14654) -> newFrameIndex 14654 : input ts 344593068
+06-28 10:53:07.726  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14654 timestamp 344596216 inFlags 0
+06-28 10:53:07.730  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.734  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:07.734  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.734  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.746  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14655) -> newFrameIndex 14655 : input ts 344614382
+06-28 10:53:07.746  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14655 timestamp 344616216 inFlags 0
+06-28 10:53:07.746   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:07.746  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14656) -> newFrameIndex 14656 : input ts 344634382
+06-28 10:53:07.747  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14656 timestamp 344636216 inFlags 0
+06-28 10:53:07.747  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.747  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.748  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344604946066, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:07.749  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:07.749  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:07.767  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14657) -> newFrameIndex 14657 : input ts 344635676
+06-28 10:53:07.768  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14657 timestamp 344656216 inFlags 0
+06-28 10:53:07.770  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.770  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:07.770  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:07.787  1364  2636 D STMDriver: [Device_Get_WSP_Status] realAnsParamNum: 3, FGC DISS BW: 1(30kHz), BGC DISS BW: 5(64kHz), softmute: 19(7%), highcut: -56, lowcut: 0, stereoblend: 0(0%), highblend: 255(100%), rolloff: 400000
+06-28 10:53:07.787  1364  2636 I MBP_AnalogDevice: [sendQualityData][FM_FGT] Frequency=87700 , QualityRate=100 , RSSI=71dBuV , snr=255(100%) , stereo=0 , mpxNoise=0(0%) , coch=0(0%) , dev=0(0kHz) , rdsDeviation=14972Hz , rdsBer=100% , tune=1 
+06-28 10:53:07.787  1364  2636 D MBP_AnalogDevice: [sendQualityData][FM_FGT] fstRF=71dBuV , offset=0(0Hz) , adj=-128(0%) , mp=0(0%) , separation=0 
+06-28 10:53:07.788  1364  2408 D MBP_RadioManager: [checkSignalQuality] system = 1, quality 100, id=0x0, TuneMode = UNMUTE, audioEnabled=0, tunnelEnabled=0 
+06-28 10:53:07.788  1364  2408 D MBP_RadioManager: [processLinkingStateMachine] FM state=IDLE_LINK, DAB state= IDLE_LINK 
+06-28 10:53:07.789  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14658) -> newFrameIndex 14658 : input ts 344657106
+06-28 10:53:07.790  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14658 timestamp 344676216 inFlags 0
+06-28 10:53:07.790  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.791  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.791  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.791  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.791  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.791  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.792  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.793  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.793  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.794  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.794  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.794  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.794  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.794  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.794  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.794  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.795  1364  2413 D MBP_DeviceManager: [onScan] BGS : Radio(FM), freq(90600) 
+06-28 10:53:07.797  1364  2680 D STMDriver: [TUN_Change_Frequency] Star_Command_Communicate = 0, frequency = 90600, i2cAddr(0x64) channelID(2)
+06-28 10:53:07.804  1364  2680 D MBP_AnalogDevice: [onTuneInternal][BGS][90600] Tune result:0 for band:4, scanMode(2) mTuneMode(0) 
+06-28 10:53:07.805  2919  4544 I GrpcPathManager: Reconnecting to server
+06-28 10:53:07.805  2919 10200 E GrpcPathManager: onError: Server closed connection with error, scheduling reconnect
+06-28 10:53:07.807  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344674017211, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:07.807  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: VENDOR_PROPERTY(0x216004dc), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344665061118, Status: UNAVAILABLE(0x1), Value: 0.0} with status that is not AVAILABLE
+06-28 10:53:07.808  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:07.808  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:07.809   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:07.809   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:07.809   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:07.809   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:07.809   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:07.810  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14659) -> newFrameIndex 14659 : input ts 344678683
+06-28 10:53:07.811  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14659 timestamp 344696216 inFlags 0
+06-28 10:53:07.812  3430  3430 I jp.co.nissan.hmi.nissan_pal.cardebugmanager.adapter.CarDebugAllianceListener: PIT <AllianceCarDebugManager> update from Platform to HMI Perform Data: [PerformanceData { id : PerformanceProperty.PART_AUTHENTICATION_STATUS, GPU load : 0.0, temperature : 0, Part authentication status : PartAuthenticationStatus { state : 4, progress : 1, error : 18 }, GNSS calibration status : None }]
+06-28 10:53:07.812  3430  3430 I jp.co.nissan.hmi.nissan_pal.cardebugmanager.adapter.CarDebugAllianceListener: PIT <AllianceCarDebugManager> update from Platform to HMI Received PerformanceProperty.PART_AUTHENTICATION_STATUS: PerformanceProperty.PART_AUTHENTICATION_STATUS
+06-28 10:53:07.812  3430  3430 D jp.co.nissan.hmi.nissan_pal.cardebugmanager.adapter.CarDebugAllianceListener: PIT <AllianceCarDebugManager> update from Platform to HMI Received Bootstrap Data: 1.State: 4 2.Error: 18 3.Progress: 1
+06-28 10:53:07.830  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: VENDOR_PROPERTY(0x216004d9), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344687502732, Status: UNAVAILABLE(0x1), Value: 0.0} with status that is not AVAILABLE
+06-28 10:53:07.830  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.831  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14660) -> newFrameIndex 14660 : input ts 344699728
+06-28 10:53:07.832  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14660 timestamp 344716216 inFlags 0
+06-28 10:53:07.834  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:07.834  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.834  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.834  5625  7310 D WakeWord: Vosk heard: {
+06-28 10:53:07.834  5625  7310 D WakeWord:   "partial" : ""
+06-28 10:53:07.834  5625  7310 D WakeWord: }
+06-28 10:53:07.846   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:07.847  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.847  2977  3032 D CarDrivingStateService: Property Changed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344707864763, mValue=0.0}
+06-28 10:53:07.847  2977  3032 D CarDrivingStateService: mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344707864763, mValue=0.0}
+06-28 10:53:07.847  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.847  2977  3032 D CarDrivingStateService: inferDrivingStateLocked mLastGear: CarPropertyValue{mPropertyId=0x11400400, propertyName=GEAR_SELECTION, mAreaId=0x0, mStatus=0, mTimestampNanos=13443795671, mValue=4}mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344707864763, mValue=0.0}mLastIgnitionState: CarPropertyValue{mPropertyId=0x11400409, propertyName=IGNITION_STATE, mAreaId=0x0, mStatus=0, mTimestampNanos=13378545880, mValue=5}
+06-28 10:53:07.847  2977  3032 D CarDrivingStateService: Driving state new->old 0->0
+06-28 10:53:07.848  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344705038565, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:07.849  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:07.849  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:07.853  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14661) -> newFrameIndex 14661 : input ts 344721033
+06-28 10:53:07.853  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14661 timestamp 344736216 inFlags 0
+06-28 10:53:07.870  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:07.871  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:07.871  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.874  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14662) -> newFrameIndex 14662 : input ts 344742379
+06-28 10:53:07.875  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14662 timestamp 344756216 inFlags 0
+06-28 10:53:07.885  2919  4613 I AllianceCarIVCManager: sendOtherLimitationStatement() is called 
+06-28 10:53:07.885  2919  4613 I ConnectivityRPMDriverReq: sendOtherLimitationStatement() called with: OtherLimitationStatement{mIVILuminanceLevelStatus = 17, mAudioMusicVolumeState = 255}
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: fireOtherLimitationStatement by Connectivity_RPM_Driver_Req
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: IVI_Luminance_Level_Status : 17
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: Audio_Music_Volume_State : 255
+06-28 10:53:07.885  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.885  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.885  2919  4613 I AllianceCarIVCManager: sendDriverRequest() is called 
+06-28 10:53:07.885  2919  4613 I ConnectivityRPMDriverReq: sendDriverRequest() called with: DriverRequest{mUXHVACLimitationPwrDriverRequest = 0, mUXSpeedLimitationDriverRequest = 0, mUXInteriorLimitationDriverRequest = 0, mUXDrivemodeEnergysavingDriverRequest = 0, mUXSystemLimitationDriverRequest = 0}
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: fireDriverRequest by Connectivity_RPM_Driver_Req
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: HVAC_Limitation_Pwr_DriverRequest : 0
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: Speed_Limitation_DriverRequest : 0
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: Interior_Limitation_DriverRequest : 0
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: Drivemode_Energy_saving_DriverRequest : 0
+06-28 10:53:07.885  2919  4613 D SomeipLib-ConnRPMDriverRequestStub: System_Limitation_DriverRequest : 0
+06-28 10:53:07.885  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.885  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.890  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.890  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.890  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.890  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.890  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.891  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.891  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.891  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.891  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.891  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.891  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.892  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.892  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.892  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.892  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.892  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.895  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14663) -> newFrameIndex 14663 : input ts 344763712
+06-28 10:53:07.899  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14663 timestamp 344776216 inFlags 0
+06-28 10:53:07.906  1364  2680 D MBP_AnalogDevice: [processQuickQualityData][BGS] BGS Quality SKIP at freq:90600 qualityRate:0 | level:-16(th>=10) snr:8(th>=130) usn:234(th<=195) wam:50(th<=42) offset:2(th<=23) 
+06-28 10:53:07.906  1364  2680 I MBP_AnalogDevice: [sendQualityData][FM_BGS] Frequency=90600 , QualityRate=0 , RSSI=-16dBuV , snr=8(3%) , stereo=0 , mpxNoise=234(91%) , coch=0(0%) , dev=32(50kHz) , tune=0 
+06-28 10:53:07.906  1364  2680 D MBP_AnalogDevice: [sendQualityData][FM_BGS] fstRF=-16dBuV , offset=2(392Hz) , adj=5(52%) , mp=50(19%) , separation=0 
+06-28 10:53:07.906  1364  2411 I MBP_AMFMPlayer: [processCurrentProgramInfoUpdate] freq = 90600, tuned = 0, mode = 0  
+06-28 10:53:07.906  1364  2411 D MBP_FMStationScanner: [processDeviceNotify] freq=90600, isTuned=0, mMonitoringCount=0  
+06-28 10:53:07.909   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:07.909   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:07.909   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:07.909   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:07.909   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:07.910  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344774262524, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:07.911  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:07.911  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=-1ms what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:07.917  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14664) -> newFrameIndex 14664 : input ts 344785058
+06-28 10:53:07.917  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14664 timestamp 344796216 inFlags 0
+06-28 10:53:07.931  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.934  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:07.934  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.934  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.939  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14665) -> newFrameIndex 14665 : input ts 344806626
+06-28 10:53:07.939  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14665 timestamp 344816216 inFlags 0
+06-28 10:53:07.947   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:07.947  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.947  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344805159399, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:07.947  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.949  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:07.949  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:07.954  1571  4963 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:07.954  1571  4963 D protocols.someiplog@1.0-service: SomeipService::onMessageReceived serviceID: cd9b4370 instanceID: c00b clientID: 14014 methodID: 54 sessionID: 2139062271  data length: 50331648
+06-28 10:53:07.955  2919  3024 D SomeipLib-MsConnectproxy-DrivingEco: onMessageCallback Called driving_eco_proxy
+06-28 10:53:07.955  2919  4957 D SomeipLib-MsConnectproxy-DrivingEco: handleMessageCallback Called driving_eco_proxy, serviceID: 11, methodID: 49163, clientID: 0, sessionID: 14014, message_type: 2, return_code: 0
+06-28 10:53:07.955  2919  4957 I AllianceCarDrivingEcoSomeIP: onDrivingInfoEvent called!
+06-28 10:53:07.955  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 90, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 3, EventData2: 28, EventData3: 5 }
+06-28 10:53:07.955  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 12, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.955  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 11, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.955  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 91, mEventGroup : 6, mEventIndexOfListener : -1, EventData : -1.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 92, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: 0, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 93, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 94, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 95, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 96, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 15, mEventGroup : 6, mEventIndexOfListener : -1, EventData : -1.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 3, mEventGroup : 0, mEventIndexOfListener : -1, EventData : 1, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  2919  4957 D DrivingEcoService: AllianceDrivingEcoEvent { EventType : 4, mEventGroup : 0, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 90, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 3, EventData2: 28, EventData3: 5 }
+06-28 10:53:07.956  8185  8185 I AllianceCarDrivingEcoManager: dispatchDrivingEcoEventToClient() AllianceDrivingEcoEvent { EventType : 3, mEventGroup : 0, mEventIndexOfListener : -1, EventData : 1, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  8185  8185 I jp.co.nissan.hmi.nissan_pal.cardrivingecomanager.adapter.CarDrivingEcoAllianceListener: onTripUnitDistanceChanged 1
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 12, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 11, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  8185  8185 I jp.co.nissan.hmi.nissan_pal.common.core.MutablePropertyLiveData: 13 is updated by jp.co.nissan.hmi.nissan_pal.cardrivingecomanager.adapter.utils.SimpleDataInteger@ef5db8 (postValue)
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoManager: dispatchDrivingEcoEventToClient() AllianceDrivingEcoEvent { EventType : 3, mEventGroup : 0, mEventIndexOfListener : -1, EventData : 1, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoRepository: onTripUnitDistanceChanged: p0 = 1
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoManager: dispatchDrivingEcoEventToClient() AllianceDrivingEcoEvent { EventType : 4, mEventGroup : 0, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  8185  8185 I AllianceCarDrivingEcoManager: dispatchDrivingEcoEventToClient() AllianceDrivingEcoEvent { EventType : 4, mEventGroup : 0, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.956  8185  8185 I jp.co.nissan.hmi.nissan_pal.cardrivingecomanager.adapter.CarDrivingEcoAllianceListener: onTripUnitConsumptionChanged 0
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoRepository: onTripUnitConsumptionChanged: p0 = 0
+06-28 10:53:07.956  8185  8185 I jp.co.nissan.hmi.nissan_pal.common.core.MutablePropertyLiveData: 14 is updated by jp.co.nissan.hmi.nissan_pal.cardrivingecomanager.adapter.utils.SimpleDataInteger@8c92791 (postValue)
+06-28 10:53:07.956  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 91, mEventGroup : 6, mEventIndexOfListener : -1, EventData : -1.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.957  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 92, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: 0, EventData3: -1 }
+06-28 10:53:07.957  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 93, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.957  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 94, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.957  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 95, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.957  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 96, mEventGroup : 6, mEventIndexOfListener : -1, EventData : 0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.957  5419  5419 I AllianceCarDrivingEcoManager: dispatchEcoScoringEventToClient() AllianceDrivingEcoEvent { EventType : 15, mEventGroup : 6, mEventIndexOfListener : -1, EventData : -1.0, EventData2: -1, EventData3: -1 }
+06-28 10:53:07.959  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14666) -> newFrameIndex 14666 : input ts 344827788
+06-28 10:53:07.960  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14666 timestamp 344836216 inFlags 0
+06-28 10:53:07.963  1364  2683 E MBP_AnalogCapture: [bstreamReadTask] Failed to read from bstream file: Connection timed out 
+06-28 10:53:07.963  1364  2683 E MBP_AnalogCapture: E_CODE (0) AT (bstreamReadTask, 473) 
+06-28 10:53:07.966  2683  2683 W BSTREAM : bs4_fifo_read-timeout
+06-28 10:53:07.971  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:07.971  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:07.972  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:07.981  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14667) -> newFrameIndex 14667 : input ts 344849024
+06-28 10:53:07.981  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14667 timestamp 344856216 inFlags 0
+06-28 10:53:07.987  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.988  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.988  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.988  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:07.988  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.989  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.989  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.989  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.990  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:07.990  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.990  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:07.990  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.990  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:07.990  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:07.990  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:07.992  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.001  2919  3192 D PVT     : PVT-CAN Date-Time: 28/6/2026 10:53:8
+06-28 10:53:08.001  2919  3192 D AllianceCarPropertyManager: setProperty, propId: 0x21410453, area: 0x0, class: class [Ljava.lang.Integer;, val: [Ljava.lang.Integer;@ff5403b
+06-28 10:53:08.001  2919  3192 D CarPropertyManager: setProperty, propertyId: 0x21410453, areaId: 0x0, class: class [Ljava.lang.Integer;, val: [Ljava.lang.Integer;@ff5403b
+06-28 10:53:08.002  2977  8519 D CarPropertyService: mSyncGetSetPropertyOpCount: 1
+06-28 10:53:08.002  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14668) -> newFrameIndex 14668 : input ts 344870425
+06-28 10:53:08.002  1036 13327 D IPS.VucSignalPlugin: set: signalId = 0xbb
+06-28 10:53:08.003  2977  8519 D CAR.HAL : Invoked retriable action for set - RequestValue: HalPropValue{Property ID: VENDOR_PROPERTY(0x21410453), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 0, Status: AVAILABLE(0x0), Value: [28, 6, 2026, 6]} - ResultValue: null, for retrier: Retrier{, Operation=set, RequestValue=HalPropValue{Property ID: VENDOR_PROPERTY(0x21410453), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 0, Status: AVAILABLE(0x0), Value: [28, 6, 2026, 6]}, MaxDurationForRetryMs=2000, SleepBetweenRetriesMs=100, MaxRetries=2000, StartTime=344870}
+06-28 10:53:08.003  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14668 timestamp 344876216 inFlags 0
+06-28 10:53:08.003  2977  8519 D CarPropertyService: mSyncGetSetPropertyOpCount: 0
+06-28 10:53:08.003  2977  8519 D CarPropertyService: Latency of setPropertySync is: 1.000000
+06-28 10:53:08.004  2919  3192 D AllianceCarPropertyManager: setProperty, propId: 0x21410454, area: 0x0, class: class [Ljava.lang.Integer;, val: [Ljava.lang.Integer;@36cecb1
+06-28 10:53:08.004  2919  3192 D CarPropertyManager: setProperty, propertyId: 0x21410454, areaId: 0x0, class: class [Ljava.lang.Integer;, val: [Ljava.lang.Integer;@36cecb1
+06-28 10:53:08.005  2977  8519 D CarPropertyService: mSyncGetSetPropertyOpCount: 1
+06-28 10:53:08.005  1036 13328 D IPS.VucSignalPlugin: set: signalId = 0xbc
+06-28 10:53:08.005  1036  2262 D VUCS.SignalManager: runDownlinkSingleMultiple: >> SPI_PLUGIN. signal ID = 10667
+06-28 10:53:08.005  1036  2262 D VUCS.SignalManager: runDownlinkSingleMultiple: >> SPI_PLUGIN. signal ID = 10666
+06-28 10:53:08.005  1036  2262 D VUCS.SignalManager: runDownlinkSingleMultiple: >> SPI_PLUGIN. signal ID = 10665
+06-28 10:53:08.005  1036  2262 D VUCS.PluginController: sendMessage: message_id_t id = 20
+06-28 10:53:08.006  1036  2262 D VUCS.BasePlugin: (simulator) downlink: 01 50 13 03 29 a9 02 0a 29 aa 02 35 29 ab 02 08
+06-28 10:53:08.006  1036  2262 D VUCS.BasePlugin: (spi) downlink: aa 00 10 01 50 13 03 29 a9 02 0a 29 aa 02 35 29 ab 02 08 4f
+06-28 10:53:08.006  2977  8519 D CAR.HAL : Invoked retriable action for set - RequestValue: HalPropValue{Property ID: VENDOR_PROPERTY(0x21410454), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 0, Status: AVAILABLE(0x0), Value: [10, 53, 8]} - ResultValue: null, for retrier: Retrier{, Operation=set, RequestValue=HalPropValue{Property ID: VENDOR_PROPERTY(0x21410454), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 0, Status: AVAILABLE(0x0), Value: [10, 53, 8]}, MaxDurationForRetryMs=2000, SleepBetweenRetriesMs=100, MaxRetries=2000, StartTime=344873}
+06-28 10:53:08.006  2977  8519 D CarPropertyService: mSyncGetSetPropertyOpCount: 0
+06-28 10:53:08.006  2977  8519 D CarPropertyService: Latency of setPropertySync is: 2.000000
+06-28 10:53:08.006  2919  3192 D PVT     : Trying to send unsupported property: 557843538
+06-28 10:53:08.006  2919  3192 D SomeipLib-ConnNavigationInfoStub: fireNaviInfoIndicationUpdateEvent by CDC_NavigationInfo
+06-28 10:53:08.007  2919  3192 D PVT     : notifyIvcSendGnssLocation is called
+06-28 10:53:08.007  2919  3192 D PVT     : setGnssLocationData is called
+06-28 10:53:08.007  2919  3192 D PVT     : [GNSSLocation] GNSSValidity: 255, GNSSLatitude: 0.0, GNSSLongitude: 0.0, GNSSAltitude: 0, GNSSHeading: 65535, GNSSPrecisionHDOP: 0.0
+06-28 10:53:08.007  2919  3192 I AllianceCarIVCManager: sendGNSSLocationIndicationRequest() is called 
+06-28 10:53:08.007  1364  2413 D MBP_DeviceManager: [onScan] BGS : Radio(FM), freq(90700) 
+06-28 10:53:08.007  2919  3192 I ConnectivityGNSSLocation: sendGNSSLocationIndicationRequest() called
+06-28 10:53:08.007  2919  3192 D ConnectivityGNSSLocation: GNSSLocationInfo: GNSSValidity = [255]
+06-28 10:53:08.007  2919  3192 D ConnectivityGNSSLocation: GNSSLocationInfo: mGNSSLatitude = [0.0]
+06-28 10:53:08.007  2919  3192 D ConnectivityGNSSLocation: GNSSLocationInfo: mGNSSLongitude = [0.0]
+06-28 10:53:08.007  2919  3192 D ConnectivityGNSSLocation: GNSSLocationInfo: GNSSAltitude = [0]
+06-28 10:53:08.007  2919  3192 D ConnectivityGNSSLocation: GNSSLocationInfo: GNSSHeading = [65535]
+06-28 10:53:08.007  2919  3192 D ConnectivityGNSSLocation: GNSSLocationInfo: GNSSPrecisionHDOP = [0.0]
+06-28 10:53:08.007  2919  3192 D SomeipLib-ConnCDCGNSSPositionStub: fireCDCGNSSPositionUpdateEvent by CDC_GNSS_Position
+06-28 10:53:08.007  2919  3192 D PVT     : sendPeriodicSomeIp() is called. GNSS validity = UNAVAILABLE!
+06-28 10:53:08.007  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.007  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.007  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.007  1576  1576 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.009  1364  2680 D STMDriver: [TUN_Change_Frequency] Star_Command_Communicate = 0, frequency = 90700, i2cAddr(0x64) channelID(2)
+06-28 10:53:08.010   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:08.010   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:08.010   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:08.010   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:08.010   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:08.011  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344874456274, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:08.011  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:08.012  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:08.015  1364  2680 D MBP_AnalogDevice: [onTuneInternal][BGS][90700] Tune result:0 for band:4, scanMode(2) mTuneMode(0) 
+06-28 10:53:08.023  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14669) -> newFrameIndex 14669 : input ts 344891721
+06-28 10:53:08.024  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14669 timestamp 344896216 inFlags 0
+06-28 10:53:08.032  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.034  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:08.034  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.034  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.045  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14670) -> newFrameIndex 14670 : input ts 344913058
+06-28 10:53:08.045  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14670 timestamp 344916216 inFlags 0
+06-28 10:53:08.047   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:08.047  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.048  2977  3032 D CarDrivingStateService: Property Changed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344909416170, mValue=0.0}
+06-28 10:53:08.048  2977  3032 D CarDrivingStateService: mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344909416170, mValue=0.0}
+06-28 10:53:08.048  2977  3032 D CarDrivingStateService: inferDrivingStateLocked mLastGear: CarPropertyValue{mPropertyId=0x11400400, propertyName=GEAR_SELECTION, mAreaId=0x0, mStatus=0, mTimestampNanos=13443795671, mValue=4}mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=344909416170, mValue=0.0}mLastIgnitionState: CarPropertyValue{mPropertyId=0x11400409, propertyName=IGNITION_STATE, mAreaId=0x0, mStatus=0, mTimestampNanos=13378545880, mValue=5}
+06-28 10:53:08.048  2977  3032 D CarDrivingStateService: Driving state new->old 0->0
+06-28 10:53:08.048  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.048  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344905276534, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:08.049  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:08.049  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:08.065  2579 13270 D AHAL: AudioStream: read, usecase: audio-record(21), address: bottom, [0x000E0007]
+06-28 10:53:08.066  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14671) -> newFrameIndex 14671 : input ts 344934385
+06-28 10:53:08.066  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14671 timestamp 344936216 inFlags 0
+06-28 10:53:08.067  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14672) -> newFrameIndex 14672 : input ts 344954385
+06-28 10:53:08.067  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14672 timestamp 344956216 inFlags 0
+06-28 10:53:08.071  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:08.072  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:08.072  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.076  1345  1465 I u-blox  : ublox::CTimePulseThread::loop: Time Pulse) No Any Time pulse Detected Waited 5000 ms..
+06-28 10:53:08.088  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14673) -> newFrameIndex 14673 : input ts 344955700
+06-28 10:53:08.089  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14673 timestamp 344976216 inFlags 0
+06-28 10:53:08.090  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.090  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.090  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.090  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.090  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.091  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.091  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.092  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.092  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.092  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.092  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.092  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.092  1364  2636 D STMDriver: [Device_Get_WSP_Status] realAnsParamNum: 3, FGC DISS BW: 1(30kHz), BGC DISS BW: 5(64kHz), softmute: 18(7%), highcut: -56, lowcut: 0, stereoblend: 0(0%), highblend: 255(100%), rolloff: 400000
+06-28 10:53:08.092  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.092  1364  2636 I MBP_AnalogDevice: [sendQualityData][FM_FGT] Frequency=87700 , QualityRate=100 , RSSI=71dBuV , snr=255(100%) , stereo=0 , mpxNoise=0(0%) , coch=0(0%) , dev=0(0kHz) , rdsDeviation=14972Hz , rdsBer=100% , tune=1 
+06-28 10:53:08.092  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.092  1364  2636 D MBP_AnalogDevice: [sendQualityData][FM_FGT] fstRF=71dBuV , offset=0(0Hz) , adj=-128(0%) , mp=0(0%) , separation=0 
+06-28 10:53:08.092  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.093  1364  2408 D MBP_RadioManager: [checkSignalQuality] system = 1, quality 100, id=0x0, TuneMode = UNMUTE, audioEnabled=0, tunnelEnabled=0 
+06-28 10:53:08.093  1364  2408 D MBP_RadioManager: [processLinkingStateMachine] FM state=IDLE_LINK, DAB state= IDLE_LINK 
+06-28 10:53:08.093  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.109  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14674) -> newFrameIndex 14674 : input ts 344977054
+06-28 10:53:08.109  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14674 timestamp 344996216 inFlags 0
+06-28 10:53:08.110   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:08.110   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:08.110   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:08.110   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:08.110   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:08.112  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 344974606742, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:08.112  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:08.112  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:08.118  1364  2680 D MBP_AnalogDevice: [processQuickQualityData][BGS] BGS Quality SKIP at freq:90700 qualityRate:0 | level:-16(th>=10) snr:8(th>=130) usn:237(th<=195) wam:50(th<=42) offset:1(th<=23) 
+06-28 10:53:08.118  1364  2680 I MBP_AnalogDevice: [sendQualityData][FM_BGS] Frequency=90700 , QualityRate=0 , RSSI=-16dBuV , snr=8(3%) , stereo=0 , mpxNoise=237(92%) , coch=0(0%) , dev=31(48kHz) , tune=0 
+06-28 10:53:08.118  1364  2680 D MBP_AnalogDevice: [sendQualityData][FM_BGS] fstRF=-16dBuV , offset=1(196Hz) , adj=5(52%) , mp=50(19%) , separation=0 
+06-28 10:53:08.118  1364  2411 I MBP_AMFMPlayer: [processCurrentProgramInfoUpdate] freq = 90700, tuned = 0, mode = 0  
+06-28 10:53:08.118  1364  2411 D MBP_FMStationScanner: [processDeviceNotify] freq=90700, isTuned=0, mMonitoringCount=0  
+06-28 10:53:08.119  1036  1070 D VUCS.PluginController: sendMessage: message_id_t id = 205
+06-28 10:53:08.119  1036  1070 D VUCS.BasePlugin: (simulator) downlink: 02 60 19 93 15 11
+06-28 10:53:08.120  1036  1070 D VUCS.BasePlugin: (spi) downlink: aa 00 06 02 60 19 93 15 11 40
+06-28 10:53:08.120  1036  1070 D VUCS.PluginController: sendMessage: message_id_t id = 205
+06-28 10:53:08.120  1036  1070 D VUCS.BasePlugin: (simulator) downlink: 02 60 19 93 15 13
+06-28 10:53:08.120  1036  1070 D VUCS.BasePlugin: (spi) downlink: aa 00 06 02 60 19 93 15 13 42
+06-28 10:53:08.120  1036  1070 D VUCS.PluginController: sendMessage: message_id_t id = 205
+06-28 10:53:08.120  1036  1070 D VUCS.BasePlugin: (simulator) downlink: 02 60 19 93 46 11
+06-28 10:53:08.121  1036  1070 D VUCS.BasePlugin: (spi) downlink: aa 00 06 02 60 19 93 46 11 13
+06-28 10:53:08.121  1036  1070 D VUCS.PluginController: sendMessage: message_id_t id = 205
+06-28 10:53:08.121  1036  1070 D VUCS.BasePlugin: (simulator) downlink: 02 60 19 93 46 13
+06-28 10:53:08.121  1036  1070 D VUCS.BasePlugin: (spi) downlink: aa 00 06 02 60 19 93 46 13 11
+06-28 10:53:08.121  1036  1070 D VUCS.PluginController: sendMessage: message_id_t id = 205
+06-28 10:53:08.122  1036  1070 D VUCS.BasePlugin: (simulator) downlink: 02 60 19 93 03 11
+06-28 10:53:08.122  1036  1070 D VUCS.BasePlugin: (spi) downlink: aa 00 06 02 60 19 93 03 11 56
+06-28 10:53:08.122  1036  1070 D VUCS.PluginController: sendMessage: message_id_t id = 205
+06-28 10:53:08.122  1036  1070 D VUCS.BasePlugin: (simulator) downlink: 02 60 19 93 03 13
+06-28 10:53:08.122  1036  1070 D VUCS.BasePlugin: (spi) downlink: aa 00 06 02 60 19 93 03 13 54
+06-28 10:53:08.123  1036  1070 D VUCS.PluginController: sendMessage: message_id_t id = 208
+06-28 10:53:08.123  1036  1070 D VUCS.BasePlugin: (simulator) downlink: 02 60 22 02 00
+06-28 10:53:08.123  1036  1070 D VUCS.BasePlugin: (spi) downlink: aa 00 05 02 60 22 02 00 ed
+06-28 10:53:08.123   826  2662 D DiagHW_Variant: getInfo_CfMch1Usb : device=cdc_hi_opt
+06-28 10:53:08.123   826  2662 E DiagHW_Variant: [getInfoOf]Open Failed : device=cdc_hi_opt, nodePath=sys/bus/usb/devices/1-1/idVendor
+06-28 10:53:08.123   826  2662 E dtcmanager: [Chk_CF_MCH1ExtUsb]getInfoFromDiagHW() error
+06-28 10:53:08.123   826  2662 D DiagHW_Variant: getInfo_OlMch1Usb : device=cdc_hi_opt
+06-28 10:53:08.123   826  2662 E DiagHW_Variant: [getInfoOf]Open Failed : device=cdc_hi_opt, nodePath=sys/bus/usb/devices/1-1/bConfigurationValue
+06-28 10:53:08.123   826  2662 E dtcmanager: [Chk_OL_MCH1ExtUsb]getInfoFromDiagHW() error
+06-28 10:53:08.123   826  2662 D dtcmanager: onNotifyOtherDTC dtcCode: 0x932a, faultType: 0x13, status: 0x1, gade: 3
+06-28 10:53:08.130  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14675) -> newFrameIndex 14675 : input ts 344998379
+06-28 10:53:08.130  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14675 timestamp 345016216 inFlags 0
+06-28 10:53:08.131  1358  1368 E AllianceMonitord: wait_until() exceeds timeout
+06-28 10:53:08.131  1358  1366 E AllianceMonitord: ReadGpuInformation: Could not open /sys/class/kgsl/kgsl-3d0/gpu_busy_percentage
+06-28 10:53:08.132  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.134  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:08.134  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.134  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.147   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:08.148  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.148  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.148  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345005398722, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:08.149  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 07 82 60 19 93 15 11 00 c1
+06-28 10:53:08.149  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 07 82 60 19 93 15 13 01 c2
+06-28 10:53:08.149  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 07 82 60 19 93 46 11 00 92
+06-28 10:53:08.149  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 07 82 60 19 93 46 13 01 91
+06-28 10:53:08.149  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 07 82 60 19 93 03 11 ff 28
+06-28 10:53:08.149  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 07 82 60 19 93 03 13 ff 2a
+06-28 10:53:08.149  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:08.149  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:08.149   826   867 D dtcmanager: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9315, faultType:0x11, status:0x0
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] AM and FM1 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] short 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] normal 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] should be received more data 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] AM and FM1 
+06-28 10:53:08.150   400   400 D libvintf: HalManifest::getHidlTransport(framework): Cannot find vendor.alliance.hardware.automotive.diagnosis@2.0::IDTCMgtVuC/default
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] open 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] abnormal 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] Antenna Open 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [receivefromExternal]  
+06-28 10:53:08.150  1364  1447 D MBP_RadioExternalCallback: convertAntennaInfo AM and FM1 
+06-28 10:53:08.150  1364  1447 D MBP_RadioExternalCallback: convertAntennaInfo open 
+06-28 10:53:08.150  1364  2408 I BcLgeRadioDef.oem: AM Antenna Status : Open
+06-28 10:53:08.150  1364  2408 I BcLgeRadioDef.oem: FM Antenna Status : Open
+06-28 10:53:08.150  1036  1459 I VUCS.HEADER: VucsBufferPool.h:123 recycle: queue is full. queueSize = 5, maxQueueSize = 5
+06-28 10:53:08.150  1036  1459 I VUCS.HEADER: VucsBufferPool.h:123 recycle: queue is full. queueSize = 5, maxQueueSize = 5
+06-28 10:53:08.150   826   867 D DTCMgtVuC: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9315, faultType:0x11, status:0x0, gade:3
+06-28 10:53:08.150   826   867 D DTCMgtVuC: onNotifyHardwareDTC found 0x1e  with flagGade = 1
+06-28 10:53:08.150   826   867 D dtcmanager: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9315, faultType:0x13, status:0x1
+06-28 10:53:08.150  1364  1447 D MBP_RadioManagerAdaptor: [setParameter] systemType = 1 
+06-28 10:53:08.150   400   400 D libvintf: HalManifest::getHidlTransport(framework): Cannot find vendor.alliance.hardware.automotive.diagnosis@2.0::IDTCMgtVuC/default
+06-28 10:53:08.150  1036  1459 I VUCS.HEADER: VucsBufferPool.h:123 recycle: queue is full. queueSize = 5, maxQueueSize = 5
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] DAB 
+06-28 10:53:08.150  1364  1447 D MBP_VHalClient: [convertAntennaInfo] short 
+06-28 10:53:08.150  1364  1447 W MBP_VHalClient: [convertAntennaInfo] status = 0xff is invalid 
+06-28 10:53:08.150   826   867 D DTCMgtVuC: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9315, faultType:0x13, status:0x1, gade:3
+06-28 10:53:08.151   826   867 D DTCMgtVuC: onNotifyHardwareDTC found 0x1f  with flagGade = 1
+06-28 10:53:08.151   826   867 D dtcmanager: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9346, faultType:0x11, status:0x0
+06-28 10:53:08.151  1364  1447 D MBP_VHalClient: [convertAntennaInfo] DAB 
+06-28 10:53:08.151  1364  1447 D MBP_VHalClient: [convertAntennaInfo] open 
+06-28 10:53:08.151  1364  1447 W MBP_VHalClient: [convertAntennaInfo] status = 0xff is invalid 
+06-28 10:53:08.151   400   400 D libvintf: HalManifest::getHidlTransport(framework): Cannot find vendor.alliance.hardware.automotive.diagnosis@2.0::IDTCMgtVuC/default
+06-28 10:53:08.151   826   867 D DTCMgtVuC: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9346, faultType:0x11, status:0x0, gade:3
+06-28 10:53:08.151   826   867 D DTCMgtVuC: onNotifyHardwareDTC found 0x22  with flagGade = 1
+06-28 10:53:08.151   826   867 D dtcmanager: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9346, faultType:0x13, status:0x1
+06-28 10:53:08.152  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14676) -> newFrameIndex 14676 : input ts 345019757
+06-28 10:53:08.152   400   400 D libvintf: HalManifest::getHidlTransport(framework): Cannot find vendor.alliance.hardware.automotive.diagnosis@2.0::IDTCMgtVuC/default
+06-28 10:53:08.152   826   867 D DTCMgtVuC: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9346, faultType:0x13, status:0x1, gade:3
+06-28 10:53:08.152  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14676 timestamp 345036216 inFlags 0
+06-28 10:53:08.152   826   867 D DTCMgtVuC: onNotifyHardwareDTC found 0x23  with flagGade = 1
+06-28 10:53:08.152   826   867 D dtcmanager: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9303, faultType:0x11, status:0xff
+06-28 10:53:08.152   826   867 E dtcmanager: onNotifyVucDTC DTCcode : 0x9303, faultType : 0x11 have value = 0xFF. Not update!!
+06-28 10:53:08.152   826   867 D dtcmanager: VucManagerCallbackForDTC onNotifyVucDTC dtcCode:0x9303, faultType:0x13, status:0xff
+06-28 10:53:08.152   826   867 E dtcmanager: onNotifyVucDTC DTCcode : 0x9303, faultType : 0x13 have value = 0xFF. Not update!!
+06-28 10:53:08.171  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:08.172  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:08.172  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.173  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14677) -> newFrameIndex 14677 : input ts 345041020
+06-28 10:53:08.173  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14677 timestamp 345056216 inFlags 0
+06-28 10:53:08.177  2919  4929 I DrivingEcoService: Registered clients: number of Error = 1, Eco = 2, Challenge = 2, Coaching = 0, Scoring = 1, EVSaving = 2, ICESaving = 0, Hybrid = 0, MitsuScoring = 2, IdleStop = 1, EcoCustomize = 1, EcoModeSettings = 2
+06-28 10:53:08.187  1387  8642 I uhab    : habmm_socket_recv: fd 6, return -110, received bytes 0, vcid 1F500001
+06-28 10:53:08.189  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.189  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GPGGA | messageType: Not a sentence of interest | dataFields: 032803.00,0.00000,S,0.00000,W,0,00,99.99,-17.0,M,17.0,M,, | rawMessage: $GPGGA,032803.00,0.00000,S,0.00000,W,0,00,99.99,-17.0,M,17.0,M,,*45
+06-28 10:53:08.189  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GPGGA,032803.00,0.00000,S,0.00000,W,0,00,99.99,-17.0,M,17.0,M,,*45
+06-28 10:53:08.189  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.190  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.190  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GPRMC,032803.00,V,0.00000,S,0.00000,W,0.000,0.00,0601-20,0.00,E,N*30
+06-28 10:53:08.190  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.190  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GPRMC | messageType: GPRMC_MESSAGES - First sentence, clear data | rawMessage: $GPRMC,032803.00,V,0.00000,S,0.00000,W,0.000,0.00,0601-20,0.00,E,N*30
+06-28 10:53:08.191  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.191  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.191  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.191  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.191  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.191  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.192  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.192  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.192  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.192  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.192  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.192  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.193  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.193  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.193  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.193  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.194  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14678) -> newFrameIndex 14678 : input ts 345062574
+06-28 10:53:08.195  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14678 timestamp 345076216 inFlags 0
+06-28 10:53:08.210   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:08.210   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:08.210   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:08.210   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:08.210   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:08.212  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345074698461, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:08.213  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:08.213  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:08.215  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14679) -> newFrameIndex 14679 : input ts 345082574
+06-28 10:53:08.216  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14679 timestamp 345096216 inFlags 0
+06-28 10:53:08.219  1364  2413 D MBP_DeviceManager: [onScan] BGS : Radio(FM), freq(90800) 
+06-28 10:53:08.221  1364  2680 D STMDriver: [TUN_Change_Frequency] Star_Command_Communicate = 0, frequency = 90800, i2cAddr(0x64) channelID(2)
+06-28 10:53:08.228  1364  2680 D MBP_AnalogDevice: [onTuneInternal][BGS][90800] Tune result:0 for band:4, scanMode(2) mTuneMode(0) 
+06-28 10:53:08.233  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.234  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:08.234  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.234  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.237  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14680) -> newFrameIndex 14680 : input ts 345105014
+06-28 10:53:08.237  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14680 timestamp 345116216 inFlags 0
+06-28 10:53:08.247   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:08.248  2977  3032 D CarDrivingStateService: Property Changed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=345110631899, mValue=0.0}
+06-28 10:53:08.248  2977  3032 D CarDrivingStateService: mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=345110631899, mValue=0.0}
+06-28 10:53:08.248  2977  3032 D CarDrivingStateService: inferDrivingStateLocked mLastGear: CarPropertyValue{mPropertyId=0x11400400, propertyName=GEAR_SELECTION, mAreaId=0x0, mStatus=0, mTimestampNanos=13443795671, mValue=4}mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=345110631899, mValue=0.0}mLastIgnitionState: CarPropertyValue{mPropertyId=0x11400409, propertyName=IGNITION_STATE, mAreaId=0x0, mStatus=0, mTimestampNanos=13378545880, mValue=5}
+06-28 10:53:08.248  2977  3032 D CarDrivingStateService: Driving state new->old 0->0
+06-28 10:53:08.248  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.248  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345105492576, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:08.248  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.249  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:08.249  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:08.258  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14681) -> newFrameIndex 14681 : input ts 345126412
+06-28 10:53:08.258  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14681 timestamp 345136216 inFlags 0
+06-28 10:53:08.271  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:08.273  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:08.273  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.279  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14682) -> newFrameIndex 14682 : input ts 345147702
+06-28 10:53:08.280  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14682 timestamp 345156216 inFlags 0
+06-28 10:53:08.287  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.288  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.288  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.288  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.288  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.288  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.289  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.289  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.289  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.289  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.290  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.290  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.290  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.290  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.290  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.294  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.301  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14683) -> newFrameIndex 14683 : input ts 345169045
+06-28 10:53:08.301  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14683 timestamp 345176216 inFlags 0
+06-28 10:53:08.307  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345174793201, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:08.307  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: VENDOR_PROPERTY(0x216004dc), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345165151847, Status: UNAVAILABLE(0x1), Value: 0.0} with status that is not AVAILABLE
+06-28 10:53:08.308  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:08.308  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:08.311   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:08.311   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:08.311   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:08.311   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:08.311   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:08.322  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14684) -> newFrameIndex 14684 : input ts 345190450
+06-28 10:53:08.323  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14684 timestamp 345196216 inFlags 0
+06-28 10:53:08.329  1997  2125 D OomAdjuster: Not killing cached processes
+06-28 10:53:08.330  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.330  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: VENDOR_PROPERTY(0x216004d9), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345187600544, Status: UNAVAILABLE(0x1), Value: 0.0} with status that is not AVAILABLE
+06-28 10:53:08.332  1364  2680 D MBP_AnalogDevice: [processQuickQualityData][BGS] BGS Quality SKIP at freq:90800 qualityRate:0 | level:-15(th>=10) snr:10(th>=130) usn:227(th<=195) wam:50(th<=42) offset:1(th<=23) 
+06-28 10:53:08.332  1364  2680 I MBP_AnalogDevice: [sendQualityData][FM_BGS] Frequency=90800 , QualityRate=0 , RSSI=-15dBuV , snr=10(3%) , stereo=0 , mpxNoise=227(89%) , coch=0(0%) , dev=31(48kHz) , tune=0 
+06-28 10:53:08.332  1364  2680 D MBP_AnalogDevice: [sendQualityData][FM_BGS] fstRF=-15dBuV , offset=1(196Hz) , adj=6(52%) , mp=50(19%) , separation=0 
+06-28 10:53:08.332  1364  2411 I MBP_AMFMPlayer: [processCurrentProgramInfoUpdate] freq = 90800, tuned = 0, mode = 0  
+06-28 10:53:08.332  1364  2411 D MBP_FMStationScanner: [processDeviceNotify] freq=90800, isTuned=0, mMonitoringCount=0  
+06-28 10:53:08.334  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:08.334  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.334  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.343  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14685) -> newFrameIndex 14685 : input ts 345211676
+06-28 10:53:08.344  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14685 timestamp 345216216 inFlags 0
+06-28 10:53:08.347   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:08.348  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345205629399, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:08.348  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.348  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.349  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:08.350  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:08.365  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14686) -> newFrameIndex 14686 : input ts 345233103
+06-28 10:53:08.365  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14686 timestamp 345236216 inFlags 0
+06-28 10:53:08.371  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:08.374  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:08.374  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.386  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14687) -> newFrameIndex 14687 : input ts 345254365
+06-28 10:53:08.386  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14687 timestamp 345256216 inFlags 0
+06-28 10:53:08.387  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14688) -> newFrameIndex 14688 : input ts 345274365
+06-28 10:53:08.387  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14688 timestamp 345276216 inFlags 0
+06-28 10:53:08.388  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.389  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.389  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.390  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.390  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.391  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.391  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.391  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.391  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.391  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.392  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.393  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.393  1364  2636 D STMDriver: [Device_Get_WSP_Status] realAnsParamNum: 3, FGC DISS BW: 1(30kHz), BGC DISS BW: 5(64kHz), softmute: 20(7%), highcut: -56, lowcut: 0, stereoblend: 0(0%), highblend: 255(100%), rolloff: 400000
+06-28 10:53:08.393  1364  2636 I MBP_AnalogDevice: [sendQualityData][FM_FGT] Frequency=87700 , QualityRate=100 , RSSI=71dBuV , snr=255(100%) , stereo=0 , mpxNoise=0(0%) , coch=0(0%) , dev=0(0kHz) , rdsDeviation=14972Hz , rdsBer=100% , tune=1 
+06-28 10:53:08.393  1364  2636 D MBP_AnalogDevice: [sendQualityData][FM_FGT] fstRF=71dBuV , offset=0(0Hz) , adj=-128(0%) , mp=0(0%) , separation=0 
+06-28 10:53:08.393  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.393  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.393  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.393  1364  2408 D MBP_RadioManager: [checkSignalQuality] system = 1, quality 100, id=0x0, TuneMode = UNMUTE, audioEnabled=0, tunnelEnabled=0 
+06-28 10:53:08.393  1364  2408 D MBP_RadioManager: [processLinkingStateMachine] FM state=IDLE_LINK, DAB state= IDLE_LINK 
+06-28 10:53:08.394  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.407  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14689) -> newFrameIndex 14689 : input ts 345275670
+06-28 10:53:08.408  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14689 timestamp 345296216 inFlags 0
+06-28 10:53:08.411   647  1658 D EvsHal  : [NSCDC]GPIO OPEN start in gpio_open() 
+06-28 10:53:08.411   647  1658 D EvsHal  : [NSCDC]GPIO OPEN DONE /dev/gpiochip0
+06-28 10:53:08.411   647  1658 D EvsHal  : [NSCDC]GPIO HANDLE OPEN DONE /dev/gpiochip0
+06-28 10:53:08.411   647  1658 D EvsHal  : [NSCDC]GPIO START GET /dev/gpiochip0
+06-28 10:53:08.411   647  1658 D EvsHal  : [NSCDC]GPIO FINISH GET /dev/gpiochip0, value: 
+06-28 10:53:08.413  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: EV_BATTERY_LEVEL(0x11600309), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345274892003, Status: UNAVAILABLE(0x1), Value: 0.0 WATT_HOUR} with status that is not AVAILABLE
+06-28 10:53:08.414  5859  5859 D jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: Car Property Value is null
+06-28 10:53:08.414  2919  4905 I AllianceCarIVCManager: sendWifiStatusIndicator() is called 
+06-28 10:53:08.414  2919  4905 I ConnectivityWifiStatus: sendWifiStatusIndicator() called with WifiStatusInfo: WifiStatus = [1] WifiConnectionStatus = [1] InternetBridgeEnabled = [0] InternetConnectionStatus = [1] NetworkCapability = [false]
+06-28 10:53:08.414  2919  4905 D SomeipLib-ConnWiFiStatusStub: fireWiFiStatus by ConnectivityWiFiStatus
+06-28 10:53:08.414  2919  4905 D SomeipLib-ConnWiFiStatusStub: WifiStatus : 1
+06-28 10:53:08.414  2919  4905 D SomeipLib-ConnWiFiStatusStub: WifiConnectionStatus : 1
+06-28 10:53:08.414  2919  4905 D SomeipLib-ConnWiFiStatusStub: InternetBridgeEnabled : 0
+06-28 10:53:08.414  2919  4905 D SomeipLib-ConnWiFiStatusStub: InternetConnectionStatus : 1
+06-28 10:53:08.414  2919  4905 D SomeipLib-ConnWiFiStatusStub: networkCapabilities : false
+06-28 10:53:08.414  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.414  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.415  5419  5419 D AllianceCarSmartChargeManager: handleMessage msg = { when=0 what=38 obj=0 target=alliance.car.smartcharge.AllianceCarSmartChargeManager$EventHandler }
+06-28 10:53:08.416  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.416  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,1 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,1*33
+06-28 10:53:08.416  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,1*33
+06-28 10:53:08.416  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.417  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.417  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,2 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,2*30
+06-28 10:53:08.418  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,2*30
+06-28 10:53:08.418  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.418  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.418  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,3 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,3*31
+06-28 10:53:08.419  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,3*31
+06-28 10:53:08.419  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.419  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.419  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,4 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,4*36
+06-28 10:53:08.419  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,4*36
+06-28 10:53:08.420  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.420  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.420  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,5*37
+06-28 10:53:08.421  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGSA | messageType: Sentence formater: GSA | dataFields: A,1,,,,,,,,,,,,,99.99,99.99,99.99,5 | rawMessage: $GNGSA,A,1,,,,,,,,,,,,,99.99,99.99,99.99,5*37
+06-28 10:53:08.421  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.421  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.421  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GPGSV,1,1,00,0*65
+06-28 10:53:08.421  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.422  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GPGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GPGSV,1,1,00,0*65
+06-28 10:53:08.422  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.422  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GLGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GLGSV,1,1,00,0*79
+06-28 10:53:08.422  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GLGSV,1,1,00,0*79
+06-28 10:53:08.422  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.423  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.423  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GAGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GAGSV,1,1,00,0*74
+06-28 10:53:08.423  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GAGSV,1,1,00,0*74
+06-28 10:53:08.423  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.424  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.424  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GBGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GBGSV,1,1,00,0*77
+06-28 10:53:08.424  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GBGSV,1,1,00,0*77
+06-28 10:53:08.424  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.425  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.425  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GQGSV | messageType: Not a sentence of interest | dataFields: 1,1,00,0 | rawMessage: $GQGSV,1,1,00,0*64
+06-28 10:53:08.426  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GQGSV,1,1,00,0*64
+06-28 10:53:08.426  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.426  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.426  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,1,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,1,0*7F
+06-28 10:53:08.426  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.426  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,1,0*7F
+06-28 10:53:08.426  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.427  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.427  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,2,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,2,0*7C
+06-28 10:53:08.427  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.427  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,2,0*7C
+06-28 10:53:08.427  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.428  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.428  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.428  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,3,0*7D
+06-28 10:53:08.428  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.428  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,3,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,3,0*7D
+06-28 10:53:08.429  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.429  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14690) -> newFrameIndex 14690 : input ts 345297269
+06-28 10:53:08.429  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,4,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,4,0*7A
+06-28 10:53:08.430  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.430  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14690 timestamp 345316216 inFlags 0
+06-28 10:53:08.430  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,4,0*7A
+06-28 10:53:08.430  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.430  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.431  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGRS | messageType: Not a sentence of interest | dataFields: ,1,,,,,,,,,,,,,5,0 | rawMessage: $GNGRS,,1,,,,,,,,,,,,,5,0*7B
+06-28 10:53:08.431  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.431  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGRS,,1,,,,,,,,,,,,,5,0*7B
+06-28 10:53:08.431  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.431  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.432  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGST | messageType: Not a sentence of interest | dataFields: ,0.0000,9199196,9199196,0.0000,3758302,3758302,3758302 | rawMessage: $GNGST,,0.0000,9199196,9199196,0.0000,3758302,3758302,3758302*71
+06-28 10:53:08.432  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.432  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGST,,0.0000,9199196,9199196,0.0000,3758302,3758302,3758302*71
+06-28 10:53:08.432  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.432  1364  2413 D MBP_DeviceManager: [onScan] BGS : Radio(FM), freq(90900) 
+06-28 10:53:08.434  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.434  2919  4545 D SomeipLib-ConnIVISignalListStub: Event sent - State: 0, Progress: 0
+06-28 10:53:08.434  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.434  1579  1612 D protocols.someiplog@1.0-service: TRACE: void LOG_TRACE()
+06-28 10:53:08.434  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.434  1364  2680 D STMDriver: [TUN_Change_Frequency] Star_Command_Communicate = 0, frequency = 90900, i2cAddr(0x64) channelID(2)
+06-28 10:53:08.435  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNZDA | messageType: Not a sentence of interest | dataFields: ,,,,00,00 | rawMessage: $GNZDA,,,,,00,00*56
+06-28 10:53:08.435  2919  2931 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGBS | messageType: Not a sentence of interest | dataFields: ,,,,,,,,, | rawMessage: $GNGBS,,,,,,,,,,*5F
+06-28 10:53:08.435  8185  8185 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.435  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.435  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNZDA,,,,,00,00*56
+06-28 10:53:08.435  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.435  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.435  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGBS,,,,,,,,,,*5F
+06-28 10:53:08.435  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.436  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.436  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.436  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GSPOF,1*74
+06-28 10:53:08.436  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.437  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GSPOF | messageType: Not a sentence of interest | dataFields: 1 | rawMessage: $GSPOF,1*74
+06-28 10:53:08.442  1364  2680 D MBP_AnalogDevice: [onTuneInternal][BGS][90900] Tune result:0 for band:4, scanMode(2) mTuneMode(0) 
+06-28 10:53:08.447   826  9638 D dtcmanager: onPropertyEvent 
+06-28 10:53:08.448  2977  3032 D CarDrivingStateService: Property Changed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=345311873513, mValue=0.0}
+06-28 10:53:08.448  2977  3032 D CarDrivingStateService: mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=345311873513, mValue=0.0}
+06-28 10:53:08.448  2977  3032 D CarDrivingStateService: inferDrivingStateLocked mLastGear: CarPropertyValue{mPropertyId=0x11400400, propertyName=GEAR_SELECTION, mAreaId=0x0, mStatus=0, mTimestampNanos=13443795671, mValue=4}mLastSpeed: CarPropertyValue{mPropertyId=0x11600207, propertyName=PERF_VEHICLE_SPEED, mAreaId=0x0, mStatus=0, mTimestampNanos=345311873513, mValue=0.0}mLastIgnitionState: CarPropertyValue{mPropertyId=0x11400409, propertyName=IGNITION_STATE, mAreaId=0x0, mStatus=0, mTimestampNanos=13378545880, mValue=5}
+06-28 10:53:08.448  2977  3032 D CarDrivingStateService: Driving state new->old 0->0
+06-28 10:53:08.448  5859  5859 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.448  2977  3032 D CAR.PropertyHalService: Received event HalPropValue{Property ID: PERF_ODOMETER(0x11600204), Area ID: GLOBAL(0x0), ElapsedRealtimeNanos: 345305727940, Status: UNAVAILABLE(0x1), Value: 0.0 KILOMETER} with status that is not AVAILABLE
+06-28 10:53:08.448  6599  6599 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.448  6117  6117 I ConnManFramework.co.nissan.car.factory.WifiFactoryWrapper: Wifi factory odometer callback
+06-28 10:53:08.448  6117  6117 I ConnManFramework.co.nissan.car.factory.WifiFactoryWrapper: Odometer changed: 0.0
+06-28 10:53:08.449  1036  1054 D VUCS.BasePlugin: (spi) uplink: aa 00 25 83 50 71 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 2c
+06-28 10:53:08.449  1036  1054 D IPS.InterfacePortServer: onSignalValueChanged: Signal value changed. id = 0x4e48
+06-28 10:53:08.450  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14691) -> newFrameIndex 14691 : input ts 345318460
+06-28 10:53:08.451  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14691 timestamp 345336216 inFlags 0
+06-28 10:53:08.472  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14692) -> newFrameIndex 14692 : input ts 345339927
+06-28 10:53:08.472  1364  2636 D MBP_AnalogDevice: [processRdsData][FGT] freq=87700 rdsDeviation=14972Hz rdsBER=100% validBlockNum=0 
+06-28 10:53:08.472  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14692 timestamp 345356216 inFlags 0
+06-28 10:53:08.475  2919  4929 D DrivingEcoScoreData: onSpeedChange: mVehicleSpeed: 0.000000
+06-28 10:53:08.475  9977  9977 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.475  1364  2683 E MBP_AnalogCapture: [bstreamReadTask] Failed to read from bstream file: Connection timed out 
+06-28 10:53:08.475  1364  2683 E MBP_AnalogCapture: E_CODE (0) AT (bstreamReadTask, 473) 
+06-28 10:53:08.478  2683  2683 W BSTREAM : bs4_fifo_read-timeout
+06-28 10:53:08.487  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.487  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNVTG | messageType: Not a sentence of interest | dataFields: ,,,,,,,,N | rawMessage: $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.488  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.488  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNVTG,,,,,,,,,N*2E
+06-28 10:53:08.488  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.488  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.488  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.489  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.489  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.489  2919  4406 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGNS | messageType: Not a sentence of interest | dataFields: ,,,,,NNNNNN,00,99.99,,,,,V | rawMessage: $GNGNS,,,,,,NNNNNN,00,99.99,,,,,V*07
+06-28 10:53:08.490  5128  5315 D AllianceCarLocationManagerProxy: onNmeaMessage
+06-28 10:53:08.490  2919  7262 D AllianceCarEvSettingService: NMEA Info | addressField: $GNGLL | messageType: Not a sentence of interest | dataFields: ,,,,,V,N | rawMessage: $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.490  2919  3191 D PVT     : Not a sentence of interest.
+06-28 10:53:08.490  2919  3191 D AllianceCarPvtService: listener onNmeaUpdate() : $GNGLL,,,,,,V,N*7A
+06-28 10:53:08.490  2919  3191 D AllianceCarPvtService: Number of Nmea Callbacks: 0
+06-28 10:53:08.493  1932  3071 D Codec2-MultiAccessUnitHelper: Empty or MultiAU info buffer scatter frames with frameIndex 14693) -> newFrameIndex 14693 : input ts 345361323
+06-28 10:53:08.493  1932  8591 D Codec2-MultiAccessUnitHelper: Finalizing work with input Idx 14693 timestamp 345376216 inFlags 0
+06-28 10:53:08.495  6020  6020 I jp.co.nissan.hmi.nissan_pal.carpropertymanager.adapter.CarPropertyAospListener: PIT CarPropertyManager update from Platform : 291504647 Value: 0.0
+06-28 10:53:08.506   453   453 I logd    : logdr: UID=2000 GID=2000 PID=13330 n tail=1000 logMask=99 pid=0 start=0ns deadline=0ns

@@ -642,7 +642,7 @@ class LocalLLMActivity : AppCompatActivity() {
         
         // Companion Mode Initialization
         val switchCompanionMode = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchCompanionMode)
-        val isCompanionModeEnabled = prefs.getBoolean("companion_mode_enabled", false)
+        val isCompanionModeEnabled = prefs.getBoolean("companion_mode_enabled", true)
         switchCompanionMode.isChecked = isCompanionModeEnabled
         switchCompanionMode.setOnCheckedChangeListener { _, isChecked ->
             prefs.edit().putBoolean("companion_mode_enabled", isChecked).apply()

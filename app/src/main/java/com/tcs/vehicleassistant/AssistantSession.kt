@@ -410,8 +410,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         stopListeningIntent.action = "ACTION_STOP_LISTENING"
         context.startService(stopListeningIntent)
         
-        if (LLMManager.engine == null || LLMManager.isPrewarming) {
-            statusText.text = if (LLMManager.isPrewarming) "Pre-warming Model... This may take 20s" else "Initializing Model..."
+        if (LLMManager.engine == null || LLMManager.isPrewarming || LLMManager.isFirstMessage) {
+            statusText.text = if (LLMManager.isPrewarming || LLMManager.isFirstMessage) "Pre-warming Model... This may take 20s" else "Initializing Model..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
             
@@ -423,13 +423,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 
                 LLMManager.autoInitialize(context, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
-                        statusText.text = "Hi, how can I help you?"
-                        inputControls.visibility = View.VISIBLE
-                        btnSend.isEnabled = true
-                        
-                        // Automatically start listening if invoked via voice match/hotword
-                        if (showFlags and SHOW_WITH_ASSIST != 0) {
-                            CoroutineScope(Dispatchers.Main).launch {
+                        CoroutineScope(Dispatchers.Main).launch {
+                            if (LLMManager.isFirstMessage) {
+                                statusText.text = "Pre-warming Model... This may take 20s"
+                                LLMManager.prewarm(context)
+                            }
+                            statusText.text = "Hi, how can I help you?"
+                            inputControls.visibility = View.VISIBLE
+                            btnSend.isEnabled = true
+                            
+                            // Automatically start listening if invoked via voice match/hotword
+                            if (showFlags and SHOW_WITH_ASSIST != 0) {
                                 kotlinx.coroutines.delay(500) // Wait for WakeWordService to release the mic
                                 btnMic.performClick()
                             }
@@ -649,7 +653,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         var isDoneCalled = false
                         
                         override fun onMessage(message: Message) {
-                            handleChunk(message.toString())
+                            android.util.Log.i("AssistantSession", "onMessage called with Message: ${message.toString()}")
+                            val contentsList = message.contents?.contents
+                            android.util.Log.i("AssistantSession", "contentsList size: ${contentsList?.size}")
+                            val textContent = contentsList?.firstOrNull() as? com.google.ai.edge.litertlm.Content.Text
+                            if (textContent != null) {
+                                android.util.Log.i("AssistantSession", "Extracted text: ${textContent.text}")
+                                handleChunk(textContent.text)
+                            } else {
+                                android.util.Log.i("AssistantSession", "textContent was null or not Content.Text")
+                            }
                         }
                         
                         override fun onMessage(chunkText: String) {
@@ -1177,6 +1190,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             } else {
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
+                        while (LLMManager.isPrewarming) {
+                            kotlinx.coroutines.delay(100)
+                        }
                         LLMManager.conversation!!.sendMessageAsync(
                             Contents.of(Content.Text(finalPrompt)),
                             callback,

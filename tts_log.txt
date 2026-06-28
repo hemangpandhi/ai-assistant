@@ -1,0 +1,12 @@
+--------- beginning of main
+06-27 09:28:08.470  9138  9138 I TextToSpeech: Sucessfully bound to com.google.android.tts
+06-27 09:28:08.471  9138  9337 I TextToSpeech: Connected to TTS engine
+06-27 09:28:08.476  9138  9390 I TextToSpeech: Setting up the connection to TTS engine...
+06-27 09:29:05.104  9138  9138 I TextToSpeech: Sucessfully bound to com.google.android.tts
+06-27 09:29:05.124  9138  9337 I TextToSpeech: Connected to TTS engine
+06-27 09:29:06.047  9138  9390 I TextToSpeech: Setting up the connection to TTS engine...
+06-27 09:29:31.131  9138 10344 I AssistantSession: RAW AI TEXT: Tokyo is an incredible city with so much to offer! Since you're looking for suggestions, I can certainly point you in the right direction.
+06-27 09:29:31.131  9138 10344 I AssistantSession: 
+06-27 09:29:31.131  9138 10344 I AssistantSession: For a first-timer, I'd suggest starting with the vibrant Shibuya Crossing for the sheer spectacle, and the serene Meiji Jingu Shrine for a beautiful oasis of peace. Then, you could dive into the neon jungle of Shinjuku for amazing food and nightlife, and finally, for something a bit more unique, explore the Ghibli Museum if you're a fan of animation.
+06-27 09:29:31.131  9138 10344 I AssistantSession: 
+06-27 09:29:31.131  9138 10344 I AssistantSession: Which places would you like to visit?
