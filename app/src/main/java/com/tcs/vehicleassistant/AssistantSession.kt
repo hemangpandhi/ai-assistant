@@ -279,7 +279,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
             
             // Removed explicit system beep muting so the user hears the native "listening" chime
-            
+
             try {
                 speechRecognizer?.startListening(speechRecognizerIntent)
             } catch (e: Exception) {
@@ -309,6 +309,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) {
                 // Removed explicit system beep unmuting
+
                 
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onReadyForSpeech")
                 statusText.visibility = View.VISIBLE
