@@ -1174,7 +1174,7 @@
       "requires_agentic_loop": false,
       "success_message": "I'll start playing music.",
       "requires_vehicle_state": false,
-      "instruction": "Plays music. You MUST replace 'SONG' with whatever the user requested (artist, song, or genre). If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their choice (e.g., 'bollywood'), immediately execute <TOOL>playMusic(CHOICE)</TOOL>.",
+      "instruction": "Plays music. You MUST replace 'SONG' with whatever the user requested (artist, song, or genre). If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their preferred genre or song (e.g., 'bollywood'), immediately execute <TOOL>playMusic(bollywood)</TOOL> replacing 'bollywood' with whatever they asked for.",
       "aliases": [
         "play",
         "playAudio",

@@ -100,10 +100,7 @@ class VoiceAnimationView @JvmOverloads constructor(
                     }
                 }
                 frameCount++
-                if (state == State.THINKING && frameCount % 2 != 0) {
-                    // Throttle to ~30fps during THINKING to save GPU bandwidth for the LLM
-                    return@addUpdateListener
-                }
+                // Run at full 60fps for smooth fluid animation
                 invalidate()
             }
             start()

@@ -561,8 +561,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 finish() // Auto-dismiss
             }
         }
-        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-        val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
+        val diningPref = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+            prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
+        }
         
         var interceptedQuery = query
         
@@ -580,59 +582,61 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
         }
         
-        if (isAgenticObservation) {
-            MemoryManager.addTurn("System", interceptedQuery)
-        } else {
-            MemoryManager.addTurn("User", interceptedQuery)
-        }
-        val slidingHistory = MemoryManager.getSlidingWindowContext(500)
-        
-        // Anti-Hallucination Music Interceptor logic has been moved to the streaming loop
-        // to allow the LLM to naturally generate a response.
-        val qStr = interceptedQuery.lowercase()
         val expectFollowup = false
-        
-        val isComplexQuery = interceptedQuery.length >= 25 || 
-                interceptedQuery.lowercase().matches(Regex("(?s).*\\b(temperat|hot|cold|navigat|direction|rout|diagnos).*"))
-        
-        val finalPrompt: String
-        // Keep the reminder extremely short to avoid overwhelming the 2B Edge LLM's attention mechanism
-        val reminder = ""
-        
-        val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-        val dynamicState = SmartContextInjector.getInjectedContext(interceptedQuery, context)
-        val vehicleState = if (dynamicState.isNotEmpty()) "[Current State: $dynamicState]" else ""
-        
-        val stateInject = if (vehicleState.isNotEmpty() && vehicleState != com.tcs.vehicleassistant.LLMManager.lastVehicleState) {
-            com.tcs.vehicleassistant.LLMManager.lastVehicleState = vehicleState
-            "$vehicleState\n"
-        } else ""
-        
-        val currentToolsString = com.tcs.vehicleassistant.ToolManager.getLlmToolsPrompt(interceptedQuery, com.tcs.vehicleassistant.LLMManager.lastAiResponse)
-        val toolsInject = if (currentToolsString.isNotBlank() && currentToolsString != com.tcs.vehicleassistant.LLMManager.lastInjectedTools) {
-            com.tcs.vehicleassistant.LLMManager.lastInjectedTools = currentToolsString
-            "\n[Available Tools]\n$currentToolsString\n"
-        } else {
-            ""
-        }
-        
-        finalPrompt = if (LocalLLMActivity.isCloudModelActive) {
-            // Cloud API is stateless, so we MUST inject full history and state every time
-            if (slidingHistory.isNotEmpty()) {
-                "$sysPrompt\n$reminder\n[Conversation History]\n$slidingHistory\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+        // Push all heavy string building and IO off the main thread to prevent animation stuttering
+        val finalPrompt: String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            if (isAgenticObservation) {
+                MemoryManager.addTurn("System", interceptedQuery)
             } else {
-                "$sysPrompt\n$reminder\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+                MemoryManager.addTurn("User", interceptedQuery)
             }
-        } else {
-            // Edge API natively maintains history in the KV Cache.
-            // We ONLY pass the new delta to avoid O(n^2) context accumulation.
-            if (LLMManager.isFirstMessage) {
-                LLMManager.isFirstMessage = false
-                // On the very first turn, the system prompt is already evaluated (Prewarm).
-                // We just pass the state, tools, and the query.
-                "$stateInject$toolsInject\n$interceptedQuery"
+            val slidingHistory = MemoryManager.getSlidingWindowContext(500)
+            
+            // Anti-Hallucination Music Interceptor logic has been moved to the streaming loop
+            // to allow the LLM to naturally generate a response.
+            val qStr = interceptedQuery.lowercase()
+            
+            val isComplexQuery = interceptedQuery.length >= 25 || 
+                    interceptedQuery.lowercase().matches(Regex("(?s).*\\b(temperat|hot|cold|navigat|direction|rout|diagnos).*"))
+            
+            // Keep the reminder extremely short to avoid overwhelming the 2B Edge LLM's attention mechanism
+            val reminder = ""
+            
+            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+            val dynamicState = SmartContextInjector.getInjectedContext(interceptedQuery, context)
+            val vehicleState = if (dynamicState.isNotEmpty()) "[Current State: $dynamicState]" else ""
+            
+            val stateInject = if (vehicleState.isNotEmpty() && vehicleState != com.tcs.vehicleassistant.LLMManager.lastVehicleState) {
+                com.tcs.vehicleassistant.LLMManager.lastVehicleState = vehicleState
+                "$vehicleState\n"
+            } else ""
+            
+            val currentToolsString = com.tcs.vehicleassistant.ToolManager.getLlmToolsPrompt(interceptedQuery, com.tcs.vehicleassistant.LLMManager.lastAiResponse)
+            val toolsInject = if (currentToolsString.isNotBlank() && currentToolsString != com.tcs.vehicleassistant.LLMManager.lastInjectedTools) {
+                com.tcs.vehicleassistant.LLMManager.lastInjectedTools = currentToolsString
+                "\n[Available Tools]\n$currentToolsString\n"
             } else {
-                "$stateInject$toolsInject\n$interceptedQuery"
+                ""
+            }
+            
+            if (LocalLLMActivity.isCloudModelActive) {
+                // Cloud API is stateless, so we MUST inject full history and state every time
+                if (slidingHistory.isNotEmpty()) {
+                    "$sysPrompt\n$reminder\n[Conversation History]\n$slidingHistory\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+                } else {
+                    "$sysPrompt\n$reminder\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+                }
+            } else {
+                // Edge API natively maintains history in the KV Cache.
+                // We ONLY pass the new delta to avoid O(n^2) context accumulation.
+                if (LLMManager.isFirstMessage) {
+                    LLMManager.isFirstMessage = false
+                    // On the very first turn, the system prompt is already evaluated (Prewarm).
+                    // We just pass the state, tools, and the query.
+                    "$stateInject$toolsInject\n$interceptedQuery"
+                } else {
+                    "$stateInject$toolsInject\n$interceptedQuery"
+                }
             }
         }
 
@@ -686,59 +690,57 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 LatencyLogger.log("AssistantSession", "Time to First Token (TTFT): ${ttft}ms")
                             }
                             
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                                if (isQueryProcessed) return@launch
-                                voiceAnimation.state = VoiceAnimationView.State.SPEAKING
-                                val chunk = chunkText
-                                lastResponseBuilder.append(chunk)
-                                var currentText = lastResponseBuilder.toString()
-                                
-                                var stripped = true
-                                while (stripped) {
-                                    stripped = false
-                                    val prefixes = listOf("Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :", "System:", "System :")
-                                    for (prefix in prefixes) {
-                                        if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
-                                            currentText = currentText.trimStart().substring(prefix.length).trimStart()
-                                            lastResponseBuilder.clear()
-                                            lastResponseBuilder.append(currentText)
-                                            stripped = true
-                                        }
+                            if (isQueryProcessed) return
+                            val chunk = chunkText
+                            lastResponseBuilder.append(chunk)
+                            var currentText = lastResponseBuilder.toString()
+                            
+                            var stripped = true
+                            while (stripped) {
+                                stripped = false
+                                val prefixes = listOf("Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :", "System:", "System :")
+                                for (prefix in prefixes) {
+                                    if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
+                                        currentText = currentText.trimStart().substring(prefix.length).trimStart()
+                                        lastResponseBuilder.clear()
+                                        lastResponseBuilder.append(currentText)
+                                        stripped = true
                                     }
                                 }
+                            }
+                            
+                            // Prevent the AI from hallucinating the user's response
+                            val userIdx = currentText.indexOf("\nUser:")
+                            if (userIdx != -1) {
+                                isHallucinating = true
+                                currentText = currentText.substring(0, userIdx)
+                                lastResponseBuilder.setLength(userIdx)
+                            } else if (currentText.trim().endsWith("User:")) {
+                                isHallucinating = true
+                                currentText = currentText.substringBeforeLast("User:")
+                                lastResponseBuilder.setLength(currentText.length)
+                            }
+                            
+                            // Watchdog: Detect infinite runaway text or repetition loops
+                            if (currentText.length > 250) {
+                                val lastWords = currentText.trim().split(Regex("\\s+")).takeLast(5)
+                                val isRepeating = lastWords.size == 5 && lastWords.distinct().size == 1
+                                val isRunaway = currentText.length > 600 // A voice assistant should never output this much text natively
                                 
-                                // Prevent the AI from hallucinating the user's response
-                                val userIdx = currentText.indexOf("\nUser:")
-                                if (userIdx != -1) {
+                                if (isRepeating || isRunaway) {
+                                    android.util.Log.e("AssistantSession", "LLM Loop/Runaway Detected. Force aborting output.")
                                     isHallucinating = true
-                                    currentText = currentText.substring(0, userIdx)
-                                    lastResponseBuilder.setLength(userIdx)
-                                } else if (currentText.trim().endsWith("User:")) {
-                                    isHallucinating = true
-                                    currentText = currentText.substringBeforeLast("User:")
-                                    lastResponseBuilder.setLength(currentText.length)
-                                }
-                                
-                                // Watchdog: Detect infinite runaway text or repetition loops
-                                if (currentText.length > 250) {
-                                    val lastWords = currentText.trim().split(Regex("\\s+")).takeLast(5)
-                                    val isRepeating = lastWords.size == 5 && lastWords.distinct().size == 1
-                                    val isRunaway = currentText.length > 600 // A voice assistant should never output this much text natively
-                                    
-                                    if (isRepeating || isRunaway) {
-                                        android.util.Log.e("AssistantSession", "LLM Loop/Runaway Detected. Force aborting output.")
-                                        isHallucinating = true
-                                        if (!isDoneCalled) {
-                                            onDone()
-                                            
-                                            // Asynchronously reset the conversation to free up the C++ engine immediately
-                                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                                com.tcs.vehicleassistant.LLMManager.resetConversation()
-                                            }
+                                    if (!isDoneCalled) {
+                                        onDone()
+                                        
+                                        // Asynchronously reset the conversation to free up the C++ engine immediately
+                                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                            com.tcs.vehicleassistant.LLMManager.resetConversation()
                                         }
-                                        return@launch
                                     }
+                                    return
                                 }
+                            }
                             
                             // Tool execution has been moved to onDone() to prevent streaming race conditions
                             // Hide any fully formed OR partially streamed tools from the TTS/UI to prevent index corruption
@@ -752,44 +754,48 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             }
                             displayMsg = displayMsg.trim()
                             
-                            
-                            if (displayMsg.isNotEmpty() && statusText.visibility == View.VISIBLE) {
-                                stopDotAnimation()
-                                voiceAnimation.state = VoiceAnimationView.State.SPEAKING
-                            }
-                            
                             val displayStr = displayMsg.toString()
-                            targetDisplayMessage = displayStr
                             
-                            // Typewriter Coroutine Buffer
-                            if (typewriterJob == null || typewriterJob?.isActive != true) {
-                                typewriterJob = CoroutineScope(Dispatchers.Main).launch {
-                                    while (isActive && currentDisplayLength < targetDisplayMessage.length) {
-                                        val timeSinceTts = System.currentTimeMillis() - lastTtsUpdateTime
-                                        val isTtsActive = lastTtsUpdateTime > 0L && timeSinceTts < 2000 // Active if TTS fired recently
-                                        
-                                        // Throttle the visual typewriter if it gets more than 3 characters ahead of the spoken audio
-                                        if (isTtsActive && currentDisplayLength > ttsSpokenLength + 3) {
-                                            kotlinx.coroutines.delay(50)
-                                            continue
-                                        }
-                                        
-                                        val step = 1
-                                        val dynamicDelay = typingSpeedMs
-                                        
-                                        currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
-                                        val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
-                                        
-                                        responseText.text = currentSubstring
-                                        
-                                        // Auto-scroll to bottom efficiently (batching to prevent message queue flooding)
-                                        if (currentDisplayLength % 5 == 0) {
-                                            svResponse?.post {
-                                                svResponse?.fullScroll(View.FOCUS_DOWN)
+                            // DISPATCH UI WORK TO MAIN THREAD
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                                if (isQueryProcessed) return@launch
+                                if (displayStr.isNotEmpty() && statusText.visibility == View.VISIBLE) {
+                                    stopDotAnimation()
+                                    voiceAnimation.state = VoiceAnimationView.State.SPEAKING
+                                }
+                                
+                                targetDisplayMessage = displayStr
+                                
+                                // Typewriter Coroutine Buffer
+                                if (typewriterJob == null || typewriterJob?.isActive != true) {
+                                    typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+                                        while (isActive && currentDisplayLength < targetDisplayMessage.length) {
+                                            val timeSinceTts = System.currentTimeMillis() - lastTtsUpdateTime
+                                            val isTtsActive = lastTtsUpdateTime > 0L && timeSinceTts < 2000 // Active if TTS fired recently
+                                            
+                                            // Wait fluidly for TTS without causing stuttering
+                                            if (isTtsActive && currentDisplayLength > ttsSpokenLength + 5) {
+                                                kotlinx.coroutines.delay(16) // 1 frame wait (vsync aligned)
+                                                continue
                                             }
+                                            
+                                            val step = 1
+                                            val dynamicDelay = typingSpeedMs
+                                            
+                                            currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
+                                            val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
+                                            
+                                            responseText.text = currentSubstring
+                                            
+                                            // Auto-scroll to bottom efficiently (batching to prevent message queue flooding)
+                                            if (currentDisplayLength % 5 == 0) {
+                                                svResponse?.post {
+                                                    svResponse?.fullScroll(View.FOCUS_DOWN)
+                                                }
+                                            }
+                                            
+                                            kotlinx.coroutines.delay(dynamicDelay)
                                         }
-                                        
-                                        kotlinx.coroutines.delay(dynamicDelay)
                                     }
                                 }
                             }
@@ -813,10 +819,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 remainingText = displayMsg.substring(spokenTextLength[0])
                                 match = sentenceRegex.find(remainingText)
                             }
-                            
-                            // The typewriter handles UI updating, so we don't set it immediately here
-                            // responseText.text = parseMarkdown(displayMsg)
-                        }
                     }
 
                     override fun onDone() {
@@ -1055,8 +1057,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         val timeSinceTts = System.currentTimeMillis() - lastTtsUpdateTime
                                         val isTtsActive = lastTtsUpdateTime > 0L && timeSinceTts < 2000 // Active if TTS fired recently
                                         
-                                        if (isTtsActive && currentDisplayLength > ttsSpokenLength + 3) {
-                                            kotlinx.coroutines.delay(50)
+                                        if (isTtsActive && currentDisplayLength > ttsSpokenLength + 5) {
+                                            kotlinx.coroutines.delay(16) // 1 frame wait
                                             continue
                                         }
                                         
