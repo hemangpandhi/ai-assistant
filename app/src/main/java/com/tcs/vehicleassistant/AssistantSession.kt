@@ -488,13 +488,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             try {
                 intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 this@AssistantSession.startVoiceActivity(intent)
-                hide()
+                // Removed hide() here so the popup remains visible while the assistant speaks the result!
             } catch (e: Exception) {
                 android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
                 try {
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                     context.applicationContext.startActivity(intent)
-                    hide()
+                    // Removed hide() here as well
                 } catch (e2: Exception) {
                     android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
                     throw e2 // Propagate to ToolManager for fallbacks
