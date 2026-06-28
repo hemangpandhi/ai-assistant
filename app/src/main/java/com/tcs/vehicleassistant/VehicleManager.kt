@@ -19,6 +19,11 @@ object VehicleManager {
     private var currentTemperature: Float = 22f // Store raw VHAL value (usually Celsius)
     private var currentFuelLevel: Float = 50f
     private var currentGear: Int = 4
+    var isHvacPowerOn: Boolean = false
+    var isHvacAutoOn: Boolean = false
+    var isHvacAcOn: Boolean = false
+    private var currentFanSpeed: Int = 3
+    var isDefrosterOn: Boolean = false
     
     // Dynamic Custom JSON Properties
     // Maps integer ID -> Property Name (e.g., 639631617 -> "ADAS_OSE_DOOR_ALERT")
@@ -44,7 +49,7 @@ object VehicleManager {
         val customProps = getCustomPropertiesString()
         val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
         
-        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Heater: ${getRealSeatHeaterLevel()}, City: ${LocationManager.getCurrentCity()}$customPropsStr"
+        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Fan: $currentFanSpeed, Heater: ${getRealSeatHeaterLevel()}, AC: ${if (isHvacAcOn) "ON" else "OFF"}, Power: ${if (isHvacPowerOn) "ON" else "OFF"}, Auto: ${if (isHvacAutoOn) "ON" else "OFF"}, Defrost: ${if (isDefrosterOn) "ON" else "OFF"}, City: ${LocationManager.getCurrentCity()}$customPropsStr"
     }
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
@@ -62,6 +67,11 @@ object VehicleManager {
                 VehiclePropertyIds.HVAC_TEMPERATURE_SET -> currentTemperature = (value.value as? Number)?.toFloat() ?: 22f
                 VehiclePropertyIds.FUEL_LEVEL -> currentFuelLevel = value.value as? Float ?: 50f
                 VehiclePropertyIds.GEAR_SELECTION -> currentGear = value.value as? Int ?: 4
+                VehiclePropertyIds.HVAC_POWER_ON -> isHvacPowerOn = value.value as? Boolean ?: false
+                VehiclePropertyIds.HVAC_AUTO_ON -> isHvacAutoOn = value.value as? Boolean ?: false
+                VehiclePropertyIds.HVAC_AC_ON -> isHvacAcOn = value.value as? Boolean ?: false
+                VehiclePropertyIds.HVAC_FAN_SPEED -> currentFanSpeed = value.value as? Int ?: 3
+                VehiclePropertyIds.HVAC_DEFROSTER -> isDefrosterOn = value.value as? Boolean ?: false
             }
         }
 
@@ -82,6 +92,11 @@ object VehicleManager {
                 VehiclePropertyIds.PERF_VEHICLE_SPEED,
                 VehiclePropertyIds.HVAC_SEAT_TEMPERATURE,
                 VehiclePropertyIds.HVAC_TEMPERATURE_SET,
+                VehiclePropertyIds.HVAC_POWER_ON,
+                VehiclePropertyIds.HVAC_AUTO_ON,
+                VehiclePropertyIds.HVAC_AC_ON,
+                VehiclePropertyIds.HVAC_FAN_SPEED,
+                VehiclePropertyIds.HVAC_DEFROSTER,
                 VehiclePropertyIds.FUEL_LEVEL,
                 VehiclePropertyIds.GEAR_SELECTION,
                 VehiclePropertyIds.WINDOW_POS
@@ -133,6 +148,11 @@ object VehicleManager {
             currentTemperature = getFloatPropertyQuietly(VehiclePropertyIds.HVAC_TEMPERATURE_SET, 22f)
             currentFuelLevel = getFloatPropertyQuietly(VehiclePropertyIds.FUEL_LEVEL, 50f)
             currentGear = getIntPropertyQuietly(VehiclePropertyIds.GEAR_SELECTION, 4)
+            isHvacPowerOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_POWER_ON, false)
+            isHvacAutoOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_AUTO_ON, false)
+            isHvacAcOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_AC_ON, false)
+            currentFanSpeed = getIntPropertyQuietly(VehiclePropertyIds.HVAC_FAN_SPEED, 3)
+            isDefrosterOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_DEFROSTER, false)
 
             isInitialized = true
         } catch (e: Exception) {
@@ -164,15 +184,50 @@ object VehicleManager {
         } catch (e: Exception) { default }
     }
 
+    private fun getBooleanPropertyQuietly(propertyId: Int, default: Boolean): Boolean {
+        return try {
+            val config = carPropertyManager?.getCarPropertyConfig(propertyId)
+            val areaId = config?.areaIds?.firstOrNull() ?: 0
+            carPropertyManager?.getBooleanProperty(propertyId, areaId) ?: default
+        } catch (e: Exception) { default }
+    }
+
     fun getRealSpeed(): Int = currentSpeed.toInt()
     fun getRealSeatHeaterLevel(): Int = currentSeatHeaterLevel
-    fun getRealTemperature(): Int {
+    fun getRealTemperature(zone: String = "driver"): Int {
+        var temp = currentTemperature
+        try {
+            var areaIds = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
+            if (areaIds == null || areaIds.isEmpty()) {
+                areaIds = intArrayOf(49, 68)
+            }
+            
+            var targetAreaId = areaIds.first()
+            for (areaId in areaIds) {
+                if (zone == "driver" && (areaId and 1) == 1) {
+                    targetAreaId = areaId
+                    break
+                }
+                if (zone == "passenger" && (areaId and 4) == 4) {
+                    targetAreaId = areaId
+                    break
+                }
+            }
+            
+            val readTemp = carPropertyManager?.getFloatProperty(android.car.VehiclePropertyIds.HVAC_TEMPERATURE_SET, targetAreaId)
+            if (readTemp != null && readTemp > 0) {
+                temp = readTemp
+            }
+        } catch (e: Exception) {
+            // fallback to cached currentTemperature
+        }
+
         // VHAL usually stores in Celsius (e.g. 16-32)
-        if (currentTemperature >= 50f) {
-            return Math.round(currentTemperature)
+        if (temp >= 50f) {
+            return Math.round(temp)
         }
         
-        return Math.round((currentTemperature * 9.0f / 5.0f) + 32.0f)
+        return Math.round((temp * 9.0f / 5.0f) + 32.0f)
     }
     fun getRawTemperature(): Float = currentTemperature
     fun getFuelLevel(): Float = currentFuelLevel

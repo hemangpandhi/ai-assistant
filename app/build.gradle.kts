@@ -83,7 +83,7 @@ dependencies {
     // Alternatively, for cloud fallback:
     // implementation("com.google.ai.client.generativeai:generativeai:0.2.0")
 
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.11.0")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:latest.release")
 
     // Vosk Offline Speech Recognition for Wake Word
     implementation("com.alphacephei:vosk-android:0.3.47@aar")

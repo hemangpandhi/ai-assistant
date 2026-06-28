@@ -316,6 +316,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 voiceAnimation.state = VoiceAnimationView.State.LISTENING
             }
             override fun onBeginningOfSpeech() {
+                LatencyLogger.userSpeakingStartTimeMs = LatencyLogger.getTotalTime()
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onBeginningOfSpeech")
             }
             override fun onRmsChanged(rmsdB: Float) {}
@@ -325,6 +326,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                 audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
                 
+                LatencyLogger.userSpeakingEndTimeMs = LatencyLogger.getTotalTime()
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onEndOfSpeech")
                 startThinkingAnimation()
             }
@@ -355,6 +357,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 }
             }
             override fun onResults(results: Bundle?) {
+                LatencyLogger.lastAsrTimeMs = LatencyLogger.getTotalTime()
                 LatencyLogger.log("AssistantSession", "Speech Recognizer onResults")
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
@@ -380,6 +383,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
+        
+        // Force window to occupy the entire screen on Automotive OS to prevent UI chopping
+        window?.window?.setLayout(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+        )
         
         unloadJob?.cancel()
         
@@ -580,33 +589,55 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         val expectFollowup = false
         
         val isComplexQuery = interceptedQuery.length >= 25 || 
-                interceptedQuery.lowercase().contains("temperature") || 
-                interceptedQuery.lowercase().contains("hot") || 
-                interceptedQuery.lowercase().contains("navigate") || 
-                interceptedQuery.lowercase().contains("diagnos")
+                interceptedQuery.lowercase().matches(Regex("(?s).*\\b(temperat|hot|cold|navigat|direction|rout|diagnos).*"))
         
         val finalPrompt: String
-        val reminder = "\n(Reminder: Use exact <TOOL> XML tags for car actions.)"
-        val vehicleState = "[Current State: ${VehicleManager.getLLMContextString(context)}]"
+        // Keep the reminder extremely short to avoid overwhelming the 2B Edge LLM's attention mechanism
+        val reminder = ""
         
-        if (LLMManager.isFirstMessage) {
-            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            
-            if (slidingHistory.isNotEmpty() && !LocalLLMActivity.isCloudModelActive) {
-                finalPrompt = "$sysPrompt\n$reminder\n\n$vehicleState\n[Conversation History]\n$slidingHistory\nAssistant:"
-            } else {
-                finalPrompt = if (sysPrompt.isNotEmpty()) "$sysPrompt\n$reminder\n\n$vehicleState\nUser: $interceptedQuery" else "$reminder\n\n$vehicleState\nUser: $interceptedQuery"
-            }
-            LLMManager.isFirstMessage = false
+        val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+        val dynamicState = SmartContextInjector.getInjectedContext(interceptedQuery, context)
+        val vehicleState = if (dynamicState.isNotEmpty()) "[Current State: $dynamicState]" else ""
+        
+        val stateInject = if (vehicleState.isNotEmpty() && vehicleState != com.tcs.vehicleassistant.LLMManager.lastVehicleState) {
+            com.tcs.vehicleassistant.LLMManager.lastVehicleState = vehicleState
+            "$vehicleState\n"
+        } else ""
+        
+        val currentToolsString = com.tcs.vehicleassistant.ToolManager.getLlmToolsPrompt(interceptedQuery, com.tcs.vehicleassistant.LLMManager.lastAiResponse)
+        val toolsInject = if (currentToolsString.isNotBlank() && currentToolsString != com.tcs.vehicleassistant.LLMManager.lastInjectedTools) {
+            com.tcs.vehicleassistant.LLMManager.lastInjectedTools = currentToolsString
+            "\n[Available Tools]\n$currentToolsString\n"
         } else {
-            finalPrompt = "$vehicleState$reminder\n$interceptedQuery"
+            ""
         }
+        
+        finalPrompt = if (LocalLLMActivity.isCloudModelActive) {
+            // Cloud API is stateless, so we MUST inject full history and state every time
+            if (slidingHistory.isNotEmpty()) {
+                "$sysPrompt\n$reminder\n[Conversation History]\n$slidingHistory\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+            } else {
+                "$sysPrompt\n$reminder\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+            }
+        } else {
+            // Edge API natively maintains history in the KV Cache.
+            // We ONLY pass the new delta to avoid O(n^2) context accumulation.
+            if (LLMManager.isFirstMessage) {
+                LLMManager.isFirstMessage = false
+                // On the very first turn, the system prompt is already evaluated (Prewarm).
+                // We just pass the state, tools, and the query.
+                "$stateInject$toolsInject\n$interceptedQuery"
+            } else {
+                "$stateInject$toolsInject\n$interceptedQuery"
+            }
+        }
+
 
         val executedTools = mutableSetOf<String>()
         executedTools.addAll(previousExecutedTools)
         val toolFeedbacks = mutableListOf<String>()
         currentPendingTools.clear()
-        val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
+        val regex = Regex("(?i)<TOOL>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:</TOOL>|>)", RegexOption.DOT_MATCHES_ALL)
         val spokenTextLength = intArrayOf(0)
         val parsedSpokenLength = intArrayOf(0)
         
@@ -615,6 +646,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
         val callback = object : MessageCallback, CloudMessageCallback {
                         var isHallucinating = false
+                        var isDoneCalled = false
                         
                         override fun onMessage(message: Message) {
                             handleChunk(message.toString())
@@ -673,57 +705,31 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     currentText = currentText.substringBeforeLast("User:")
                                     lastResponseBuilder.setLength(currentText.length)
                                 }
-                            
-                            // Handle Tool Calls (e.g., <TOOL>increaseTemperature(2)</TOOL>)
-                            val matches = regex.findAll(currentText)
-                            for (match in matches) {
-                                val toolCall = match.groups[1]?.value?.trim() ?: continue
                                 
-                                // Anti-Hallucination Hack: Prevent direct navigation on generic food queries
-                                val toolName = toolCall.substringBefore("(").trim()
-                                val q = interceptedQuery.lowercase()
-                                val isGenericFood = (q.contains("hungry") || q.contains("food")) && 
-                                                    !(q.contains("italian") || q.contains("mexican") || q.contains("pizza") || q.contains("burger") || q.contains("sushi") || q.contains("vegetarian") || q.contains("vegan") || q.contains("indian") || q.contains("thai") || q.contains("japanese"))
-                                
-                                val isDiag = q.contains("wrong") || q.contains("broken") || q.contains("issue") || q.contains("light") || q.contains("code") || q.contains("door") || q.contains("diagnos") || q.contains("obd") || q.contains("ob2") || q.contains("engine") || q.contains("service")
-                                
-                                if ((toolName == "navigate" || toolName == "search") && (isGenericFood || isDiag)) {
-                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory tool call: $toolCall")
-                                    continue
-                                }
-                                
-                                if ((toolName == "turnOnCabinLight" || toolName == "turnOffCabinLight") && !q.contains("light") && !q.contains("cabin") && !q.contains("interior") && !q.contains("dark") && !q.contains("see")) {
-                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory cabin light tool call: $toolCall")
-                                    continue
-                                }
-                                
-                                val isClimate = toolName.contains("Temperature", ignoreCase = true) || toolName.contains("Fan", ignoreCase = true) || toolName.contains("AC", ignoreCase = true)
-                                val isClimateQuery = q.contains("hot") || q.contains("cold") || q.contains("warm") || q.contains("cool") || q.contains("freeze") || q.contains("boil") || q.contains("a/c") || q.contains("ac") || q.contains("air") || q.contains("temp") || q.contains("climate") || q.contains("fan") || q.contains("heat") || q.contains("defrost") || q.contains("increase") || q.contains("decrease")
-                                
-                                if (isClimate && !isClimateQuery) {
-                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory climate tool call: $toolCall")
-                                    continue
-                                }
-
-                                if (executedTools.add(toolCall)) {
-                                    android.util.Log.d("AssistantSession", "Executing tool from LLM: $toolCall")
-                                    val toolDef = ToolManager.getToolDefinition(toolCall)
-                                    if (toolDef?.requiresConfirmation == true) {
-                                        pendingConfirmationTool = toolCall
-                                        val confirmMsg = toolDef.confirmationMessage ?: "Warning: Are you sure you want to do this?"
-                                        lastResponseBuilder.clear()
-                                        lastResponseBuilder.append(confirmMsg)
-                                        isHallucinating = true // Force stop further output processing
-                                    } else {
-                                        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async { kotlinx.coroutines.withTimeoutOrNull(10000L) {
-                                            executeToolCall(toolCall) } ?: "System Error: Tool execution timed out."
+                                // Watchdog: Detect infinite runaway text or repetition loops
+                                if (currentText.length > 250) {
+                                    val lastWords = currentText.trim().split(Regex("\\s+")).takeLast(5)
+                                    val isRepeating = lastWords.size == 5 && lastWords.distinct().size == 1
+                                    val isRunaway = currentText.length > 600 // A voice assistant should never output this much text natively
+                                    
+                                    if (isRepeating || isRunaway) {
+                                        android.util.Log.e("AssistantSession", "LLM Loop/Runaway Detected. Force aborting output.")
+                                        isHallucinating = true
+                                        if (!isDoneCalled) {
+                                            onDone()
+                                            
+                                            // Asynchronously reset the conversation to free up the C++ engine immediately
+                                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                                                com.tcs.vehicleassistant.LLMManager.resetConversation()
+                                            }
                                         }
-                                        currentPendingTools.add(job)
+                                        return@launch
                                     }
                                 }
-                            }
+                            
+                            // Tool execution has been moved to onDone() to prevent streaming race conditions
                             // Hide any fully formed OR partially streamed tools from the TTS/UI to prevent index corruption
-                            var displayMsg = currentText.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "")
+                            var displayMsg = currentText.replace(Regex("(?i)<TOOL>[\\s\\S]*?(</TOOL>|$)"), "")
                             val lastTagIndex = displayMsg.lastIndexOf("<")
                             if (lastTagIndex != -1) {
                                 val potentialTag = displayMsg.substring(lastTagIndex).uppercase()
@@ -801,6 +807,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
 
                     override fun onDone() {
+                        if (isDoneCalled) return
+                        isDoneCalled = true
+                        
                         val totalTimeMs = System.currentTimeMillis() - startTime
                         val ttftMs = if (firstTokenTime > 0) firstTokenTime - startTime else totalTimeMs
                         val outputTimeMs = totalTimeMs - ttftMs
@@ -811,18 +820,121 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         
                         // Text generation is completely done
                         android.util.Log.i("AssistantSession", "RAW AI TEXT: ${tempFinalMsg}")
-                        android.util.Log.i("LLMMetrics", "================ LLM GENERATION METRICS ================")
-                        android.util.Log.i("LLMMetrics", "Model Backend:    ${if (LocalLLMActivity.isCloudModelActive) "Cloud LLM API" else "Local Edge (Google MediaPipe LiteRT)"}")
-                        android.util.Log.i("LLMMetrics", "TTFT (First Token):         ${ttftMs}ms")
-                        android.util.Log.i("LLMMetrics", "Total Generation Time:      ${totalTimeMs}ms")
-                        android.util.Log.i("LLMMetrics", "Estimated Output Tokens:    ~${estimatedTokens} tokens")
-                        android.util.Log.i("LLMMetrics", "Output Speed (TPS):         ${String.format("%.2f", tps)} tokens/sec")
-                        android.util.Log.i("LLMMetrics", "========================================================")
                         
                         LatencyLogger.log("AssistantSession", "Total Generation Time: ${totalTimeMs}ms (TTFT: ${ttftMs}ms, TPS: ${String.format("%.2f", tps)})")
                         
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
+                            
+                            // Parse and execute tools on the FINAL text output
+                            val matches = regex.findAll(tempFinalMsg)
+                            for (match in matches) {
+                                val toolName = match.groups[1]?.value?.trim() ?: continue
+                                val toolArgs = match.groups[2]?.value?.trim() ?: ""
+                                val toolCall = "${toolName}(${toolArgs})"
+                                
+                                val q = interceptedQuery.lowercase()
+                                val isAffirmative = q.matches(Regex(".*\\b(yes|yeah|sure|do it|ok|yep|yup|go ahead|please)\\b.*"))
+                                
+                                val isGenericFood = q.matches(Regex("(?s).*\\b(hungry|food).*")) && 
+                                                    !q.matches(Regex("(?s).*\\b(italian|mexican|pizza|burger|sushi|vegetarian|vegan|indian|thai|japanese).*"))
+                                
+                                val isDiag = q.matches(Regex("(?s).*\\b(wrong|broken|issue|light|code|door|diagnos|obd|engine|service).*"))
+                                
+                                if ((toolName == "navigate" || toolName == "search") && (isGenericFood || isDiag) && !isAffirmative) {
+                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory tool call: $toolCall")
+                                    continue
+                                }
+                                
+                                if ((toolName == "turnOnCabinLight" || toolName == "turnOffCabinLight") && !q.matches(Regex("(?s).*\\b(light|cabin|interior|dark|see).*")) && !isAffirmative) {
+                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory cabin light tool call: $toolCall")
+                                    continue
+                                }
+                                
+                                val isClimate = toolName.contains("Temperature", ignoreCase = true) || toolName.contains("Fan", ignoreCase = true) || toolName.endsWith("AC", ignoreCase = true)
+                                val isClimateQuery = q.matches(Regex("(?s).*\\b(hot|cold|warm|cool|freeze|boil|a/c|ac|air|temp|climate|fan|heat|defrost|increas|incres|decreas|decres|driver|passenger|max|min|high|low).*"))
+                                val isNumeric = q.matches(Regex(".*\\b\\d+\\b.*"))
+                                
+                                if (isClimate && !isClimateQuery && !isAffirmative && !isNumeric) {
+                                    android.util.Log.w("AssistantSession", "Intercepted hallucinatory climate tool call: $toolCall")
+                                    continue
+                                }
+
+                                val displayMsgWithoutTags = tempFinalMsg.replace(Regex("(?i)<TOOL>[\\s\\S]*?(</TOOL>|$)"), "").trim()
+                                val isAskingClarification = displayMsgWithoutTags.contains("?") && 
+                                    (displayMsgWithoutTags.contains("What", ignoreCase = true) || 
+                                     displayMsgWithoutTags.contains("Which", ignoreCase = true) || 
+                                     displayMsgWithoutTags.contains("How much", ignoreCase = true) || 
+                                     displayMsgWithoutTags.contains("Would you like", ignoreCase = true) || 
+                                     displayMsgWithoutTags.contains("Are you sure", ignoreCase = true) ||
+                                     displayMsgWithoutTags.contains("Do you have", ignoreCase = true)) ||
+                                     displayMsgWithoutTags.contains("clarify", ignoreCase = true) ||
+                                     displayMsgWithoutTags.contains("specify", ignoreCase = true)
+                                
+                                if (isAskingClarification) {
+                                    val isClimateTool = toolName.contains("Temperature", ignoreCase = true) || 
+                                                        toolName.contains("Fan", ignoreCase = true) ||
+                                                        toolName.contains("AC", ignoreCase = true)
+                                    val isLiteralPlaceholder = toolArgs == "SONG" || toolArgs == "VAL" || toolArgs == "direction" || toolArgs == "LEVEL"
+                                    
+                                    if (isClimateTool || isLiteralPlaceholder) {
+                                        android.util.Log.w("AssistantSession", "Intercepted desynchronized tool call during a clarifying question: $toolCall")
+                                        continue
+                                    }
+                                }
+
+                                var correctedToolCall = toolCall
+                                
+                                // Fix Edge LLM failing to substitute SONG placeholder
+                                if (toolName == "playMusic" && (toolArgs.equals("SONG", ignoreCase = true) || toolArgs.equals("music", ignoreCase = true))) {
+                                    val cleanedQuery = interceptedQuery.replace(Regex("(?i)\\b(play|music|some|by)\\b"), "").trim()
+                                    if (cleanedQuery.isNotEmpty()) {
+                                        android.util.Log.w("AssistantSession", "Correcting hallucinated literal SONG to: $cleanedQuery")
+                                        correctedToolCall = "playMusic($cleanedQuery)"
+                                    }
+                                }
+                                
+                                if (toolName.contains("Passenger", ignoreCase = true) || toolName.contains("Driver", ignoreCase = true) || toolName.contains("Temperature", ignoreCase = true)) {
+                                    val argsStr = toolCall.substringAfter("(").substringBefore(")")
+                                    val toolVal = argsStr.toDoubleOrNull()
+                                    if (toolVal != null && toolVal < 15.0) {
+                                        val matchTemp = Regex("\\b(\\d{2})\\b").findAll(displayMsgWithoutTags).lastOrNull() ?: Regex("\\b(\\d{2})\\b").findAll(interceptedQuery).lastOrNull()
+                                        if (matchTemp != null) {
+                                            val realNum = matchTemp.groupValues[1]
+                                            android.util.Log.w("AssistantSession", "Correcting truncated temperature $toolVal to $realNum")
+                                            correctedToolCall = toolCall.replace("($argsStr)", "($realNum)")
+                                        } else {
+                                            val zone = if (toolName.contains("passenger", true)) "passenger" else "driver"
+                                            val currentTemp = com.tcs.vehicleassistant.VehicleManager.getRealTemperature(zone).toDouble()
+                                            val isDecrease = interceptedQuery.contains("decrease", true) || interceptedQuery.contains("lower", true) || interceptedQuery.contains("cold", true) || interceptedQuery.contains("cool", true)
+                                            val isIncrease = interceptedQuery.contains("increase", true) || interceptedQuery.contains("raise", true) || interceptedQuery.contains("hot", true) || interceptedQuery.contains("warm", true)
+                                            
+                                            if (isDecrease) {
+                                                val newTemp = Math.round(currentTemp - 2.0).toString()
+                                                correctedToolCall = toolCall.replace("($argsStr)", "($newTemp)")
+                                            } else if (isIncrease) {
+                                                val newTemp = Math.round(currentTemp + 2.0).toString()
+                                                correctedToolCall = toolCall.replace("($argsStr)", "($newTemp)")
+                                            }
+                                        }
+                                    }
+                                }
+                                
+                                if (executedTools.add(correctedToolCall)) {
+                                    android.util.Log.d("AssistantSession", "Executing tool from LLM: $correctedToolCall")
+                                    val toolDef = ToolManager.getToolDefinition(correctedToolCall)
+                                    if (toolDef?.requiresConfirmation == true) {
+                                        pendingConfirmationTool = correctedToolCall
+                                        // Wait, we can't change the spoken response here as TTS already queued it!
+                                        // BUT confirmation tools are extremely rare and we can just let it finish.
+                                    } else {
+                                        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async { kotlinx.coroutines.withTimeoutOrNull(10000L) {
+                                            executeToolCall(correctedToolCall) } ?: "System Error: Tool execution timed out."
+                                        }
+                                        currentPendingTools.add(job)
+                                    }
+                                }
+                            }
                             
                             if (currentPendingTools.isNotEmpty()) {
                                 setKeepAwake(true)
@@ -831,17 +943,47 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 val feedbacks = kotlinx.coroutines.awaitAll(*currentPendingTools.toTypedArray()).filterNotNull()
                                 toolFeedbacks.addAll(feedbacks)
                                 setKeepAwake(false)
-                                
+                            }
+                            
+                            android.util.Log.i("LLMMetrics", "================ LLM GENERATION METRICS ================")
+                            android.util.Log.i("LLMMetrics", "Model Backend:              ${if (LocalLLMActivity.isCloudModelActive) "Cloud LLM API" else "Local Edge (Google MediaPipe LiteRT)"}")
+                            if (LatencyLogger.lastAsrTimeMs > 0) {
+                                if (LatencyLogger.userSpeakingStartTimeMs > 0 && LatencyLogger.userSpeakingEndTimeMs > 0) {
+                                    val reactionTime = LatencyLogger.userSpeakingStartTimeMs
+                                    val speakingDuration = LatencyLogger.userSpeakingEndTimeMs - LatencyLogger.userSpeakingStartTimeMs
+                                    val asrProcessingTime = LatencyLogger.lastAsrTimeMs - LatencyLogger.userSpeakingEndTimeMs
+                                    android.util.Log.i("LLMMetrics", "Button Tap to Speech Start: ${reactionTime}ms")
+                                    android.util.Log.i("LLMMetrics", "User Speaking Duration:     ${speakingDuration}ms")
+                                    android.util.Log.i("LLMMetrics", "ASR Processing Time:        ${asrProcessingTime}ms")
+                                } else {
+                                    android.util.Log.i("LLMMetrics", "ASR (Speech-to-Text) Time:  ${LatencyLogger.lastAsrTimeMs}ms")
+                                }
+                            }
+                            android.util.Log.i("LLMMetrics", "TTFT (First Token):         ${ttftMs}ms")
+                            if (LatencyLogger.lastToolTimeMs > 0) {
+                                android.util.Log.i("LLMMetrics", "Tool Execution Time:        ${LatencyLogger.lastToolTimeMs}ms")
+                            }
+                            android.util.Log.i("LLMMetrics", "Total Generation Time:      ${totalTimeMs}ms")
+                            android.util.Log.i("LLMMetrics", "Estimated Output Tokens:    ~${estimatedTokens} tokens")
+                            android.util.Log.i("LLMMetrics", "Output Speed (TPS):         ${String.format("%.2f", tps)} tokens/sec")
+                            android.util.Log.i("LLMMetrics", "Overall Session Time:       ${LatencyLogger.getTotalTime()}ms")
+                            android.util.Log.i("LLMMetrics", "========================================================")
+                            
+                            if (currentPendingTools.isNotEmpty()) {
                                 val isAgenticLoopEnabled = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE).getBoolean("agentic_loop_enabled", true)
                                 
                                 val rawResponse = lastResponseBuilder.toString()
-                                val responseWithoutTags = rawResponse.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "").trim()
+                                val responseWithoutTags = rawResponse.replace(Regex("(?i)<TOOL>[\\s\\S]*?(</TOOL>|$)"), "").trim()
                                 val hasConversationalText = responseWithoutTags.length > 5
                                 val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
                                 
                                 // Smart Bypass: Skip the Agentic Loop if the AI already generated conversational text AND the tool succeeded.
                                 // This provides instant responses for terminal action tools (e.g. navigate, set_temp) without stalling the GPU.
-                                val shouldRunAgenticLoop = isAgenticLoopEnabled && loopCount < 3 && (!hasConversationalText || hasError)
+                                // However, if the tool is a data-gathering query (search, check, read, get, etc.), ALWAYS run the loop so the AI can summarize the results!
+                                val isQueryTool = executedTools.any { it.contains("search", ignoreCase = true) || it.contains("check", ignoreCase = true) || it.contains("get", ignoreCase = true) || it.contains("diagnos", ignoreCase = true) || it.contains("read", ignoreCase = true) || it.contains("find", ignoreCase = true) || it.contains("recommend", ignoreCase = true) }
+                                val isTerminalTool = executedTools.isNotEmpty() && !isQueryTool
+                                val requiresAgenticLoop = executedTools.any { com.tcs.vehicleassistant.ToolManager.getToolDefinition(it)?.requiresAgenticLoop == true }
+                                val shouldRunAgenticLoop = isAgenticLoopEnabled && loopCount < 3 && (hasError || isQueryTool || requiresAgenticLoop || (!hasConversationalText && !isTerminalTool))
                                 
                                 if (shouldRunAgenticLoop) {
                                     val feedbackString = toolFeedbacks.joinToString("\n")
@@ -858,25 +1000,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             var finalMsg = lastResponseBuilder.toString()
                             
-                            // Auto-Context Clearing Hack for silent KV Cache overflows
-                            if (finalMsg.trim().length <= 3) {
-                                if (retryCount >= 2) {
-                                    statusText.text = "Error"
-                                    stopThinkingAnimation()
-                                    responseText.text = "The request was too large to process. Please try a simpler command."
-                                    btnSend.isEnabled = true
-                                    isQueryProcessed = true
-                                    return@launch
-                                }
-                                android.util.Log.w("AssistantSession", "Suspiciously short response. KV Cache full. Graceful Sliding Window Reset initiated...")
-                                LLMManager.resetConversation()
-                                handleQuery(query, retryCount + 1)
-                                return@launch
-                            }
+                            // Removed broken Auto-Context Clearing Hack. The AI outputting only a tool tag is a SUCCESS, not a KV cache overflow.
                             
                             MemoryManager.addTurn("Assistant", finalMsg.trim())
                             
-                            finalMsg = finalMsg.replace("(?i)<TOOL>.*?(</TOOL>|$)".toRegex(), "")
+                            finalMsg = finalMsg.replace(Regex("(?i)<TOOL>[\\s\\S]*?(</TOOL>|$)"), "")
                             val finalLastTagIndex = finalMsg.lastIndexOf("<")
                             if (finalLastTagIndex != -1) {
                                 val potentialTag = finalMsg.substring(finalLastTagIndex).uppercase()
@@ -885,6 +1013,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 }
                             }
                             finalMsg = finalMsg.trim()
+                            val isQuestionBeforeFeedback = expectFollowup || 
+                                             finalMsg.trim().endsWith("?") || 
+                                             finalMsg.contains("would you like", ignoreCase = true) || 
+                                             finalMsg.contains("if you'd like", ignoreCase = true) || 
+                                             finalMsg.contains("do you want", ignoreCase = true) || 
+                                             finalMsg.contains("shall i", ignoreCase = true)
+                            
                             if (finalMsg.isEmpty()) {
                                 if (toolFeedbacks.isNotEmpty()) {
                                     finalMsg = toolFeedbacks.joinToString("\n")
@@ -892,10 +1027,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     finalMsg = "Executing command..."
                                 }
                             } else if (toolFeedbacks.isNotEmpty()) {
-                                finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
+                                val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
+                                if (hasError || !isQuestionBeforeFeedback) {
+                                    finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
+                                }
                             }
                             
                             targetDisplayMessage = finalMsg
+                            LLMManager.lastAiResponse = finalMsg
                             if (typewriterJob == null || typewriterJob?.isActive != true) {
                                 typewriterJob = CoroutineScope(Dispatchers.Main).launch {
                                     kotlinx.coroutines.delay(400) // Wait for TTS engine to initialize audio buffer
@@ -912,6 +1051,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         val dynamicDelay = typingSpeedMs
                                         currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
                                         val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
+                                        
                                         responseText.text = currentSubstring
                                         if (currentDisplayLength % 5 == 0) {
                                             svResponse?.post { svResponse?.fullScroll(View.FOCUS_DOWN) }
@@ -937,21 +1077,23 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                     tts?.speak(parsedSentence, TextToSpeech.QUEUE_ADD, null, "SENTENCE_$sentenceStartOffset")
                                 }
                                 val isQuestion = expectFollowup || 
-                                                 finalMsg.trim().endsWith("?") || 
+                                                 finalMsg.contains("?") || 
                                                  finalMsg.contains("would you like", ignoreCase = true) || 
                                                  finalMsg.contains("if you'd like", ignoreCase = true) || 
                                                  finalMsg.contains("do you want", ignoreCase = true) || 
-                                                 finalMsg.contains("shall i", ignoreCase = true)
+                                                 finalMsg.contains("shall i", ignoreCase = true) ||
+                                                 finalMsg.contains("could you", ignoreCase = true)
                                                  
                                 val finalUtterance = if (isQuestion) "QUESTION_FINAL" else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL" else "STATEMENT_FINAL"
                                 tts?.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
                             } else {
                                 val isQuestion = expectFollowup || 
-                                                 finalMsg.trim().endsWith("?") || 
+                                                 finalMsg.contains("?") || 
                                                  finalMsg.contains("would you like", ignoreCase = true) || 
                                                  finalMsg.contains("if you'd like", ignoreCase = true) || 
                                                  finalMsg.contains("do you want", ignoreCase = true) ||
-                                                 finalMsg.contains("shall i", ignoreCase = true)
+                                                 finalMsg.contains("shall i", ignoreCase = true) ||
+                                                 finalMsg.contains("could you", ignoreCase = true)
                                                  
                                 if (isQuestion) {
                                     btnMic.performClick()
@@ -974,21 +1116,46 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
 
                     override fun onError(throwable: Throwable) {
+                        if (isDoneCalled) return
+                        isDoneCalled = true
                         CoroutineScope(Dispatchers.Main).launch {
                             timeoutJob?.cancel()
-                            android.util.Log.e("AssistantSession", "LLM Error", throwable)
+                            android.util.Log.e("AssistantSession", "LLM Generation Error", throwable)
                             
-                            LLMManager.resetConversation()
                             MemoryManager.clearMemory()
                             
                             if (retryCount < 1) {
-                                statusText.text = "Memory full. Automatically recovering..."
-                                processQuery(query, retryCount + 1, loopCount, isAgenticObservation, previousExecutedTools)
-                            } else {
-                                statusText.text = "Memory full. Cleared context. Please try again."
+                                android.util.Log.i("AssistantSession", "Automatic engine restart triggered. Re-initializing...")
                                 stopThinkingAnimation()
-                                responseText.text = "The AI context memory was full and has been cleared to prevent freezing."
+                                responseText.text = "Hardware reset..."
+                                LLMManager.autoInitialize(context, force = true, callback = object : com.tcs.vehicleassistant.LLMManager.InitCallback {
+                                    override fun onSuccess() {
+                                        android.util.Log.i("AssistantSession", "Automatic recovery successful. Retrying query...")
+                                        CoroutineScope(Dispatchers.Main).launch {
+                                            responseText.text = "Recovered. Processing..."
+                                            processQuery(query, retryCount + 1, loopCount, isAgenticObservation, previousExecutedTools)
+                                        }
+                                    }
+                                    override fun onError(e: Exception) {
+                                        CoroutineScope(Dispatchers.Main).launch {
+                                            responseText.text = "Hardware Recovery Failed."
+                                            statusText.visibility = View.VISIBLE
+                                            statusText.text = "Error"
+                                            btnSend.isEnabled = true
+                                            btnMic.isEnabled = true
+                                            isQueryProcessed = true
+                                        }
+                                    }
+                                })
+                            } else {
+                                stopThinkingAnimation()
+                                if (throwable.message?.contains("Cancellation") == true) return@launch
+                                val err = "Model Inference Failed: ${throwable.message}"
+                                responseText.text = err
+                                statusText.visibility = View.VISIBLE
+                                statusText.text = "Error"
                                 btnSend.isEnabled = true
+                                btnMic.isEnabled = true
                                 isQueryProcessed = true
                             }
                         }

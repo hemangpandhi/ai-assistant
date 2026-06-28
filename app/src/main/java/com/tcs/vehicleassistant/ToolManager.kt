@@ -29,10 +29,17 @@ object ToolManager {
         val areaId: Int?,
         val valueToWrite: String?,
         val successMessage: String?,
+        val errorMessage: String?,
+        val description: String?,
+        val instruction: String?,
         val keywords: List<String>?,
+        val aliases: List<String>?,
         val constraints: List<Constraint>?,
         val requiresConfirmation: Boolean = false,
-        val confirmationMessage: String? = null
+        val confirmationMessage: String? = null,
+        val offlineCapable: Boolean = false,
+        val requiresVehicleState: Boolean = false,
+        val requiresAgenticLoop: Boolean = false
     )
     
     // Maps command prefix -> ToolDefinition
@@ -70,11 +77,29 @@ object ToolManager {
                     val areaId = if (toolObj.has("area_id")) toolObj.getInt("area_id") else null
                     val valueToWrite = if (toolObj.has("value_to_write")) toolObj.getString("value_to_write") else null
                     val successMessage = if (toolObj.has("success_message")) toolObj.getString("success_message") else null
+                    val errorMessage = if (toolObj.has("error_message")) toolObj.getString("error_message") else null
+                    val description = if (toolObj.has("description")) toolObj.getString("description") else null
+                    val instruction = if (toolObj.has("instruction")) toolObj.getString("instruction") else null
+                    val offlineCapable = if (toolObj.has("offline_capable")) toolObj.getBoolean("offline_capable") else false
+                    val requiresVehicleState = if (toolObj.has("requires_vehicle_state")) toolObj.getBoolean("requires_vehicle_state") else false
 
                     val keywordsList = mutableListOf<String>()
                     if (toolObj.has("keywords")) {
                         val arr = toolObj.getJSONArray("keywords")
                         for (j in 0 until arr.length()) keywordsList.add(arr.getString(j).lowercase())
+                    }
+                    
+                    val aliasesList = mutableListOf<String>()
+                    if (toolObj.has("aliases")) {
+                        val arr = toolObj.getJSONArray("aliases")
+                        for (j in 0 until arr.length()) {
+                            val alias = arr.getString(j).lowercase()
+                            aliasesList.add(alias)
+                            // Merge aliases directly into keywords for instant fast-path RAG matching!
+                            if (!keywordsList.contains(alias)) {
+                                keywordsList.add(alias)
+                            }
+                        }
                     }
                     
                     val constraintsList = mutableListOf<Constraint>()
@@ -92,11 +117,25 @@ object ToolManager {
                     }
 
                     activeTools[commandName] = ToolDefinition(
-                        handlerType, promptString, handlerKey, propertyId, dataType, areaId, valueToWrite, successMessage,
-                        if (keywordsList.isNotEmpty()) keywordsList else null,
-                        if (constraintsList.isNotEmpty()) constraintsList else null,
+                        handlerType = handlerType,
+                        promptString = promptString,
+                        handlerKey = handlerKey,
+                        propertyId = propertyId,
+                        dataType = dataType,
+                        areaId = areaId,
+                        valueToWrite = valueToWrite,
+                        successMessage = successMessage,
+                        errorMessage = errorMessage,
+                        description = description,
+                        instruction = instruction,
+                        keywords = if (keywordsList.isNotEmpty()) keywordsList else null,
+                        aliases = if (aliasesList.isNotEmpty()) aliasesList else null,
+                        constraints = if (constraintsList.isNotEmpty()) constraintsList else null,
                         requiresConfirmation = if (toolObj.has("requires_confirmation")) toolObj.getBoolean("requires_confirmation") else false,
-                        confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null
+                        confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null,
+                        offlineCapable = offlineCapable,
+                        requiresVehicleState = requiresVehicleState,
+                        requiresAgenticLoop = if (toolObj.has("requires_agentic_loop")) toolObj.getBoolean("requires_agentic_loop") else false
                     )
                     Log.i(TAG, "Registered Tool: $commandName ($handlerType) -> $promptString")
                 }
@@ -116,23 +155,40 @@ object ToolManager {
      * Evaluates the user query against the tool keywords.
      * Returns the top matching tools (plus any default generic ones).
      */
-    fun getRelevantTools(query: String): List<ToolDefinition> {
-        if (query.isBlank()) return activeTools.values.toList()
+    fun getRelevantTools(userQuery: String, conversationalContext: String = ""): List<ToolDefinition> {
+        val combinedQuery = "$conversationalContext $userQuery".trim()
+        if (combinedQuery.isBlank()) return activeTools.values.toList()
         
         // Fast path: Keyword matching (0ms)
-        val q = query.lowercase()
+        val q = combinedQuery.lowercase()
+        
+        // Conversational Bypass: If the user is asking for sightseeing suggestions, 
+        // we DO NOT want to inject map tools, otherwise the 2B model gets tempted to use them instead of talking.
+        if (q.contains("suggest") || q.contains("recommend") || q.contains("places to visit") || q.contains("best places")) {
+            return emptyList()
+        }
+        
         val exactMatches = activeTools.values.filter { tool ->
-            tool.keywords?.any { q.contains(it) } == true
+            tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
+        }.toMutableList()
+        
+        // Temperature heuristic: catch explicit numbers (50-90) or 'degrees'
+        val tempRegex = Regex("""\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b""")
+        if (tempRegex.containsMatchIn(q) || q.contains("degrees") || Regex("""\d{2}f""").containsMatchIn(q)) {
+            val tempTools = activeTools.values.filter { it.handlerKey?.contains("Temperature", ignoreCase = true) == true }
+            exactMatches.addAll(tempTools)
         }
         
         if (exactMatches.isNotEmpty()) {
             // Always include generic fallback tools like search and navigate just in case
-            val fallbacks = activeTools.values.filter { it.handlerKey == "search" || it.handlerKey == "navigate" }
+            val fallbacks = activeTools.values.filter { it.handlerKey == "search" || it.handlerKey == "startNavigationTo" }
             return (exactMatches + fallbacks).distinct()
         }
         
         // Slow path: Semantic Search (2000ms+)
-        return SemanticSearchManager.search(query, 8)
+        // ONLY use the userQuery for semantic search to avoid massive latency spikes from embedding history!
+        // Top 4 is enough. Injecting 8 tools causes the LLM's memory buffer to overflow!
+        return SemanticSearchManager.search(userQuery, 4)
     }
 
     /**
@@ -142,15 +198,37 @@ object ToolManager {
 
     fun getToolDefinition(toolCall: String): ToolDefinition? {
         val commandName = toolCall.substringBefore("(").trim()
-        return activeTools[commandName]
+        val directMatch = activeTools[commandName]
+        if (directMatch != null) return directMatch
+        
+        // Check aliases if direct match fails
+        for (tool in activeTools.values) {
+            if (tool.aliases != null) {
+                val aliasMatch = tool.aliases.any { alias -> commandName.lowercase() == alias.lowercase() }
+                if (aliasMatch) return tool
+            }
+        }
+        return null
     }
     
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
-    fun getLlmToolsPrompt(query: String = ""): String {
-        val relevantTools = activeTools.values.toList()
+    fun getLlmToolsPrompt(userQuery: String = "", conversationalContext: String = ""): String {
+        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) getRelevantTools(userQuery, conversationalContext) else activeTools.values.toList()
         if (relevantTools.isEmpty()) return ""
-        return relevantTools.map { it.promptString }.joinToString("\n")
+        
+        val sb = StringBuilder()
+        for (tool in relevantTools) {
+            sb.append("- ${tool.promptString}")
+            if (!tool.description.isNullOrEmpty()) {
+                sb.append(": ${tool.description}")
+            }
+            if (!tool.instruction.isNullOrEmpty()) {
+                sb.append(" IMPORTANT: ${tool.instruction}")
+            }
+            sb.append("\n")
+        }
+        return sb.toString().trimEnd()
     }
 
     /**
@@ -167,6 +245,15 @@ object ToolManager {
                 if (toolCall.lowercase().startsWith(key.lowercase())) {
                     matchedTool = def
                     break
+                }
+                
+                // Allow matching against aliases to handle Edge model shorthand hallucinations!
+                if (def.aliases != null) {
+                    val aliasMatch = def.aliases.any { alias -> toolCall.lowercase().startsWith(alias.lowercase()) }
+                    if (aliasMatch) {
+                        matchedTool = def
+                        break
+                    }
                 }
             }
             
@@ -207,415 +294,44 @@ object ToolManager {
                 val areaId = matchedTool.areaId ?: 0
                 val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter("(").substringBefore(")")
                 
-                Log.d(TAG, "Executing GENERIC_VHAL_WRITE for propId $propId")
+                val startToolTime = System.currentTimeMillis()
+                val success = VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
+                val endToolTime = System.currentTimeMillis()
+                val latency = endToolTime - startToolTime
+                com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency
+                com.tcs.vehicleassistant.LatencyLogger.log("ToolManager", "Tool Execution Time for GENERIC_VHAL_WRITE ($propId): ${latency}ms")
                 
-                // Demo Workaround: Barebones AOSP emulators lack proper support for some properties, so they never fire onChange
-                if (propId == 289410577 || propId == 354419973 || propId == 320865540 || 
-                    propId == 354419978 || propId == 354419982 || propId == 354419984 || propId == 322964416) {
-                    VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
-                    return matchedTool.successMessage ?: "Action completed successfully."
-                }
-                
-                val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
-
                 return if (success) {
                     matchedTool.successMessage ?: "Action completed successfully."
                 } else {
-                    "I sent the command, but the vehicle hardware didn't confirm the change. Please check your system."
+                    matchedTool.errorMessage ?: "I sent the command, but the vehicle hardware didn't confirm the change. Please check your system."
                 }
             }
 
-            // Execute the corresponding Kotlin handler
-            return when (matchedTool.handlerKey) {
-                "setAirflowDirection" -> {
-                    val rawValue = toolCall.substringAfter("(").substringBefore(")").lowercase().replace("\"", "").trim()
-                    // 1: Face, 2: Floor, 3: Face+Floor, 4: Defrost, 6: Defrost+Floor
-                    val level = when {
-                        rawValue.contains("face") && (rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat")) -> 3
-                        rawValue.contains("defrost") && (rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat")) -> 6
-                        rawValue.contains("defrost") -> 4
-                        rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat") -> 2
-                        rawValue.contains("face") -> 1
-                        else -> 1
-                    }
-                    val directionName = when(level) {
-                        3 -> "face and feet"
-                        6 -> "defrost and feet"
-                        4 -> "defrost"
-                        2 -> "feet"
-                        1 -> "face"
-                        else -> "face"
-                    }
-                    // Passing areaId=0 allows setGenericVhalProperty to auto-resolve the correct VehicleArea seat/row ID.
-                    VehicleManager.setGenericVhalProperty(356517121, 0, level.toString(), "INT")
-                    "I've set the airflow direction to $directionName."
-                }
-                "increaseTemperature" -> {
-                    val argsStr = toolCall.substringAfter("(").substringBeforeLast(")")
-                    val args = if (argsStr.isEmpty()) emptyList() else argsStr.split(",").map { it.trim() }
-                    val value = args.getOrNull(0)?.toFloatOrNull() ?: 2.0f
-                    var zone = args.getOrNull(1)?.trim()?.lowercase()
-                    if (zone == null && args.getOrNull(0)?.toFloatOrNull() == null) {
-                        zone = args.getOrNull(0)?.trim()?.lowercase() // In case it's increaseTemperature(driver)
-                    }
-                    val finalZone = if (zone == "driver" || zone == "passenger") zone else "all"
-                    val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                    Log.d(TAG, "increaseTemperature: parsed value=$value, zone=$finalZone, currentTemp=$currentTemp")
-                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat(), finalZone)
-                    if (success) "I've increased the ${if (finalZone == "all") "" else "$finalZone "}temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "decreaseTemperature" -> {
-                    val argsStr = toolCall.substringAfter("(").substringBeforeLast(")")
-                    val args = if (argsStr.isEmpty()) emptyList() else argsStr.split(",").map { it.trim() }
-                    val value = args.getOrNull(0)?.toFloatOrNull() ?: 2.0f
-                    var zone = args.getOrNull(1)?.trim()?.lowercase()
-                    if (zone == null && args.getOrNull(0)?.toFloatOrNull() == null) {
-                        zone = args.getOrNull(0)?.trim()?.lowercase() // In case it's decreaseTemperature(driver)
-                    }
-                    val finalZone = if (zone == "driver" || zone == "passenger") zone else "all"
-                    val currentTemp = VehicleManager.getRealTemperature().toDouble()
-                    Log.d(TAG, "decreaseTemperature: parsed value=$value, zone=$finalZone, currentTemp=$currentTemp")
-                    val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat(), finalZone)
-                    if (success) "I've decreased the ${if (finalZone == "all") "" else "$finalZone "}temperature by $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "setTemperature" -> {
-                    val argsStr = toolCall.substringAfter("(").substringBeforeLast(")")
-                    val args = if (argsStr.isEmpty()) emptyList() else argsStr.split(",").map { it.trim() }
-                    val value = args.getOrNull(0) ?: "72"
-                    val zone = args.getOrNull(1)?.trim()?.lowercase() ?: "all"
-                    val finalZone = if (zone == "driver" || zone == "passenger") zone else "all"
-                    val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat(), finalZone)
-                    if (success) "I've set the ${if (finalZone == "all") "" else "$finalZone "}temperature to $value degrees." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "increaseFanSpeed" -> {
-                    val argStr = toolCall.substringAfter("(").substringBefore(")")
-                    val value = Regex("\\d+").find(argStr)?.value?.toIntOrNull() ?: 1
-                    val currentSpeed = VehicleManager.getRealFanSpeed()
-                    val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed + value)
-                    if (success) "I've increased the fan speed by $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "decreaseFanSpeed" -> {
-                    val argStr = toolCall.substringAfter("(").substringBefore(")")
-                    val value = Regex("\\d+").find(argStr)?.value?.toIntOrNull() ?: 1
-                    val currentSpeed = VehicleManager.getRealFanSpeed()
-                    val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed - value)
-                    if (success) "I've decreased the fan speed by $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "setFanSpeed" -> {
-                    val argStr = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
-                    var value = argStr.toIntOrNull()
-                    if (value == null) {
-                        if (argStr.contains("max") || argStr.contains("high") || argStr.contains("full") || argStr.contains("maximum")) {
-                            value = 99 // VehicleManager will automatically clamp this to the true VHAL maxLvl
-                        } else if (argStr.contains("min") || argStr.contains("low")) {
-                            value = 1
-                        } else {
-                            value = 3
-                        }
-                    }
-                    val success = VehicleManager.writeFanSpeedToVhalVerified(value)
-                    if (success) "I've set the fan speed to level $value." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "setSeatHeater", "turnOnSeatHeater", "turnOffSeatHeater" -> {
-                    var value = 2
-                    if (matchedTool.handlerKey == "turnOffSeatHeater") {
-                        value = 0
-                    } else if (matchedTool.handlerKey == "turnOnSeatHeater") {
-                        value = 2
+            // Delegate all CUSTOM_KOTLIN handlers to the modular ToolHandlerRegistry
+            if (matchedTool.handlerType == "CUSTOM_KOTLIN") {
+                val handlerKey = matchedTool.handlerKey
+                if (handlerKey != null) {
+                    val handler = com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.getHandler(handlerKey, matchedTool)
+                    if (handler != null) {
+                        val args = toolCall.substringAfter("(").substringBeforeLast(")")
+                        val startToolTime = System.currentTimeMillis()
+                        val result = handler.execute(context, toolCall, args, intentHandler)
+                        val endToolTime = System.currentTimeMillis()
+                        val latency = endToolTime - startToolTime
+                        com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency
+                        com.tcs.vehicleassistant.LatencyLogger.log("ToolManager", "Tool Execution Time for $handlerKey: ${latency}ms")
+                        return result.message
                     } else {
-                        value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 2
+                        Log.w(TAG, "No handler registered for key: $handlerKey")
+                        return "System Error: Handler not implemented for $handlerKey."
                     }
-                    // AOSP Tangorpro/Cuttlefish emulator max seat heat level is 2 (Off, Low, High).
-                    value = value.coerceIn(0, 2)
-                    val success = VehicleManager.writeSeatHeaterToVhalVerified(value)
-                    if (success) {
-                        if (value == 0) "I've turned off the seat heater." else "I've set the seat heater to level $value."
-                    } else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "setSeatMassager" -> {
-                    val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
-                    val success = VehicleManager.writeSeatMassagerToVhalVerified(value)
-                    if (success) {
-                        if (value == 0) "I've turned off the seat massager." else "I've turned on the seat massager for you."
-                    } else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-
-
-
-                "navigate" -> {
-                    val rawArgs = toolCall.substringAfter("(").substringBefore(")")
-                    if (rawArgs.trim().equals("yes", ignoreCase = true) || rawArgs.trim().isEmpty()) {
-                        return "Which place would you like to navigate to?"
-                    }
-                    val args = rawArgs.split(",")
-                    
-                    val queryForMaps = if (args.size >= 2 && args[0].trim().toDoubleOrNull() != null && args[1].trim().toDoubleOrNull() != null) {
-                        "${args[0].trim()},${args[1].trim()}" // Coordinate routing
-                    } else {
-                        rawArgs // Fallback to raw string
-                    }
-                    
-                    val spokenDest = if (args.size >= 3 && args[0].trim().toDoubleOrNull() != null) {
-                        args.subList(2, args.size).joinToString(",").trim() // Extracts the optional display name
-                    } else if (args.size == 2 && args[0].trim().toDoubleOrNull() != null) {
-                        "your destination"
-                    } else {
-                        rawArgs // Fallback to raw string
-                    }
-
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        // Intercept and suppress native system toasts to maintain strict bespoke OEM presentation
-                        // Toast.makeText(context, "Navigating to: $queryForMaps", Toast.LENGTH_SHORT).show()
-                    }
-                    
-                    val gMapsIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(queryForMaps)}"))
-                    gMapsIntent.setPackage("com.google.android.apps.maps")
-                    gMapsIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    try {
-                        if (intentHandler != null) intentHandler(gMapsIntent) else context.startActivity(gMapsIntent)
-                    } catch (e: Exception) {
-                        val navIntent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=${Uri.encode(queryForMaps)}"))
-                        navIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        try {
-                            if (intentHandler != null) intentHandler(navIntent) else context.startActivity(navIntent)
-                        } catch (e2: Exception) {
-                            val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(queryForMaps)}"))
-                            geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                            try {
-                                if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)
-                            } catch (e3: Exception) {
-                                val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/maps/search/?api=1&query=${Uri.encode(queryForMaps)}"))
-                                browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                                try {
-                                    if (intentHandler != null) intentHandler(browserIntent) else context.startActivity(browserIntent)
-                                } catch (e4: Exception) {
-                                    Log.e(TAG, "Failed to launch any navigation intents", e4)
-                                    return "I couldn't open navigation because no map or browser app is installed."
-                                }
-                            }
-                        }
-                    }
-                    "Routing to $spokenDest."
-                }
-                "search" -> {
-                    val query = toolCall.substringAfter("(").substringBefore(")")
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        // Intercept and suppress native system toasts to maintain strict bespoke OEM presentation
-                        // Toast.makeText(context, "Searching map for: $query", Toast.LENGTH_SHORT).show()
-                    }
-                    val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
-                    geoIntent.setPackage("com.google.android.apps.maps")
-                    geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    try {
-                        if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)
-                    } catch (e: Exception) {
-                        val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
-                        fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        try {
-                            if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
-                        } catch (e2: Exception) {
-                            Log.e(TAG, "No map app found for search")
-                            return "I couldn't open the map because no map app is installed."
-                        }
-                    }
-                    "I've displayed the search results for $query on the map. Which one would you like to navigate to?"
-                }
-                "playMusic" -> {
-                    val query = toolCall.substringAfter("(").substringBefore(")")
-                    var mediaSearchSuccess = false
-                    var targetComponentName: String? = null
-                    try {
-                        val pm = context.packageManager
-                        val browseIntent = Intent("android.media.browse.MediaBrowserService")
-                        val resolveInfos = pm.queryIntentServices(browseIntent, 0)
-                        
-                        // Prefer Spotify Automotive if available
-                        val targetInfo = resolveInfos.find { it.serviceInfo.packageName.contains("spotify") } 
-                            ?: resolveInfos.firstOrNull()
-                            
-                        if (targetInfo != null) {
-                            val componentName = android.content.ComponentName(targetInfo.serviceInfo.packageName, targetInfo.serviceInfo.name)
-                            targetComponentName = componentName.flattenToString()
-                            Log.i(TAG, "Connecting to MediaBrowserService: \$targetComponentName")
-                            
-                            mediaSearchSuccess = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                                kotlin.coroutines.suspendCoroutine { continuation ->
-                                    var hasResumed = false
-                                    lateinit var browser: android.media.browse.MediaBrowser
-                                    browser = android.media.browse.MediaBrowser(context, componentName, object : android.media.browse.MediaBrowser.ConnectionCallback() {
-                                        override fun onConnected() {
-                                            try {
-                                                val sessionToken = browser.sessionToken
-                                                val controller = android.media.session.MediaController(context, sessionToken)
-                                                controller.transportControls.playFromSearch(query, null)
-                                                Log.i(TAG, "Dispatched playFromSearch for: \$query via MediaController")
-                                                if (!hasResumed) {
-                                                    hasResumed = true
-                                                    continuation.resumeWith(Result.success(true))
-                                                }
-                                                browser.disconnect()
-                                            } catch (e: Exception) {
-                                                Log.e(TAG, "Failed to dispatch playFromSearch", e)
-                                                if (!hasResumed) {
-                                                    hasResumed = true
-                                                    continuation.resumeWith(Result.success(false))
-                                                }
-                                            }
-                                        }
-                                        override fun onConnectionSuspended() {
-                                            if (!hasResumed) {
-                                                hasResumed = true
-                                                continuation.resumeWith(Result.success(false))
-                                            }
-                                        }
-                                        override fun onConnectionFailed() {
-                                            if (!hasResumed) {
-                                                hasResumed = true
-                                                continuation.resumeWith(Result.success(false))
-                                            }
-                                        }
-                                    }, null)
-                                    browser.connect()
-                                    
-                                    // Timeout fallback
-                                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                                        kotlinx.coroutines.delay(2000)
-                                        if (!hasResumed) {
-                                            hasResumed = true
-                                            try { browser.disconnect() } catch (e: Exception) {}
-                                            continuation.resumeWith(Result.success(false))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "MediaBrowserService connection failed", e)
-                    }
-
-                    if (mediaSearchSuccess) {
-                        // Launch the Car Media Center UI to show the playing track
-                        val fallbackIntent = Intent("android.car.intent.action.MEDIA_TEMPLATE")
-                        if (targetComponentName != null) {
-                            fallbackIntent.putExtra("android.car.intent.extra.MEDIA_COMPONENT", targetComponentName)
-                        }
-                        fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                        try {
-                            if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
-                        } catch (e: Exception) {}
-                    } else {
-                        val searchIntent = Intent(MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
-                        searchIntent.putExtra(MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
-                        searchIntent.putExtra(android.app.SearchManager.QUERY, query)
-                        searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        
-                        var successNative = false
-                        if (searchIntent.resolveActivity(context.packageManager) != null) {
-                            try {
-                                if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
-                                successNative = true
-                            } catch (e: Exception) {}
-                        }
-                        
-                        // iTunes workaround removed by user request
-                    }
-                    
-                    "Playing $query."
-                }
-                "pauseMusic" -> {
-                    try {
-                        mediaPlayer?.pause()
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
-                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE)
-                        audioManager.dispatchMediaKeyEvent(eventDown)
-                        audioManager.dispatchMediaKeyEvent(eventUp)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to dispatch media pause key event")
-                    }
-                    "Music paused."
-                }
-                "nextTrack" -> {
-                    try {
-                        mediaPlayer?.stop()
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
-                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT)
-                        audioManager.dispatchMediaKeyEvent(eventDown)
-                        audioManager.dispatchMediaKeyEvent(eventUp)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to dispatch media next key event")
-                    }
-                    "Playing next track."
-                }
-                "prevTrack" -> {
-                    try {
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        val eventDown = android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS)
-                        val eventUp = android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS)
-                        audioManager.dispatchMediaKeyEvent(eventDown)
-                        audioManager.dispatchMediaKeyEvent(eventUp)
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to dispatch media previous key event")
-                    }
-                    "Playing the previous track."
-                }
-                "call" -> {
-                    val contact = toolCall.substringAfter("(").substringBefore(")")
-                    val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    val mechName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
-                    val mechNum = prefs.getString("mechanic_number", "1-800-555-0199") ?: "1-800-555-0199"
-                    
-                    val phoneNumber = when (contact.lowercase()) {
-                        mechName.lowercase() -> mechNum
-                        "home" -> "555-0100"
-                        "wife" -> "555-0101"
-                        "husband" -> "555-0102"
-                        else -> contact
-                    }
-                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phoneNumber)}"))
-                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                    try {
-                        if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                        "Calling $contact."
-                    } catch (e: Exception) {
-                        "I couldn't make the call because no phone app is installed on this device."
-                    }
-                }
-                "remember" -> {
-                    val fact = toolCall.substringAfter("(").substringBefore(")")
-                    val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    val currentMemory = prefs.getString("user_memory", "") ?: ""
-                    val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
-                    prefs.edit().putString("user_memory", newMemory).apply()
-                    "Got it, I've remembered that."
-                }
-                "getWeather" -> {
-                    val city = toolCall.substringAfter("(").substringBefore(")")
-                    val temp = (60..85).random()
-                    val conditions = listOf("Sunny", "Cloudy", "Rainy", "Partly Cloudy", "Clear").random()
-                    "The current weather in $city is $temp°F and $conditions."
-                }
-                "turnOnDefroster" -> {
-                    val success = VehicleManager.writeDefrosterToVhalVerified(true)
-                    if (success) "I've turned on the defroster to clear your windows." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "turnOffDefroster" -> {
-                    val success = VehicleManager.writeDefrosterToVhalVerified(false)
-                    if (success) "I've turned off the defroster." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "turnOnRearDefroster" -> {
-                    val success = VehicleManager.writeRearDefrosterToVhalVerified(true)
-                    if (success) "I've turned on the rear defroster." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                "turnOffRearDefroster" -> {
-                    val success = VehicleManager.writeRearDefrosterToVhalVerified(false)
-                    if (success) "I've turned off the rear defroster." else "I sent the command, but the vehicle hardware didn't confirm the change."
-                }
-                else -> {
-                    "System Error: Handler found but logic is missing."
+                } else {
+                    return "System Error: Missing handler_key for CUSTOM_KOTLIN tool."
                 }
             }
+
+            return "System Error: Unknown handler type ${matchedTool.handlerType}."
         } catch (e: Exception) {
             Log.e(TAG, "Exception during tool execution", e)
             return "System Error: An exception occurred while executing the tool."

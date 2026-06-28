@@ -1,30 +1,68 @@
 {
   "properties": [
     {
-      "name": "ADAS_OSE_DOOR_ALERT",
-      "id": 639631617,
-      "type": "BOOLEAN",
-      "instruction": "If the user asks about the door status, you MUST read the ADAS_OSE_DOOR_ALERT property from the Current State and answer exactly what it says."
-    },
-    {
-      "name": "EV_BATTERY_LEVEL",
-      "id": 291504905,
-      "type": "FLOAT"
-    },
-    {
-      "name": "TIRE_PRESSURE",
-      "id": 392565865,
-      "type": "FLOAT"
-    },
-    {
-      "name": "ENV_OUTSIDE_TEMPERATURE",
-      "id": 291505923,
-      "type": "FLOAT"
-    },
-    {
-      "name": "OBD2_DIAGNOSTICS",
-      "id": 299896065,
+      "name": "INFO_MODEL",
+      "hex": "0x11100102",
+      "id": 286261506,
+      "value_type": "STRING",
       "type": "STRING"
+    },
+    {
+      "name": "CABIN_LIGHTS_SWITCH",
+      "hex": "0x11400f02",
+      "id": 289410818,
+      "value_type": "INT32",
+      "type": "INT"
+    },
+    {
+      "name": "HVAC_DEFROSTER",
+      "hex": "0x13200504",
+      "id": 320865540,
+      "value_type": "BOOLEAN",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "WINDOW_POS",
+      "hex": "0x13400bc0",
+      "id": 322964416,
+      "value_type": "INT32",
+      "type": "INT",
+      "instruction": "Window position for each area (0 = fully closed, higher values = more open). When the user asks if windows are closed, use WINDOW_POS from the Current State."
+    },
+    {
+      "name": "HVAC_AC_ON",
+      "hex": "0x15200505",
+      "id": 354419973,
+      "value_type": "BOOLEAN",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "HVAC_RECIRC_ON",
+      "hex": "0x15200508",
+      "id": 354419976,
+      "value_type": "BOOLEAN",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "HVAC_AUTO_ON",
+      "hex": "0x1520050a",
+      "id": 354419978,
+      "value_type": "BOOLEAN",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "HVAC_POWER_ON",
+      "hex": "0x15200510",
+      "id": 354419984,
+      "value_type": "BOOLEAN",
+      "type": "BOOLEAN"
+    },
+    {
+      "name": "HVAC_SEAT_TEMPERATURE",
+      "hex": "0x1540050b",
+      "id": 356517131,
+      "value_type": "INT32",
+      "type": "INT"
     }
   ],
   "tools": [
@@ -34,181 +72,144 @@
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "temperature",
-        "hot",
-        "cold",
-        "warm",
-        "cool",
-        "ac",
-        "heater",
+        "degrees",
+        "hotter",
+        "colder",
+        "warmer",
+        "cooler",
+        "set temp",
         "climate"
-      ]
+      ],
+      "offline_capable": true,
+      "success_message": "I've adjusted the cabin temperature.",
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "aliases": [
+        "setTemp",
+        "set_temp",
+        "adjustTemperature",
+        "changeTemperature",
+        "setcabintemp",
+        "setTempTo"
+      ],
+      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 85 or 72, you MUST pass that exact number as the VAL argument. If they do not explicitly specify whether this is for the driver or passenger, you MUST ask them to clarify before executing."
     },
     {
-      "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
+      "prompt_string": "<TOOL>increaseTemperature(zone)</TOOL>",
       "handler_key": "increaseTemperature",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Increases the temperature by 2 degrees. If the user does not explicitly specify a zone (driver or passenger), you MUST ask them to clarify which zone they want to adjust. Do NOT execute this tool until they specify the zone.",
       "keywords": [
-        "temperature",
-        "hot",
+        "increase temperature",
+        "warmer",
+        "hotter",
+        "raise temp",
         "cold",
-        "warm",
-        "cool",
-        "ac",
-        "heater",
-        "climate"
+        "freezing"
+      ],
+      "offline_capable": true,
+      "success_message": "I've increased the cabin temperature.",
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "aliases": [
+        "increaseTemp",
+        "raiseTemperature",
+        "raiseTemp",
+        "turnUpHeat",
+        "warmUp",
+        "heatUp"
       ]
     },
     {
-      "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
+      "prompt_string": "<TOOL>decreaseTemperature(zone)</TOOL>",
       "handler_key": "decreaseTemperature",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Decreases the temperature by 2 degrees. If the user does not explicitly specify a zone (driver or passenger), you MUST ask them to clarify which zone they want to adjust. Do NOT execute this tool until they specify the zone.",
       "keywords": [
-        "temperature",
+        "decrease temperature",
+        "cooler",
+        "colder",
+        "lower temp",
         "hot",
-        "cold",
+        "boiling",
         "warm",
-        "cool",
-        "ac",
-        "heater",
-        "climate"
+        "ac"
+      ],
+      "offline_capable": true,
+      "success_message": "I've decreased the cabin temperature.",
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "aliases": [
+        "decreaseTemp",
+        "lowerTemperature",
+        "lowerTemp",
+        "coolDown",
+        "turnDownHeat"
       ]
     },
     {
       "prompt_string": "<TOOL>setFanSpeed(LEVEL)</TOOL>",
       "handler_key": "setFanSpeed",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Sets fan to a specific level (1-7). If the user asks for 'maximum', set LEVEL to 7. If they ask for 'minimum', set LEVEL to 1.",
       "keywords": [
         "fan",
         "speed",
-        "ac",
         "blower",
-        "air"
-      ]
+        "set fan"
+      ],
+      "offline_capable": true,
+      "success_message": "I've adjusted the fan speed.",
+      "requires_vehicle_state": true
     },
     {
       "prompt_string": "<TOOL>increaseFanSpeed()</TOOL>",
       "handler_key": "increaseFanSpeed",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "fan",
-        "speed",
-        "ac",
-        "blower",
-        "air",
-        "up",
-        "increase",
-        "higher"
-      ]
+        "increase fan",
+        "fan up",
+        "blow harder",
+        "more fan",
+        "higher fan"
+      ],
+      "offline_capable": true,
+      "success_message": "I've increased the fan speed.",
+      "requires_vehicle_state": false
     },
     {
       "prompt_string": "<TOOL>decreaseFanSpeed()</TOOL>",
       "handler_key": "decreaseFanSpeed",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "fan",
-        "speed",
-        "ac",
-        "blower",
-        "air",
-        "down",
-        "decrease",
-        "lower"
-      ]
-    },
-    {
-      "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
-      "handler_key": "setSeatHeater",
-      "handler_type": "CUSTOM_KOTLIN",
-      "keywords": [
-        "seat",
-        "heater",
-        "hot",
-        "warm",
-        "bottom",
-        "butt"
+        "decrease fan",
+        "fan down",
+        "blow softer",
+        "less fan",
+        "lower fan"
       ],
-      "property_id": 356517131,
-      "data_type": "INT",
-      "area_id": 0,
-      "success_message": "I've adjusted the seat heater."
+      "offline_capable": true,
+      "success_message": "I've decreased the fan speed.",
+      "requires_vehicle_state": false
     },
     {
-      "prompt_string": "<TOOL>turnOnSeatHeater()</TOOL>",
-      "handler_key": "turnOnSeatHeater",
+      "prompt_string": "<TOOL>setAirflowDirection(direction)</TOOL>",
+      "handler_key": "setAirflowDirection",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "You MUST use exactly one of these parameters: face, floor, face and floor, or defrost. Example: <TOOL>setAirflowDirection(face and floor)</TOOL>",
       "keywords": [
-        "seat",
-        "heater",
-        "hot",
-        "warm"
-      ],
-      "property_id": 356517131,
-      "data_type": "INT",
-      "area_id": 0,
-      "success_message": "I've turned on the seat heater."
-    },
-    {
-      "prompt_string": "<TOOL>turnOffSeatHeater()</TOOL>",
-      "handler_key": "turnOffSeatHeater",
-      "handler_type": "CUSTOM_KOTLIN",
-      "keywords": [
-        "seat",
-        "heater",
-        "off",
-        "stop"
-      ],
-      "property_id": 356517131,
-      "data_type": "INT",
-      "area_id": 0,
-      "success_message": "I've turned off the seat heater."
-    },
-    {
-      "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
-      "handler_key": "setSeatMassager",
-      "handler_type": "CUSTOM_KOTLIN",
-      "keywords": [
-        "seat",
-        "massage",
-        "massager",
-        "back",
-        "relax"
-      ],
-      "property_id": 356519253,
-      "data_type": "INT",
-      "area_id": 0,
-      "success_message": "I've turned on the seat massager for you."
-    },
-    {
-      "prompt_string": "<TOOL>turnOnDefroster()</TOOL>",
-      "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865540,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "value_to_write": "true",
-      "success_message": "Activating front defroster.",
-      "keywords": [
-        "defroster",
+        "airflow",
+        "direction",
+        "vents",
+        "face",
+        "feet",
+        "floor",
         "defrost",
-        "fog",
-        "window",
         "windshield"
-      ]
-    },
-    {
-      "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
-      "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865540,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "value_to_write": "false",
-      "success_message": "Deactivating front defroster.",
-      "keywords": [
-        "defroster",
-        "defrost",
-        "fog",
-        "window",
-        "windshield"
-      ]
+      ],
+      "offline_capable": true,
+      "success_message": "I've adjusted the airflow direction.",
+      "requires_vehicle_state": false
     },
     {
       "prompt_string": "<TOOL>turnOnAC()</TOOL>",
@@ -219,13 +220,22 @@
       "value_to_write": "true",
       "success_message": "I've turned on the AC.",
       "keywords": [
-        "ac",
-        "air",
-        "conditioning",
-        "cool",
-        "cold",
-        "on"
-      ]
+        "turn on ac",
+        "start ac",
+        "activate ac",
+        "ac on",
+        "turn on air conditioning",
+        "hot",
+        "warm",
+        "boiling",
+        "sweating"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "instruction": "ONLY use this tool if the user explicitly asks to turn on the AC, or if they complain about being too hot/warm. It cools the cabin.",
+      "name": "turnOnAC",
+      "handler_key": "turnOnAC"
     },
     {
       "prompt_string": "<TOOL>turnOffAC()</TOOL>",
@@ -236,16 +246,21 @@
       "value_to_write": "false",
       "success_message": "I've turned off the AC.",
       "keywords": [
-        "ac",
-        "air",
-        "conditioning",
-        "cool",
-        "cold",
-        "off"
-      ]
+        "turn off ac",
+        "stop ac",
+        "deactivate ac",
+        "ac off",
+        "turn off air conditioning"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "instruction": "ONLY use this tool if the user explicitly asks to turn OFF the AC, or if they complain about being too cold. DO NOT suggest turning off the AC if the user says they are hot!",
+      "name": "turnOffAC",
+      "handler_key": "turnOffAC"
     },
     {
-      "prompt_string": "<TOOL>turnOnAutoMode()</TOOL>",
+      "prompt_string": "<TOOL>turnOnAutoClimate()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419978,
       "data_type": "BOOLEAN",
@@ -254,12 +269,20 @@
       "success_message": "I've turned on automatic climate control.",
       "keywords": [
         "auto",
-        "automatic",
-        "climate"
-      ]
+        "turn on climate",
+        "climate",
+        "turn on automatic",
+        "turn on auto",
+        "automatic"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOnAutoClimate",
+      "handler_key": "turnOnAutoClimate"
     },
     {
-      "prompt_string": "<TOOL>turnOffAutoMode()</TOOL>",
+      "prompt_string": "<TOOL>turnOffAutoClimate()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 354419978,
       "data_type": "BOOLEAN",
@@ -267,72 +290,58 @@
       "value_to_write": "false",
       "success_message": "I've disabled automatic climate control.",
       "keywords": [
+        "turn off automatic",
+        "turn off auto",
         "auto",
-        "automatic",
-        "climate"
-      ]
+        "turn off climate",
+        "climate",
+        "automatic"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOffAutoClimate",
+      "handler_key": "turnOffAutoClimate"
     },
     {
       "prompt_string": "<TOOL>turnOnRecirculation()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 354419982,
+      "property_id": 354419976,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've turned on air recirculation.",
       "keywords": [
-        "recirculation",
-        "recirculate",
-        "inside",
-        "air"
-      ]
+        "turn on recirculation",
+        "recirculate air",
+        "inside air only",
+        "block outside air"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOnRecirculation",
+      "handler_key": "turnOnRecirculation"
     },
     {
       "prompt_string": "<TOOL>turnOffRecirculation()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 354419982,
+      "property_id": 354419976,
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "false",
       "success_message": "I've turned off air recirculation.",
       "keywords": [
-        "recirculation",
-        "recirculate",
-        "fresh",
-        "air"
-      ]
-    },
-    {
-      "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
-      "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865540,
-      "data_type": "BOOLEAN",
-      "area_id": 2,
-      "value_to_write": "true",
-      "success_message": "Activating rear defroster.",
-      "keywords": [
-        "rear",
-        "defroster",
-        "defrost",
-        "back",
-        "window"
-      ]
-    },
-    {
-      "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
-      "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865540,
-      "data_type": "BOOLEAN",
-      "area_id": 2,
-      "value_to_write": "false",
-      "success_message": "Deactivating rear defroster.",
-      "keywords": [
-        "rear",
-        "defroster",
-        "defrost",
-        "back",
-        "window"
-      ]
+        "turn off recirculation",
+        "fresh air",
+        "allow outside air",
+        "stop recirculating"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOffRecirculation",
+      "handler_key": "turnOffRecirculation"
     },
     {
       "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
@@ -343,12 +352,16 @@
       "value_to_write": "true",
       "success_message": "I've turned on the climate control system.",
       "keywords": [
-        "hvac",
-        "climate",
-        "power",
-        "system",
-        "on"
-      ]
+        "turn on hvac",
+        "start climate control",
+        "power on climate",
+        "turn on climate"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOnHvacPower",
+      "handler_key": "turnOnHvacPower"
     },
     {
       "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
@@ -359,178 +372,935 @@
       "value_to_write": "false",
       "success_message": "I've turned off the climate control system.",
       "keywords": [
-        "hvac",
-        "climate",
-        "power",
-        "system",
-        "off"
-      ]
+        "turn off hvac",
+        "stop climate control",
+        "power off climate",
+        "turn off climate"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOffHvacPower",
+      "handler_key": "turnOffHvacPower"
     },
     {
-      "prompt_string": "<TOOL>setAirflowDirection(face|floor|face and floor|defrost)</TOOL>",
-      "handler_key": "setAirflowDirection",
+      "prompt_string": "<TOOL>turnOnFrontDefroster()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865540,
+      "data_type": "BOOLEAN",
+      "area_id": 1,
+      "value_to_write": "true",
+      "success_message": "Activating front defroster.",
+      "keywords": [
+        "turn on front defroster",
+        "defrost front windshield",
+        "clear front window"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "aliases": [
+        "turnOnDefroster",
+        "defrost",
+        "defroster",
+        "enableDefroster"
+      ],
+      "name": "turnOnFrontDefroster",
+      "handler_key": "turnOnFrontDefroster"
+    },
+    {
+      "prompt_string": "<TOOL>turnOffFrontDefroster()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865540,
+      "data_type": "BOOLEAN",
+      "area_id": 1,
+      "value_to_write": "false",
+      "success_message": "Deactivating front defroster.",
+      "keywords": [
+        "turn off front defroster",
+        "stop defrosting front",
+        "front defroster off"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOffFrontDefroster",
+      "handler_key": "turnOffFrontDefroster"
+    },
+    {
+      "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865540,
+      "data_type": "BOOLEAN",
+      "area_id": 2,
+      "value_to_write": "true",
+      "success_message": "Activating rear defroster.",
+      "keywords": [
+        "turn on rear defroster",
+        "defrost rear window",
+        "clear back window"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOnRearDefroster",
+      "handler_key": "turnOnRearDefroster"
+    },
+    {
+      "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 320865540,
+      "data_type": "BOOLEAN",
+      "area_id": 2,
+      "value_to_write": "false",
+      "success_message": "Deactivating rear defroster.",
+      "keywords": [
+        "turn off rear defroster",
+        "stop defrosting rear",
+        "rear defroster off"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOffRearDefroster",
+      "handler_key": "turnOffRearDefroster"
+    },
+    {
+      "prompt_string": "<TOOL>openWindowsSlightly()</TOOL>",
+      "handler_key": "openWindowsSlightly",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "airflow",
-        "direction",
-        "face",
-        "floor",
-        "vents",
-        "leg",
-        "legs",
-        "feet",
-        "feat"
-      ]
+        "open windows slightly",
+        "crack the windows",
+        "little bit open"
+      ],
+      "offline_capable": true,
+      "success_message": "I've opened the windows slightly.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>closeAllWindows()</TOOL>",
+      "handler_key": "closeAllWindows",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "close windows",
+        "shut all windows",
+        "secure windows"
+      ],
+      "offline_capable": true,
+      "success_message": "I've closed all the windows.",
+      "requires_vehicle_state": false
     },
     {
       "prompt_string": "<TOOL>turnOnCabinLight()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 289410577,
+      "property_id": 289410818,
       "data_type": "INT",
       "area_id": 0,
       "value_to_write": "1",
       "success_message": "I've turned on the cabin lights.",
       "keywords": [
-        "cabin",
-        "light",
-        "lights",
-        "on",
-        "interior",
-        "dome"
-      ]
+        "turn on cabin lights",
+        "turn on interior lights",
+        "lights on inside"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOnCabinLight",
+      "handler_key": "turnOnCabinLight"
     },
     {
       "prompt_string": "<TOOL>turnOffCabinLight()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 289410577,
+      "property_id": 289410818,
       "data_type": "INT",
       "area_id": 0,
       "value_to_write": "0",
       "success_message": "I've turned off the cabin lights.",
       "keywords": [
-        "cabin",
-        "light",
-        "lights",
-        "off",
-        "interior",
-        "dome"
+        "turn off cabin lights",
+        "turn off interior lights",
+        "lights off inside"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "turnOffCabinLight",
+      "handler_key": "turnOffCabinLight"
+    },
+    {
+      "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
+      "handler_key": "setSeatHeater",
+      "handler_type": "CUSTOM_KOTLIN",
+      "property_id": 356517131,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've adjusted the seat heater.",
+      "keywords": [
+        "warm seat",
+        "heated seat",
+        "seat heater",
+        "warm up my seat",
+        "cold",
+        "freezing",
+        "chilly"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": true,
+      "aliases": [
+        "seatHeater",
+        "heatSeat",
+        "setHeatSeat"
       ]
     },
     {
-      "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
-      "handler_key": "setWindowPosition",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
+      "handler_key": "setSeatMassager",
+      "handler_type": "CUSTOM_KOTLIN",
+      "property_id": 356519253,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've turned on the seat massager for you.",
       "keywords": [
-        "window",
-        "roll",
-        "down",
-        "up",
-        "open",
-        "close",
-        "air"
+        "back massage",
+        "relax",
+        "tired",
+        "massage",
+        "massager",
+        "seat massage",
+        "relax seat",
+        "back hurts"
       ],
+      "offline_capable": true,
+      "requires_vehicle_state": true,
+      "aliases": [
+        "seatMassage",
+        "massageSeat",
+        "startMassager"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>checkAllWindowsClosed()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 322964416,
       "data_type": "INT",
       "area_id": 0,
-      "success_message": "I've adjusted the windows.",
-      "constraints": [
-        {
-          "property_id": 291504647,
-          "operator": "<",
-          "value": 70,
-          "error_msg": "Safety Warning: Speed is too high to safely open the windows."
-        }
-      ]
+      "keywords": [
+        "are all windows closed",
+        "window status",
+        "windows closed",
+        "windows secure"
+      ],
+      "offline_capable": true,
+      "success_message": "I've checked the status of all windows.",
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "checkAllWindowsClosed",
+      "handler_key": "checkAllWindowsClosed"
     },
     {
-      "prompt_string": "<TOOL>navigate(DEST)</TOOL>",
-      "handler_key": "navigate",
+      "prompt_string": "<TOOL>movePassengerSeatForward()</TOOL>",
+      "handler_key": "movePassengerSeatForward",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "navigate",
-        "go to",
-        "directions",
-        "route",
-        "drive",
-        "restaurant",
-        "food",
-        "dining",
-        "nearby"
-      ]
+        "move passenger seat forward",
+        "adjust passenger seat",
+        "front passenger seat"
+      ],
+      "offline_capable": true,
+      "success_message": "I've moved the passenger seat forward.",
+      "requires_vehicle_state": false
     },
     {
-      "prompt_string": "If the user explicitly asks to 'show' places on the 'map', output exactly <TOOL>search(search_term)</TOOL>. Otherwise, if they just ask for suggestions, do NOT use this tool and just reply normally.",
-      "handler_key": "search",
+      "prompt_string": "<TOOL>handleFeelingCold()</TOOL>",
+      "handler_key": "handleFeelingCold",
+      "handler_type": "CUSTOM_KOTLIN",
+      "success_message": "Okay, I've increased the cabin temperature.",
+      "keywords": [
+        "turn up heat",
+        "feeling cold",
+        "shivering",
+        "warmer",
+        "bit cold",
+        "freezing",
+        "raise temperature",
+        "cold"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>setEnergeticCabinLighting()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 289410818,
+      "data_type": "INT",
+      "area_id": 0,
+      "value_to_write": "3",
+      "requires_confirmation": true,
+      "confirmation_message": "I can switch the cabin lights to an energetic, vibrant color scheme. Do you want me to do that now?",
+      "success_message": "Okay, I've set the cabin lighting to an energetic mood.",
+      "keywords": [
+        "ambient",
+        "cabin",
+        "light",
+        "lighting",
+        "atmosphere",
+        "mood",
+        "energetic",
+        "vibrant",
+        "colorful"
+      ],
+      "offline_capable": true,
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "setEnergeticCabinLighting",
+      "handler_key": "setEnergeticCabinLighting"
+    },
+    {
+      "prompt_string": "<TOOL>enableFreshAirIntake()</TOOL>",
+      "handler_key": "enableFreshAirIntake",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I can open the windows slightly and turn off recirculation to bring in fresh air. Should I do that?",
+      "success_message": "I've opened the windows slightly for fresh air.",
+      "keywords": [
+        "fresh air",
+        "need some air",
+        "open windows",
+        "ventilate"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>protectFromPollutedAir()</TOOL>",
+      "handler_key": "protectFromPollutedAir",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I can close the windows and turn on air recirculation to protect you from polluted air. Should I do that?",
+      "success_message": "I've closed the windows and enabled recirculation.",
+      "keywords": [
+        "too much pollution",
+        "polluted air",
+        "air quality",
+        "protect from pollution",
+        "polluted",
+        "smog",
+        "smells"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>defogWindshield()</TOOL>",
+      "handler_key": "defogWindshield",
+      "handler_type": "CUSTOM_KOTLIN",
+      "success_message": "I've turned on the defogger and directed airflow towards the windshield.",
+      "keywords": [
+        "visibility",
+        "mist",
+        "fogged",
+        "fog on glass",
+        "defog",
+        "can't see",
+        "defrost",
+        "windshield is foggy",
+        "windshield",
+        "fog"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>improveRoadVisibility()</TOOL>",
+      "handler_key": "improveRoadVisibility",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "instruction": "CRITICAL: If the user complains about bad weather (like it being foggy or dark outside) or poor visibility, you MUST trigger this macro tool. Do NOT try to manually adjust the airflow or defrosters.",
+      "confirmation_message": "I can turn on the fog lights, activate the defrosters, and maximize the fan to help you see the road better. Do you want me to do that?",
+      "success_message": "I've adjusted lighting for better visibility.",
+      "keywords": [
+        "too dark",
+        "see better",
+        "visibility",
+        "dark",
+        "can't see",
+        "barely see the road",
+        "fog",
+        "foggy"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>handleDrowsyDriving()</TOOL>",
+      "handler_key": "handleDrowsyDriving",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "You mentioned feeling sleepy. I can brighten the cabin, play upbeat music, and adjust climate to help you stay alert. Shall I do that?",
+      "success_message": "I've adjusted the cabin to help keep you awake.",
+      "keywords": [
+        "feel sleepy",
+        "drowsy",
+        "tired while driving",
+        "keep me awake",
+        "sleepy",
+        "tired"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>enhanceNiceEvening()</TOOL>",
+      "handler_key": "enhanceNiceEvening",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I can open the windows or sunroof slightly and adjust ambient lighting to enjoy the nice evening. Want me to set that up?",
+      "success_message": "I've adjusted the cabin for a pleasant evening drive.",
+      "keywords": [
+        "nice evening",
+        "enjoy outside",
+        "enjoy the breeze",
+        "evening atmosphere"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>suggestOptimizedChargingRate()</TOOL>",
+      "handler_key": "suggestOptimizedChargingRate",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "search",
-        "find",
-        "look up",
-        "restaurant",
-        "food",
-        "dining",
-        "nearby",
-        "places",
-        "map",
-        "show"
+        "optimize charging",
+        "charge faster",
+        "charging rate",
+        "battery health"
+      ],
+      "offline_capable": true,
+      "success_message": "I've analyzed the battery and suggested an optimized charging rate.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>sendUpcomingEventReminder()</TOOL>",
+      "handler_key": "sendUpcomingEventReminder",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "event reminder",
+        "upcoming event",
+        "calendar reminder"
+      ],
+      "offline_capable": false,
+      "requires_agentic_loop": true,
+      "success_message": "I've checked your upcoming events and prepared a reminder.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>explainChildSeatInstallation()</TOOL>",
+      "handler_key": "explainChildSeatInstallation",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "child seat",
+        "baby seat",
+        "install child seat",
+        "how to install"
+      ],
+      "offline_capable": true,
+      "success_message": "I'll walk you through how to install the child seat safely.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>suggestUmbrellaIfRainy()</TOOL>",
+      "handler_key": "suggestUmbrellaIfRainy",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "umbrella",
+        "going to rain",
+        "rainy weather",
+        "take umbrella"
+      ],
+      "offline_capable": false,
+      "success_message": "I've checked the weather and will remind you to carry an umbrella if rain is expected.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>getNewsHighlights()</TOOL>",
+      "handler_key": "getNewsHighlights",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "today's news",
+        "news highlights",
+        "latest news"
+      ],
+      "offline_capable": false,
+      "success_message": "Here are today's news highlights.",
+      "requires_vehicle_state": false,
+      "context_dependencies": [
+        "startNavigationTo"
       ]
     },
     {
-      "prompt_string": "To play music, you MUST immediately output exactly <TOOL>playMusic(SONG)</TOOL>. If no song is specified, just output <TOOL>playMusic(relaxing music)</TOOL>.",
+      "prompt_string": "<TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>",
+      "handler_key": "handleDriverFatigue",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "fatigue",
+        "exhausted",
+        "need rest",
+        "sleepy"
+      ],
+      "offline_capable": true,
+      "success_message": "I've assessed your fatigue level and prepared recommendations.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>alertDriverDistraction()</TOOL>",
+      "handler_key": "alertDriverDistraction",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "distracted",
+        "not paying attention",
+        "eyes off road",
+        "stay focused"
+      ],
+      "offline_capable": true,
+      "success_message": "I'll monitor for distraction and alert you if needed.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>provideLaneLevelGuidance()</TOOL>",
+      "handler_key": "provideLaneLevelGuidance",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "which lane",
+        "lane guidance",
+        "left turn lane",
+        "right turn lane"
+      ],
+      "offline_capable": true,
+      "success_message": "I'll guide you with lane-level navigation.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>suggestAlternateRoute()</TOOL>",
+      "handler_key": "suggestAlternateRoute",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "traffic congestion",
+        "better route",
+        "alternate route",
+        "traffic ahead"
+      ],
+      "offline_capable": false,
+      "requires_agentic_loop": true,
+      "success_message": "I've checked traffic and found an alternate route.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>adjustBgmForSituation()</TOOL>",
+      "handler_key": "adjustBgmForSituation",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "background music",
+        "BGM",
+        "make it quieter",
+        "make it louder",
+        "music volume"
+      ],
+      "offline_capable": true,
+      "success_message": "I've adjusted the background music to match the cabin situation.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>checkVehicleSecured()</TOOL>",
+      "handler_key": "checkVehicleSecured",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "is everything secured",
+        "car secure",
+        "doors and windows closed",
+        "before I leave"
+      ],
+      "offline_capable": true,
+      "success_message": "I've checked whether the vehicle is secured.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>prepareForCommute()</TOOL>",
+      "handler_key": "prepareForCommute",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I'll get the car ready for your commute with your preferred seat, climate and route settings. Should I proceed?",
+      "success_message": "I'm preparing the vehicle for your office commute.",
+      "keywords": [
+        "get the car ready",
+        "office commute",
+        "morning commute"
+      ],
+      "offline_capable": true,
+      "requires_agentic_loop": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>optimizeCabinForLongDrive()</TOOL>",
+      "handler_key": "optimizeCabinForLongDrive",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I can optimize temperature, seats and ambient lighting for a long comfortable drive. Shall I do that?",
+      "success_message": "I've optimized the cabin for a long drive.",
+      "keywords": [
+        "long drive",
+        "make the cabin comfortable",
+        "comfort for long trip"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>prepareForIncomingRain()</TOOL>",
+      "handler_key": "prepareForIncomingRain",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "wet",
+        "umbrella",
+        "rain is coming",
+        "rain",
+        "raining",
+        "looks like rain",
+        "get ready for rain"
+      ],
+      "offline_capable": true,
+      "success_message": "I've prepared the vehicle for the incoming rain.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>prepareForParking()</TOOL>",
+      "handler_key": "prepareForParking",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "about to park",
+        "parking downtown",
+        "help me park"
+      ],
+      "offline_capable": true,
+      "success_message": "I've prepared parking assistance for you.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>optimizeEnergyForRange()</TOOL>",
+      "handler_key": "optimizeEnergyForRange",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I can reduce non-essential energy use to maximize range. Do you want me to enable energy saving mode?",
+      "success_message": "I've optimized the vehicle for maximum range.",
+      "keywords": [
+        "maximum battery range",
+        "save energy",
+        "eco mode",
+        "energy saving"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>makeTripEnjoyable()</TOOL>",
+      "handler_key": "makeTripEnjoyable",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "make this trip enjoyable",
+        "fun trip",
+        "good atmosphere",
+        "nice drive"
+      ],
+      "offline_capable": true,
+      "requires_agentic_loop": true,
+      "success_message": "I've adjusted settings to make this trip more enjoyable.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>checkTripReadiness()</TOOL>",
+      "handler_key": "checkTripReadiness",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "vehicle healthy",
+        "ready for trip",
+        "weekend trip",
+        "health check"
+      ],
+      "offline_capable": true,
+      "success_message": "I've checked the vehicle's readiness for your trip.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>prepareForElderlyPassengers()</TOOL>",
+      "handler_key": "prepareForElderlyPassengers",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "parents travelling",
+        "elderly passengers",
+        "older people",
+        "comfortable for parents"
+      ],
+      "offline_capable": true,
+      "success_message": "I've adjusted cabin settings for your elderly passengers.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>prepareForImportantMeeting()</TOOL>",
+      "handler_key": "prepareForImportantMeeting",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "important client meeting",
+        "prepare for meeting",
+        "focus mode",
+        "meeting assistant"
+      ],
+      "offline_capable": true,
+      "requires_agentic_loop": true,
+      "success_message": "I've prepared the cabin and schedule for your important meeting.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>prepareForArrival()</TOOL>",
+      "handler_key": "prepareForArrival",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I can prepare the car for arrival by adjusting seat, lighting, and doors for an easy exit. Should I do that now?",
+      "success_message": "I've prepared the vehicle for your arrival.",
+      "keywords": [
+        "prepare for arrival",
+        "almost there",
+        "getting out",
+        "exit"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>handleEmergencyFeeling()</TOOL>",
+      "handler_key": "handleEmergencyFeeling",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "something feels wrong with the car",
+        "emergency",
+        "strange noise",
+        "weird vibration",
+        "feels unsafe"
+      ],
+      "offline_capable": true,
+      "success_message": "I've evaluated the vehicle signals and prepared safety recommendations.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>enableAdaptiveNightMode()</TOOL>",
+      "handler_key": "enableAdaptiveNightMode",
+      "handler_type": "CUSTOM_KOTLIN",
+      "requires_confirmation": true,
+      "confirmation_message": "I can enable adaptive night mode to improve visibility and reduce glare. Do you want me to turn it on?",
+      "success_message": "Adaptive night driving mode is now enabled.",
+      "keywords": [
+        "night driving is difficult",
+        "too dark",
+        "night mode",
+        "see better at night"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>prepareForAirportTrip()</TOOL>",
+      "handler_key": "prepareForAirportTrip",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "going to the airport",
+        "airport trip",
+        "flight",
+        "to the airport",
+        "airport",
+        "terminal"
+      ],
+      "offline_capable": false,
+      "requires_agentic_loop": true,
+      "success_message": "I've prepared navigation and settings for your airport trip.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>explainLowRange()</TOOL>",
+      "handler_key": "explainLowRange",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "why is my range low",
+        "range dropped",
+        "low range",
+        "battery drain"
+      ],
+      "offline_capable": true,
+      "success_message": "I've analyzed possible reasons for the lower range.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>answerVehicleIdentity()</TOOL>",
+      "handler_type": "GENERIC_VHAL_WRITE",
+      "property_id": 286261506,
+      "data_type": "STRING",
+      "area_id": 0,
+      "keywords": [
+        "what model is this",
+        "car model",
+        "vehicle model",
+        "what am I driving"
+      ],
+      "offline_capable": true,
+      "success_message": "I've checked the vehicle identity.",
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "name": "answerVehicleIdentity",
+      "handler_key": "answerVehicleIdentity"
+    },
+    {
+      "prompt_string": "<TOOL>playMusic(SONG)</TOOL>",
       "handler_key": "playMusic",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "music",
+        "listen",
+        "spotify",
         "play",
-        "song",
         "artist",
-        "album",
-        "listen"
+        "song",
+        "music",
+        "album"
+      ],
+      "offline_capable": false,
+      "requires_agentic_loop": false,
+      "success_message": "I'll start playing music.",
+      "requires_vehicle_state": false,
+      "instruction": "Plays music. You MUST replace 'SONG' with the requested artist or song name. If the user does not specify a specific song or artist, output <TOOL>playMusic(music)</TOOL> so the system can ask them.",
+      "aliases": [
+        "play",
+        "playAudio",
+        "playSong",
+        "startMusic",
+        "playTrack"
       ]
     },
     {
       "prompt_string": "<TOOL>pauseMusic()</TOOL>",
       "handler_key": "pauseMusic",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "CRITICAL: If the user asks to pause, stop, or halt the music/audio, you MUST execute this tool. Do not just say you will do it.",
       "keywords": [
-        "music",
+        "pause music",
+        "stop music",
+        "halt music"
+      ],
+      "offline_capable": true,
+      "success_message": "I've paused the music.",
+      "requires_vehicle_state": false,
+      "aliases": [
         "pause",
-        "stop",
-        "halt"
+        "stopMusic",
+        "pauseAudio"
       ]
     },
     {
       "prompt_string": "<TOOL>nextTrack()</TOOL>",
       "handler_key": "nextTrack",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "CRITICAL: If the user says 'next song', 'skip', or asks to play the next track, you MUST execute this tool. Do not just say you will do it.",
       "keywords": [
-        "music",
+        "next song",
+        "next track",
         "next",
+        "skip track",
         "skip",
         "forward"
-      ]
+      ],
+      "offline_capable": true,
+      "success_message": "I've skipped to the next track.",
+      "requires_vehicle_state": false
     },
     {
       "prompt_string": "<TOOL>prevTrack()</TOOL>",
       "handler_key": "prevTrack",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "CRITICAL: If the user says 'previous song', 'go back', or asks to play the last track, you MUST execute this tool. Do not just say you will do it.",
       "keywords": [
-        "music",
+        "previous song",
+        "previous track",
         "previous",
-        "back",
+        "back track",
+        "go back",
         "rewind"
-      ]
+      ],
+      "offline_capable": true,
+      "success_message": "I've gone back to the previous track.",
+      "requires_vehicle_state": false
     },
     {
-      "prompt_string": "<TOOL>call(NAME)</TOOL>",
-      "handler_key": "call",
+      "prompt_string": "<TOOL>setVolumeLevel(VAL)</TOOL>",
+      "handler_key": "setVolumeLevel",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "call",
-        "phone",
+        "increase volume",
+        "turn up the volume",
+        "louder",
+        "raise volume",
+        "decrease volume",
+        "turn down the volume",
+        "quieter",
+        "lower volume",
+        "softer",
+        "set volume",
+        "change volume"
+      ],
+      "aliases": [
+        "setVolume",
+        "changeVolume",
+        "adjustVolume",
+        "increaseVolume",
+        "decreaseVolume"
+      ],
+      "offline_capable": true,
+      "success_message": "I've adjusted the volume.",
+      "requires_vehicle_state": false,
+      "instruction": "Sets or adjusts the media volume. If no specific amount is given, pass 'UP' or 'DOWN'. VAL can be a percentage (e.g., '50', '30'), a relative adjustment (e.g., '+20', '-10'), or 'MAX'."
+    },
+    {
+      "prompt_string": "<TOOL>callContact(NAME)</TOOL>",
+      "handler_key": "callContact",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
         "dial",
-        "contact"
-      ]
+        "phone",
+        "call",
+        "contact",
+        "talk to"
+      ],
+      "offline_capable": true,
+      "requires_agentic_loop": true,
+      "success_message": "I'll place the call.",
+      "parameters": {
+        "required": [
+          "query"
+        ],
+        "missing_slot_prompt": "Who would you like to call?"
+      },
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>sendText(NAME,MSG)</TOOL>",
+      "handler_key": "sendText",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "text",
+        "message",
+        "sms",
+        "send message"
+      ],
+      "offline_capable": true,
+      "requires_agentic_loop": true,
+      "success_message": "I've sent your message.",
+      "requires_vehicle_state": false
     },
     {
       "prompt_string": "<TOOL>remember(FACT)</TOOL>",
@@ -538,10 +1308,13 @@
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "remember",
-        "fact",
         "note",
-        "save"
-      ]
+        "save",
+        "remember this"
+      ],
+      "offline_capable": true,
+      "success_message": "I've saved that information.",
+      "requires_vehicle_state": false
     },
     {
       "prompt_string": "<TOOL>getWeather(CITY)</TOOL>",
@@ -550,9 +1323,58 @@
       "keywords": [
         "weather",
         "rain",
-        "sunny",
         "forecast",
-        "cloudy"
+        "outside temperature"
+      ],
+      "offline_capable": false,
+      "requires_vehicle_state": false
+    },
+    {
+      "description": "Searches for physical locations, points of interest (POIs), businesses, or addresses on the map.",
+      "instruction": "ONLY use this for map locations. DO NOT use this tool to suggest places to visit, sightseeing spots, or best places. Answer those queries directly with text without any tools.",
+      "prompt_string": "<TOOL>search(search_term)</TOOL>",
+      "handler_key": "search",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "look up",
+        "find",
+        "where is",
+        "search",
+        "search for",
+        "show on map",
+        "show me places on map",
+        "restaurant",
+        "food",
+        "nearby"
+      ],
+      "requires_vehicle_state": false,
+      "context_dependencies": [
+        "startNavigationTo"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>startNavigationTo(\"PLACE_NAME\")</TOOL>",
+      "handler_key": "startNavigationTo",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "You MUST replace 'PLACE_NAME' with the actual destination string. For example, if the user wants to go to Tokyo, output exactly: <TOOL>startNavigationTo(\"Tokyo\")</TOOL>. DO NOT use this tool if the user hasn't specified a destination yet.",
+      "keywords": [
+        "drive to",
+        "navigate to",
+        "navigate me",
+        "navigate me to",
+        "route to",
+        "directions",
+        "take me to",
+        "go to"
+      ],
+      "requires_vehicle_state": true,
+      "aliases": [
+        "navigate",
+        "navigateTo",
+        "navigate_to",
+        "driveTo",
+        "goTo",
+        "nav"
       ]
     },
     {
@@ -565,14 +1387,41 @@
       "value_to_write": "true",
       "success_message": "I've popped the trunk.",
       "keywords": [
-        "trunk",
         "open",
-        "back",
+        "trunk",
+        "cargo",
         "boot",
-        "cargo"
+        "back"
       ],
       "requires_confirmation": true,
-      "confirmation_message": "Warning: Are you sure you want to open the trunk?"
+      "confirmation_message": "Warning: Are you sure you want to open the trunk?",
+      "requires_vehicle_state": true,
+      "error_message": "The vehicle hardware did not confirm the change."
+    },
+    {
+      "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
+      "handler_key": "setWindowPosition",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "roll down window",
+        "roll up window",
+        "glass position",
+        "window position"
+      ],
+      "property_id": 322964416,
+      "data_type": "INT",
+      "area_id": 0,
+      "success_message": "I've adjusted the windows.",
+      "constraints": [
+        {
+          "property_id": 291504647,
+          "operator": "<",
+          "value": 70,
+          "error_msg": "Safety Warning: Speed is too high to safely open the windows."
+        }
+      ],
+      "requires_vehicle_state": true,
+      "error_message": "The vehicle hardware did not confirm the change."
     },
     {
       "prompt_string": "<TOOL>unlockDoors()</TOOL>",
@@ -591,102 +1440,201 @@
         "latch"
       ],
       "requires_confirmation": true,
-      "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?"
+      "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?",
+      "requires_vehicle_state": true,
+      "error_message": "The vehicle hardware did not confirm the change."
     },
     {
-      "prompt_string": "<TOOL>turnOnAutoClimate()</TOOL>",
-      "handler_key": "turnOnAutoClimate",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "prompt_string": "<TOOL>setDriverTemperature(VAL)</TOOL>",
+      "handler_key": "setDriverTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 85 or 72, you MUST pass that exact number as the VAL argument.",
       "keywords": [
-        "auto",
-        "climate",
-        "automatic"
+        "driver temperature",
+        "my temperature",
+        "driver side temp",
+        "make it warmer for the driver",
+        "cool down the driver"
       ],
-      "property_id": 354419978,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "success_message": "I've turned on auto climate.",
-      "value_to_write": "true"
+      "offline_capable": true,
+      "success_message": "I've adjusted the driver's side temperature.",
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "aliases": [
+        "setDriver",
+        "setDriverTemp",
+        "driverTemperature",
+        "setDriverTemperature"
+      ]
     },
     {
-      "prompt_string": "<TOOL>turnOffAutoClimate()</TOOL>",
-      "handler_key": "turnOffAutoClimate",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "prompt_string": "<TOOL>setPassengerTemperature(VAL)</TOOL>",
+      "handler_key": "setPassengerTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 85 or 72, you MUST pass that exact number as the VAL argument.",
       "keywords": [
-        "auto",
-        "climate",
-        "automatic",
-        "off"
+        "passenger temperature",
+        "passenger side temp",
+        "make it warmer for the passenger",
+        "cool down the passenger"
       ],
-      "property_id": 354419978,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "success_message": "I've turned off auto climate.",
-      "value_to_write": "false"
+      "offline_capable": true,
+      "success_message": "I've adjusted the passenger's side temperature.",
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "requires_vehicle_state": true,
+      "aliases": [
+        "setPassenger",
+        "setPassengerTemp",
+        "passengerTemperature",
+        "setPassengerTemperature"
+      ]
     },
     {
-      "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
-      "handler_key": "turnOnHvacPower",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "name": "bookRestaurant",
+      "description": "Executes the bookRestaurant routine.",
+      "prompt_string": "<TOOL>bookRestaurant()</TOOL>",
+      "handler_key": "bookRestaurant",
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "hvac",
-        "power",
-        "on",
-        "climate control"
+        "bookrestaurant"
       ],
-      "property_id": 354419984,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "success_message": "I've turned on HVAC power.",
-      "value_to_write": "true"
+      "requires_vehicle_state": false
     },
     {
-      "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
-      "handler_key": "turnOffHvacPower",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "name": "queryMemory",
+      "description": "Executes the queryMemory routine.",
+      "prompt_string": "<TOOL>queryMemory()</TOOL>",
+      "handler_key": "queryMemory",
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "hvac",
-        "power",
-        "off",
-        "climate control"
+        "querymemory"
       ],
-      "property_id": 354419984,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "success_message": "I've turned off HVAC power.",
-      "value_to_write": "false"
+      "requires_vehicle_state": false
     },
     {
-      "prompt_string": "<TOOL>turnOnAC()</TOOL>",
-      "handler_key": "turnOnAC",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "name": "openApp",
+      "description": "Executes the openApp routine.",
+      "prompt_string": "<TOOL>openApp()</TOOL>",
+      "handler_key": "openApp",
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "ac",
-        "air conditioning",
-        "on",
-        "cool"
+        "openapp"
       ],
-      "property_id": 354419973,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "success_message": "I've turned on the AC.",
-      "value_to_write": "true"
+      "requires_vehicle_state": false
     },
     {
-      "prompt_string": "<TOOL>turnOffAC()</TOOL>",
-      "handler_key": "turnOffAC",
-      "handler_type": "GENERIC_VHAL_WRITE",
+      "name": "setAllWindowsPosition",
+      "description": "Executes the setAllWindowsPosition routine.",
+      "prompt_string": "<TOOL>setAllWindowsPosition()</TOOL>",
+      "handler_key": "setAllWindowsPosition",
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "ac",
-        "air conditioning",
-        "off",
-        "warm"
+        "setallwindowsposition"
       ],
-      "property_id": 354419973,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "success_message": "I've turned off the AC.",
-      "value_to_write": "false"
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>increasePassengerTemperature()</TOOL>",
+      "handler_key": "increasePassengerTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Increases the passenger side temperature by 2 degrees.",
+      "keywords": [
+        "increase passenger temperature",
+        "warmer passenger"
+      ],
+      "aliases": [
+        "increasePassenger"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>decreasePassengerTemperature()</TOOL>",
+      "handler_key": "decreasePassengerTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Decreases the passenger side temperature by 2 degrees.",
+      "keywords": [
+        "decrease passenger temperature",
+        "cooler passenger"
+      ],
+      "aliases": [
+        "decreasePassenger"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>increaseDriverTemperature()</TOOL>",
+      "handler_key": "increaseDriverTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Increases the driver side temperature by 2 degrees.",
+      "keywords": [
+        "increase driver temperature",
+        "warmer driver"
+      ],
+      "aliases": [
+        "increaseDriver"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>decreaseDriverTemperature()</TOOL>",
+      "handler_key": "decreaseDriverTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Decreases the driver side temperature by 2 degrees.",
+      "keywords": [
+        "decrease driver temperature",
+        "cooler driver"
+      ],
+      "aliases": [
+        "decreaseDriver"
+      ]
+    },
+    {
+      "prompt_string": "<TOOL>checkVehicleState()</TOOL>",
+      "handler_key": "checkVehicleState",
+      "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Fetches the current real-time state of the vehicle (temperature, AC, fan speed, custom properties, etc.). Call this tool if you need to know the current state before making a decision.",
+      "keywords": [
+        "check state",
+        "current temperature",
+        "is ac on",
+        "what is the temperature",
+        "car",
+        "model",
+        "vehicle"
+      ]
     }
-  ]
+  ],
+  "system_instructions": [
+    {
+      "instruction": "When setting airflow direction, you MUST use exactly one of these parameters: face, floor, face and floor, or defrost. Example: <TOOL>setAirflowDirection(face and floor)</TOOL>",
+      "keywords": [
+        "airflow",
+        "vents",
+        "direction"
+      ]
+    },
+    {
+      "instruction": "Whenever passing a parameter to a tool, you MUST wrap the entire function call in exact <TOOL> tags. DO NOT output the function without the XML wrapper. Example: <TOOL>startNavigationTo(\"Tokyo\")</TOOL>",
+      "keywords": [
+        "navigate",
+        "drive",
+        "destination",
+        "go to"
+      ]
+    },
+    {
+      "instruction": "Provide rich, detailed explanations and conversational depth when the user asks for recommendations, sightseeing, or general knowledge.",
+      "keywords": [
+        "suggest",
+        "recommend",
+        "visit",
+        "sightseeing",
+        "places to go",
+        "tourist",
+        "best places"
+      ]
+    }
+  ],
+  "config": {
+    "prewarm_query": "control climate music volume track navigation windows sightseeing food charging",
+    "sliding_window_max_chars": 3000,
+    "max_relevant_tools": 4
+  }
 }
