@@ -17,7 +17,7 @@ object SmartContextInjector {
         var requiresSystemState = false
 
         // Dynamically evaluate domains based on tool keywords from the registry
-        for (tool in ToolManager.getAllTools().values) {
+        for (tool in org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getAllTools().values) {
             val matches = tool.keywords?.any { kw -> q.contains(kw.lowercase()) } == true
             if (matches) {
                 val key = tool.handlerKey ?: ""

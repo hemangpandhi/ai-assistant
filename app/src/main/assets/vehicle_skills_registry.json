@@ -384,7 +384,7 @@
       "handler_key": "turnOffHvacPower"
     },
     {
-      "prompt_string": "<TOOL>turnOnFrontDefroster()</TOOL>",
+      "prompt_string": "<TOOL>turnOnDefroster()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -405,11 +405,11 @@
         "defroster",
         "enableDefroster"
       ],
-      "name": "turnOnFrontDefroster",
-      "handler_key": "turnOnFrontDefroster"
+      "name": "turnOnDefroster",
+      "handler_key": "turnOnDefroster"
     },
     {
-      "prompt_string": "<TOOL>turnOffFrontDefroster()</TOOL>",
+      "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
       "property_id": 320865540,
       "data_type": "BOOLEAN",
@@ -424,8 +424,8 @@
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
-      "name": "turnOffFrontDefroster",
-      "handler_key": "turnOffFrontDefroster"
+      "name": "turnOffDefroster",
+      "handler_key": "turnOffDefroster"
     },
     {
       "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
@@ -536,6 +536,7 @@
       "property_id": 356517131,
       "data_type": "INT",
       "area_id": 0,
+      "instruction": "If the user mentions their back is paining, sore, or hurting, you MUST use this tool to turn on the seat heater (LEVEL 2) to soothe their back.",
       "success_message": "I've adjusted the seat heater.",
       "keywords": [
         "warm seat",
@@ -544,7 +545,11 @@
         "warm up my seat",
         "cold",
         "freezing",
-        "chilly"
+        "chilly",
+        "paining",
+        "back pain",
+        "back hurts",
+        "sore back"
       ],
       "offline_capable": true,
       "requires_vehicle_state": true,
@@ -716,10 +721,9 @@
       "prompt_string": "<TOOL>improveRoadVisibility()</TOOL>",
       "handler_key": "improveRoadVisibility",
       "handler_type": "CUSTOM_KOTLIN",
-      "requires_confirmation": true,
+      "requires_confirmation": false,
       "instruction": "CRITICAL: If the user complains about bad weather (like it being foggy or dark outside) or poor visibility, you MUST trigger this macro tool. Do NOT try to manually adjust the airflow or defrosters.",
-      "confirmation_message": "I can turn on the fog lights, activate the defrosters, and maximize the fan to help you see the road better. Do you want me to do that?",
-      "success_message": "I've adjusted lighting for better visibility.",
+      "success_message": "I've turned on the defrosters and optimized your airflow for maximum visibility.",
       "keywords": [
         "too dark",
         "see better",
@@ -1401,7 +1405,8 @@
         "navigate_to",
         "driveTo",
         "goTo",
-        "nav"
+        "nav",
+        "startNavigation"
       ]
     },
     {
@@ -1559,58 +1564,6 @@
         "setallwindowsposition"
       ],
       "requires_vehicle_state": false
-    },
-    {
-      "prompt_string": "<TOOL>increasePassengerTemperature()</TOOL>",
-      "handler_key": "increasePassengerTemperature",
-      "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Increases the passenger side temperature by 2 degrees.",
-      "keywords": [
-        "increase passenger temperature",
-        "warmer passenger"
-      ],
-      "aliases": [
-        "increasePassenger"
-      ]
-    },
-    {
-      "prompt_string": "<TOOL>decreasePassengerTemperature()</TOOL>",
-      "handler_key": "decreasePassengerTemperature",
-      "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Decreases the passenger side temperature by 2 degrees.",
-      "keywords": [
-        "decrease passenger temperature",
-        "cooler passenger"
-      ],
-      "aliases": [
-        "decreasePassenger"
-      ]
-    },
-    {
-      "prompt_string": "<TOOL>increaseDriverTemperature()</TOOL>",
-      "handler_key": "increaseDriverTemperature",
-      "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Increases the driver side temperature by 2 degrees.",
-      "keywords": [
-        "increase driver temperature",
-        "warmer driver"
-      ],
-      "aliases": [
-        "increaseDriver"
-      ]
-    },
-    {
-      "prompt_string": "<TOOL>decreaseDriverTemperature()</TOOL>",
-      "handler_key": "decreaseDriverTemperature",
-      "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Decreases the driver side temperature by 2 degrees.",
-      "keywords": [
-        "decrease driver temperature",
-        "cooler driver"
-      ],
-      "aliases": [
-        "decreaseDriver"
-      ]
     },
     {
       "prompt_string": "<TOOL>checkVehicleState()</TOOL>",

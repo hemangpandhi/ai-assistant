@@ -36,7 +36,8 @@ class SafetyAndCareHandler(override val handlerKey: String) : ToolHandler {
                 VehicleManager.setGenericVhalProperty(android.car.VehiclePropertyIds.FOG_LIGHTS_SWITCH, 0, "1", "INT") // FOG_LIGHTS_SWITCH
                 VehicleManager.writeDefrosterToVhalVerified(true)
                 VehicleManager.writeFanSpeedToVhalVerified(7)
-                ToolExecutionResult(true, "I have activated the fog lights, turned on the defrosters, and set the fan to max to help clear your view.")
+                VehicleManager.writeAirflowDirectionToVhalVerified(4) // DEFROST
+                ToolExecutionResult(true, "I've turned on the defrosters and optimized your airflow for maximum visibility.")
             }
             else -> ToolExecutionResult(false, "System Error: Safety And Care Handler not recognized.")
         }

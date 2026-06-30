@@ -75,9 +75,6 @@ class WakeWordService : Service() {
         CoroutineScope(Dispatchers.Main).launch {
             LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
                 override fun onSuccess() {
-                    CoroutineScope(Dispatchers.Main).launch {
-                        LLMManager.prewarm(applicationContext)
-                    }
                 }
                 override fun onError(e: Exception) {
                     Log.e("WakeWord", "Background LLM Init Failed", e)

@@ -83,7 +83,7 @@ object VehicleManager {
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
-            ToolManager.initialize(context)
+            org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().initialize(context)
 
             val car = Car.createCar(context)
             carPropertyManager = car.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
@@ -204,11 +204,11 @@ object VehicleManager {
             
             var targetAreaId = areaIds.first()
             for (areaId in areaIds) {
-                if (zone == "driver" && (areaId and 1) == 1) {
+                if (zone == "driver" && (areaId and 4) == 4) {
                     targetAreaId = areaId
                     break
                 }
-                if (zone == "passenger" && (areaId and 4) == 4) {
+                if (zone == "passenger" && (areaId and 1) == 1) {
                     targetAreaId = areaId
                     break
                 }
@@ -258,8 +258,8 @@ object VehicleManager {
             // Filter areaIds based on the requested zone
             val targetAreaIds = mutableListOf<Int>()
             for (areaId in areaIds) {
-                if (zone == "driver" && (areaId and 1) != 1) continue
-                if (zone == "passenger" && (areaId and 4) != 4) continue
+                if (zone == "driver" && (areaId and 4) != 4) continue
+                if (zone == "passenger" && (areaId and 1) != 1) continue
                 targetAreaIds.add(areaId)
             }
             
@@ -380,6 +380,28 @@ object VehicleManager {
         }
     }
     
+    suspend fun writeAirflowDirectionToVhalVerified(direction: Int): Boolean {
+        try {
+            val propertyId = 356517121 // HVAC_FAN_DIRECTION
+            val config = carPropertyManager?.getCarPropertyConfig(propertyId)
+            var areaIds = config?.areaIds
+            if (areaIds == null || areaIds.isEmpty()) {
+                areaIds = intArrayOf(49, 68) // Fallback for ROW_1_LEFT/RIGHT
+            }
+            
+            ensureHvacPowerOn()
+            
+            var anySuccess = false
+            areaIds.forEach { areaId ->
+                val success = setPropertyVerified(propertyId, areaId, direction.toString(), "INT")
+                if (success) anySuccess = true
+            }
+            return anySuccess
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to write VHAL airflow direction", e)
+            return false
+        }
+    }
     fun setGenericVhalProperty(propertyId: Int, areaId: Int, value: String, dataType: String): Boolean {
         try {
             var targetAreaId = areaId
@@ -414,7 +436,7 @@ object VehicleManager {
             
             var anySuccess = false
             areaIds.forEach { areaId ->
-                val success = setPropertyVerified(VehiclePropertyIds.HVAC_DEFROSTER, areaId, (if(on) 1 else 0).toString(), "BOOLEAN")
+                val success = setPropertyVerified(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on.toString(), "BOOLEAN")
                 if (success) anySuccess = true
             }
             return anySuccess

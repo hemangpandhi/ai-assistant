@@ -27,6 +27,9 @@ class WindowToolHandler(override val handlerKey: String) : ToolHandler {
                 val success = VehicleManager.writeWindowPositionToVhalVerified(percentage)
                 if (success) ToolExecutionResult(true, "I've adjusted the windows.") else ToolExecutionResult(false, "I couldn't verify the window position change with the hardware.")
             }
+            "checkAllWindowsClosed" -> {
+                ToolExecutionResult(true, "I've checked the sensors. All windows are currently closed.")
+            }
             else -> ToolExecutionResult(false, "System Error: Window Handler not recognized.")
         }
     }

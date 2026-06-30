@@ -6,8 +6,8 @@ import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
 import com.google.mediapipe.tasks.core.BaseOptions
 import kotlin.math.sqrt
 
-object SemanticSearchManager {
-    private const val TAG = "SemanticSearch"
+class SemanticSearchManager(private val toolManager: ToolManager) {
+    private val TAG = "SemanticSearch"
     private var embedder: TextEmbedder? = null
     private var isInitialized = false
     
@@ -48,7 +48,7 @@ object SemanticSearchManager {
 
     fun buildToolEmbeddingsCache() {
         if (!isInitialized) return
-        val tools = ToolManager.getAllTools()
+        val tools = toolManager.getAllTools()
         for ((cmd, def) in tools) {
             val keywordsText = def.keywords?.joinToString(" ") ?: ""
             val description = "${def.handlerKey} $keywordsText"
@@ -61,20 +61,20 @@ object SemanticSearchManager {
     }
 
     fun search(query: String, topK: Int = 10): List<ToolManager.ToolDefinition> {
-        if (!isInitialized) return ToolManager.getAllTools().values.take(topK).toList()
+        if (!isInitialized) return toolManager.getAllTools().values.take(topK).toList()
         
-        val queryVector = embedText(query.lowercase()) ?: return ToolManager.getAllTools().values.take(topK).toList()
+        val queryVector = embedText(query.lowercase()) ?: return toolManager.getAllTools().values.take(topK).toList()
         
         val scoredTools = mutableListOf<Pair<ToolManager.ToolDefinition, Float>>()
         
         for ((cmd, toolVector) in toolEmbeddings) {
-            val def = ToolManager.getToolDefinition(cmd) ?: continue
+            val def = toolManager.getToolDefinition(cmd) ?: continue
             val similarity = cosineSimilarity(queryVector, toolVector)
             scoredTools.add(Pair(def, similarity))
         }
         
         // Also include generic tools that don't have embeddings
-        val allTools = ToolManager.getAllTools()
+        val allTools = toolManager.getAllTools()
         for ((cmd, def) in allTools) {
             if (!toolEmbeddings.containsKey(cmd)) {
                 // Base score for tools without keywords

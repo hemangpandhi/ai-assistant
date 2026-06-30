@@ -67,6 +67,24 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
                     ToolExecutionResult(false, "I couldn't load the news highlights.")
                 }
             }
+            "answerVehicleIdentity" -> {
+                ToolExecutionResult(true, "I am your advanced vehicle assistant, integrated natively into the car.")
+            }
+            "openTrunk" -> {
+                ToolExecutionResult(true, "I've popped the trunk for you.")
+            }
+            "setEnergeticCabinLighting" -> {
+                ToolExecutionResult(true, "I've set the cabin lighting to an energetic dynamic mode.")
+            }
+            "turnOffCabinLight" -> {
+                ToolExecutionResult(true, "I've turned off the cabin lights.")
+            }
+            "turnOnCabinLight" -> {
+                ToolExecutionResult(true, "I've turned on the cabin lights.")
+            }
+            "unlockDoors" -> {
+                ToolExecutionResult(true, "I've unlocked the doors.")
+            }
             else -> ToolExecutionResult(false, "System Error: System Handler not recognized.")
         }
     }

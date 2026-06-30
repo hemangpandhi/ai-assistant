@@ -113,8 +113,7 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                         }
                         if (places.isNotEmpty()) {
                             val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-                            val coordInstructions = placesWithCoords.mapIndexed { index, pair -> "If user chooses ${index + 1} (${pair.first}), output EXACTLY <TOOL>startNavigationTo(${pair.second})</TOOL>" }.joinToString(". ")
-                            ToolExecutionResult(true, "I found these options nearby: $placesStr. Which one would you like to navigate to? INTERNAL RULE FOR NEXT TURN: $coordInstructions")
+                            ToolExecutionResult(true, "I found these options nearby: $placesStr. Which one would you like to navigate to?")
                         } else {
                             ToolExecutionResult(true, "I couldn't find any $amenity nearby.")
                         }

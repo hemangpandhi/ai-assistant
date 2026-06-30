@@ -978,11 +978,7 @@ class LocalLLMActivity : AppCompatActivity() {
                 chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
                 generateButton.isEnabled = true
                 btnLoadModel.isEnabled = false
-                
-                // Automatically prewarm the KV cache to eliminate the 6-second TTFT delay on the first query
-                lifecycleScope.launch(Dispatchers.IO) {
-                    LLMManager.prewarm(applicationContext)
-                }
+                // Removed prewarm call to optimize startup time
             }
 
             override fun onError(e: Exception) {
@@ -1016,7 +1012,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
     private fun executeToolCall(toolCall: String) {
         kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            ToolManager.executeToolCall(this@LocalLLMActivity, toolCall)
+            org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().executeToolCall(this@LocalLLMActivity, toolCall)
             kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                 updateDashboardUI()
             }
@@ -1034,7 +1030,7 @@ class LocalLLMActivity : AppCompatActivity() {
             
             // Diagnostics queries the hardware which can take a moment, so run off the Main thread
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
+                val report = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().runSystemDiagnostics(this@LocalLLMActivity)
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     chatAdapter.addMessage(ChatMessage(report, isUser = false, isStreaming = false))
@@ -1506,7 +1502,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private val diagnosticReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                val report = ToolManager.runSystemDiagnostics(this@LocalLLMActivity)
+                val report = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().runSystemDiagnostics(this@LocalLLMActivity)
                 android.util.Log.i("AutomatedTest", "\n\n=================== DIAGNOSTIC DUMP ===================\n$report\n========================================================\n\n")
             }
         }

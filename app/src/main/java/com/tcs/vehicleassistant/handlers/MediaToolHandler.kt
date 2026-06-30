@@ -74,11 +74,26 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to pause media via MediaSessionManager, using fallback", e)
-                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                    audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE))
-                    audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE))
+                    try {
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        val keycode = if (handlerKey == "stopMusic") android.view.KeyEvent.KEYCODE_MEDIA_STOP else android.view.KeyEvent.KEYCODE_MEDIA_PAUSE
+                        
+                        // Send the specific pause/stop key
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, keycode))
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keycode))
+                        
+                        // Fallback: Also try sending generic PAUSE if stop failed to be recognized
+                        if (handlerKey == "stopMusic") {
+                            audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE))
+                            audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE))
+                        }
+                    } catch (ex: Exception) {
+                        Log.e(TAG, "Fallback dispatchMediaKeyEvent failed", ex)
+                        return ToolExecutionResult(false, "System Error: Could not control media playback.")
+                    }
                 }
-                ToolExecutionResult(true, "Music paused.")
+                val feedback = if (handlerKey == "stopMusic") "Music stopped." else "Music paused."
+                ToolExecutionResult(true, feedback)
             }
             "nextTrack" -> {
                 try {

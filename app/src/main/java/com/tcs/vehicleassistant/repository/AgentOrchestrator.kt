@@ -1,0 +1,512 @@
+package com.tcs.vehicleassistant.repository
+
+import android.content.Context
+import android.content.Intent
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Message
+import com.google.ai.edge.litertlm.MessageCallback
+import com.tcs.vehicleassistant.*
+import com.tcs.vehicleassistant.CloudMessageCallback
+import com.tcs.vehicleassistant.llm.ILLMProvider
+import com.tcs.vehicleassistant.utils.ToolCallParser
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+sealed class OrchestratorState {
+    object Idle : OrchestratorState()
+    object Thinking : OrchestratorState()
+    data class Streaming(val displayMsg: String) : OrchestratorState()
+    data class Speaking(val finalMsg: String) : OrchestratorState()
+    data class Error(val message: String) : OrchestratorState()
+}
+
+sealed class OrchestratorEvent {
+    data class ShowToast(val message: String) : OrchestratorEvent()
+    data class SetInputEnabled(val enabled: Boolean) : OrchestratorEvent()
+    data class LaunchIntent(val intent: Intent) : OrchestratorEvent()
+    object StartListening : OrchestratorEvent()
+    object FinishSession : OrchestratorEvent()
+}
+
+class AgentOrchestrator(
+    private val context: Context,
+    private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager
+) {
+    private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
+    val state: StateFlow<OrchestratorState> = _state.asStateFlow()
+
+    private val _events = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 32)
+    val events: SharedFlow<OrchestratorEvent> = _events.asSharedFlow()
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var isQueryProcessed = true
+    private var timeoutJob: Job? = null
+    private var pendingConfirmationTool: String? = null
+    private var pendingIntentToLaunch: Intent? = null
+    private val lastResponseBuilder = StringBuilder()
+
+    @Volatile var ttsSpokenLength = 0
+        private set
+    @Volatile var lastTtsUpdateTime = 0L
+        private set
+
+    private val currentPendingTools = mutableListOf<Deferred<String?>>()
+
+    init {
+        audioManager.setUtteranceListener(
+            onStart = { utteranceId ->
+                if (utteranceId.startsWith("SENTENCE_")) {
+                    lastTtsUpdateTime = System.currentTimeMillis()
+                }
+            },
+            onDone = { utteranceId ->
+                if (utteranceId.startsWith("SENTENCE_")) {
+                    lastTtsUpdateTime = System.currentTimeMillis()
+                }
+                onTtsFinalUtteranceDone(utteranceId)
+            },
+            onError = { utteranceId ->
+                onTtsFinalUtteranceError(utteranceId)
+            },
+            onRangeStart = { utteranceId, start, end, frame ->
+                if (utteranceId.startsWith("SENTENCE_")) {
+                    val sentenceStartOffset = utteranceId.substringAfter("SENTENCE_").toIntOrNull() ?: 0
+                    ttsSpokenLength = Math.max(ttsSpokenLength, sentenceStartOffset + end)
+                    lastTtsUpdateTime = System.currentTimeMillis()
+                }
+            }
+        )
+    }
+
+    fun isProcessing(): Boolean = !isQueryProcessed
+
+    fun handleQuery(query: String, retryCount: Int = 0) {
+        if (LLMManager.isPrewarming) {
+            _events.tryEmit(OrchestratorEvent.ShowToast("Model is prewarming, please wait a moment..."))
+            _state.value = OrchestratorState.Idle
+            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+            return
+        }
+        if (LLMManager.engine == null || LLMManager.conversation == null) return
+
+        lastResponseBuilder.clear()
+        ttsSpokenLength = 0
+        lastTtsUpdateTime = 0L
+        isQueryProcessed = false
+
+        _state.value = OrchestratorState.Thinking
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+
+        scope.launch {
+            processQuery(query, retryCount)
+        }
+    }
+
+    fun resetState() {
+        _state.value = OrchestratorState.Idle
+    }
+
+    private fun onTtsFinalUtteranceDone(utteranceId: String) {
+        scope.launch {
+            when (utteranceId) {
+                "QUESTION_FINAL" -> {
+                    delay(500)
+                    _events.tryEmit(OrchestratorEvent.StartListening)
+                }
+                "STATEMENT_FINAL_TOOL" -> {
+                    for (job in currentPendingTools) {
+                        try { job.await() } catch (_: Exception) {}
+                    }
+                    pendingIntentToLaunch?.let { intent ->
+                        _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
+                        pendingIntentToLaunch = null
+                    }
+                    delay(50)
+                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                }
+                "STATEMENT_FINAL" -> {
+                    delay(50)
+                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                }
+            }
+        }
+    }
+
+    private fun onTtsFinalUtteranceError(utteranceId: String) {
+        if (utteranceId == "STATEMENT_FINAL_TOOL" || utteranceId == "STATEMENT_FINAL") {
+            scope.launch {
+                delay(50)
+                _events.tryEmit(OrchestratorEvent.FinishSession)
+            }
+        }
+    }
+
+    fun destroy() {
+        timeoutJob?.cancel()
+        scope.cancel()
+    }
+
+    private suspend fun processQuery(
+        query: String,
+        retryCount: Int,
+        loopCount: Int = 0,
+        isAgenticObservation: Boolean = false,
+        previousExecutedTools: Set<String> = emptySet()
+    ) {
+        timeoutJob?.cancel()
+        timeoutJob = scope.launch {
+            val timeoutDuration = if (LLMManager.isFirstMessage) 180000L else 45000L
+            delay(timeoutDuration)
+            if (!isQueryProcessed) {
+                _state.value = OrchestratorState.Error("Timeout - Restarting Model...")
+                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
+                    override fun onSuccess() {
+                        _state.value = OrchestratorState.Idle
+                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                        isQueryProcessed = true
+                    }
+                    override fun onError(e: Exception) {
+                        _state.value = OrchestratorState.Error("Error restarting.")
+                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                        isQueryProcessed = true
+                    }
+                })
+            }
+        }
+
+        var interceptedQuery = query
+
+        if (pendingConfirmationTool != null) {
+            val q = query.lowercase()
+            if (q.contains("yes") || q.contains("yeah") || q.contains("sure") || q.contains("do it") || q.contains("ok")) {
+                val toolToExecute = pendingConfirmationTool!!
+                pendingConfirmationTool = null
+                val feedback = executeToolCall(toolToExecute)
+                interceptedQuery = "System: Executed $toolToExecute. Result: $feedback. User originally said 'yes'."
+            } else {
+                pendingConfirmationTool = null
+                interceptedQuery = "System: Action aborted by user. User originally said: $query"
+            }
+        }
+
+        val finalPrompt: String = withContext(Dispatchers.IO) {
+            if (isAgenticObservation) {
+                MemoryManager.addTurn("System", interceptedQuery)
+            } else {
+                MemoryManager.addTurn("User", interceptedQuery)
+            }
+            val slidingHistory = MemoryManager.getSlidingWindowContext(500)
+
+            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+            val dynamicState = SmartContextInjector.getInjectedContext(interceptedQuery, context)
+            val vehicleState = if (dynamicState.isNotEmpty()) "[Current State: $dynamicState]" else ""
+
+            val stateInject = if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
+                LLMManager.lastVehicleState = vehicleState
+                "$vehicleState\n"
+            } else ""
+
+            val currentToolsString = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+            val toolsInject = if (currentToolsString.isNotBlank() && currentToolsString != LLMManager.lastInjectedTools) {
+                LLMManager.lastInjectedTools = currentToolsString
+                "\n[Available Tools]\n$currentToolsString\n"
+            } else {
+                ""
+            }
+
+            if (LocalLLMActivity.isCloudModelActive) {
+                if (slidingHistory.isNotEmpty()) {
+                    "$sysPrompt\n\n[Conversation History]\n$slidingHistory\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+                } else {
+                    "$sysPrompt\n\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+                }
+            } else {
+                "$stateInject$toolsInject\n$interceptedQuery"
+            }
+        }
+
+        val executedTools = mutableSetOf<String>()
+        executedTools.addAll(previousExecutedTools)
+        val toolFeedbacks = mutableListOf<String>()
+        currentPendingTools.clear()
+        val spokenTextLength = intArrayOf(0)
+        val parsedSpokenLength = intArrayOf(0)
+
+        val startTime = System.currentTimeMillis()
+        var firstTokenTime = -1L
+
+        var isHallucinating = false
+        var isDoneCalled = false
+
+        val onToken: (String) -> Unit = { chunkText ->
+            if (!isHallucinating) {
+                try {
+                    if (firstTokenTime == -1L) {
+                        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_LOWEST)
+                    }
+                    Thread.sleep(15)
+                } catch (_: Exception) {}
+
+                if (firstTokenTime == -1L) {
+                    firstTokenTime = System.currentTimeMillis()
+                    LatencyLogger.log("Orchestrator", "TTFT: ${firstTokenTime - startTime}ms")
+                }
+
+                if (!isQueryProcessed) {
+                    lastResponseBuilder.append(chunkText)
+                    var currentText = lastResponseBuilder.toString()
+
+                    var stripped = true
+                    while (stripped) {
+                        stripped = false
+                        val prefixes = listOf("Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :", "System:", "System :")
+                        for (prefix in prefixes) {
+                            if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
+                                currentText = currentText.trimStart().substring(prefix.length).trimStart()
+                                lastResponseBuilder.clear()
+                                lastResponseBuilder.append(currentText)
+                                stripped = true
+                            }
+                        }
+                    }
+
+                    val userIdx = currentText.indexOf("\nUser:")
+                    if (userIdx != -1) {
+                        isHallucinating = true
+                        currentText = currentText.substring(0, userIdx)
+                        lastResponseBuilder.setLength(userIdx)
+                    } else if (currentText.trim().endsWith("User:")) {
+                        isHallucinating = true
+                        currentText = currentText.substringBeforeLast("User:")
+                        lastResponseBuilder.setLength(currentText.length)
+                    }
+
+                    if (currentText.length > 250) {
+                        val lastWords = currentText.trim().split(Regex("\\s+")).takeLast(5)
+                        val isRepeating = lastWords.size == 5 && lastWords.distinct().size == 1
+                        val isRunaway = currentText.length > 600
+
+                        if (isRepeating || isRunaway) {
+                            isHallucinating = true
+                        }
+                    }
+
+                    var displayMsg = ToolCallParser.stripToolTags(currentText)
+                    displayMsg = displayMsg.replace(Regex("\\biI\\b"), "I")
+                    displayMsg = displayMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
+                    displayMsg = displayMsg.replace(Regex("^i\\s+"), "")
+                    displayMsg = displayMsg.replace(Regex("^i\\b"), "I")
+                    displayMsg = displayMsg.trim()
+
+                    if (displayMsg.isNotEmpty()) {
+                        _state.value = OrchestratorState.Streaming(displayMsg)
+                    }
+
+                    val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
+                    var remainingText = displayMsg.substring(safeStartIndex)
+                    val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.,!?](?:\\s+|$))".toRegex()
+                    var match = sentenceRegex.find(remainingText)
+                    while (match != null) {
+                        val sentence = match.value
+                        spokenTextLength[0] += sentence.length
+                        val sentenceStartOffset = parsedSpokenLength[0]
+                        parsedSpokenLength[0] += sentence.length
+
+                        audioManager.speak(sentence, "SENTENCE_$sentenceStartOffset")
+
+                        remainingText = displayMsg.substring(spokenTextLength[0])
+                        match = sentenceRegex.find(remainingText)
+                    }
+                }
+            }
+        }
+
+        val onDone: (String) -> Unit = {
+            if (!isDoneCalled) {
+                isDoneCalled = true
+
+                val tempFinalMsg = lastResponseBuilder.toString()
+                
+                scope.launch {
+                    timeoutJob?.cancel()
+
+                    val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
+                    for (parsed in parsedTools) {
+                        val toolCall = "${parsed.toolName}(${parsed.args})"
+                        if (executedTools.add(toolCall)) {
+                            val toolDef = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(toolCall)
+                            if (toolDef?.requiresConfirmation == true) {
+                                pendingConfirmationTool = toolCall
+                            } else {
+                                val job = CoroutineScope(Dispatchers.IO).async {
+                                    withTimeoutOrNull(10000L) {
+                                        executeToolCall(toolCall)
+                                    } ?: "System Error: Tool execution timed out."
+                                }
+                                currentPendingTools.add(job)
+                            }
+                        }
+                    }
+
+                    if (currentPendingTools.isNotEmpty()) {
+                        _state.value = OrchestratorState.Thinking
+                        val feedbacks = awaitAll(*currentPendingTools.toTypedArray()).filterNotNull()
+                        toolFeedbacks.addAll(feedbacks)
+                    }
+
+                    if (currentPendingTools.isNotEmpty()) {
+                        val isAgenticLoopEnabled = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                            .getBoolean("agentic_loop_enabled", true)
+
+                        val rawResponse = lastResponseBuilder.toString()
+                        val responseWithoutTags = rawResponse.replace(Regex("(?i)<TOOL>[\\s\\S]*?(</TOOL>|$)"), "").trim()
+                        val hasConversationalText = responseWithoutTags.length > 5
+                        val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
+
+                        val isQueryTool = executedTools.any {
+                            it.contains("search", ignoreCase = true) || it.contains("check", ignoreCase = true) ||
+                            it.contains("get", ignoreCase = true) || it.contains("diagnos", ignoreCase = true) ||
+                            it.contains("read", ignoreCase = true) || it.contains("find", ignoreCase = true) ||
+                            it.contains("recommend", ignoreCase = true)
+                        }
+                        val isTerminalTool = executedTools.isNotEmpty() && !isQueryTool
+                        val requiresAgenticLoop = executedTools.any { org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(it)?.requiresAgenticLoop == true }
+                        val shouldRunAgenticLoop = isAgenticLoopEnabled && loopCount < 3 &&
+                            (hasError || isQueryTool || requiresAgenticLoop || (!hasConversationalText && !isTerminalTool))
+
+                        if (shouldRunAgenticLoop) {
+                            val feedbackString = toolFeedbacks.joinToString("\n")
+                            val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
+
+                            currentPendingTools.clear()
+                            lastResponseBuilder.clear()
+                            processQuery(observation, retryCount, loopCount + 1, isAgenticObservation = true, previousExecutedTools = executedTools)
+                            return@launch
+                        }
+                    }
+
+                    var finalMsg = lastResponseBuilder.toString()
+                    MemoryManager.addTurn("Assistant", finalMsg.trim())
+
+                    finalMsg = ToolCallParser.stripToolTags(finalMsg)
+                    finalMsg = finalMsg.replace(Regex("\\biI\\b"), "I")
+                    finalMsg = finalMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
+                    finalMsg = finalMsg.replace(Regex("^i\\s+"), "")
+                    finalMsg = finalMsg.replace(Regex("^i\\b"), "I")
+                    finalMsg = finalMsg.trim()
+
+                    val isQuestion = finalMsg.trim().endsWith("?") ||
+                        finalMsg.contains("would you like", ignoreCase = true) ||
+                        finalMsg.contains("if you'd like", ignoreCase = true) ||
+                        finalMsg.contains("do you want", ignoreCase = true) ||
+                        finalMsg.contains("shall i", ignoreCase = true)
+
+                    if (finalMsg.isEmpty()) {
+                        finalMsg = if (toolFeedbacks.isNotEmpty()) {
+                            toolFeedbacks.joinToString("\n")
+                        } else {
+                            "Executing command..."
+                        }
+                    } else if (toolFeedbacks.isNotEmpty()) {
+                        val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
+                        if (hasError || !isQuestion) {
+                            finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
+                        }
+                    }
+
+                    LLMManager.lastAiResponse = finalMsg
+                    _state.value = OrchestratorState.Speaking(finalMsg)
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    isQueryProcessed = true
+
+                    if (finalMsg.isNotBlank()) {
+                        val safeIndex = Math.min(spokenTextLength[0], finalMsg.length)
+                        val remainingSentence = finalMsg.substring(safeIndex).trim()
+                        if (remainingSentence.isNotEmpty()) {
+                            val sentenceStartOffset = parsedSpokenLength[0]
+                            parsedSpokenLength[0] += remainingSentence.length
+                            audioManager.speak(remainingSentence, "SENTENCE_$sentenceStartOffset")
+                        }
+                        val finalUtterance = if (isQuestion) "QUESTION_FINAL"
+                            else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
+                            else "STATEMENT_FINAL"
+                        audioManager.playSilentUtterance(10, finalUtterance)
+                    } else {
+                        val isQ = isQuestion || finalMsg.contains("?") ||
+                            finalMsg.contains("would you like", ignoreCase = true) ||
+                            finalMsg.contains("could you", ignoreCase = true)
+                        if (isQ) {
+                            _events.tryEmit(OrchestratorEvent.StartListening)
+                        }
+                    }
+                }
+            }
+        }
+
+        val onError: (Exception) -> Unit = { throwable ->
+            if (!isDoneCalled) {
+                isDoneCalled = true
+                scope.launch {
+                    timeoutJob?.cancel()
+                    MemoryManager.clearMemory()
+
+                    if (retryCount < 1) {
+                        _state.value = OrchestratorState.Error("Initializing model...")
+                        try {
+                            if (LocalLLMActivity.isCloudModelActive) {
+                                val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("cloud"))
+                                cloudProvider.initialize(context, force = true)
+                            } else {
+                                val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("edge"))
+                                edgeProvider.initialize(context, force = true)
+                            }
+                            _state.value = OrchestratorState.Thinking
+                            processQuery(query, retryCount + 1, loopCount, isAgenticObservation, previousExecutedTools)
+                        } catch (e: Exception) {
+                            _state.value = OrchestratorState.Error("Hardware Recovery Failed.")
+                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                            isQueryProcessed = true
+                        }
+                    } else {
+                        if (throwable.message?.contains("Cancellation") != true) {
+                            _state.value = OrchestratorState.Error("Model Inference Failed: ${throwable.message}")
+                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                            isQueryProcessed = true
+                        }
+                    }
+                }
+            }
+        }
+
+        withContext(Dispatchers.IO) {
+            try {
+                if (LocalLLMActivity.isCloudModelActive) {
+                    val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("cloud"))
+                    cloudProvider.initialize(context, force = false)
+                    cloudProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)
+                } else {
+                    val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("edge"))
+                    edgeProvider.initialize(context, force = false)
+                    edgeProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)
+                }
+            } catch (e: Exception) {
+                if (!e.message.toString().contains("Cancellation")) {
+                    onError(e)
+                }
+            }
+        }
+    }
+
+    private suspend fun executeToolCall(toolCall: String): String? {
+        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+        return toolManager.executeToolCall(context.applicationContext, toolCall) { intent ->
+            pendingIntentToLaunch = intent
+        }
+    }
+}

@@ -75,6 +75,9 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("com.google.mediapipe:tasks-text:0.10.14")
     
+    // Dependency Injection
+    implementation("io.insert-koin:koin-android:3.5.3")
+    
 
     // Google AI Edge SDK for accessing Gemini Nano via AICore
     // Note: You must be in the AICore early access program to use this library.

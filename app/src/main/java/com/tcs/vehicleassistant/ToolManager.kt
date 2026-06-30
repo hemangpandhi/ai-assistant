@@ -10,7 +10,7 @@ import org.json.JSONObject
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-object ToolManager {
+class ToolManager {
     private val TAG = "ToolManager"
     
     data class Constraint(
@@ -146,8 +146,9 @@ object ToolManager {
         }
         
         // Initialize Semantic Search RAG asynchronously
-        SemanticSearchManager.initialize(context)
-        SemanticSearchManager.buildToolEmbeddingsCache()
+        val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
+        semanticSearchManager.initialize(context)
+        semanticSearchManager.buildToolEmbeddingsCache()
     }
 
     /**
@@ -163,8 +164,12 @@ object ToolManager {
         val q = combinedQuery.lowercase()
         
         // Conversational Bypass: If the user is asking for sightseeing suggestions, 
-        // we DO NOT want to inject map tools, otherwise the 2B model gets tempted to use them instead of talking.
-        if (q.contains("suggest") || q.contains("recommend") || q.contains("places to visit") || q.contains("best places")) {
+        // we DO NOT want to inject map tools, otherwise the model gets tempted to use them instead of talking.
+        val bypassKeywords = listOf(
+            "suggest", "recommend", "places to visit", "best places", "sightseeing", "what to do", 
+            "tourist", "attractions", "tell me about", "what is in", "history of", "describe"
+        )
+        if (bypassKeywords.any { q.contains(it) }) {
             return emptyList()
         }
         
@@ -180,15 +185,14 @@ object ToolManager {
         }
         
         if (exactMatches.isNotEmpty()) {
-            // Always include generic fallback tools like search and navigate just in case
-            val fallbacks = activeTools.values.filter { it.handlerKey == "search" || it.handlerKey == "startNavigationTo" }
-            return (exactMatches + fallbacks).distinct()
+            return exactMatches.distinct()
         }
         
         // Slow path: Semantic Search (2000ms+)
         // ONLY use the userQuery for semantic search to avoid massive latency spikes from embedding history!
         // Top 4 is enough. Injecting 8 tools causes the LLM's memory buffer to overflow!
-        return SemanticSearchManager.search(userQuery, 4)
+        val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
+        return semanticSearchManager.search(userQuery, 4)
     }
 
     /**
@@ -197,7 +201,7 @@ object ToolManager {
 
 
     fun getToolDefinition(rawToolCall: String): ToolDefinition? {
-        val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>"), "").trim()
+        val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>|<\\|tool_call>call:"), "").trim()
         val commandName = toolCall.substringBefore("(").trim()
         val directMatch = activeTools[commandName]
         if (directMatch != null) return directMatch
@@ -237,7 +241,7 @@ object ToolManager {
      * Returns a string summarizing the outcome for the chat UI.
      */
     suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
-        val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>"), "").trim()
+        val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>|<\\|tool_call>call:"), "").trim()
         Log.d(TAG, "Executing toolCall: $toolCall")
         try {
             // Check if the requested tool corresponds to an enabled handler

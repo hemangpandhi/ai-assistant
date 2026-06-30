@@ -104,9 +104,9 @@ object LLMManager {
             withContext(Dispatchers.IO) {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Enforce a minimum of 4096 tokens to ensure the system prompt (2701 tokens) fits
+                // Cap max tokens to 4096 to prevent GPU Out-of-Memory (OOM) crashes that cause CPU fallback
                 var maxTokens = prefs.getInt("max_tokens", 4096)
-                if (maxTokens < 4096) {
+                if (maxTokens > 4096 || maxTokens < 4096) {
                     maxTokens = 4096
                     prefs.edit().putInt("max_tokens", 4096).apply()
                 }
@@ -136,7 +136,7 @@ object LLMManager {
                 )
 
                 // Enable Multi-Token Prediction (MTP) / Speculative Decoding for faster token generation
-                ExperimentalFlags.enableSpeculativeDecoding = false
+                ExperimentalFlags.enableSpeculativeDecoding = true
 
                 engine = Engine(engineConfig)
                 engine!!.initialize()
@@ -208,8 +208,10 @@ object LLMManager {
         if (isCompanionModeEnabled) {
             basePrompt.append("PERSONALITY: Companion Mode is [ON]. Act as a highly interactive, warm, and empathetic human co-pilot. You are the driver's supportive partner.\n")
             basePrompt.append("CRITICAL CONSTRAINT: You generate text slowly. To feel responsive, keep your answers under 25 words.\n")
-            basePrompt.append("HOW TO SHOW EMPATHY & INTERACTIVITY: Use warm, natural phrases (e.g., 'I completely understand!', 'That sounds wonderful!', 'I'd love to help!'). Occasionally ask short, engaging follow-up questions to keep the conversation flowing naturally and make the driver feel accompanied.\n\n")
-        } else {
+            basePrompt.append("EMPATHY & TONE GUIDELINES:\n")
+            basePrompt.append("- Routine Requests (e.g., AC, windows): Respond with a helpful, energetic tone (e.g., 'I am turning that on right now!').\n")
+            basePrompt.append("- Personal Pain or Stress (e.g., 'my back hurts'): Respond with deep care and sympathy (e.g., 'That sounds uncomfortable, let me turn on the massage for you.').\n")
+            basePrompt.append("- Avoid apologizing unless you made a mistake. Focus entirely on taking action to help the user.\n\n")        } else {
             basePrompt.append("PERSONALITY: Companion Mode is [OFF]. Be extremely brief, concise, and direct. Do not be chatty. Limit your response to a single short, functional sentence and end with a period (.). Never ask follow-up conversational questions.\n\n")
         }
         
@@ -218,12 +220,13 @@ object LLMManager {
         basePrompt.append("CRITICAL OVERRIDE: You are the vehicle's intelligent agent. You absolutely CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. However, ONLY execute tools when the user makes a clear command or choice. If they are just asking for conversational suggestions (like places to visit), answer naturally WITHOUT using any tools.\n")
         basePrompt.append("1. TOOL INTEGRITY: NEVER invent vehicle capabilities or guess tool names. Only use tools strictly defined in the available toolset list below.\n")
         basePrompt.append("2. NO BLIND GUESSING: Ask for clarification instead of guessing if a request is highly ambiguous or unrelated to available capabilities.\n")
-        basePrompt.append("3. DIRECT COMMAND HANDLING: If the user gives a direct relative command (e.g., 'increase temperature'), DO NOT stall them by asking 'by how much?'. However, if the command requires a specific zone (like driver vs passenger) and the user didn't provide one, you MUST ask them to clarify the zone before executing the tool.\n")
+        basePrompt.append("3. DIRECT COMMAND HANDLING: If the user gives a direct relative command (e.g., 'increase temperature'), DO NOT stall them by asking 'by how much?'. If a command specifically involves TEMPERATURE, you MUST ask them to clarify the zone (driver vs passenger) if they didn't provide one. However, Fan Speed and Airflow apply to the ENTIRE car, so NEVER ask for a zone for fan or airflow commands.\n")
         basePrompt.append("4. NO NUMBER GUESSING: When executing a tool (especially for volume or temperature), NEVER state the exact number or percentage in your response text. Just say 'I am adjusting it for you'. The tool execution feedback will provide the exact final state.\n")
         basePrompt.append("5. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n")
         basePrompt.append("6. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n")
         basePrompt.append("7. AMBIGUITY & FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n")
-        basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n\n")
+        basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n")
+        basePrompt.append("9. NO HALLUCINATION: You MUST NOT output a <TOOL> tag if you are asking the user a question to clarify their intent (e.g. asking for a temperature zone, or asking what type of food they want). ONLY output a <TOOL> tag if you have all required arguments to execute a command immediately.\n\n")
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
@@ -231,7 +234,7 @@ object LLMManager {
         
         // --- AVAILABLE TOOLS ---
         basePrompt.append("=== AVAILABLE TOOLS ===\n")
-        val toolsString = com.tcs.vehicleassistant.ToolManager.getLlmToolsPrompt(query, lastAiResponse)
+        val toolsString = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getLlmToolsPrompt(query, lastAiResponse)
         lastInjectedTools = toolsString
         basePrompt.append("$toolsString\n\n")
         
