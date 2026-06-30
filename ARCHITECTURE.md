@@ -193,8 +193,8 @@ flowchart TD
     ORCH -.->|"Resolves dependencies"| KOIN
     KOIN -.->|"Provides"| ILLM
     
-    ILLM -.->|Implements| EDGE
-    ILLM -.->|Implements| CLOUD
+    ILLM -.->|"Resolved at Runtime to"| EDGE
+    ILLM -.->|"Resolved at Runtime to"| CLOUD
 
     ORCH ==>|"Context + Tools + History"| ILLM
     EDGE -->|"Hardware Delegate"| LOCAL
@@ -202,6 +202,9 @@ flowchart TD
     
     LOCAL -->|"Token Stream"| EDGE
     CLOUD_SERVER -->|"Token Stream"| CLOUD
+    
+    EDGE ==>|"Token Stream Callback"| ILLM
+    CLOUD ==>|"Token Stream Callback"| ILLM
     ILLM ==>|"Response Stream"| ORCH
     
     ORCH -->|"StateFlow(Cleaned Text)"| VM
