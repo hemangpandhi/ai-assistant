@@ -108,7 +108,122 @@ block-beta
   class SLIDE slideBox
 ```
 
-## Detailed Data & Execution Flow
+## Detailed Data & Execution Flow (Architecture Topology)
+
+This diagram outlines the complete end-to-end data pipeline, demonstrating the updated MVVM architecture, the Service layer, and how the LLM orchestration interacts with the AOSP Car APIs.
+
+```mermaid
+flowchart TD
+    %% Professional Enterprise Theme
+    classDef sysApp fill:#1E293B,stroke:#334155,stroke-width:2px,color:#F8FAFC,rx:8px,ry:8px;
+    classDef aospAPI fill:#0EA5E9,stroke:#0284C7,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef logic fill:#8B5CF6,stroke:#7C3AED,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef ai fill:#10B981,stroke:#059669,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef hardware fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+    classDef config fill:#64748B,stroke:#475569,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
+
+    subgraph Input ["1. User Input & AOSP Audio Framework"]
+        MIC([🎙️ Microphone])
+        TXT([⌨️ Keyboard])
+        STT["🎤 android.speech.SpeechRecognizer<br/>(Cloud / On-Device)"]:::aospAPI
+        VOSK["🗣️ Vosk WakeWord<br/>(Offline Acoustic Model)"]:::sysApp
+    end
+
+    subgraph AppUI ["2. View Layer (Ephemeral UI)"]
+        SESSION["📱 AssistantSession<br/>(Voice Overlay Window)"]:::sysApp
+        ACT["📱 LocalLLMActivity<br/>(Configuration UI)"]:::sysApp
+    end
+
+    subgraph ServiceLayer ["3. Foreground Service & Presentation"]
+        SVC["⚙️ VehicleAgentService<br/>(Lifecycle & onTrimMemory)"]:::logic
+        VM["🚦 AssistantViewModel<br/>(UI State Observer)"]:::logic
+    end
+
+    subgraph Orchestration ["4. Repository & Orchestration (Background)"]
+        ORCH{"🧠 AgentOrchestrator<br/>(Agentic Loop Repository)"}:::logic
+        KOIN["💉 Koin DI<br/>(Dependency Injector)"]:::logic
+        TM["🛠️ ToolManager<br/>(Semantic Router & RAG)"]:::logic
+        HANDLERS{"⚙️ ToolHandlers<br/>(HVAC, Media, Navigation, System)"}:::logic
+        MEM["🧠 MemoryManager<br/>(Short-Term Context Window)"]:::logic
+        JSON[("📄 vehicle_skills_registry.json<br/>(Zero-Code Definitions)")]:::config
+        PREFS[("💾 SharedPreferences<br/>(Long-Term User Memory)")]:::config
+    end
+
+    subgraph Inference ["5. Providers & ML Execution"]
+        ILLM["🔌 ILLMProvider<br/>(Abstraction Interface)"]:::logic
+        EDGE["⚡ EdgeLLMProvider<br/>(Google LiteRT NPU/GPU)"]:::ai
+        CLOUD["☁️ CloudLLMProvider<br/>(Gemini/Anthropic API)"]:::ai
+        LOCAL[/"📱 Local LLMs<br/>(Gemma, Qwen)"/]:::ai
+        CLOUD_SERVER[/"☁️ Server APIs"/]:::ai
+    end
+
+    subgraph Output ["6. AOSP Output & System Execution"]
+        TTS["🔊 android.speech.tts.TextToSpeech<br/>(Audio Feedback)"]:::aospAPI
+        CPM["⚙️ android.car.hardware.property.CarPropertyManager<br/>(Vehicle API)"]:::aospAPI
+        CARSERVICE["🛠️ com.android.car.CarService<br/>(Binder IPC)"]:::aospAPI
+        VHAL["🌉 Vehicle HAL<br/>(Hardware Abstraction)"]:::hardware
+        CAN["🚗 CAN Bus / Physical ECUs"]:::hardware
+        SPK([🔈 Speakers])
+        INTENTS["📱 Android Framework<br/>(ActivityManager, MediaController)"]:::aospAPI
+        MEDIA["🎵 Media & Browser Apps<br/>(ACTION_VIEW, KEYCODE_MEDIA_*)"]:::sysApp
+        PHONE["📞 Telecom App<br/>(ACTION_DIAL)"]:::sysApp
+    end
+
+    %% Flow Mapping
+    MIC -->|Audio Stream| STT
+    MIC -->|Continuous Stream| VOSK
+    VOSK -->|"Hey Auto" Trigger| SESSION
+    STT -->|Transcribed Text| SESSION
+    TXT -->|Raw String| ACT
+    
+    SESSION <==>|LocalBinder| SVC
+    SVC -->|Holds Reference| VM
+    SESSION <==>|Observes StateFlow| VM
+    ACT <==>|User Query| MEM
+    
+    VM <==>|Delegates Query| ORCH
+    MEM <==>|Context Window| ORCH
+    
+    JSON -.->|Injects Available Tools| TM
+    JSON -.->|Maps VHAL IDs| CPM
+    
+    PREFS <==>|Reads/Writes Preferences| TM
+    PREFS -.->|Injects Memory| ORCH
+    
+    ORCH -.->|"Resolves dependencies"| KOIN
+    KOIN -.->|"Provides"| ILLM
+    
+    ILLM <|.. EDGE
+    ILLM <|.. CLOUD
+
+    ORCH ==>|"Context + Tools + History"| ILLM
+    EDGE -->|"Hardware Delegate"| LOCAL
+    CLOUD -->|"REST API Call"| CLOUD_SERVER
+    
+    LOCAL -->|"Token Stream"| EDGE
+    CLOUD_SERVER -->|"Token Stream"| CLOUD
+    ILLM ==>|"Response Stream"| ORCH
+    
+    ORCH -->|"StateFlow(Cleaned Text)"| VM
+    VM -->|"TTS Sentence Chunks"| TTS
+    TTS -->|"Synthesized Audio"| SPK
+    
+    ORCH -->|"<TOOL> Execution Tag"| TM
+    TM -->|"Routes Command"| HANDLERS
+    
+    HANDLERS -->|"VHAL Payload"| CPM
+    CPM -->|"Cross-Process IPC"| CARSERVICE
+    CARSERVICE -->|"HIDL / AIDL"| VHAL
+    VHAL -->|"Electrical Actuation"| CAN
+
+    HANDLERS -->|"Standard Android Intent"| INTENTS
+    INTENTS -->|"Launch & Media Routing"| MEDIA
+    INTENTS -->|"Launch Dialer"| PHONE
+    
+    HANDLERS -.->|"Tool Feedback (Agentic Loop)"| ORCH
+```
+
+## Step-by-Step Processing Sequence
 
 When the user speaks to the Assistant, the system follows a Strict MVVM data flow, utilizing Koin for dependency resolution and recursive agentic execution.
 
