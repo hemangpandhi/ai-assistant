@@ -193,8 +193,8 @@ flowchart TD
     ORCH -.->|"Resolves dependencies"| KOIN
     KOIN -.->|"Provides"| ILLM
     
-    ILLM <|.. EDGE
-    ILLM <|.. CLOUD
+    ILLM -.->|Implements| EDGE
+    ILLM -.->|Implements| CLOUD
 
     ORCH ==>|"Context + Tools + History"| ILLM
     EDGE -->|"Hardware Delegate"| LOCAL
