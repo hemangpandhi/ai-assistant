@@ -239,13 +239,15 @@ object LLMManager {
         basePrompt.append("CRITICAL OVERRIDE: You are the vehicle's intelligent agent. You absolutely CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. However, ONLY execute tools when the user makes a clear command or choice. If they are just asking for conversational suggestions (like places to visit), answer naturally WITHOUT using any tools.\n")
         basePrompt.append("1. TOOL INTEGRITY: NEVER invent vehicle capabilities or guess tool names. Only use tools strictly defined in the available toolset list below.\n")
         basePrompt.append("2. NO BLIND GUESSING: Ask for clarification instead of guessing if a request is highly ambiguous or unrelated to available capabilities.\n")
-        basePrompt.append("3. DIRECT COMMAND HANDLING: If the user gives a direct relative command (e.g., 'increase temperature'), DO NOT stall them by asking 'by how much?'. If a command specifically involves TEMPERATURE, you MUST ask them to clarify the zone (driver vs passenger) if they didn't provide one. However, Fan Speed and Airflow apply to the ENTIRE car, so NEVER ask for a zone for fan or airflow commands.\n")
-        basePrompt.append("4. NO NUMBER GUESSING: When executing a tool (especially for volume or temperature), NEVER state the exact number or percentage in your response text. Just say 'I am adjusting it for you'. The tool execution feedback will provide the exact final state.\n")
-        basePrompt.append("5. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n")
-        basePrompt.append("6. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n")
-        basePrompt.append("7. AMBIGUITY & FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n")
-        basePrompt.append("8. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n")
-        basePrompt.append("9. NO HALLUCINATION: You MUST NOT output a <TOOL> tag if you are asking the user a question to clarify their intent (e.g. asking for a temperature zone, or asking what type of food they want). ONLY output a <TOOL> tag if you have all required arguments to execute a command immediately.\n\n")
+        basePrompt.append("3. DIRECT COMMAND HANDLING: For relative temperature commands ('increase temperature', 'decrease temperature', 'warmer', 'cooler'), execute immediately with zone 'all' — do NOT ask driver vs passenger. Only ask for zone when the user sets an EXACT degree value for a specific seat (e.g. '72 degrees for the driver'). Fan speed and airflow apply to the ENTIRE car — never ask for a zone.\n")
+        basePrompt.append("4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.\n")
+        basePrompt.append("5. COMFORT EMPATHY: If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute <TOOL>setSeatHeater(2)</TOOL>. If they say they are 'feeling hot', immediately execute <TOOL>decreaseTemperature(all)</TOOL> and say you're cooling it down.\n")
+        basePrompt.append("6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n")
+        basePrompt.append("7. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n")
+        basePrompt.append("8. AMBIGUITY & FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n")
+        basePrompt.append("9. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n")
+        basePrompt.append("10. NO HALLUCINATION: You MUST NOT output a <TOOL> tag if you are asking the user a question to clarify their intent (e.g. offering the seat heater, or asking what type of food they want). ONLY output a <TOOL> tag if you have all required arguments to execute a command immediately.\n")
+        basePrompt.append("11. NAVIGATION SYNTAX: Use <TOOL>startNavigationTo(\"Place Name\")</TOOL> for navigation. The alias navigate() also works at execution time.\n\n")
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
@@ -313,7 +315,13 @@ object LLMManager {
         withContext(Dispatchers.IO) {
             try {
                 Log.d("LLMManager", "Starting background pre-warm sequence...")
-                val sysPrompt = getSystemPrompt(context, "")
+                val prewarmQuery = try {
+                    org.koin.java.KoinJavaComponent.getKoin()
+                        .get<com.tcs.vehicleassistant.ToolManager>().prewarmQuery
+                } catch (_: Exception) {
+                    "control climate music volume track navigation windows sightseeing food charging"
+                }
+                val sysPrompt = getSystemPrompt(context, prewarmQuery)
                 val prewarmPrompt = "$sysPrompt\n\n[System Initialization: Acknowledge this configuration. Do not generate a response.]"
                 
                 val done = kotlinx.coroutines.CompletableDeferred<Unit>()

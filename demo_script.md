@@ -75,7 +75,7 @@ This script provides a step-by-step guide for recording your OEM demonstration v
 * **Visual/Audio:** The Assistant utilizes the `MediaBrowserService` or a deep-link Intent to instantly open Spotify (or the default media player) and begin playback without any manual screen tapping.
 
 **14. Command:** `"I need to talk to my mom"`
-* **Action:** The AI recognizes the social relationship and triggers `<TOOL>call(Mom)</TOOL>`.
+* **Action:** The AI triggers `<TOOL>callContact(Mom)</TOOL>`.
 * **Visual:** The system Dialer app opens with an `ACTION_DIAL` intent, ready to place the call.
 
 ---

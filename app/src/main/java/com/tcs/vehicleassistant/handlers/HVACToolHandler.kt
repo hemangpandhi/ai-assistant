@@ -122,9 +122,7 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                 if (success) ToolExecutionResult(true, "I've turned off the rear defroster.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
             "handleFeelingCold" -> {
-                val currentTemp = VehicleManager.getRealTemperature("driver").toDouble()
-                val targetTemp = currentTemp + 2.0
-                ToolExecutionResult(false, "The current temperature is $currentTemp degrees. Would you like me to increase it to $targetTemp degrees?")
+                ToolExecutionResult(true, "Would you like me to turn on the seat heater?")
             }
             "enableFreshAirIntake" -> {
                 VehicleManager.setGenericVhalProperty(354419976, 0, "false", "BOOLEAN") // HVAC_RECIRC_ON false

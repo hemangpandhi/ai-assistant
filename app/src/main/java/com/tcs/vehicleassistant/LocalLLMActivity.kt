@@ -480,7 +480,7 @@ class LocalLLMActivity : AppCompatActivity() {
         
         btnSavePrompt.setOnClickListener {
             val newPrompt = etSystemPrompt.text.toString()
-            cloudPrefs.edit().putString("custom_system_prompt", newPrompt).apply()
+            prefs.edit().putString("system_prompt", newPrompt).apply()
             LLMManager.resetConversation()
             Toast.makeText(this, "System Prompt Saved & Applied!", Toast.LENGTH_SHORT).show()
         }
@@ -489,7 +489,7 @@ class LocalLLMActivity : AppCompatActivity() {
             lifecycleScope.launch {
                 val defaultPrompt = LLMManager.getDefaultSystemPrompt(this@LocalLLMActivity)
                 etSystemPrompt.setText(defaultPrompt)
-                prefs.edit().remove("custom_system_prompt").apply()
+                prefs.edit().remove("system_prompt").apply()
                 LLMManager.resetConversation()
                 Toast.makeText(this@LocalLLMActivity, "Reset to Default Prompt!", Toast.LENGTH_SHORT).show()
             }

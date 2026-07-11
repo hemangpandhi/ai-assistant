@@ -92,20 +92,20 @@
         "setcabintemp",
         "setTempTo"
       ],
-      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 85 or 72, you MUST pass that exact number as the VAL argument. If they do not explicitly specify whether this is for the driver or passenger, you MUST ask them to clarify before executing."
+      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Only ask driver vs passenger if they give an exact number without specifying a zone."
     },
     {
       "prompt_string": "<TOOL>increaseTemperature(zone)</TOOL>",
       "handler_key": "increaseTemperature",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Increases the temperature by 2 degrees. If the user does not explicitly specify a zone (driver or passenger), you MUST ask them to clarify which zone they want to adjust. Do NOT execute this tool until they specify the zone.",
+      "instruction": "Increases cabin temperature by 2 degrees. For commands like 'increase temperature' or 'warmer', execute immediately with zone 'all'. Only use 'driver' or 'passenger' if the user explicitly names a zone.",
       "keywords": [
         "increase temperature",
         "warmer",
         "hotter",
         "raise temp",
-        "cold",
-        "freezing"
+        "turn up heat",
+        "warm up"
       ],
       "offline_capable": true,
       "success_message": "I've increased the cabin temperature.",
@@ -124,16 +124,17 @@
       "prompt_string": "<TOOL>decreaseTemperature(zone)</TOOL>",
       "handler_key": "decreaseTemperature",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Decreases the temperature by 2 degrees. If the user does not explicitly specify a zone (driver or passenger), you MUST ask them to clarify which zone they want to adjust. Do NOT execute this tool until they specify the zone.",
+      "instruction": "Decreases cabin temperature by 2 degrees. For commands like 'decrease temperature', 'cooler', or 'feeling hot', execute immediately with zone 'all'.",
       "keywords": [
         "decrease temperature",
         "cooler",
         "colder",
         "lower temp",
-        "hot",
-        "boiling",
-        "warm",
-        "ac"
+        "feeling hot",
+        "i am hot",
+        "i'm hot",
+        "too hot",
+        "boiling"
       ],
       "offline_capable": true,
       "success_message": "I've decreased the cabin temperature.",
@@ -536,7 +537,7 @@
       "property_id": 356517131,
       "data_type": "INT",
       "area_id": 0,
-      "instruction": "If the user mentions their back is paining, sore, or hurting, you MUST use this tool to turn on the seat heater (LEVEL 2) to soothe their back.",
+      "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
       "success_message": "I've adjusted the seat heater.",
       "keywords": [
         "warm seat",
@@ -615,24 +616,6 @@
       ],
       "offline_capable": true,
       "success_message": "I've moved the passenger seat forward.",
-      "requires_vehicle_state": false
-    },
-    {
-      "prompt_string": "<TOOL>handleFeelingCold()</TOOL>",
-      "handler_key": "handleFeelingCold",
-      "handler_type": "CUSTOM_KOTLIN",
-      "success_message": "Okay, I've increased the cabin temperature.",
-      "keywords": [
-        "turn up heat",
-        "feeling cold",
-        "shivering",
-        "warmer",
-        "bit cold",
-        "freezing",
-        "raise temperature",
-        "cold"
-      ],
-      "offline_capable": true,
       "requires_vehicle_state": false
     },
     {
@@ -1286,15 +1269,20 @@
       "prompt_string": "<TOOL>callContact(NAME)</TOOL>",
       "handler_key": "callContact",
       "handler_type": "CUSTOM_KOTLIN",
+      "instruction": "Places a call. Replace NAME with the contact (e.g. Mom, Home, Mechanic). Example: <TOOL>callContact(Mom)</TOOL>.",
       "keywords": [
         "dial",
         "phone",
         "call",
         "contact",
-        "talk to"
+        "talk to",
+        "mom",
+        "mother",
+        "dad",
+        "father"
       ],
       "offline_capable": true,
-      "requires_agentic_loop": true,
+      "requires_agentic_loop": false,
       "success_message": "I'll place the call.",
       "parameters": {
         "required": [
@@ -1387,7 +1375,7 @@
       "prompt_string": "<TOOL>startNavigationTo(\"PLACE_NAME\")</TOOL>",
       "handler_key": "startNavigationTo",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "You MUST replace 'PLACE_NAME' with the actual destination string. For example, if the user wants to go to Tokyo, output exactly: <TOOL>startNavigationTo(\"Tokyo\")</TOOL>. DO NOT use this tool if the user hasn't specified a destination yet.",
+      "instruction": "You MUST replace 'PLACE_NAME' with the actual destination. Example: <TOOL>startNavigationTo(\"Tokyo Tower\")</TOOL>. Alias navigate(Destination) also works at execution time.",
       "keywords": [
         "drive to",
         "navigate to",

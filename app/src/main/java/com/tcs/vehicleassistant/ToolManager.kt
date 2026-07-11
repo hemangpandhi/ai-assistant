@@ -50,6 +50,9 @@ class ToolManager {
     var isInitialized = false
         private set
 
+    var prewarmQuery: String = "control climate music volume track navigation windows sightseeing food charging"
+        private set
+
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
@@ -61,7 +64,14 @@ class ToolManager {
             
             val jsonStr = String(buffer, Charsets.UTF_8)
             val jsonObject = JSONObject(jsonStr)
-            
+
+            if (jsonObject.has("config")) {
+                val config = jsonObject.getJSONObject("config")
+                if (config.has("prewarm_query")) {
+                    prewarmQuery = config.getString("prewarm_query")
+                }
+            }
+
             if (jsonObject.has("tools")) {
                 val toolsArray = jsonObject.getJSONArray("tools")
                 for (i in 0 until toolsArray.length()) {
@@ -173,6 +183,12 @@ class ToolManager {
             return emptyList()
         }
         
+        // Conversational empathy: "feeling cold" is handled by system prompt without tool injection
+        val coldEmpathyPhrases = listOf("feeling cold", "i am cold", "i'm cold", "shivering", "bit cold")
+        if (coldEmpathyPhrases.any { q.contains(it) }) {
+            return emptyList()
+        }
+
         val exactMatches = activeTools.values.filter { tool ->
             tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
         }.toMutableList()
