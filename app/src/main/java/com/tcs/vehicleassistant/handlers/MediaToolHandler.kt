@@ -56,7 +56,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     }
                 }
                 if (success) {
-                    val msg = if (query.contains("music", ignoreCase = true)) "Playing $query." else "Playing $query music."
+                    val msg = "Great choice — putting on $query for you!"
                     ToolExecutionResult(true, msg)
                 } else {
                     ToolExecutionResult(false, "System Error: Could not start media.")

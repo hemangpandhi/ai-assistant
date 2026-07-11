@@ -689,8 +689,8 @@ class LocalLLMActivity : AppCompatActivity() {
 
     private fun applyVoiceSettings() {
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val rate = prefs.getFloat("voice_rate", 1.0f)
-        val pitch = prefs.getFloat("voice_pitch", 1.0f)
+        val rate = prefs.getFloat("voice_rate", 1.05f)
+        val pitch = prefs.getFloat("voice_pitch", 1.05f)
         tts.setSpeechRate(rate)
         tts.setPitch(pitch)
     }

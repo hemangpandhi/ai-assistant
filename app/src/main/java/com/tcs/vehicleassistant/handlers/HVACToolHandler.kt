@@ -17,7 +17,7 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                 val zone = if (argStr.contains("driver")) "driver" else if (argStr.contains("passenger")) "passenger" else "all"
                 val currentTemp = VehicleManager.getRealTemperature(zone).toDouble()
                 val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat(), zone)
-                if (success) ToolExecutionResult(true, "I've increased the $zone temperature by $value degrees.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "There we go — warming things up for you.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change. Want me to try again?")
             }
             "decreaseTemperature" -> {
                 val argStr = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
@@ -25,7 +25,7 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                 val zone = if (argStr.contains("driver")) "driver" else if (argStr.contains("passenger")) "passenger" else "all"
                 val currentTemp = VehicleManager.getRealTemperature(zone).toDouble()
                 val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat(), zone)
-                if (success) ToolExecutionResult(true, "I've decreased the $zone temperature by $value degrees.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Cooling it down — you should feel better soon.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change. Want me to try again?")
             }
             "increaseDriverTemperature" -> {
                 val value = 2.0
@@ -54,21 +54,21 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
             "setTemperature" -> {
                 val value = toolCall.substringAfter("(").substringBefore(")").toDoubleOrNull() ?: 72.0
                 val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat())
-                if (success) ToolExecutionResult(true, "I've set the temperature to $value degrees.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Done — I've set it to ${value.toInt()} degrees for you.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "increaseFanSpeed" -> {
                 val argStr = toolCall.substringAfter("(").substringBefore(")")
                 val value = Math.abs(Regex("\\d+").find(argStr)?.value?.toIntOrNull() ?: 1)
                 val currentSpeed = VehicleManager.getRealFanSpeed()
                 val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed + value)
-                if (success) ToolExecutionResult(true, "I've increased the fan speed by $value.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Cranking up the fan for you!") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "decreaseFanSpeed" -> {
                 val argStr = toolCall.substringAfter("(").substringBefore(")")
                 val value = Math.abs(Regex("\\d+").find(argStr)?.value?.toIntOrNull() ?: 1)
                 val currentSpeed = VehicleManager.getRealFanSpeed()
                 val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed - value)
-                if (success) ToolExecutionResult(true, "I've decreased the fan speed by $value.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Dialed the fan back a notch.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "setFanSpeed" -> {
                 val argStr = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
@@ -90,24 +90,24 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                     argStr.contains("face") -> valueToWrite = 1 // FACE
                 }
                 val success = VehicleManager.writeAirflowDirectionToVhalVerified(valueToWrite)
-                if (success) ToolExecutionResult(true, "I've adjusted the airflow direction.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Adjusting the airflow — you should feel it soon.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "setSeatHeater" -> {
                 var areaId = 0
                 var value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 2
                 value = value.coerceIn(0, 2)
                 val success = VehicleManager.writeSeatHeaterToVhalVerified(value)
-                if (success) ToolExecutionResult(true, "I've set the seat heater to level $value.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Seat heater's on — hope that warms you up!") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "setSeatMassager" -> {
                 var areaId = 0
                 val value = toolCall.substringAfter("(").substringBefore(")").toIntOrNull() ?: 3
                 val success = VehicleManager.writeSeatMassagerToVhalVerified(value)
-                if (success) ToolExecutionResult(true, "I've turned on the seat massager for you.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Massage is on — hope that helps your back.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "turnOnDefroster" -> {
                 val success = VehicleManager.writeDefrosterToVhalVerified(true)
-                if (success) ToolExecutionResult(true, "I've turned on the defroster to clear your windows.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                if (success) ToolExecutionResult(true, "Defroster's on — your view should clear up.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "turnOffDefroster" -> {
                 val success = VehicleManager.writeDefrosterToVhalVerified(false)
@@ -136,8 +136,8 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
             }
             "defogWindshield" -> {
                 VehicleManager.writeDefrosterToVhalVerified(true)
-                VehicleManager.writeFanSpeedToVhalVerified(7) // Max fan
-                ToolExecutionResult(true, "I've turned on the defogger and set the fan to max.")
+                VehicleManager.writeFanSpeedToVhalVerified(7)
+                ToolExecutionResult(true, "Clearing your windshield — safety first.")
             }
             "movePassengerSeatForward" -> {
                 ToolExecutionResult(true, "I have moved the passenger seat forward.")
@@ -153,8 +153,8 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                 if (success) ToolExecutionResult(true, "I've set the passenger's temperature to $value degrees.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
             "turnOnAC" -> {
-                val success = VehicleManager.setGenericVhalProperty(354419973, 0, "true", "BOOLEAN") // HVAC_AC_ON
-                if (success) ToolExecutionResult(true, "I've turned on the AC.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
+                val success = VehicleManager.setGenericVhalProperty(354419973, 0, "true", "BOOLEAN")
+                if (success) ToolExecutionResult(true, "AC is on — you should feel that soon.") else ToolExecutionResult(false, "I tried, but the car didn't confirm the change.")
             }
             "turnOffAC" -> {
                 val success = VehicleManager.setGenericVhalProperty(354419973, 0, "false", "BOOLEAN")

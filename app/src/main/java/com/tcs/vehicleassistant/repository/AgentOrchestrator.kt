@@ -422,15 +422,20 @@ class AgentOrchestrator(
 
                     if (finalMsg.isEmpty()) {
                         finalMsg = if (toolFeedbacks.isNotEmpty()) {
-                            toolFeedbacks.joinToString("\n")
+                            toolFeedbacks.joinToString(" ")
                         } else {
-                            "Executing command..."
+                            "On it — give me just a moment."
                         }
                     } else if (toolFeedbacks.isNotEmpty()) {
-                        val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
-                        if (hasError || !isQuestion) {
-                            finalMsg += "\n\n" + toolFeedbacks.joinToString("\n")
+                        val hasError = toolFeedbacks.any {
+                            it.contains("Error", true) || it.contains("Failed", true) ||
+                            it.contains("couldn't", true) || it.contains("didn't confirm", true)
                         }
+                        if (hasError) {
+                            finalMsg += " " + toolFeedbacks.joinToString(" ")
+                        }
+                        // When the AI already gave a warm conversational response, do NOT append
+                        // dry tool confirmation text — it breaks the human companion feel.
                     }
 
                     LLMManager.lastAiResponse = finalMsg

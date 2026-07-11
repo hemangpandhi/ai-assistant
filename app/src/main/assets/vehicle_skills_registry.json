@@ -108,7 +108,7 @@
         "warm up"
       ],
       "offline_capable": true,
-      "success_message": "I've increased the cabin temperature.",
+      "success_message": "I'm warming it up for you!",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "aliases": [
@@ -137,7 +137,7 @@
         "boiling"
       ],
       "offline_capable": true,
-      "success_message": "I've decreased the cabin temperature.",
+      "success_message": "Cooling it down — you should feel better soon.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "aliases": [
@@ -175,7 +175,7 @@
         "higher fan"
       ],
       "offline_capable": true,
-      "success_message": "I've increased the fan speed.",
+      "success_message": "Cranking up the fan for you!",
       "requires_vehicle_state": false
     },
     {
@@ -190,7 +190,7 @@
         "lower fan"
       ],
       "offline_capable": true,
-      "success_message": "I've decreased the fan speed.",
+      "success_message": "Dialed the fan back a notch.",
       "requires_vehicle_state": false
     },
     {
@@ -209,7 +209,7 @@
         "windshield"
       ],
       "offline_capable": true,
-      "success_message": "I've adjusted the airflow direction.",
+      "success_message": "Adjusting the airflow — you should feel it soon.",
       "requires_vehicle_state": false
     },
     {
@@ -219,7 +219,7 @@
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
-      "success_message": "I've turned on the AC.",
+      "success_message": "AC is on — you should feel that soon.",
       "keywords": [
         "turn on ac",
         "start ac",
@@ -391,7 +391,7 @@
       "data_type": "BOOLEAN",
       "area_id": 1,
       "value_to_write": "true",
-      "success_message": "Activating front defroster.",
+      "success_message": "Defroster's on — your view should clear up.",
       "keywords": [
         "turn on front defroster",
         "defrost front windshield",
@@ -538,7 +538,7 @@
       "data_type": "INT",
       "area_id": 0,
       "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
-      "success_message": "I've adjusted the seat heater.",
+      "success_message": "Seat heater's on — hope that warms you up!",
       "keywords": [
         "warm seat",
         "heated seat",
@@ -684,7 +684,7 @@
       "prompt_string": "<TOOL>defogWindshield()</TOOL>",
       "handler_key": "defogWindshield",
       "handler_type": "CUSTOM_KOTLIN",
-      "success_message": "I've turned on the defogger and directed airflow towards the windshield.",
+      "success_message": "Clearing your windshield — safety first.",
       "keywords": [
         "visibility",
         "mist",
@@ -1159,7 +1159,7 @@
       ],
       "offline_capable": false,
       "requires_agentic_loop": false,
-      "success_message": "I'll start playing music.",
+      "success_message": "Great choice — putting that on for you!",
       "requires_vehicle_state": false,
       "instruction": "Plays music. You MUST replace 'SONG' with the EXACT FULL name of the artist, song, AND genre requested by the user. For example, if they say 'Play Hello by Adele', you must output <TOOL>playMusic(Hello by Adele)</TOOL>. Do not omit the artist name! If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their preferred genre or song (e.g., 'bollywood'), immediately execute <TOOL>playMusic(bollywood)</TOOL> replacing 'bollywood' with whatever they asked for.",
       "aliases": [
@@ -1283,7 +1283,7 @@
       ],
       "offline_capable": true,
       "requires_agentic_loop": false,
-      "success_message": "I'll place the call.",
+      "success_message": "Opening the dialer for you now.",
       "parameters": {
         "required": [
           "query"

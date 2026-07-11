@@ -47,7 +47,7 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                         }
                     }
                 }
-                ToolExecutionResult(true, "Routing to $spokenDest.")
+                ToolExecutionResult(true, "Getting you on the road to $spokenDest — hang tight.")
             }
             "searchNearby" -> {
                 val amenity = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()

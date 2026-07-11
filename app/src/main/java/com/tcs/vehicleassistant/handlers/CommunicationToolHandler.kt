@@ -48,7 +48,7 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    ToolExecutionResult(true, "I've opened the dialer to call $contact.")
+                    ToolExecutionResult(true, "Opening the dialer for $contact — go ahead when you're ready.")
                 } catch (e: Exception) {
                     ToolExecutionResult(false, "I couldn't dial $contact because no phone app is installed.")
                 }

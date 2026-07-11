@@ -37,7 +37,7 @@ class SafetyAndCareHandler(override val handlerKey: String) : ToolHandler {
                 VehicleManager.writeDefrosterToVhalVerified(true)
                 VehicleManager.writeFanSpeedToVhalVerified(7)
                 VehicleManager.writeAirflowDirectionToVhalVerified(4) // DEFROST
-                ToolExecutionResult(true, "I've turned on the defrosters and optimized your airflow for maximum visibility.")
+                ToolExecutionResult(true, "Clearing your view — defrosters and airflow are set for maximum visibility.")
             }
             else -> ToolExecutionResult(false, "System Error: Safety And Care Handler not recognized.")
         }
