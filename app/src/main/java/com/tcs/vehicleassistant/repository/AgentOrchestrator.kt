@@ -92,7 +92,23 @@ class AgentOrchestrator(
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
             return
         }
-        if (LLMManager.engine == null || LLMManager.conversation == null) return
+
+        if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
+            _state.value = OrchestratorState.Thinking
+            _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+            scope.launch {
+                try {
+                    val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
+                        .inject(org.koin.core.qualifier.named("edge"))
+                    edgeProvider.initialize(context, force = false)
+                    handleQuery(query, retryCount)
+                } catch (e: Exception) {
+                    _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                }
+            }
+            return
+        }
 
         lastResponseBuilder.clear()
         ttsSpokenLength = 0
@@ -204,7 +220,11 @@ class AgentOrchestrator(
             val slidingHistory = MemoryManager.getSlidingWindowContext(500)
 
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            val dynamicState = SmartContextInjector.getInjectedContext(interceptedQuery, context)
+            val dynamicState = if (!isAgenticObservation && interceptedQuery.length < 25) {
+                ""
+            } else {
+                SmartContextInjector.getInjectedContext(interceptedQuery, context)
+            }
             val vehicleState = if (dynamicState.isNotEmpty()) "[Current State: $dynamicState]" else ""
 
             val stateInject = if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
@@ -246,13 +266,6 @@ class AgentOrchestrator(
 
         val onToken: (String) -> Unit = { chunkText ->
             if (!isHallucinating) {
-                try {
-                    if (firstTokenTime == -1L) {
-                        android.os.Process.setThreadPriority(android.os.Process.THREAD_PRIORITY_LOWEST)
-                    }
-                    Thread.sleep(15)
-                } catch (_: Exception) {}
-
                 if (firstTokenTime == -1L) {
                     firstTokenTime = System.currentTimeMillis()
                     LatencyLogger.log("Orchestrator", "TTFT: ${firstTokenTime - startTime}ms")

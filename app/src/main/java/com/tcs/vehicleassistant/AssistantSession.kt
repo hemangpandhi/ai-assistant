@@ -102,6 +102,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     override fun onCreateContentView(): View {
+        LocalLLMActivity.loadRuntimePrefs(context.applicationContext)
         VehicleManager.initialize(context.applicationContext)
         
         // Bind to background agent service
@@ -350,7 +351,24 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         stopListeningIntent.action = "ACTION_STOP_LISTENING"
         context.startService(stopListeningIntent)
 
-        if (LLMManager.engine == null || LLMManager.isFirstMessage) {
+        if (LLMManager.isReady() && LLMManager.isFirstMessage) {
+            statusText.text = "Initializing Model..."
+            btnOpenApp.visibility = View.GONE
+            inputControls.visibility = View.GONE
+
+            CoroutineScope(Dispatchers.Main).launch {
+                withContext(Dispatchers.IO) {
+                    LLMManager.prewarm(context)
+                }
+                statusText.text = "Hi, how can I help you?"
+                inputControls.visibility = View.VISIBLE
+                btnSend.isEnabled = true
+                if (showFlags and SHOW_WITH_ASSIST != 0) {
+                    delay(500)
+                    btnMic.performClick()
+                }
+            }
+        } else if (!LLMManager.isReady()) {
             statusText.text = "Initializing Model..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE

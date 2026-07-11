@@ -77,12 +77,7 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
         super.onTrimMemory(level)
         if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
             android.util.Log.w("VehicleAgentService", "OS Memory Pressure Critical (Level $level). Unloading LLM from RAM.")
-            try {
-                val edgeProvider = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.llm.ILLMProvider>(org.koin.core.qualifier.named("edge"))
-                edgeProvider.unload()
-            } catch (e: Exception) {
-                // Koin or provider might not be initialized yet
-            }
+            com.tcs.vehicleassistant.LLMManager.unload()
             System.gc()
         }
     }

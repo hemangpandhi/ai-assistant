@@ -46,6 +46,7 @@ object LLMManager {
     var lastInjectedTools: String = ""
     private var appContext: Context? = null
 
+    fun isReady(): Boolean = engine != null && conversation != null && !isInitializing
 
     interface InitCallback {
         fun onSuccess()
@@ -125,7 +126,20 @@ object LLMManager {
                     "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
                     "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
                     "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
-                    else -> { activeBackendString = "GPU"; Backend.GPU() } // Auto defaults to GPU
+                    else -> {
+                        when {
+                            modelPath.contains("Tensor_G5", ignoreCase = true) ||
+                                modelPath.contains("qualcomm", ignoreCase = true) ||
+                                modelPath.contains("qcs8275", ignoreCase = true) -> {
+                                activeBackendString = "NPU"
+                                Backend.NPU()
+                            }
+                            else -> {
+                                activeBackendString = "GPU"
+                                Backend.GPU()
+                            }
+                        }
+                    }
                 }
 
                 val engineConfig = EngineConfig(
@@ -143,10 +157,12 @@ object LLMManager {
 
                 resetConversation(context)
                 currentModelPath = modelPath
-                Log.d("LLMManager", "LLM Initialized successfully from $modelPath")
-                
-                withContext(Dispatchers.Main) { 
-                    callback?.onSuccess() 
+                Log.d("LLMManager", "LLM Initialized successfully from $modelPath (backend=$activeBackendString)")
+
+                prewarm(context)
+
+                withContext(Dispatchers.Main) {
+                    callback?.onSuccess()
                 }
             } catch (e: Exception) {
                 Log.e("LLMManager", "Error initializing model", e)
@@ -166,6 +182,9 @@ object LLMManager {
                         resetConversation(context)
                         currentModelPath = modelPath
                         Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
+
+                        prewarm(context)
+
                         withContext(Dispatchers.Main) { callback?.onSuccess() }
                     } catch (fallbackEx: Exception) {
                          Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
@@ -297,21 +316,21 @@ object LLMManager {
                 val sysPrompt = getSystemPrompt(context, "")
                 val prewarmPrompt = "$sysPrompt\n\n[System Initialization: Acknowledge this configuration. Do not generate a response.]"
                 
-                val latch = kotlinx.coroutines.sync.Mutex(true)
+                val done = kotlinx.coroutines.CompletableDeferred<Unit>()
                 conversation?.sendMessageAsync(Contents.of(Content.Text(prewarmPrompt)), object : com.google.ai.edge.litertlm.MessageCallback {
                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {}
-                    override fun onDone() { 
+                    override fun onDone() {
                         Log.d("LLMManager", "Prewarm onDone called")
                         isFirstMessage = false
-                        latch.unlock() 
+                        done.complete(Unit)
                     }
-                    override fun onError(throwable: Throwable) { 
+                    override fun onError(throwable: Throwable) {
                         Log.e("LLMManager", "Prewarm onError: ${throwable.message}", throwable)
-                        latch.unlock() 
+                        done.complete(Unit)
                     }
                 }, emptyMap())
-                
-                latch.lock() // Suspend until the NPU finishes computing the KV cache
+
+                done.await()
                 Log.d("LLMManager", "Prewarm complete. KV cache populated.")
             } catch (e: Exception) {
                 Log.e("LLMManager", "Prewarm failed", e)

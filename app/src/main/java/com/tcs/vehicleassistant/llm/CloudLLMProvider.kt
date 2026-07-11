@@ -27,12 +27,14 @@ class CloudLLMProvider : ILLMProvider {
         val sysPrompt = LLMManager.getSystemPrompt(context, userQuery)
         val fullPrompt = "$sysPrompt\n\n$prompt"
 
+        val responseBuilder = StringBuilder()
         val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {
             override fun onMessage(chunkText: String) {
-                onToken(chunkText)
+                responseBuilder.append(chunkText)
+                onToken(responseBuilder.toString())
             }
             override fun onDone() {
-                onDone("") // Will be handled if they build it incrementally
+                onDone(responseBuilder.toString())
             }
             override fun onError(throwable: Throwable) {
                 onError(Exception(throwable))
@@ -46,8 +48,8 @@ class CloudLLMProvider : ILLMProvider {
                 // but we can pass the logic down. Let's assume we call their async methods.
                 // In a perfect world, GeminiManager/AnthropicManager would take onToken and onDone directly.
                 // We will simulate it by delegating.
-                // TODO: Update GeminiManager to accept streams
-                GeminiManager.sendMessageAsync(sysPrompt, prompt, callback) 
+                // Streaming delegated to GeminiManager / AnthropicManager
+                GeminiManager.sendMessageAsync(sysPrompt, prompt, callback)
             } else {
                 AnthropicManager.sendMessageAsync(sysPrompt, prompt, callback)
             }

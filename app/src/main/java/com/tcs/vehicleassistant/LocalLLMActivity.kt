@@ -45,6 +45,21 @@ class LocalLLMActivity : AppCompatActivity() {
         var isTestRunning = false
         var isCloudModelActive = false
         var currentCloudModelName = ""
+
+        fun loadRuntimePrefs(context: Context) {
+            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            isCloudModelActive = prefs.getBoolean("cloud_model_active", false)
+            currentCloudModelName = prefs.getString("cloud_model_name", "") ?: ""
+        }
+
+        fun saveCloudMode(context: Context, active: Boolean, modelName: String) {
+            isCloudModelActive = active
+            currentCloudModelName = modelName
+            context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE).edit()
+                .putBoolean("cloud_model_active", active)
+                .putString("cloud_model_name", modelName)
+                .apply()
+        }
     }
 
     private lateinit var inputText: EditText
@@ -118,7 +133,8 @@ class LocalLLMActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        
+
+        loadRuntimePrefs(this)
         VehicleManager.initialize(this)
         
         setContentView(R.layout.activity_main)
@@ -487,13 +503,16 @@ class LocalLLMActivity : AppCompatActivity() {
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
         modelSpinner.adapter = adapter
         modelSpinner.setSelection(4) // Default to Gemma 4-E2B IT
+        if (isCloudModelActive) {
+            val cloudIndex = supportedModels.indexOfFirst { it.name == currentCloudModelName }
+            if (cloudIndex >= 0) modelSpinner.setSelection(cloudIndex)
+        }
         
         modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 currentModel = supportedModels[position]
                 if (currentModel.url == "api") {
-                    isCloudModelActive = true
-                    currentCloudModelName = currentModel.name
+                    saveCloudMode(this@LocalLLMActivity, true, currentModel.name)
                     llApiKeyContainer.visibility = View.VISIBLE
                     if (currentModel.name.contains("Claude")) {
                         tvApiKeyLabel.text = "Anthropic API Key:"
@@ -506,8 +525,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     btnDownloadModel.isEnabled = false
                     btnLoadModel.isEnabled = true
                 } else {
-                    isCloudModelActive = false
-                    currentCloudModelName = ""
+                    saveCloudMode(this@LocalLLMActivity, false, "")
                     llApiKeyContainer.visibility = View.GONE
                     btnDownloadModel.isEnabled = true
                     btnLoadModel.isEnabled = true
