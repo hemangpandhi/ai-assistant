@@ -431,9 +431,9 @@
     {
       "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865540,
+      "property_id": 320865556,
       "data_type": "BOOLEAN",
-      "area_id": 2,
+      "area_id": 0,
       "value_to_write": "true",
       "success_message": "Activating rear defroster.",
       "keywords": [
@@ -450,9 +450,9 @@
     {
       "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865540,
+      "property_id": 320865556,
       "data_type": "BOOLEAN",
-      "area_id": 2,
+      "area_id": 0,
       "value_to_write": "false",
       "success_message": "Deactivating rear defroster.",
       "keywords": [

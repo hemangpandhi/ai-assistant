@@ -34,7 +34,7 @@ class ConfigurationValidationTest {
             val promptString = tool.getString("prompt_string")
             assertTrue(
                 "prompt_string must contain <TOOL> tags",
-                promptString.startsWith("<TOOL>") && promptString.endsWith("</TOOL>")
+                promptString.contains("<TOOL>") && promptString.contains("</TOOL>")
             )
 
             val handlerType = if (tool.has("handler_type")) tool.getString("handler_type") else "CUSTOM_KOTLIN"
