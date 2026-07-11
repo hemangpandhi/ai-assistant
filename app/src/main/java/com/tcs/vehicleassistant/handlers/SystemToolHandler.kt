@@ -14,12 +14,16 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
                 ToolExecutionResult(true, "The current real-time vehicle state is: $stateString")
             }
             "remember" -> {
-                val fact = toolCall.substringAfter("(").substringBefore(")")
+                val fact = toolCall.substringAfter("(").substringBefore(")").trim()
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 val currentMemory = prefs.getString("user_memory", "") ?: ""
-                val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
-                prefs.edit().putString("user_memory", newMemory).apply()
-                ToolExecutionResult(true, "Got it, I've remembered that.")
+                if (currentMemory.contains(fact, ignoreCase = true)) {
+                    ToolExecutionResult(true, "Got it, I've remembered that.")
+                } else {
+                    val newMemory = if (currentMemory.isEmpty()) fact else "$currentMemory. $fact"
+                    prefs.edit().putString("user_memory", newMemory).apply()
+                    ToolExecutionResult(true, "Got it, I've remembered that.")
+                }
             }
             "getWeather" -> {
                 val city = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")

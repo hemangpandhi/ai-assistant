@@ -167,6 +167,23 @@ class ToolManager {
         semanticSearchManager.buildToolEmbeddingsCache()
     }
 
+    private val commandIndicatorPhrases = listOf(
+        "turn on", "turn off", "increase", "decrease", "set temperature", "set to",
+        "navigate", "navigation", "play ", "call ", "open ", "start navigation",
+        "seat heater", "defrost", "fan speed", " air conditioning", " ac ",
+        "climate", "windows", "recirculation", "trunk", "unlock", "lock doors",
+        "remember ", "also turn", "also set", "also increase", "also decrease", "also play", "also call"
+    )
+
+    private fun hasExplicitCommandIntent(userQuery: String): Boolean {
+        val q = userQuery.lowercase()
+        val keywordMatch = activeTools.values.any { tool ->
+            tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
+        }
+        if (keywordMatch) return true
+        return commandIndicatorPhrases.any { q.contains(it) }
+    }
+
     /**
      * Primitive Tool RAG Engine.
      * Evaluates the user query against the tool keywords.
@@ -178,38 +195,51 @@ class ToolManager {
         
         // Fast path: Keyword matching (0ms)
         val q = combinedQuery.lowercase()
+        val userQ = userQuery.lowercase()
+        val hasEmbeddedCommand = hasExplicitCommandIntent(userQuery)
         
         // Conversational Bypass: If the user is asking for sightseeing suggestions, 
         // we DO NOT want to inject map tools, otherwise the model gets tempted to use them instead of talking.
+        // BUT if the same turn also contains an explicit vehicle command ("also turn on the AC"), still inject tools.
         val bypassKeywords = listOf(
             "suggest", "recommend", "places to visit", "best places", "sightseeing", "what to do", 
             "tourist", "attractions", "tell me about", "what is in", "history of", "describe"
         )
-        if (bypassKeywords.any { q.contains(it) }) {
+        if (!hasEmbeddedCommand && bypassKeywords.any { q.contains(it) }) {
             return emptyList()
         }
         
         // Conversational empathy: "feeling cold" is handled by system prompt without tool injection
         val coldEmpathyPhrases = listOf("feeling cold", "i am cold", "i'm cold", "shivering", "bit cold")
-        if (coldEmpathyPhrases.any { q.contains(it) }) {
+        if (!hasEmbeddedCommand && coldEmpathyPhrases.any { userQ.contains(it) }) {
             return emptyList()
         }
 
         // Short follow-ups rely on prior assistant context for tool routing
-        if (isFollowUpQuery(userQuery) && conversationalContext.isNotBlank()) {
+        if (MemoryManager.isFollowUpQuery(userQuery) && conversationalContext.isNotBlank()) {
             val contextTools = activeTools.values.filter { tool ->
                 tool.keywords?.any { kw -> conversationalContext.lowercase().contains(kw) } == true
             }
             if (contextTools.isNotEmpty()) return contextTools.distinct().take(4)
         }
 
-        val exactMatches = activeTools.values.filter { tool ->
-            tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
+        // Mid-conversation commands: match keywords in the current user turn first
+        val userTurnMatches = activeTools.values.filter { tool ->
+            tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(userQ) } == true
         }.toMutableList()
+
+        val exactMatches = if (userTurnMatches.isNotEmpty()) {
+            userTurnMatches
+        } else {
+            activeTools.values.filter { tool ->
+                tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
+            }.toMutableList()
+        }
         
         // Temperature heuristic: catch explicit numbers (50-90) or 'degrees'
+        val tempSource = if (hasEmbeddedCommand) userQ else q
         val tempRegex = Regex("""\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b""")
-        if (tempRegex.containsMatchIn(q) || q.contains("degrees") || Regex("""\d{2}f""").containsMatchIn(q)) {
+        if (tempRegex.containsMatchIn(tempSource) || tempSource.contains("degrees") || Regex("""\d{2}f""").containsMatchIn(tempSource)) {
             val tempTools = activeTools.values.filter { it.handlerKey?.contains("Temperature", ignoreCase = true) == true }
             exactMatches.addAll(tempTools)
         }

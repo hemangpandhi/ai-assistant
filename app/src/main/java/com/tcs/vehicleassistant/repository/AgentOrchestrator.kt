@@ -228,6 +228,7 @@ class AgentOrchestrator(
             if (isAgenticObservation) {
                 MemoryManager.addTurn("System", interceptedQuery)
             } else {
+                MemoryManager.captureLongTermFacts(context, interceptedQuery)
                 MemoryManager.addTurn("User", interceptedQuery)
             }
 
@@ -487,8 +488,6 @@ class AgentOrchestrator(
                 isDoneCalled = true
                 scope.launch {
                     timeoutJob?.cancel()
-                    MemoryManager.clearMemory()
-
                     if (retryCount < 1) {
                         _state.value = OrchestratorState.Error("Initializing model...")
                         try {

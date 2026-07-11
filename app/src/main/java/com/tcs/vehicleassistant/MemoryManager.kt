@@ -1,5 +1,6 @@
 package com.tcs.vehicleassistant
 
+import android.content.Context
 import android.util.Log
 
 object MemoryManager {
@@ -32,8 +33,61 @@ object MemoryManager {
 
     fun isFollowUpQuery(query: String): Boolean {
         val q = query.lowercase().trim()
-        if (q.length > 40) return false
+        if (q.length > 60) return false
         return followUpPatterns.any { q == it || q.contains(it) }
+    }
+
+    private val longTermCapturePatterns = listOf(
+        Regex("""remember(?:\s+that)?\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""don't forget(?:\s+that)?\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""do not forget(?:\s+that)?\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""my name is\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""call me\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""i prefer\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""i like\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""i usually\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""my (?:wife|husband|partner|mom|dad|mother|father)(?:'s)? name is\s+(.+)""", RegexOption.IGNORE_CASE),
+        Regex("""keep in mind(?:\s+that)?\s+(.+)""", RegexOption.IGNORE_CASE)
+    )
+
+    fun getLongTermMemory(context: Context): String {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        return prefs.getString("user_memory", "")?.trim().orEmpty()
+    }
+
+    /**
+     * Auto-captures durable user facts from natural speech (e.g. "remember I prefer 72 degrees").
+     * Returns true when a new fact was stored.
+     */
+    fun captureLongTermFacts(context: Context, query: String): Boolean {
+        val trimmed = query.trim()
+        if (trimmed.length < 8) return false
+
+        for (pattern in longTermCapturePatterns) {
+            val match = pattern.find(trimmed) ?: continue
+            val fact = sanitizeFact(match.groupValues[1]) ?: continue
+            if (appendLongTermFact(context, fact)) {
+                Log.i(TAG, "Captured long-term memory: $fact")
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun sanitizeFact(raw: String): String? {
+        val fact = raw.trim().trimEnd('.', '!', '?', ',')
+        if (fact.length < 3 || fact.length > 200) return null
+        if (fact.equals("that", ignoreCase = true)) return null
+        return fact
+    }
+
+    private fun appendLongTermFact(context: Context, fact: String): Boolean {
+        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val current = prefs.getString("user_memory", "")?.trim().orEmpty()
+        if (current.contains(fact, ignoreCase = true)) return false
+        val newMemory = if (current.isEmpty()) fact else "$current. $fact"
+        prefs.edit().putString("user_memory", newMemory).apply()
+        return true
     }
 
     fun turnCount(): Int = conversationHistory.size

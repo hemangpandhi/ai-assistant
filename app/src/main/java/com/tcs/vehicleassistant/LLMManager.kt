@@ -216,7 +216,8 @@ object LLMManager {
     
     suspend fun getDefaultSystemPrompt(context: android.content.Context, query: String = ""): String {
         val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-        val userMemory = prefs.getString("user_memory", "None") ?: "None"
+        val storedMemory = MemoryManager.getLongTermMemory(context)
+        val userMemory = if (storedMemory.isNotEmpty()) storedMemory else "None"
         val isCompanionModeEnabled = prefs.getBoolean("companion_mode_enabled", true)
         
         val basePrompt = StringBuilder()
@@ -254,7 +255,9 @@ object LLMManager {
         basePrompt.append("9. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n")
         basePrompt.append("10. NO HALLUCINATION: You MUST NOT output a <TOOL> tag if you are asking the user a question to clarify their intent (e.g. offering the seat heater, or asking what type of food they want). ONLY output a <TOOL> tag if you have all required arguments to execute a command immediately.\n")
         basePrompt.append("11. NAVIGATION SYNTAX: Use <TOOL>startNavigationTo(\"Place Name\")</TOOL> for navigation. The alias navigate() also works at execution time.\n")
-        basePrompt.append("12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n\n")
+        basePrompt.append("12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n")
+        basePrompt.append("13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using <TOOL> tags.\n")
+        basePrompt.append("14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use <TOOL>remember(FACT)</TOOL> for durable facts. Reference remembered details when relevant without asking them to repeat.\n\n")
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
