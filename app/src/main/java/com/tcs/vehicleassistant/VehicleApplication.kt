@@ -15,5 +15,7 @@ class VehicleApplication : Application() {
             androidContext(this@VehicleApplication)
             modules(appModule)
         }
+
+        DemoSettingsPresets.ensureDefaults(this)
     }
 }

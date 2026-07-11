@@ -47,6 +47,7 @@ class LocalLLMActivity : AppCompatActivity() {
         var currentCloudModelName = ""
 
         fun loadRuntimePrefs(context: Context) {
+            DemoSettingsPresets.ensureDefaults(context)
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             isCloudModelActive = prefs.getBoolean("cloud_model_active", false)
             currentCloudModelName = prefs.getString("cloud_model_name", "") ?: ""
@@ -705,7 +706,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
         val currentKvCache = prefs.getInt("max_tokens", 4096)
         val currentAutoFlush = prefs.getInt("auto_flush", 25)
-        val currentLocationOverride = prefs.getString("location_override", "") ?: ""
+        val currentLocationOverride = prefs.getString(LocationManager.PREF_LOCATION_OVERRIDE, "") ?: ""
         val currentMechanicName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
         val currentMechanicNum = prefs.getString("mechanic_number", "555-0199") ?: "555-0199"
         val currentDiningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
@@ -716,14 +717,86 @@ class LocalLLMActivity : AppCompatActivity() {
         
         val etLocationOverride = dialogView.findViewById<android.widget.EditText>(R.id.etLocationOverride)
         etLocationOverride.setText(currentLocationOverride)
-        
+
         val etMechanicName = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicName)
         val etMechanicNumber = dialogView.findViewById<android.widget.EditText>(R.id.etMechanicNumber)
         val etDiningPref = dialogView.findViewById<android.widget.EditText>(R.id.etDiningPref)
-        
         etMechanicName.setText(currentMechanicName)
         etMechanicNumber.setText(currentMechanicNum)
         etDiningPref.setText(currentDiningPref)
+
+        val spinnerDemoPreset = dialogView.findViewById<Spinner>(R.id.spinnerDemoPreset)
+        val spinnerLocationSource = dialogView.findViewById<Spinner>(R.id.spinnerLocationSource)
+        val tvResolvedLocation = dialogView.findViewById<android.widget.TextView>(R.id.tvResolvedLocation)
+        val btnApplyDemoPreset = dialogView.findViewById<Button>(R.id.btnApplyDemoPreset)
+
+        val presetAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            DemoSettingsPresets.ALL.map { it.displayName }
+        )
+        presetAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerDemoPreset.adapter = presetAdapter
+
+        val sourceAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            LocationManager.Source.entries.map { it.label }
+        )
+        sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerLocationSource.adapter = sourceAdapter
+
+        val selectedPreset = DemoSettingsPresets.getSelected(this)
+        val selectedPresetIndex = DemoSettingsPresets.ALL.indexOfFirst { it.id == selectedPreset.id }.coerceAtLeast(0)
+        spinnerDemoPreset.setSelection(selectedPresetIndex)
+
+        val selectedSource = LocationManager.Source.fromPref(prefs.getString(LocationManager.PREF_LOCATION_SOURCE, null))
+        val selectedSourceIndex = LocationManager.Source.entries.indexOf(selectedSource).coerceAtLeast(0)
+        spinnerLocationSource.setSelection(selectedSourceIndex)
+
+        fun refreshResolvedLocation() {
+            val source = LocationManager.Source.entries[spinnerLocationSource.selectedItemPosition]
+            val preset = DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition]
+            val preview = when (source) {
+                LocationManager.Source.MANUAL -> {
+                    val manual = etLocationOverride.text.toString().trim().ifBlank { preset.coordinatesString() }
+                    "${preset.cityName} ($manual) via ${source.label}"
+                }
+                LocationManager.Source.PRESET -> "${preset.cityName} (${preset.coordinatesString()}) via ${source.label}"
+                LocationManager.Source.DEVICE -> LocationManager.getLocationStatus(this)
+            }
+            tvResolvedLocation.text = "Resolved: $preview"
+        }
+        refreshResolvedLocation()
+
+        btnApplyDemoPreset.setOnClickListener {
+            val preset = DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition]
+            DemoSettingsPresets.apply(this, preset)
+            etLocationOverride.setText(preset.coordinatesString())
+            etMechanicName.setText(preset.mechanicName)
+            etMechanicNumber.setText(preset.mechanicNumber)
+            etDiningPref.setText(preset.diningPref)
+            refreshResolvedLocation()
+            val switchCompanionMode = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchCompanionMode)
+            val switchAgenticLoop = findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.switchAgenticLoop)
+            switchCompanionMode?.isChecked = preset.companionMode
+            switchAgenticLoop?.isChecked = preset.agenticLoop
+            Toast.makeText(this, "Applied ${preset.displayName} defaults", Toast.LENGTH_SHORT).show()
+        }
+
+        spinnerDemoPreset.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                refreshResolvedLocation()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        spinnerLocationSource.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                refreshResolvedLocation()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
 
         // Voice Settings
         val etSpeakingRate = dialogView.findViewById<android.widget.EditText>(R.id.etSpeakingRate)
@@ -756,8 +829,16 @@ class LocalLLMActivity : AppCompatActivity() {
                 if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)
                 
                 prefs.edit().apply {
-                    val etLocationOverride = dialogView.findViewById<android.widget.EditText>(R.id.etLocationOverride)
-                    putString("location_override", etLocationOverride.text.toString().trim())
+                    putString(LocationManager.PREF_LOCATION_OVERRIDE, etLocationOverride.text.toString().trim())
+                    putString(LocationManager.PREF_DEMO_PRESET, DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition].id)
+                    putString(
+                        LocationManager.PREF_LOCATION_SOURCE,
+                        LocationManager.Source.entries[spinnerLocationSource.selectedItemPosition].prefValue
+                    )
+                    putString(
+                        LocationManager.PREF_DEMO_CITY,
+                        DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition].cityName
+                    )
                     putString("mechanic_name", etMechanicName.text.toString())
                     putString("mechanic_number", etMechanicNumber.text.toString())
                     putString("dining_pref", etDiningPref.text.toString())
