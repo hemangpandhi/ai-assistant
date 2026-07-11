@@ -8,6 +8,8 @@ import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.llm.ILLMProvider
+import com.tcs.vehicleassistant.utils.FollowUpRouter
+import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
 import com.tcs.vehicleassistant.utils.ToolCallParser
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -110,11 +112,8 @@ class AgentOrchestrator(
             return
         }
 
-        if (pendingConfirmationTool == null && MemoryManager.isAffirmative(query)) {
-            val last = LLMManager.lastAiResponse.lowercase()
-            if (last.contains("seat heater")) {
-                pendingConfirmationTool = "setSeatHeater(2)"
-            }
+        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
+            return
         }
 
         lastResponseBuilder.clear()
@@ -172,6 +171,52 @@ class AgentOrchestrator(
     fun destroy() {
         timeoutJob?.cancel()
         scope.cancel()
+        EmergencyAlarmManager.stop()
+    }
+
+    private fun tryHandleDirectFollowUp(query: String): Boolean {
+        if (pendingConfirmationTool != null) return false
+        val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false
+
+        lastResponseBuilder.clear()
+        ttsSpokenLength = 0
+        lastTtsUpdateTime = 0L
+        isQueryProcessed = false
+        _state.value = OrchestratorState.Thinking
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+
+        scope.launch {
+            MemoryManager.captureLongTermFacts(context, query)
+            MemoryManager.addTurn("User", query)
+
+            if (toolCall.startsWith("handleDrowsyDriving") || FollowUpRouter.isDrowsyDriverQuery(query)) {
+                EmergencyAlarmManager.start(context)
+            }
+
+            val feedback = executeToolCall(toolCall) ?: "Action completed."
+            val finalMsg = when {
+                toolCall.startsWith("handleDrowsyDriving") ->
+                    "Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert."
+                toolCall.startsWith("startNavigationTo") -> feedback
+                toolCall.startsWith("searchNearby") -> feedback
+                else -> feedback
+            }
+
+            MemoryManager.addTurn("Assistant", finalMsg)
+            LLMManager.lastAiResponse = finalMsg
+            _state.value = OrchestratorState.Speaking(finalMsg)
+            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+            isQueryProcessed = true
+
+            if (finalMsg.isNotBlank()) {
+                audioManager.speak(finalMsg, "SENTENCE_0")
+                val isQuestion = finalMsg.trim().endsWith("?") ||
+                    finalMsg.contains("which one", ignoreCase = true)
+                val finalUtterance = if (isQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL"
+                audioManager.playSilentUtterance(10, finalUtterance)
+            }
+        }
+        return true
     }
 
     private suspend fun processQuery(
@@ -365,6 +410,10 @@ class AgentOrchestrator(
                 scope.launch {
                     timeoutJob?.cancel()
 
+                    if (FollowUpRouter.responseRequestsAlarm(tempFinalMsg)) {
+                        EmergencyAlarmManager.start(context)
+                    }
+
                     val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
@@ -387,6 +436,10 @@ class AgentOrchestrator(
                         _state.value = OrchestratorState.Thinking
                         val feedbacks = awaitAll(*currentPendingTools.toTypedArray()).filterNotNull()
                         toolFeedbacks.addAll(feedbacks)
+                    }
+
+                    if (executedTools.any { it.startsWith("handleDrowsyDriving", ignoreCase = true) }) {
+                        EmergencyAlarmManager.start(context)
                     }
 
                     if (currentPendingTools.isNotEmpty()) {

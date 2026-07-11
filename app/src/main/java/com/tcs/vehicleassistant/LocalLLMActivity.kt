@@ -37,8 +37,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
-import android.content.BroadcastReceiver
-import android.content.IntentFilter
+import com.tcs.vehicleassistant.repository.InAppOrchestratorBridge
+import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
 
 class LocalLLMActivity : AppCompatActivity() {
     companion object {
@@ -130,6 +130,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private var alarmJob: Job? = null
     private var timeoutJob: Job? = null
     private var lastResponseBuilder = java.lang.StringBuilder()
+    private var orchestratorBridge: InAppOrchestratorBridge? = null
     
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -369,14 +370,18 @@ class LocalLLMActivity : AppCompatActivity() {
                     }
                     override fun onDone(utteranceId: String?) {
                         LatencyLogger.log("LocalLLMActivity", "TTS Synthesis Done for $utteranceId")
+                        utteranceId?.let { orchestratorBridge?.notifyUtteranceDone(it) }
                         if (utteranceId == "QUESTION" || utteranceId == "QUESTION_FINAL") {
                             runOnUiThread {
                                 voiceButton.performClick()
                             }
                         }
                     }
-                    override fun onError(utteranceId: String?) {}
+                    override fun onError(utteranceId: String?) {
+                        utteranceId?.let { orchestratorBridge?.notifyUtteranceError(it) }
+                    }
                 })
+                initOrchestratorBridge()
             }
         }
 
@@ -894,6 +899,48 @@ class LocalLLMActivity : AppCompatActivity() {
     private fun stopEmergencyAlarm() {
         alarmJob?.cancel()
         alarmJob = null
+        EmergencyAlarmManager.stop()
+    }
+
+    private fun initOrchestratorBridge() {
+        if (orchestratorBridge != null) return
+        orchestratorBridge = InAppOrchestratorBridge(this, { if (::tts.isInitialized) tts else null }, lifecycleScope).apply {
+            onThinking = {
+                runOnUiThread {
+                    if (isGenerating) chatAdapter.replaceLastMessage("Thinking...")
+                }
+            }
+            onStreaming = { msg ->
+                runOnUiThread {
+                    if (!isGenerating) return@runOnUiThread
+                    chatAdapter.replaceLastMessage(msg)
+                    chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                }
+            }
+            onSpeaking = { msg ->
+                runOnUiThread {
+                    chatAdapter.replaceLastMessage(msg)
+                    chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
+                    updateDashboardUI()
+                    resetControls()
+                }
+            }
+            onError = { msg ->
+                runOnUiThread {
+                    chatAdapter.replaceLastMessage(msg)
+                    resetControls()
+                }
+            }
+            onLaunchIntent = { intent ->
+                runOnUiThread {
+                    try {
+                        startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(this@LocalLLMActivity, "Could not launch app.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            }
+        }
     }
 
 
@@ -935,6 +982,8 @@ class LocalLLMActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         stopEmergencyAlarm()
+        orchestratorBridge?.destroy()
+        orchestratorBridge = null
         if (::tts.isInitialized) {
             tts.stop()
             tts.shutdown()
@@ -1034,7 +1083,7 @@ class LocalLLMActivity : AppCompatActivity() {
             executeScenario("I'm freezing and the sun is glaring right into my eyes. Provide the exact JSON commands to adjust the HVAC and sunshades.")
         }
         btnPremiumUseCase4.setOnClickListener {
-            executeScenario("Sensors indicate the driver is falling asleep! Output EXACTLY this JSON: {\"action\": \"sound_alarm\"} and provide a short, urgent voice message to wake them up.")
+            executeScenario("Sensors indicate the driver is falling asleep!")
         }
         btnPremiumUseCase5.setOnClickListener {
             executeScenario("Play some relaxing jazz music and turn the volume down a bit.")
@@ -1086,17 +1135,6 @@ class LocalLLMActivity : AppCompatActivity() {
         })
     }
     
-    private fun triggerEmergencyAlarm() {
-        if (alarmJob?.isActive == true) return
-        val toneGen = ToneGenerator(AudioManager.STREAM_ALARM, 100)
-        alarmJob = lifecycleScope.launch(Dispatchers.IO) {
-            while (isActive) {
-                toneGen.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1000)
-                delay(2000)
-            }
-        }
-    }
-
     private fun resetControls() {
         isGenerating = false
         generateButton.isEnabled = true
@@ -1106,15 +1144,6 @@ class LocalLLMActivity : AppCompatActivity() {
         val text = inputText.text.toString()
         if (text == "Listening..." || text == "Processing Voice...") {
             inputText.setText("")
-        }
-    }
-
-    private fun executeToolCall(toolCall: String) {
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().executeToolCall(this@LocalLLMActivity, toolCall)
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                updateDashboardUI()
-            }
         }
     }
 
@@ -1157,251 +1186,16 @@ class LocalLLMActivity : AppCompatActivity() {
         chatAdapter.addMessage(ChatMessage("", isUser = false, isStreaming = true))
         chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
         
-        if (LLMManager.conversation == null && !isCloudModelActive) {
+        if (!isCloudModelActive && !LLMManager.isReady()) {
             chatAdapter.replaceLastMessage("System: Please click 'Load Model' before sending a prompt.")
             resetControls()
             return
         }
-        
-        processQuery(prompt, isVoice, displayPrompt)
-    }
-    
-    private fun processQuery(prompt: String, isVoice: Boolean, displayPrompt: String) {
-        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
-            try {
-                var alarmTriggered = false
-            timeoutJob?.cancel()
-            timeoutJob = lifecycleScope.launch {
-                delay(180000) // 3 minutes max (First-time GPU Shader Compilation can take up to 2-3 mins on AAOS)
-                if (isGenerating) {
-                    runOnUiThread {
-                        chatAdapter.updateLastMessage("\n\n[Model Hang Detected - Restarting]")
-                        resetControls()
-                    }
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        initLlm(force = true)
-                    }
-                }
-            }
-            val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val diningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
-            val dynCtx = LLMManager.getDynamicContext(applicationContext, prompt)
-            val finalPrompt = if (LLMManager.isFirstMessage) {
-                LLMManager.isFirstMessage = false
-                LLMManager.getSystemPrompt(applicationContext, prompt) + "\nUser: " + prompt
-            } else {
-                val customProps = VehicleManager.getCustomPropertiesString()
-                val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
-                
-                if (prompt.length < 25) {
-                    "$dynCtx\nUser: " + prompt
-                } else {
-                    "[Telemetry: Temp ${VehicleManager.getRealTemperature()}F, Speed ${VehicleManager.getRealSpeed()}mph, Heater ${VehicleManager.getRealSeatHeaterLevel()}$customPropsStr]$dynCtx\nUser: " + prompt
-                }
-            }
 
-            val executedTools = mutableSetOf<String>()
-            val regex = "(?i)<TOOL>(.*?)</TOOL>".toRegex()
-            val spokenTextLength = intArrayOf(0)
-
-            val startTime = System.currentTimeMillis()
-            var firstTokenTime = -1L
-            
-            val callback = object : com.google.ai.edge.litertlm.MessageCallback {
-                var isHallucinating = false
-                
-                override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
-                        if (isHallucinating) return
-                        
-                        if (firstTokenTime == -1L) {
-                            firstTokenTime = System.currentTimeMillis()
-                            val ttft = firstTokenTime - startTime
-                            LatencyLogger.log("LocalLLMActivity", "Time to First Token (TTFT): ${ttft}ms")
-                        }
-                        
-                        runOnUiThread {
-                            if (!isGenerating) return@runOnUiThread
-                            val chunk = message.toString()
-                            lastResponseBuilder.append(chunk)
-                            
-                            var currentText = lastResponseBuilder.toString()
-                            
-                            var stripped = true
-                            while (stripped) {
-                                stripped = false
-                                val prefixes = listOf("Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :", "System:", "System :")
-                                for (prefix in prefixes) {
-                                    if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
-                                        currentText = currentText.trimStart().substring(prefix.length).trimStart()
-                                        lastResponseBuilder.clear()
-                                        lastResponseBuilder.append(currentText)
-                                        stripped = true
-                                    }
-                                }
-                            }
-                            
-                            // Prevent the AI from hallucinating the user's response
-                            val userIdx = currentText.indexOf("\nUser:")
-                            if (userIdx != -1) {
-                                isHallucinating = true
-                                currentText = currentText.substring(0, userIdx)
-                                lastResponseBuilder.setLength(userIdx)
-                            } else if (currentText.trim().endsWith("User:")) {
-                                isHallucinating = true
-                                currentText = currentText.substringBeforeLast("User:")
-                                lastResponseBuilder.setLength(currentText.length)
-                            }
-                            val matches = regex.findAll(currentText)
-                            for (match in matches) {
-                                val toolCall = match.groups[1]?.value ?: continue
-                                if (executedTools.add(toolCall)) {
-                                    executeToolCall(toolCall)
-                                }
-                            }
-                            
-                            val displayMsg = currentText.replace(regex, "").trim()
-                            chatAdapter.replaceLastMessage(displayMsg)
-                            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-                            
-                            if (isVoice) {
-                                var remainingText = displayMsg.substring(spokenTextLength[0])
-                                val sentenceRegex = "^(.*?)([.!?]+(?:\\s+|$)|\\n)".toRegex()
-                                var match = sentenceRegex.find(remainingText)
-                                while (match != null) {
-                                    val sentence = match.value
-                                    spokenTextLength[0] += sentence.length
-                                    tts.speak(sentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
-                                    
-                                    remainingText = displayMsg.substring(spokenTextLength[0])
-                                    match = sentenceRegex.find(remainingText)
-                                }
-                            }
-                        }
-                    }
-                    
-                    override fun onDone() {
-                        val totalTime = System.currentTimeMillis() - startTime
-                        LatencyLogger.log("LocalLLMActivity", "Total Generation Time: ${totalTime}ms")
-                        
-                        runOnUiThread {
-                            if (!isGenerating) return@runOnUiThread
-                            timeoutJob?.cancel()
-                            
-                            var finalResponse = lastResponseBuilder.toString()
-                            
-                            // Auto-Context Clearing Hack for silent KV Cache overflows
-                            if (finalResponse.trim().length <= 3) {
-                                android.util.Log.w("LocalLLMActivity", "Suspiciously short response. KV Cache full. Resetting...")
-                                chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Automatically clearing history...", isUser = false))
-                                LLMManager.resetConversation()
-                                resetControls()
-                                generateText(prompt, isVoice, displayPrompt)
-                                return@runOnUiThread
-                            }
-                            
-                            finalResponse = finalResponse.replace(regex, "").trim()
-                            if (finalResponse.isEmpty() && executedTools.isNotEmpty()) {
-                                finalResponse = executedTools.joinToString("\n") { tool ->
-                                    when {
-                                        tool.startsWith("increaseTemperature") -> "I've increased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("decreaseTemperature") -> "I've decreased the temperature by ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("setTemperature") -> "I've set the temperature to ${tool.substringAfter("(").substringBefore(")")} degrees."
-                                        tool.startsWith("setSeatHeater") -> "I've adjusted the seat heater."
-                                        tool.startsWith("setSeatMassager") -> "I've turned on the seat massager for you."
-                                        tool.startsWith("turnOnDefroster") -> "I've turned on the defroster."
-                                        tool.startsWith("turnOffDefroster") -> "I've turned off the defroster."
-                                        tool.startsWith("setWindowPosition") -> "I've adjusted the windows."
-                                        tool.startsWith("navigate") -> "Routing to ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("playMusic") -> "Playing ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("pauseMusic") -> "Music paused."
-                                        tool.startsWith("nextTrack") -> "Skipping to next track."
-                                        tool.startsWith("prevTrack") -> "Playing previous track."
-                                        tool.startsWith("call") -> "Calling ${tool.substringAfter("(").substringBefore(")")}."
-                                        tool.startsWith("remember") -> "Got it, I've remembered that."
-                                        else -> "Action completed."
-                                    }
-                                }
-                            }
-                            chatAdapter.replaceLastMessage(finalResponse)
-                            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-                            
-                            // Make sure dashboard reflects any VHAL changes made by the AI
-                            updateDashboardUI()
-                            
-                            resetControls()
-                            if (isVoice) {
-                                val remainingSentence = finalResponse.substring(spokenTextLength[0]).trim()
-                                if (remainingSentence.isNotEmpty()) {
-                                    tts.speak(remainingSentence, TextToSpeech.QUEUE_ADD, null, "PARTIAL")
-                                }
-                                val finalUtterance = if (finalResponse.trim().endsWith("?")) "QUESTION_FINAL" else "STATEMENT_FINAL"
-                                tts.playSilentUtterance(10, TextToSpeech.QUEUE_ADD, finalUtterance)
-                            }
-                        }
-                    }
-                    
-                override fun onError(throwable: Throwable) {
-                    runOnUiThread {
-                        timeoutJob?.cancel()
-                        val errorMsg = throwable.message ?: ""
-                        chatAdapter.updateLastMessage("\nError: $errorMsg")
-                        resetControls()
-                        
-                        chatAdapter.addMessage(ChatMessage("Model error occurred (likely context full). Clearing history to prevent freeze...", isUser = false))
-                        if (LocalLLMActivity.isCloudModelActive) {
-                            if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) GeminiManager.resetConversation()
-                            else AnthropicManager.resetConversation()
-                        } else {
-                            LLMManager.resetConversation()
-                        }
-                    }
-                }
-            }
-            
-
-            val cloudCallback = object : CloudMessageCallback {
-                override fun onMessage(chunkText: String) {
-                    runOnUiThread {
-                        val chunk = chunkText
-                        lastResponseBuilder.append(chunk)
-                        chatAdapter.updateLastMessage(lastResponseBuilder.toString())
-                        chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-                    }
-                }
-                override fun onDone() { callback.onDone() }
-                override fun onError(throwable: Throwable) { callback.onError(throwable) }
-            }
-            if (LocalLLMActivity.isCloudModelActive) {
-                lifecycleScope.launch {
-                    val systemPrompt = LLMManager.getSystemPrompt(applicationContext, prompt)
-                    if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
-                        GeminiManager.sendMessageAsync(systemPrompt, prompt, cloudCallback)
-                    } else {
-                        AnthropicManager.sendMessageAsync(systemPrompt, prompt, cloudCallback)
-                    }
-                }
-            } else {
-                LLMManager.conversation?.sendMessageAsync(
-                    com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalPrompt)),
-                    callback,
-                    emptyMap()
-                )
-            }
-        } catch (e: Exception) {
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                timeoutJob?.cancel()
-                val errorMsg = e.message ?: ""
-                chatAdapter.updateLastMessage("\nError: $errorMsg")
-                resetControls()
-                LLMManager.isFirstMessage = true
-                
-                if (errorMsg.contains("busy", ignoreCase = true) || errorMsg.contains("processing", ignoreCase = true) || errorMsg.contains("invoke", ignoreCase = true)) {
-                    chatAdapter.addMessage(ChatMessage("Context Limit Exceeded. Clearing history...", isUser = false))
-                    LLMManager.resetConversation()
-                }
-            }
-        }
-        }
+        initOrchestratorBridge()
+        orchestratorBridge?.enableTts = isVoice
+        isVoiceMode = isVoice
+        orchestratorBridge?.handleQuery(prompt)
     }
 
     private suspend fun runAutomatedTests() {
