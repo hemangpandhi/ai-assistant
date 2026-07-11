@@ -110,6 +110,13 @@ class AgentOrchestrator(
             return
         }
 
+        if (pendingConfirmationTool == null && MemoryManager.isAffirmative(query)) {
+            val last = LLMManager.lastAiResponse.lowercase()
+            if (last.contains("seat heater")) {
+                pendingConfirmationTool = "setSeatHeater(2)"
+            }
+        }
+
         lastResponseBuilder.clear()
         ttsSpokenLength = 0
         lastTtsUpdateTime = 0L
@@ -212,18 +219,24 @@ class AgentOrchestrator(
         }
 
         val finalPrompt: String = withContext(Dispatchers.IO) {
+            val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+            val maxHistoryChars = toolManager.slidingWindowMaxChars
+            val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)
+            val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
+            val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
+
             if (isAgenticObservation) {
                 MemoryManager.addTurn("System", interceptedQuery)
             } else {
                 MemoryManager.addTurn("User", interceptedQuery)
             }
-            val slidingHistory = MemoryManager.getSlidingWindowContext(500)
 
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            val dynamicState = if (!isAgenticObservation && interceptedQuery.length < 25) {
-                ""
-            } else {
+            val needsTelemetry = !isAgenticObservation && (interceptedQuery.length >= 25 || isFollowUp)
+            val dynamicState = if (needsTelemetry) {
                 SmartContextInjector.getInjectedContext(interceptedQuery, context)
+            } else {
+                ""
             }
             val vehicleState = if (dynamicState.isNotEmpty()) "[Current State: $dynamicState]" else ""
 
@@ -232,7 +245,7 @@ class AgentOrchestrator(
                 "$vehicleState\n"
             } else ""
 
-            val currentToolsString = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+            val currentToolsString = toolManager.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
             val toolsInject = if (currentToolsString.isNotBlank() && currentToolsString != LLMManager.lastInjectedTools) {
                 LLMManager.lastInjectedTools = currentToolsString
                 "\n[Available Tools]\n$currentToolsString\n"
@@ -240,14 +253,16 @@ class AgentOrchestrator(
                 ""
             }
 
-            if (LocalLLMActivity.isCloudModelActive) {
-                if (slidingHistory.isNotEmpty()) {
-                    "$sysPrompt\n\n[Conversation History]\n$slidingHistory\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
-                } else {
-                    "$sysPrompt\n\n\n$vehicleState\n${if(currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
-                }
+            val historyBlock = if (priorHistory.isNotEmpty()) {
+                "\n[Recent Conversation]\n$priorHistory\n"
             } else {
-                "$stateInject$toolsInject\n$interceptedQuery"
+                ""
+            }
+
+            if (LocalLLMActivity.isCloudModelActive) {
+                "$sysPrompt\n\n[Conversation History]\n${if (priorHistory.isNotEmpty()) priorHistory else "(start)"}\n\n$vehicleState\n${if (currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
+            } else {
+                "$stateInject$toolsInject$historyBlock\nUser: $interceptedQuery\nAssistant:"
             }
         }
 

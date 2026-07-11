@@ -53,6 +53,9 @@ class ToolManager {
     var prewarmQuery: String = "control climate music volume track navigation windows sightseeing food charging"
         private set
 
+    var slidingWindowMaxChars: Int = 3000
+        private set
+
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
@@ -69,6 +72,9 @@ class ToolManager {
                 val config = jsonObject.getJSONObject("config")
                 if (config.has("prewarm_query")) {
                     prewarmQuery = config.getString("prewarm_query")
+                }
+                if (config.has("sliding_window_max_chars")) {
+                    slidingWindowMaxChars = config.getInt("sliding_window_max_chars")
                 }
             }
 
@@ -187,6 +193,14 @@ class ToolManager {
         val coldEmpathyPhrases = listOf("feeling cold", "i am cold", "i'm cold", "shivering", "bit cold")
         if (coldEmpathyPhrases.any { q.contains(it) }) {
             return emptyList()
+        }
+
+        // Short follow-ups rely on prior assistant context for tool routing
+        if (isFollowUpQuery(userQuery) && conversationalContext.isNotBlank()) {
+            val contextTools = activeTools.values.filter { tool ->
+                tool.keywords?.any { kw -> conversationalContext.lowercase().contains(kw) } == true
+            }
+            if (contextTools.isNotEmpty()) return contextTools.distinct().take(4)
         }
 
         val exactMatches = activeTools.values.filter { tool ->
