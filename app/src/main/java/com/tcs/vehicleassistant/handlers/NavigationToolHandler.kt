@@ -64,17 +64,7 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                 else if (amenity.contains("charging")) { overpassQuery = "node[\"amenity\"=\"charging_station\"]" }
                 else if (amenity.contains("food") || amenity.contains("restaurant")) { overpassQuery = "node[\"amenity\"=\"restaurant\"]" }
                 
-                var bbox = "35.47,139.27,35.67,139.47" // Default Sagamihara
-                try {
-                    val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    val locationOverride = prefs.getString("location_override", "139.37, 35.57") ?: "139.37, 35.57"
-                    if (locationOverride.contains(",")) {
-                        val parts = locationOverride.split(",")
-                        val lon = parts[0].trim().toDouble()
-                        val lat = parts[1].trim().toDouble()
-                        bbox = "${lat - 0.1},${lon - 0.1},${lat + 0.1},${lon + 0.1}"
-                    }
-                } catch (e: Exception) { e.printStackTrace() }
+                val bbox = LocationManager.getBbox(context)
 
                 val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 10;"
                 try {

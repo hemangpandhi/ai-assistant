@@ -40,8 +40,39 @@
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Auto Flush Interval (Tests)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
     <EditText android:id="@+id/etAutoFlush" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="number" />
 
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Location Override (lon,lat)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
-    <EditText android:id="@+id/etLocationOverride" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="text" android:hint="e.g. 139.37,35.57 for Sagamihara" android:textColorHint="#888888" />
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Demo &amp; Location"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Demo Preset" android:textColor="#DDDDDD" />
+    <Spinner android:id="@+id/spinnerDemoPreset" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Location Source" android:textColor="#DDDDDD" />
+    <Spinner android:id="@+id/spinnerLocationSource" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" />
+
+    <TextView
+        android:id="@+id/tvResolvedLocation"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textColor="#AAAAAA"
+        android:textSize="12sp"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnApplyDemoPreset"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Apply Selected Preset"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Manual Coordinates (lon, lat)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etLocationOverride" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="text" android:hint="Used when source is Manual, or as GPS fallback" android:textColorHint="#888888" />
 
     <TextView
         android:layout_width="wrap_content"

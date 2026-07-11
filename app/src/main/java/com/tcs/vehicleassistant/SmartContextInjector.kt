@@ -50,7 +50,7 @@ object SmartContextInjector {
 
         // 2. Location Domain
         if (requiresLocationState) {
-            parts.add("City=${LocationManager.getCurrentCity()}")
+            parts.add("City=${LocationManager.getCurrentCity(context)}")
         }
         
         // 3. Custom Properties Domain
