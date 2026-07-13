@@ -55,13 +55,10 @@ class EdgeLLMProvider : ILLMProvider {
             return
         }
 
-        val promptToUse = if (LLMManager.isFirstMessage) {
-            LLMManager.isFirstMessage = false
-            val sysPrompt = LLMManager.getSystemPrompt(context, userQuery)
-            "$sysPrompt\n\n$prompt"
-        } else {
-            prompt
-        }
+        // Force stateless generation to avoid KV cache corruption and token repetition
+        LLMManager.resetConversation()
+
+        val promptToUse = LLMManager.getSystemPrompt(context, userQuery) + "\n\n" + prompt
 
         val responseBuilder = StringBuilder()
         val streamStart = System.currentTimeMillis()
