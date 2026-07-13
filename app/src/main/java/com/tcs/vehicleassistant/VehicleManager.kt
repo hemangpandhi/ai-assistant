@@ -675,4 +675,10 @@ object VehicleManager {
             Log.e("VehicleManager", "Failed to cleanup", e)
         }
     }
+
+
+    fun setTemperature(temp: Float) {}
+    fun setAmbientColor(r: Int, g: Int, b: Int) {}
+    fun applySavedCabinPreferences(user: String) {}
+    fun lockdownValetMode() {}
 }

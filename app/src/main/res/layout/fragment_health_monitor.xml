@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="bottom|start"
+    android:padding="32dp">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#B3000000"
+        android:padding="24dp"
+        android:layout_marginBottom="32dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="HEALTH MONITOR"
+            android:textColor="#03DAC6"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1"/>
+
+        <TextView
+            android:id="@+id/tvBpm"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BPM: --"
+            android:textColor="#FF5252"
+            android:textSize="28sp"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp"/>
+
+        <TextView
+            android:id="@+id/tvStress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Stress: Low"
+            android:textColor="#FFEB3B"
+            android:textSize="28sp"
+            android:layout_marginTop="8dp"/>
+    </LinearLayout>
+</LinearLayout>

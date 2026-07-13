@@ -87,6 +87,10 @@ class AgentOrchestrator(
 
     fun isProcessing(): Boolean = !isQueryProcessed
 
+    fun triggerProactiveEvent(prompt: String) {
+        handleQuery(prompt)
+    }
+
     fun handleQuery(query: String, retryCount: Int = 0) {
         if (LLMManager.isPrewarming) {
             _events.tryEmit(OrchestratorEvent.ShowToast("Model is prewarming, please wait a moment..."))
