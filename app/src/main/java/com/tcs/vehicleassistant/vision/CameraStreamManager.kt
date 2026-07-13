@@ -80,8 +80,11 @@ class CameraStreamManager(
                                 val options = BitmapFactory.Options().apply {
                                     inSampleSize = 4 // Downsample by 4 (e.g. 1920x1080 -> 480x270). severe speedup.
                                 }
-                                val bitmap = BitmapFactory.decodeByteArray(buffer, frameStart, length, options)
-                                if (bitmap != null) {
+                                val rawBitmap = BitmapFactory.decodeByteArray(buffer, frameStart, length, options)
+                                if (rawBitmap != null) {
+                                    val matrix = android.graphics.Matrix()
+                                    matrix.postRotate(270f) // Rotation 3 (270 degrees)
+                                    val bitmap = android.graphics.Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
                                     onFrame(bitmap)
                                 }
                             } catch (e: Exception) {
