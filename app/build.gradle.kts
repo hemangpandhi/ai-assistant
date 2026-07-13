@@ -69,6 +69,8 @@ android {
 }
 
 dependencies {
+    implementation("org.tensorflow:tensorflow-lite:2.13.0")
+    implementation("com.google.mediapipe:tasks-vision:0.10.14")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
