@@ -63,15 +63,41 @@ class CockpitAwarenessActivity : AppCompatActivity() {
     }
 
     private fun startVisionService() {
-        Intent(this, CockpitVisionService::class.java).also { intent ->
-            bindService(intent, connection, Context.BIND_AUTO_CREATE)
-        }
+        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        val lastUrl = prefs.getString("camera_url", "http://192.168.1.100:8080/video")
+
+        val input = android.widget.EditText(this)
+        input.setText(lastUrl)
+
+        android.app.AlertDialog.Builder(this)
+            .setTitle("IP Camera Connection")
+            .setMessage("Enter the MJPEG stream URL (e.g., from IP Webcam app):")
+            .setView(input)
+            .setPositiveButton("Connect") { _, _ ->
+                val url = input.text.toString()
+                prefs.edit().putString("camera_url", url).apply()
+
+                val intent = Intent(this, CockpitVisionService::class.java).apply {
+                    putExtra("CAMERA_URL", url)
+                }
+                
+                // Start FGS and then bind to it
+                startForegroundService(intent)
+                bindService(intent, connection, Context.BIND_AUTO_CREATE)
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.cancel()
+                finish()
+            }
+            .show()
     }
 
     override fun onStart() {
         super.onStart()
         if (checkSelfPermission(android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-            startVisionService()
+            if (!isBound) {
+                startVisionService()
+            }
         }
     }
 
