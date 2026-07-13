@@ -14,4 +14,7 @@ val appModule = module {
 
     single<ILLMProvider>(named("edge")) { EdgeLLMProvider() }
     single<ILLMProvider>(named("cloud")) { CloudLLMProvider() }
+
+    single<com.tcs.vehicleassistant.hardware.IAudioManager> { com.tcs.vehicleassistant.hardware.AndroidAudioManager(get()) }
+    single { com.tcs.vehicleassistant.repository.AgentOrchestrator(get(), get()) }
 }
