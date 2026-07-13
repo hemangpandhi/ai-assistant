@@ -58,7 +58,8 @@ class EdgeLLMProvider : ILLMProvider {
         // Force stateless generation to avoid KV cache corruption and token repetition
         LLMManager.resetConversation()
 
-        val promptToUse = LLMManager.getSystemPrompt(context, userQuery) + "\n\n" + prompt
+        val sysPrompt = LLMManager.getSystemPrompt(context, userQuery)
+        val promptToUse = "<start_of_turn>user\n$sysPrompt\n\n$prompt<end_of_turn>\n<start_of_turn>model\n"
 
         val responseBuilder = StringBuilder()
         val streamStart = System.currentTimeMillis()
@@ -81,7 +82,7 @@ class EdgeLLMProvider : ILLMProvider {
                         }
 
                         responseBuilder.append(text)
-                        onToken(responseBuilder.toString())
+                        onToken(text)
                     }
 
                     override fun onDone() {

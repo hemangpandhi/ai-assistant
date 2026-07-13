@@ -31,7 +31,7 @@ class CloudLLMProvider : ILLMProvider {
         val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {
             override fun onMessage(chunkText: String) {
                 responseBuilder.append(chunkText)
-                onToken(responseBuilder.toString())
+                onToken(chunkText)
             }
             override fun onDone() {
                 onDone(responseBuilder.toString())
