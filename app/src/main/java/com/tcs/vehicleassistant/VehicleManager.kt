@@ -1,4 +1,6 @@
+
 package com.tcs.vehicleassistant
+import kotlinx.coroutines.launch
 
 import android.car.Car
 import android.car.VehiclePropertyIds
@@ -677,8 +679,22 @@ object VehicleManager {
     }
 
 
-    fun setTemperature(temp: Float) {}
-    fun setAmbientColor(r: Int, g: Int, b: Int) {}
-    fun applySavedCabinPreferences(user: String) {}
-    fun lockdownValetMode() {}
+    fun setTemperature(temp: Float) {
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            writeTemperatureToVhalVerified(temp)
+        }
+    }
+    fun setAmbientColor(r: Int, g: Int, b: Int) {
+        // Not implemented in VHAL mock yet, but we'll print a log
+        android.util.Log.d("VehicleManager", "Setting ambient color to R:$r G:$g B:$b")
+    }
+    fun applySavedCabinPreferences(user: String) {
+        android.util.Log.d("VehicleManager", "Applying saved preferences for user: $user")
+        if (user == "Hemang") {
+            setTemperature(18f)
+        }
+    }
+    fun lockdownValetMode() {
+        android.util.Log.d("VehicleManager", "Locking down Valet Mode")
+    }
 }
