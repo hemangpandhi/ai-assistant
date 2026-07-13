@@ -640,6 +640,12 @@ class LocalLLMActivity : AppCompatActivity() {
                 Toast.makeText(this, "TTS Settings not found on this device.", Toast.LENGTH_SHORT).show()
             }
         }
+
+        val btnCockpitAI = findViewById<Button>(R.id.btnCockpitAI)
+        btnCockpitAI?.setOnClickListener {
+            val intent = Intent(this, CockpitAwarenessActivity::class.java)
+            startActivity(intent)
+        }
         
         // Wake Word Initialization
         val currentWakeWord = prefs.getString("wake_word", "hey auto")

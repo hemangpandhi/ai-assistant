@@ -1,0 +1,21 @@
+--- app/src/main/res/layout/activity_main.xml
++++ app/src/main/res/layout/activity_main.xml
+@@ -91,6 +91,17 @@
+             android:minHeight="0dp"
+             android:minWidth="0dp"
+             android:padding="0dp"/>
++            
++        <com.google.android.material.button.MaterialButton
++            android:id="@+id/btnCockpitAI"
++            style="@style/Widget.MaterialComponents.Button.TextButton"
++            android:layout_width="wrap_content"
++            android:layout_height="wrap_content"
++            android:layout_marginStart="8dp"
++            android:textColor="#03DAC5"
++            android:text="[Cockpit AI]"
++            android:minHeight="0dp"
++            android:minWidth="0dp"
++            android:padding="0dp"/>
+ 
+     </LinearLayout>
+ 
