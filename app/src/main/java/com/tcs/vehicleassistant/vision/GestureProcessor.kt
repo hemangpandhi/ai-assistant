@@ -201,6 +201,8 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
                 var eyeBlinkLeftScore = 0f
                 var eyeBlinkRightScore = 0f
                 
+                var gazeSum = 0f
+                
                 for (category in blendshapes) {
                     val name = category.categoryName()
                     val score = category.score()
@@ -219,12 +221,12 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
                          // Keep existing combined score for Drowsiness logic
                         if (score > 0.5) eyeBlinkScore += 0.5f 
                     }
-                    if (name == "eyeLookOutLeft" || name == "eyeLookOutRight" || name == "eyeLookUp" || name == "eyeLookDown") {
-                        if (score > 0.5) gazeOutScore = score
+                    if (name == "eyeLookOutLeft" || name == "eyeLookOutRight" || name == "eyeLookInLeft" || name == "eyeLookInRight" || name == "eyeLookUpLeft" || name == "eyeLookUpRight" || name == "eyeLookDownLeft" || name == "eyeLookDownRight") {
+                        gazeSum += score
                     }
                     if (name == "browInnerUp") browInnerUpScore = score
                     if (name == "noseSneerLeft" || name == "noseSneerRight") {
-                        if (score > 0.5) noseSneerScore = score // Max or single trigger
+                        noseSneerScore += score // Sum for pain/discomfort
                     }
                     
                     // New Moods
@@ -250,8 +252,8 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
                     eyesClosedStartTime = 0L
                 }
                 
-                // 2. Distraction (Gaze Away > 2s)
-                if (gazeOutScore > 0.6) {
+                // 2. Distraction (Gaze vector sum > threshold for 2s)
+                if (gazeSum > 1.5f) { // If looking away significantly
                     if (distractionStartTime == 0L) distractionStartTime = now
                     if (now - distractionStartTime > 2000) {
                         newState = "DISTRACTED"
@@ -264,13 +266,13 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
                 // 3. Expressions (Immediate)
                 if (newState == "Neutral") {
                     if (browInnerUpScore > 0.5) {
-                        newState = "Confused ?"
-                    } else if (noseSneerScore > 0.5) {
-                        newState = "Discomfort/Wince"
+                        newState = "Cognitive Load"
+                    } else if (noseSneerScore > 0.6) {
+                        newState = "Pain/Discomfort"
                     } else if (cheekPuffScore > 0.4) {
-                        newState = "Frustrated (Cheek Puff)"
+                        newState = "Frustration"
                     } else if (eyeSquintScore > 1.0 && smileScore < 0.2) { // Squinting without smiling
-                        newState = "Skeptical -_-"
+                        newState = "Skepticism"
                     } else if (smileScore > 0.5) {
                         newState = "Happy :)"
                     } else if (browDownScore > 0.5) {
@@ -280,9 +282,9 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
                     } else if (jawOpenScore > 0.45) { // Raised threshold for Surprise
                         newState = "Surprised :O"
                     } else if (eyeBlinkLeftScore > 0.5 && eyeBlinkRightScore < 0.2) {
-                        newState = "Winking (Left)"
+                        newState = "Winking"
                     } else if (eyeBlinkRightScore > 0.5 && eyeBlinkLeftScore < 0.2) {
-                        newState = "Winking (Right)"
+                        newState = "Winking"
                     }
                 }
                 
