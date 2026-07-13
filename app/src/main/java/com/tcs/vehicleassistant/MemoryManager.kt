@@ -34,7 +34,7 @@ object MemoryManager {
     fun isFollowUpQuery(query: String): Boolean {
         val q = query.lowercase().trim()
         if (q.length > 60) return false
-        return followUpPatterns.any { q == it || q.contains(it) }
+        return followUpPatterns.any { Regex("\\b$it\\b", RegexOption.IGNORE_CASE).containsMatchIn(q) }
     }
 
     private val longTermCapturePatterns = listOf(

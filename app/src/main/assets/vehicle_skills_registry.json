@@ -92,7 +92,7 @@
         "setcabintemp",
         "setTempTo"
       ],
-      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Only ask driver vs passenger if they give an exact number without specifying a zone."
+      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Do NOT use this tool for relative commands like 'increase temperature', 'decrease temperature', 'warmer', or 'cooler' unless a specific target number is provided. Use increaseTemperature or decreaseTemperature instead."
     },
     {
       "prompt_string": "<TOOL>increaseTemperature(zone)</TOOL>",
