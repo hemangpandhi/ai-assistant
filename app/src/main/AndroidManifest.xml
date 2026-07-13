@@ -52,8 +52,10 @@
     <!-- Permissions for Vosk Wake Word Background Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.CAMERA" />
 
     <application
         android:name=".VehicleApplication"
@@ -102,6 +104,14 @@
         <service android:name=".WakeWordService"
                  android:foregroundServiceType="microphone"
                  android:exported="true" />
+                 
+        <activity
+            android:name=".CockpitAwarenessActivity"
+            android:exported="true" />
+
+        <service android:name=".vision.CockpitVisionService"
+                 android:foregroundServiceType="camera"
+                 android:exported="false" />
     </application>
 
 </manifest>
