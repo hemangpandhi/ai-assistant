@@ -65,9 +65,6 @@ android {
         viewBinding = true
         buildConfig = true
     }
-    packaging {
-        jniLibs.useLegacyPackaging = true
-    }
     useLibrary("android.car")
 }
 
@@ -78,7 +75,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
-    implementation("com.google.mediapipe:tasks-text:0.10.14")
+    // Disabled tasks-text because it causes JNI collision with tasks-vision on some devices
+    // implementation("com.google.mediapipe:tasks-text:0.10.14")
     
     // Dependency Injection
     implementation("io.insert-koin:koin-android:3.5.3")

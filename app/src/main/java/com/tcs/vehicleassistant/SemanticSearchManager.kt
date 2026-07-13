@@ -2,13 +2,13 @@ package com.tcs.vehicleassistant
 
 import android.content.Context
 import android.util.Log
-import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
+// import com.google.mediapipe.tasks.text.textembedder.TextEmbedder
 import com.google.mediapipe.tasks.core.BaseOptions
 import kotlin.math.sqrt
 
 class SemanticSearchManager(private val toolManager: ToolManager) {
     private val TAG = "SemanticSearch"
-    private var embedder: TextEmbedder? = null
+    // private var embedder: TextEmbedder? = null
     private var isInitialized = false
     
     // Cache for tool embeddings: Map of CommandName -> FloatArray
@@ -17,6 +17,8 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
+            // Disabled TextEmbedder to fix MediaPipe Vision JNI collision
+            /*
             val baseOptions = BaseOptions.builder()
                 .setModelAssetPath("universal_sentence_encoder.tflite")
                 .build()
@@ -25,8 +27,9 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
                 .build()
             
             embedder = TextEmbedder.createFromOptions(context, options)
+            */
             isInitialized = true
-            Log.i(TAG, "SemanticSearchManager initialized successfully.")
+            Log.i(TAG, "SemanticSearchManager initialized (Fallback mode).")
             
             // Wait for ToolManager to be initialized to build cache, but we'll build it lazily or explicitly
         } catch (e: Throwable) {
@@ -35,7 +38,9 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
     }
 
     fun embedText(text: String): FloatArray? {
-        if (!isInitialized || embedder == null) return null
+        if (!isInitialized) return null
+        return null // Fallback
+        /*
         return try {
             val result = embedder?.embed(text)
             val embedding = result?.embeddingResult()?.embeddings()?.firstOrNull()
@@ -44,6 +49,7 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
             Log.e(TAG, "Error embedding text: $text", e)
             null
         }
+        */
     }
 
     fun buildToolEmbeddingsCache() {

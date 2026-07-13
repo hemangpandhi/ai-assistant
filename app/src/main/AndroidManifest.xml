@@ -63,7 +63,6 @@
         android:icon="@drawable/ic_mic_small"
         android:label="VehicleEdgeAssistant"
         android:supportsRtl="true"
-        android:extractNativeLibs="true"
         android:usesCleartextTraffic="true"
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
         
