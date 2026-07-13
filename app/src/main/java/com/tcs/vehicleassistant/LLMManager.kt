@@ -64,10 +64,15 @@ object LLMManager {
             val internalDir = context.filesDir
             val externalDir = context.getExternalFilesDir(null)
             val tmpDir = File("/data/local/tmp/")
-
+            val explicitGemma = File("/data/local/tmp/gemma-4-E2B-it.litertlm")
+            
             val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
                 .flatMap { it.toList() }
                 .toMutableList()
+                
+            if (explicitGemma.exists() && explicitGemma.canRead()) {
+                allFiles.add(explicitGemma)
+            }
 
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             

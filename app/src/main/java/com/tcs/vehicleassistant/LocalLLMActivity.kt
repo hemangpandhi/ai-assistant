@@ -294,7 +294,7 @@ class LocalLLMActivity : AppCompatActivity() {
         if (intent.action == "com.tcs.vehicleassistant.RUN_TESTS" && !isTestRunning) {
             val internalFiles = applicationContext.filesDir.listFiles()?.toList() ?: emptyList()
             val externalFiles = applicationContext.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
-            val tmpFiles = java.io.File("/data/local/tmp/").listFiles()?.toList() ?: emptyList()
+            val explicitGemma2 = java.io.File("/data/local/tmp/gemma-4-E2B-it.litertlm"); val tmpFiles = if (explicitGemma2.exists() && explicitGemma2.canRead()) listOf(explicitGemma2) else emptyList()
             val allFiles = internalFiles + externalFiles + tmpFiles
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             android.util.Log.i("AutomatedTest", "Found models: ${models.joinToString { it.absolutePath }}")
@@ -1031,7 +1031,7 @@ class LocalLLMActivity : AppCompatActivity() {
         
         val internalFiles = internalDir.listFiles()?.toList() ?: emptyList()
         val externalFiles = externalDir?.listFiles()?.toList() ?: emptyList()
-        val tmpFiles = tmpDir.listFiles()?.toList() ?: emptyList()
+        val explicitGemma = java.io.File("/data/local/tmp/gemma-4-E2B-it.litertlm"); val tmpFiles = if (explicitGemma.exists() && explicitGemma.canRead()) listOf(explicitGemma) else emptyList()
         val allFiles = internalFiles + externalFiles + tmpFiles
         
         var modelFile = allFiles.firstOrNull { it.name == currentModel.filename }
