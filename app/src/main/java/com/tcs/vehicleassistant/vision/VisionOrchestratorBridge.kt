@@ -20,6 +20,9 @@ class VisionOrchestratorBridge(private val context: Context, private val orchest
     private var lastPassengerTrigger = 0L
     private var lastEmergencyTrigger = 0L
     private var lastJoyTrigger = 0L
+    private var lastDrowsyTrigger = 0L
+    private var currentDriverProfile = "Guest"
+    
     private val DEBOUNCE_MS = 60000L // 1 minute cooldown
     private val GESTURE_DEBOUNCE_MS = 10000L // 10 seconds for gestures
 
@@ -88,6 +91,38 @@ class VisionOrchestratorBridge(private val context: Context, private val orchest
                 lastJoyTrigger = now
                 Log.w("VisionOrchestrator", "Driver is happy!")
                 val prompt = "[SYSTEM EVENT: The driver is smiling and looks genuinely happy. Casually chime in with something like: 'Looks like you're really enjoying the drive today! Would you like me to save this route or the current song to your favorites?']"
+                triggerLLM(prompt)
+            }
+        }
+
+        // --- NEW WOW FEATURES ---
+
+        // WOW Feature 1: Vitality Guard (Active Safety Intervention)
+        if (mood == "DROWSY WARNING" || mood == "DISTRACTED") {
+            if (now - lastDrowsyTrigger > DEBOUNCE_MS) {
+                lastDrowsyTrigger = now
+                Log.w("VisionOrchestrator", "Vitality Guard triggered! State: $mood")
+
+                CoroutineScope(Dispatchers.Main).launch {
+                    VehicleManager.writeTemperatureToVhalVerified(16f) // Max Cold
+                    VehicleManager.writeFanSpeedToVhalVerified(7) // Max Fan
+                    VehicleManager.writeWindowPositionToVhalVerified(50) // Roll window down
+                }
+
+                val prompt = "[SYSTEM EVENT: URGENT! The driver is falling asleep or highly distracted. I have automatically blasted the AC to max cold and rolled down the window to wake them up. Proactively speak and say EXACTLY this: 'Hey, keep your eyes on the road! I've lowered the temperature to help wake you up. I see a coffee shop 2 miles ahead—shall I route us there?']"
+                triggerLLM(prompt)
+            }
+        }
+
+        // WOW Feature 4: The Seamless Hand-off (Biometric Memory)
+        if (gestureFeedback.driverName != currentDriverProfile) {
+            val oldDriver = currentDriverProfile
+            currentDriverProfile = gestureFeedback.driverName
+            
+            // Only trigger if we switched to a known, registered driver (not Guest-to-Guest fluttering)
+            if (currentDriverProfile != "Guest") {
+                Log.w("VisionOrchestrator", "Driver Hand-off detected: $oldDriver -> $currentDriverProfile")
+                val prompt = "[SYSTEM EVENT: A new driver was biometrically detected in the seat! The current driver is now '$currentDriverProfile'. Greet them warmly by name, confirm you are adjusting the cabin temperature to their preference, and reference something from their memory (like asking if they want to find a sushi restaurant nearby).]"
                 triggerLLM(prompt)
             }
         }
