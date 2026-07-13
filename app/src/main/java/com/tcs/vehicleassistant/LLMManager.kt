@@ -154,8 +154,8 @@ object LLMManager {
                     cacheDir = context.cacheDir.absolutePath
                 )
 
-                // Enable Multi-Token Prediction (MTP) / Speculative Decoding for faster token generation
-                ExperimentalFlags.enableSpeculativeDecoding = true
+                // Disable Multi-Token Prediction (MTP) / Speculative Decoding to fix token repetition
+                ExperimentalFlags.enableSpeculativeDecoding = false
 
                 engine = Engine(engineConfig)
                 engine!!.initialize()
