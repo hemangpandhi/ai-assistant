@@ -25,6 +25,13 @@ class CockpitAwarenessActivity : AppCompatActivity() {
             val binder = service as CockpitVisionService.LocalBinder
             visionService = binder.getService()
             isBound = true
+
+            val ivCameraFeed = findViewById<android.widget.ImageView>(R.id.ivCameraFeed)
+            visionService?.onFrameCallback = { bitmap ->
+                runOnUiThread {
+                    ivCameraFeed.setImageBitmap(bitmap)
+                }
+            }
             
             // Connect fragments to the service
             val adapter = viewPager.adapter as? CockpitPagerAdapter
