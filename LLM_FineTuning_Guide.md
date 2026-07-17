@@ -41,6 +41,7 @@ The exact string sent to the LLM engine is a concatenation of the **System Promp
 The ML Engineer must understand that the prompt is **rebuilt from scratch in real-time** for every single turn. The example prompts below represent a *single snapshot in time*.
 1. **Dynamic Tools (RAG):** When the user speaks, the app searches the skills registry and dynamically injects *only the 3 to 8 tools* that are semantically relevant to that specific request.
 2. **Dynamic Context (Hardware State):** Right before the prompt is sent to the LLM, the app queries the actual car hardware (VHAL) for its up-to-the-second state (e.g., current fan speed, current GPS city). This live data is formatted into the `[System Context: ...]` string.
+3. **Multi-Turn Chat History:** The Android app forces *stateless generation* on the edge model to prevent memory corruption. It achieves multi-turn memory by explicitly appending the last few conversational turns into a `[Recent Conversation]` block right before the final `User:` message.
 
 Because of this dynamic assembly, the model will always have the exact tools and exact hardware state it needs to fulfill the user's request. Your fine-tuning dataset must simulate this dynamic environment by varying the tools and context in each training row.
 
@@ -103,7 +104,12 @@ Memory: None
 - <TOOL>decreaseTemperature(ZONE)</TOOL>: Decrease temperature
 
 [System Context: DriverTemp=72F, PassTemp=70F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON]
-User: I'm feeling a bit chilly, can you fix that?
+
+[Recent Conversation]
+User: It's freezing outside!
+Assistant: I know, it looks so cold! Don't worry, the heater is already on.
+
+User: Actually, I'm still feeling a bit chilly, can you fix that?
 ```
 
 #### Raw Input Example 2 (Vision System Event)
