@@ -37,6 +37,13 @@ That sounds like a long day. If you'd like, I can play some relaxing music for t
 
 The exact string sent to the LLM engine is a concatenation of the **System Prompt**, **Vehicle Context**, and the **User/System Message**.
 
+### Critical Concept: Dynamic Real-Time Assembly
+The ML Engineer must understand that the prompt is **rebuilt from scratch in real-time** for every single turn. The example prompts below represent a *single snapshot in time*.
+1. **Dynamic Tools (RAG):** When the user speaks, the app searches the skills registry and dynamically injects *only the 3 to 8 tools* that are semantically relevant to that specific request.
+2. **Dynamic Context (Hardware State):** Right before the prompt is sent to the LLM, the app queries the actual car hardware (VHAL) for its up-to-the-second state (e.g., current fan speed, current GPS city). This live data is formatted into the `[System Context: ...]` string.
+
+Because of this dynamic assembly, the model will always have the exact tools and exact hardware state it needs to fulfill the user's request. Your fine-tuning dataset must simulate this dynamic environment by varying the tools and context in each training row.
+
 ### A. The System Prompt Base
 The app constructs the system instructions with these core sections:
 
