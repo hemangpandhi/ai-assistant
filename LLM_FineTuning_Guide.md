@@ -149,7 +149,10 @@ To ensure your fine-tuning works seamlessly in the app, your dataset must replic
 To successfully train the Gemma model for this environment, the ML Engineer should focus on the following steps:
 
 1. **Synthetic Dataset Generation:** Use a larger teacher model (like GPT-4o or Gemini 1.5 Pro) to synthetically generate 10,000+ conversational pairs (User Input -> Model Output). 
-2. **Negative Sampling (Crucial):** Generate examples where the model should explicitly **fail or refuse** to use a tool. For example, if the user asks "Can you open the sunroof?" but the sunroof tool is missing from the `AVAILABLE TOOLS` list in the prompt, the model must be trained to output a conversational apology rather than hallucinating `<TOOL>openSunroof()</TOOL>`.
+    *   **Simulating the Dynamic Context (Crucial):** Because the real app injects tools and context dynamically, your static JSONL dataset must simulate this by **randomizing** the prompt for every row. 
+    *   *Row A:* Inject 4 HVAC tools + `[System Context: Temp=72F]`. User says "I'm cold." Model learns to output `<TOOL>increaseTemperature(all)</TOOL>`.
+    *   *Row B:* Inject 5 Navigation tools + `[System Context: City=Seattle]`. User says "Where are we?". Model learns to read the injected context and say "We are in Seattle!" without using tools.
+2. **Negative Sampling (Hallucination Prevention):** Generate examples where the model should explicitly **fail or refuse** to use a tool. For example, if the user asks "Can you open the sunroof?" but you intentionally omit the sunroof tool from the `AVAILABLE TOOLS` list in that specific training row, the model must be trained to output a conversational apology rather than hallucinating `<TOOL>openSunroof()</TOOL>`.
 3. **Parameter Extraction Focus:** Ensure the dataset strongly reinforces exact XML matching. The model must learn that `<TOOL> increaseTemperature(all) </TOOL>` (with spaces) will fail the app's regex parser. It must output exact, clean strings like `<TOOL>increaseTemperature(all)</TOOL>`.
 4. **LoRA / QLoRA Fine-Tuning:** Since this model will run on mobile device hardware (NPU/GPU), train using Parameter-Efficient Fine-Tuning (PEFT) methods like QLoRA on the Gemma-IT base model. Export the final merged weights to a LiteRT `.bin` or `.litertlm` compatible format.
 
