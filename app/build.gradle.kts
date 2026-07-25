@@ -65,6 +65,12 @@ android {
         viewBinding = true
         buildConfig = true
     }
+    packaging {
+        jniLibs {
+            pickFirsts.add("lib/**/libLiteRt.so")
+            pickFirsts.add("**/libLiteRt.so")
+        }
+    }
     useLibrary("android.car")
 }
 
@@ -89,11 +95,21 @@ dependencies {
     // Alternatively, for cloud fallback:
     // implementation("com.google.ai.client.generativeai:generativeai:0.2.0")
 
-    implementation("com.google.ai.edge.litertlm:litertlm-android:latest.release")
+    implementation(files("libs/soniqo-speech.aar"))
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.11.0")
 
     // Vosk Offline Speech Recognition for Wake Word
     implementation("com.alphacephei:vosk-android:0.3.47@aar")
     implementation("net.java.dev.jna:jna:5.13.0@aar")
+    
+    // CameraX
+    val cameraxVersion = "1.3.1"
+    implementation("androidx.camera:camera-core:$cameraxVersion")
+    implementation("androidx.camera:camera-camera2:$cameraxVersion")
+    implementation("androidx.camera:camera-lifecycle:$cameraxVersion")
+    implementation("androidx.lifecycle:lifecycle-process:2.6.2")
+    implementation("androidx.camera:camera-view:$cameraxVersion")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20210307")

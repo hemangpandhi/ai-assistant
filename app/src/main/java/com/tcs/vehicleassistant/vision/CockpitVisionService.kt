@@ -1,6 +1,7 @@
 package com.tcs.vehicleassistant.vision
 
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
+import com.tcs.vehicleassistant.VehicleManager
 import org.koin.android.ext.android.inject
 
 import android.app.NotificationChannel
@@ -51,6 +52,11 @@ class CockpitVisionService : Service() {
         fun getService(): CockpitVisionService = this@CockpitVisionService
     }
 
+    private var latestHealthState: HealthState = HealthState(72, "Low", false)
+
+    private lateinit var aaosUserSwitchManager: com.tcs.vehicleassistant.hardware.AAOSUserSwitchManager
+    private var currentDriverName: String = ""
+
     override fun onCreate() {
         super.onCreate()
         startForegroundServiceNotification()
@@ -59,12 +65,16 @@ class CockpitVisionService : Service() {
         visionBridge = VisionOrchestratorBridge(this, orchestrator)
         faceIdentityProcessor = FaceIdentityProcessor(this)
         faceProfileManager = FaceProfileManager(this)
+        aaosUserSwitchManager = com.tcs.vehicleassistant.hardware.AAOSUserSwitchManager(this)
 
         gestureProcessor = GestureProcessor(this) { feedback ->
             latestGestureFeedback = feedback
+            com.tcs.vehicleassistant.hardware.CabinCameraManager.currentMood = feedback.mood
+            onStatsUpdateCallback?.invoke(latestHealthState, feedback, identitySimilarity, recognizedUserName)
         }
 
         healthProcessor = HealthProcessor { state ->
+            latestHealthState = state
             latestGestureFeedback?.let { feedback ->
                 visionBridge.onHealthUpdate(state, feedback)
             }
@@ -82,59 +92,86 @@ class CockpitVisionService : Service() {
 
     private fun startStream(url: String) {
         streamManager?.stop()
-        streamManager = CameraStreamManager(
-            onFrame = { bitmap ->
-                lastFrame = bitmap
-                onFrameCallback?.invoke(bitmap)
+        com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = null
 
-                scope.launch {
-                    gestureProcessor.processingFrame(bitmap)
-                    val faceResult = gestureProcessor.lastFaceResult
-                    val currentMood = latestGestureFeedback?.mood
-                    healthProcessor.processFrame(bitmap, faceResult, currentMood)
-
-                    identityCheckCounter++
-                    if (identityCheckCounter % 30 == 0) { // Every ~3 seconds at 10fps
-                        val embedding = faceIdentityProcessor.extractEmbedding(bitmap)
-                        embedding?.let { currentEmb ->
-                            // Compare against all stored profiles
-                            val allProfiles = faceProfileManager.getAllProfiles()
-                            var bestMatchName = "Guest"
-                            var highestSimilarity = 0f
-
-                            for ((name, savedEmb) in allProfiles) {
-                                val sim = faceIdentityProcessor.computeSimilarity(currentEmb, savedEmb)
-                                if (sim > highestSimilarity) {
-                                    highestSimilarity = sim
-                                    bestMatchName = name
-                                }
-                            }
-
-                            identitySimilarity = highestSimilarity
-                            // 0.6 is a standard threshold for FaceNet cosine similarity
-                            if (highestSimilarity > 0.6f) {
-                                recognizedUserName = bestMatchName
-                                // Inject into global state so LLM knows
-                                VisionState.recognizedUser = bestMatchName
-                            } else {
-                                recognizedUserName = "Guest"
-                                VisionState.recognizedUser = "Guest"
-                            }
-                        }
-                    }
-                }
-            },
-            onConnected = { },
-            onError = { }
-        )
-        streamManager?.startStream(url)
+        if (url == "native") {
+            com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = { bitmap ->
+                handleIncomingFrame(bitmap)
+            }
+            com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(
+                this,
+                androidx.lifecycle.ProcessLifecycleOwner.get()
+            )
+        } else {
+            streamManager = CameraStreamManager(
+                onFrame = { bitmap ->
+                    handleIncomingFrame(bitmap)
+                },
+                onConnected = { },
+                onError = { }
+            )
+            streamManager?.startStream(url)
+        }
     }
 
-    fun saveCurrentFace(name: String) {
+    private fun handleIncomingFrame(bitmap: Bitmap) {
+        lastFrame = bitmap
+        onFrameCallback?.invoke(bitmap)
+
+        scope.launch {
+            gestureProcessor.processingFrame(bitmap)
+            val faceResult = gestureProcessor.lastFaceResult
+            val currentMood = latestGestureFeedback?.mood
+            healthProcessor.processFrame(bitmap, faceResult, currentMood)
+
+            identityCheckCounter++
+            if (identityCheckCounter % 30 == 0) { // Every ~3 seconds at 10fps
+                val embedding = faceIdentityProcessor.extractEmbedding(bitmap)
+                embedding?.let { currentEmb ->
+                    // Compare against all stored profiles
+                    val allProfiles = faceProfileManager.getAllProfiles()
+                    var bestMatchName = "Guest"
+                    var highestSimilarity = 0f
+
+                    for ((name, savedEmb) in allProfiles) {
+                        val sim = faceIdentityProcessor.computeSimilarity(currentEmb, savedEmb)
+                        if (sim > highestSimilarity) {
+                            highestSimilarity = sim
+                            bestMatchName = name
+                        }
+                    }
+
+                    identitySimilarity = highestSimilarity
+                    // 0.6 is a standard threshold for FaceNet cosine similarity
+                    if (highestSimilarity > 0.6f) {
+                        recognizedUserName = bestMatchName
+                        VisionState.recognizedUser = bestMatchName
+
+                        // Trigger zero-touch AAOS user switch & VHAL preferences if driver changed
+                        if (recognizedUserName != currentDriverName) {
+                            currentDriverName = recognizedUserName
+                            val targetUserId = faceProfileManager.getOsUserId(recognizedUserName)
+                            val targetTemp = faceProfileManager.getTargetTemp(recognizedUserName)
+
+                            android.util.Log.d("CockpitVisionService", "Face ID verified for $recognizedUserName! Triggering user switch to User ID $targetUserId")
+                            aaosUserSwitchManager.switchUser(targetUserId, recognizedUserName)
+                            VehicleManager.applySavedCabinPreferences(recognizedUserName, targetTemp)
+                        }
+                    } else {
+                        recognizedUserName = "Guest"
+                        VisionState.recognizedUser = "Guest"
+                    }
+                }
+            }
+        }
+    }
+
+    fun saveCurrentFace(name: String, osUserId: Int = 10, targetTemp: Float = 20.0f) {
         lastFrame?.let { bitmap ->
             val embedding = faceIdentityProcessor.extractEmbedding(bitmap)
             if (embedding != null) {
-                faceProfileManager.saveProfile(name, embedding)
+                faceProfileManager.saveProfile(name, embedding, osUserId, targetTemp)
+                android.util.Log.d("CockpitVisionService", "Saved face profile for $name (User ID: $osUserId, Temp: $targetTemp°C)")
             }
         }
     }
@@ -146,6 +183,7 @@ class CockpitVisionService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         streamManager?.stop()
+        com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = null
     }
 
     private fun startForegroundServiceNotification() {

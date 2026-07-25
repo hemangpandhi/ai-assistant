@@ -38,6 +38,7 @@
     <uses-permission android:name="android.permission.SET_TIME" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAPTURE_AUDIO_HOTWORD" />
+    <uses-permission android:name="android.permission.CAMERA" />
     
     <!-- Permissions required for Car VHAL and Media Control -->
     <uses-permission android:name="android.permission.MEDIA_CONTENT_CONTROL" />
@@ -106,11 +107,21 @@
                  
         <activity
             android:name=".CockpitAwarenessActivity"
+            android:screenOrientation="sensorLandscape"
             android:exported="true" />
 
         <service android:name=".vision.CockpitVisionService"
                  android:foregroundServiceType="camera"
                  android:exported="false" />
+                 
+        <service android:name="audio.soniqo.speech.service.SpeechRecognitionService"
+                 android:permission="android.permission.BIND_RECOGNITION_SERVICE"
+                 android:exported="true">
+            <intent-filter>
+                <action android:name="android.speech.RecognitionService" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </service>
     </application>
 
 </manifest>

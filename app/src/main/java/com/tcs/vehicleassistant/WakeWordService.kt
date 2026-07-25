@@ -71,7 +71,7 @@ class WakeWordService : Service() {
             }
         }
         
-        // Background Pre-warming of Gemini Nano
+        // Background Pre-warming of Gemini Nano and Soniqo
         CoroutineScope(Dispatchers.Main).launch {
             LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
                 override fun onSuccess() {
@@ -81,6 +81,8 @@ class WakeWordService : Service() {
                 }
             })
         }
+
+
     }
     
     private fun updateWakeWord() {

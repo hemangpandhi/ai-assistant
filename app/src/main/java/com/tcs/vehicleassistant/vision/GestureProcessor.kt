@@ -271,15 +271,15 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
                         newState = "Pain/Discomfort"
                     } else if (cheekPuffScore > 0.4) {
                         newState = "Frustration"
-                    } else if (eyeSquintScore > 1.0 && smileScore < 0.2) { // Squinting without smiling
+                    } else if (eyeSquintScore > 1.0 && smileScore < 0.2) {
                         newState = "Skepticism"
-                    } else if (smileScore > 0.5) {
+                    } else if (smileScore > 0.6) { // Lowered threshold for Happy
                         newState = "Happy :)"
-                    } else if (browDownScore > 0.5) {
+                    } else if (browDownScore > 0.6) {
                         newState = "Angry >:("
-                    } else if (frownScore > 0.5) {
+                    } else if (frownScore > 0.6) {
                         newState = "Sad :("
-                    } else if (jawOpenScore > 0.45) { // Raised threshold for Surprise
+                    } else if (jawOpenScore > 0.4) { 
                         newState = "Surprised :O"
                     } else if (eyeBlinkLeftScore > 0.5 && eyeBlinkRightScore < 0.2) {
                         newState = "Winking"
@@ -293,7 +293,13 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
                     // Force immediate update if critical
                      Log.w("GestureProcessor", "Critical State: $newState")
                 }
+            } else {
+                currentMood = "No Face Detected"
+                driverName = "Guest"
+                passengerPresent = false
             }
+        } ?: run {
+            currentMood = "No Face Detected"
         }
     }
 

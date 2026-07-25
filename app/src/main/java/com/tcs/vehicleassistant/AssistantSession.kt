@@ -88,7 +88,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     override fun onHide() {
         super.onHide()
-        audioManager?.destroySpeechRecognizer()
+        audioManager?.stopListening()
+        audioManager?.stopSpeaking()
 
         val restartIntent = Intent(context, WakeWordService::class.java)
         restartIntent.action = "ACTION_RESTART_LISTENING"
@@ -288,15 +289,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                     is ViewModelEvent.LaunchIntent -> {
                         try {
                             event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            this@AssistantSession.startVoiceActivity(event.intent)
+                            context.applicationContext.startActivity(event.intent)
+                            
+                            // Optionally hide the assistant UI so the newly launched app is visible
+                            this@AssistantSession.hide()
                         } catch (e: Exception) {
-                            android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
-                            try {
-                                event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                context.applicationContext.startActivity(event.intent)
-                            } catch (e2: Exception) {
-                                android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
-                            }
+                            android.util.Log.e("AssistantSession", "startActivity failed for intent: ${event.intent}", e)
                         }
                     }
                     is ViewModelEvent.FinishSession -> {
@@ -351,49 +349,29 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         stopListeningIntent.action = "ACTION_STOP_LISTENING"
         context.startService(stopListeningIntent)
 
-        if (LLMManager.isReady() && LLMManager.isFirstMessage) {
+        if (!LLMManager.isReady() || LLMManager.isInitializing || LLMManager.isPrewarming) {
             statusText.text = "Initializing Model..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
+            btnMic.isEnabled = false
 
             CoroutineScope(Dispatchers.Main).launch {
+                // Wait until LLMManager is fully ready and not prewarming
                 withContext(Dispatchers.IO) {
-                    LLMManager.prewarm(context)
+                    while (!LLMManager.isReady() || LLMManager.isInitializing || LLMManager.isPrewarming) {
+                        delay(500)
+                    }
                 }
                 statusText.text = "Hi, how can I help you?"
                 inputControls.visibility = View.VISIBLE
                 btnSend.isEnabled = true
+                btnMic.isEnabled = true
+                
+                // Automatically start listening if invoked via voice match/hotword
                 if (showFlags and SHOW_WITH_ASSIST != 0) {
-                    delay(500)
+                    delay(500) // Wait for WakeWordService to release the mic
                     btnMic.performClick()
                 }
-            }
-        } else if (!LLMManager.isReady()) {
-            statusText.text = "Initializing Model..."
-            btnOpenApp.visibility = View.GONE
-            inputControls.visibility = View.GONE
-
-            CoroutineScope(Dispatchers.Main).launch {
-                LLMManager.autoInitialize(context, callback = object : LLMManager.InitCallback {
-                    override fun onSuccess() {
-                        CoroutineScope(Dispatchers.Main).launch {
-                            statusText.text = "Hi, how can I help you?"
-                            inputControls.visibility = View.VISIBLE
-                            btnSend.isEnabled = true
-
-                            // Automatically start listening if invoked via voice match/hotword
-                            if (showFlags and SHOW_WITH_ASSIST != 0) {
-                                delay(500) // Wait for WakeWordService to release the mic
-                                btnMic.performClick()
-                            }
-                        }
-                    }
-
-                    override fun onError(e: Exception) {
-                        statusText.text = "Failed to load model. Please open the app."
-                        btnOpenApp.visibility = View.VISIBLE
-                    }
-                })
             }
         } else {
             // DO NOT reset the conversation here. Resetting invalidates the KV cache
@@ -525,3 +503,4 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         super.onDestroy()
     }
 }
+

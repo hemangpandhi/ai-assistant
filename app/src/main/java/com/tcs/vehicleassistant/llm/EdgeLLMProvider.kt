@@ -55,11 +55,12 @@ class EdgeLLMProvider : ILLMProvider {
             return
         }
 
-        // Force stateless generation to avoid KV cache corruption and token repetition
-        LLMManager.resetConversation()
+        // Use the prewarmed stateful conversation to avoid high TTFT
+        // LLMManager.resetConversation() // REMOVED to keep KV cache
 
-        val sysPrompt = LLMManager.getSystemPrompt(context, userQuery)
-        val promptToUse = "<start_of_turn>user\n$sysPrompt\n\n$prompt<end_of_turn>\n<start_of_turn>model\n"
+        // The system prompt was already injected during prewarm.
+        // We only need to wrap the latest user prompt with Gemma chat template tags.
+        val promptToUse = "<start_of_turn>user\n$prompt<end_of_turn>\n<start_of_turn>model\n"
 
         val responseBuilder = StringBuilder()
         val streamStart = System.currentTimeMillis()

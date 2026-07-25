@@ -262,7 +262,8 @@ object LLMManager {
         basePrompt.append("11. NAVIGATION SYNTAX: Use <TOOL>startNavigationTo(\"Place Name\")</TOOL> for navigation. The alias navigate() also works at execution time.\n")
         basePrompt.append("12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n")
         basePrompt.append("13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using <TOOL> tags.\n")
-        basePrompt.append("14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use <TOOL>remember(FACT)</TOOL> for durable facts. Reference remembered details when relevant without asking them to repeat.\n\n")
+        basePrompt.append("14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use <TOOL>remember(FACT)</TOOL> for durable facts. Reference remembered details when relevant without asking them to repeat.\n")
+        basePrompt.append("15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is 'Tired / Yawning', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is 'Frustrated / Frowning', keep your answers extremely brief and avoid asking follow-up questions. If 'Happy / Smiling', match their energetic tone. If 'No one detected', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n\n")
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
@@ -320,8 +321,10 @@ object LLMManager {
         }
     }
 
+    var isPrewarmed = false
+
     suspend fun prewarm(context: Context) {
-        if (engine == null || conversation == null || !isFirstMessage) return
+        if (engine == null || conversation == null || isPrewarmed) return
         
         synchronized(this) {
             if (isPrewarming) return
@@ -344,6 +347,7 @@ object LLMManager {
                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {}
                     override fun onDone() {
                         Log.d("LLMManager", "Prewarm onDone called")
+                        isPrewarmed = true
                         isFirstMessage = false
                         done.complete(Unit)
                     }

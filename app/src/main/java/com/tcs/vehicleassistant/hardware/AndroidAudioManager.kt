@@ -9,7 +9,7 @@ import android.speech.SpeechRecognizer
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import java.util.Locale
-
+import kotlinx.coroutines.*
 class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     private var tts: TextToSpeech? = null
@@ -31,7 +31,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private var onSttPartial: ((String) -> Unit)? = null
 
     override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
-        tts = TextToSpeech(context) { status ->
+        tts = TextToSpeech(context, { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts?.language = Locale.US
                 try {
@@ -66,87 +66,160 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             } else {
                 onError()
             }
-        }
+        }, "com.google.android.tts")
     }
 
+    private var isListening = false
+    private var isRecognizerReady = false
+    private var customAudioRecord: android.media.AudioRecord? = null
+    private var customRecognizer: org.vosk.Recognizer? = null
+    private var listeningJob: Job? = null
+
     override fun startListening() {
-        if (speechRecognizer == null) {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
-            speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-                override fun onReadyForSpeech(params: Bundle?) {
-                    onSttReadyForSpeech?.invoke()
-                }
-                override fun onBeginningOfSpeech() {
-                    onSttBeginningOfSpeech?.invoke()
-                }
-                override fun onRmsChanged(rmsdB: Float) {}
-                override fun onBufferReceived(buffer: ByteArray?) {}
-                override fun onEndOfSpeech() {
-                    // Unmute audio stream in case it was muted during recording
-                    try {
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
-                    } catch (_: Exception) {}
-                    
-                    onSttEndOfSpeech?.invoke()
-                }
-                override fun onError(error: Int) {
-                    // Unmute audio stream in case an error occurred before ready
-                    try {
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
-                    } catch (_: Exception) {}
-                    
-                    onSttError?.invoke(error)
-                }
-                override fun onResults(results: Bundle?) {
-                    val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
-                        onSttResult?.invoke(matches[0])
-                    } else {
-                        onSttEmptyResult?.invoke()
-                    }
-                }
-                override fun onPartialResults(partialResults: Bundle?) {
-                    val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                    if (!matches.isNullOrEmpty()) {
-                        onSttPartial?.invoke(matches[0])
-                    }
-                }
-                override fun onEvent(eventType: Int, params: Bundle?) {}
-            })
+        if (isListening) return
+        isListening = true
+
+        val voskModel = com.tcs.vehicleassistant.WakeWordService.sharedModel
+        if (voskModel == null) {
+            isListening = false
+            onSttError?.invoke(0)
+            return
         }
-        
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 300L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 200L)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+
+        try {
+            customRecognizer = org.vosk.Recognizer(voskModel, 16000.0f)
+            
+            val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
+            customAudioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+
+            if (customAudioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
+                isListening = false
+                onSttError?.invoke(0)
+                return
+            }
+
+            customAudioRecord?.startRecording()
+            
+            // Notify UI that we are ready
+            isRecognizerReady = true
+            onSttReadyForSpeech?.invoke()
+
+            listeningJob = CoroutineScope(Dispatchers.IO).launch {
+                val buffer = ShortArray(bufferSize)
+                var speechStarted = false
+                
+                try {
+                    while (isListening && isActive) {
+                        val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
+                        if (readSize > 0) {
+                            if (!speechStarted) {
+                                val maxAmplitude = buffer.maxOrNull() ?: 0
+                                if (maxAmplitude > 300) {
+                                    speechStarted = true
+                                    withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
+                                }
+                            }
+
+                            if (customRecognizer?.acceptWaveForm(buffer, readSize) == true) {
+                                val result = customRecognizer?.result
+                                if (result != null) {
+                                    val json = org.json.JSONObject(result)
+                                    val text = json.optString("text", "")
+                                    if (text.isNotBlank()) {
+                                        withContext(Dispatchers.Main) { onSttResult?.invoke(text) }
+                                        isListening = false
+                                        break
+                                    }
+                                }
+                            } else {
+                                val partial = customRecognizer?.partialResult
+                                if (partial != null) {
+                                    val json = org.json.JSONObject(partial)
+                                    val text = json.optString("partial", "")
+                                    if (text.isNotBlank()) {
+                                        withContext(Dispatchers.Main) { onSttPartial?.invoke(text) }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) { onSttError?.invoke(0) }
+                } finally {
+                    withContext(Dispatchers.Main) { onSttEndOfSpeech?.invoke() }
+                    withContext(Dispatchers.Main) { destroySpeechRecognizer() }
+                }
+            }
+        } catch (e: Exception) {
+            isListening = false
+            onSttError?.invoke(0)
         }
-        speechRecognizer?.startListening(intent)
     }
 
     override fun stopListening() {
-        speechRecognizer?.stopListening()
-        speechRecognizer?.cancel()
+        if (!isListening) return
+        isListening = false
+        
+        try {
+            val finalResult = customRecognizer?.finalResult
+            if (finalResult != null) {
+                val json = org.json.JSONObject(finalResult)
+                val text = json.optString("text", "")
+                if (text.isNotBlank()) {
+                    CoroutineScope(Dispatchers.Main).launch { onSttResult?.invoke(text) }
+                } else {
+                    CoroutineScope(Dispatchers.Main).launch { onSttEmptyResult?.invoke() }
+                }
+            }
+        } catch (e: Exception) {}
+        
+        destroySpeechRecognizer()
     }
 
     override fun destroySpeechRecognizer() {
+        isListening = false
+        isRecognizerReady = false
+        listeningJob?.cancel()
+        listeningJob = null
         try {
-            speechRecognizer?.cancel()
-            speechRecognizer?.destroy()
-            speechRecognizer = null
-        } catch (_: Exception) {}
+            customAudioRecord?.stop()
+            customAudioRecord?.release()
+        } catch (e: Exception) {}
+        customAudioRecord = null
+        
+        try {
+            customRecognizer?.close()
+        } catch (e: Exception) {}
+        customRecognizer = null
     }
 
     override fun speak(text: String, utteranceId: String) {
-        tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+        var result = tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+        if (result == TextToSpeech.ERROR || tts == null) {
+            // TTS engine might have died or unbound. Try to re-initialize and speak again.
+            initialize(
+                onSuccess = {
+                    tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                },
+                onError = {
+                    onTtsError?.invoke(utteranceId)
+                }
+            )
+        }
     }
 
     override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
-        tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+        var result = tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+        if (result == TextToSpeech.ERROR || tts == null) {
+            initialize(
+                onSuccess = {
+                    tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+                },
+                onError = {
+                    onTtsError?.invoke(utteranceId)
+                }
+            )
+        }
     }
 
     override fun stopSpeaking() {
@@ -158,9 +231,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         tts?.shutdown()
         tts = null
         
-        speechRecognizer?.cancel()
-        speechRecognizer?.destroy()
-        speechRecognizer = null
+        destroySpeechRecognizer()
     }
 
     override fun setUtteranceListener(

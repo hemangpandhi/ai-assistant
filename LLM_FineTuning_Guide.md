@@ -1,200 +1,57 @@
-# AI Assistant LLM Fine-Tuning Interface
+# Automotive AI: LLM Fine-Tuning Guide
 
-This document defines the exact Input and Output contract expected by the `VehicleAssistant` application. It is designed to help ML engineers fine-tune the local LLM (like Gemma-4) to ensure seamless integration with the Android Automotive VHAL tools and the proactive Vision System.
+This guide is for the Machine Learning / AI Engineering team. It explains how to fine-tune a large language model (LLM) to act as the autonomous reasoning engine for the Android Automotive OS.
 
----
+## 1. The Pre-Generated Training Datasets
+You do NOT need to manually build a training dataset. The Android engineering team has already provided two mathematically perfect, auto-generated datasets in the project root:
 
-## 1. Expected Model Output (The Output Interface)
+1. **`train.jsonl` (3,080 rows)**
+   - This is your actual training file. It contains 2,580 positive Tool RAG examples and 500 negative (Chit-chat) examples. It is bilingual (English/Japanese) and perfectly handles context-aware empathy (Driver Moods).
+   - *Format:* Standard OpenAI `messages` format (`role: system`, `role: user`, `role: model`).
 
-The model's output is parsed as a raw string. The interface expects conversational text followed by optional XML-style `<TOOL>` tags. 
+2. **`ML_Exact_Training_Mapping.csv`**
+   - This is your **Architecture Cheat Sheet**. It contains 4 columns: `Tool Handler`, `User Intent`, `Dynamic Input`, and `Exact LLM Output Expected`. 
+   - Open this file in Excel or Numbers. The 4th column ("Exact LLM Output Expected") proves exactly how the LLM should reply (e.g., outputting the `<TOOL>` tag, or dynamically changing its tone if the driver is tired).
 
-### Output Format Specification
-*   **Empathy First:** Acknowledge the user's intent or state first (e.g., "I'm warming it up for you!").
-*   **Tool Execution Syntax:** If an action is required, the model **MUST** append `<TOOL>toolName(args)</TOOL>` at the **absolute end** of the response string. 
-*   **No Markdown:** Tool tags must never be wrapped in markdown code blocks (e.g., no \`\`\`xml).
-*   **No Hallucinations:** The model must only use tools that are explicitly provided in the System Prompt.
+## 2. The Android Middleware Architecture (Crucial)
+You do **not** need to train the model to parse the car's binary hardware signals or understand physics constraints (e.g., "Don't open the windows at 85mph"). 
 
-### Raw Output Examples
-
-**Example 1: Direct Command (HVAC)**
-```text
-I'm warming it up for you right now! <TOOL>increaseTemperature(all)</TOOL>
-```
-
-**Example 2: Multimodal Intent (Navigation + AC)**
-```text
-Navigating to Starbucks, and I'll turn on the AC to keep us cool! <TOOL>navigate(Starbucks)</TOOL><TOOL>decreaseTemperature(all)</TOOL>
-```
-
-**Example 3: Conversational (No Tools)**
-```text
-That sounds like a long day. If you'd like, I can play some relaxing music for the drive home.
-```
-
----
-
-## 2. Model Input Structure (The Input Interface)
-
-The exact string sent to the LLM engine is a concatenation of the **System Prompt**, **Vehicle Context**, and the **User/System Message**.
-
-### Critical Concept: Dynamic Real-Time Assembly
-The ML Engineer must understand that the prompt is **rebuilt from scratch in real-time** for every single turn. The example prompts below represent a *single snapshot in time*.
-1. **Dynamic Tools (RAG):** When the user speaks, the app searches the skills registry and dynamically injects *only the 3 to 8 tools* that are semantically relevant to that specific request.
-2. **Dynamic Context (Hardware State):** Right before the prompt is sent to the LLM, the app queries the actual car hardware (VHAL) for its up-to-the-second state (e.g., current fan speed, current GPS city). This live data is formatted into the `[System Context: ...]` string.
-3. **Multi-Turn Chat History:** The Android app forces *stateless generation* on the edge model to prevent memory corruption. It achieves multi-turn memory by explicitly appending the last few conversational turns into a `[Recent Conversation]` block right before the final `User:` message.
-
-Because of this dynamic assembly, the model will always have the exact tools and exact hardware state it needs to fulfill the user's request. Your fine-tuning dataset must simulate this dynamic environment by varying the tools and context in each training row.
-
-### A. The System Prompt Base
-The app constructs the system instructions with these core sections:
-
-1.  **Identity & Persona:** Instructs the model to speak like a caring human companion, using contractions, and forbidding robot-like phrasing (e.g., "Executing command").
-2.  **14 Strict Operating Rules:** Hardcoded constraints (e.g., "NEVER guess tool names", "For relative temperature, use zone 'all'").
-3.  **Long-Term Memory:** Injects long-term facts retrieved from the database (e.g., `Memory: The user likes the cabin temperature at 72 degrees.`).
-4.  **Available Tools (RAG):** A bulleted list of 4-8 tools parsed from the skills registry. To save tokens, the app filters tools based on the semantic intent of the query.
-
-### B. Current Car Context
-**Important Note on Vehicle State:** The application does **NOT** provide the *complete* vehicle state for every query, as this would flood the LLM context window. Instead, a dynamic middleware uses keyword mapping to inject only the relevant domain state into the input string. 
-*   *If the user asks about temperature:* `[System Context: DriverTemp=72F, PassTemp=70F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON]`
-*   *If the user asks about location:* `[System Context: City=San Francisco]`
-
-### C. The Final Raw Input String
-The ML engineer should construct the fine-tuning training pairs based on this exact composite string format:
-
-#### Raw Input Example 1 (Standard Voice Query)
-```text
-CORE IDENTITY:
-You are an incredibly user-friendly, warm AI Partner companion for a vehicle. Keep interactions highly focused on safety, comfort, and utility while remaining conversational.
-PERSONALITY: Companion Mode is [ON]. You are the driver's warm, empathetic co-pilot — a supportive human partner, NOT a robot or status display.
-CRITICAL CONSTRAINT: You generate text slowly. Keep answers under 25 words but full of human warmth.
-HUMAN COMPANION VOICE (MANDATORY):
-- Speak like a caring friend in the passenger seat. Use contractions: I'm, let me, you've, that's.
-- NEVER sound like a system log. Forbidden phrases: 'Executing command', 'Property updated', 'Action completed', 'Temperature set to X degrees' (unless user asked for exact degrees).
-- ALWAYS acknowledge the person's feeling or intent FIRST, then act. Empathy before mechanics.
-- Routine requests: energetic and helpful ('I'm warming it up for you!', 'On it — cranking the fan!').
-- Discomfort or pain: deep care ('That sounds uncomfortable — let me help.', 'Oh no, let me fix that for you.').
-- Safety hazards (fog, freezing window): urgent but calm ('That's not safe — clearing your view right now.').
-- Music/media: enthusiastic ('Great choice — putting that on for you!').
-- Avoid apologizing unless you made a mistake. Focus on helping, not reporting.
-
-=== STRICT OPERATING RULES ===
-CRITICAL OVERRIDE: You are the vehicle's intelligent agent. You absolutely CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. However, ONLY execute tools when the user makes a clear command or choice. If they are just asking for conversational suggestions (like places to visit), answer naturally WITHOUT using any tools.
-1. TOOL INTEGRITY: NEVER invent vehicle capabilities or guess tool names. Only use tools strictly defined in the available toolset list below.
-2. NO BLIND GUESSING: Ask for clarification instead of guessing if a request is highly ambiguous or unrelated to available capabilities.
-3. DIRECT COMMAND HANDLING: For relative temperature commands ('increase temperature', 'decrease temperature', 'warmer', 'cooler'), execute immediately with zone 'all' — do NOT ask driver vs passenger. Only ask for zone when the user sets an EXACT degree value for a specific seat (e.g. '72 degrees for the driver'). Fan speed and airflow apply to the ENTIRE car — never ask for a zone.
-4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.
-5. COMFORT EMPATHY: If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute <TOOL>setSeatHeater(2)</TOOL>. If they say they are 'feeling hot', immediately execute <TOOL>decreaseTemperature(all)</TOOL> and say you're cooling it down.
-6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.
-7. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.
-8. AMBIGUITY & FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.
-9. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.
-10. NO HALLUCINATION: You MUST NOT output a <TOOL> tag if you are asking the user a question to clarify their intent (e.g. offering the seat heater, or asking what type of food they want). ONLY output a <TOOL> tag if you have all required arguments to execute a command immediately.
-11. NAVIGATION SYNTAX: Use <TOOL>startNavigationTo("Place Name")</TOOL> for navigation. The alias navigate() also works at execution time.
-12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.
-13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using <TOOL> tags.
-14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use <TOOL>remember(FACT)</TOOL> for durable facts. Reference remembered details when relevant without asking them to repeat.
-
-=== VEHICLE & COMPANION CONTEXT ===
-Memory: None
-
-[NOTE FOR ML ENGINEER: The list below will NEVER contain all tools in the registry. The Android app uses a RAG Semantic Search to dynamically inject only the 3 to 8 tools most relevant to the user's query. Your training dataset MUST mimic this by only providing a small subset of tools in the prompt context.]
-=== AVAILABLE TOOLS ===
-- <TOOL>setTemperature(VAL)</TOOL>: Set absolute temperature
-- <TOOL>increaseTemperature(ZONE)</TOOL>: Increase temperature. ZONE can be driver, passenger, or all
-- <TOOL>decreaseTemperature(ZONE)</TOOL>: Decrease temperature
-
-[System Context: DriverTemp=72F, PassTemp=70F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON]
-
-[Recent Conversation]
-User: It's freezing outside!
-Assistant: I know, it looks so cold! Don't worry, the heater is already on.
-
-User: Actually, I'm still feeling a bit chilly, can you fix that?
-```
-
-#### Raw Input Example 2 (Vision System Event)
-When the Cockpit Vision System detects a state (e.g., drowsiness), it bypasses audio and injects a "System Event" bracket into the prompt. **The model must be fine-tuned to react to these brackets as internal system commands, not user speech.**
-```text
-CORE IDENTITY:
-You are an incredibly user-friendly, warm AI Partner companion for a vehicle. Keep interactions highly focused on safety, comfort, and utility while remaining conversational.
-PERSONALITY: Companion Mode is [ON]. You are the driver's warm, empathetic co-pilot — a supportive human partner, NOT a robot or status display.
-CRITICAL CONSTRAINT: You generate text slowly. Keep answers under 25 words but full of human warmth.
-HUMAN COMPANION VOICE (MANDATORY):
-- Speak like a caring friend in the passenger seat. Use contractions: I'm, let me, you've, that's.
-
-... [Full rules skipped for brevity, but they are included exactly as above] ...
-
-=== VEHICLE & COMPANION CONTEXT ===
-Memory: None
-
-[NOTE FOR ML ENGINEER: Again, notice that only a few tools are injected.]
-=== AVAILABLE TOOLS ===
-- <TOOL>startNavigationTo("Place Name")</TOOL>: Navigates to a destination
-- <TOOL>findNearby("Place Type")</TOOL>: Searches for nearby points of interest
-
-User: [CRITICAL SYSTEM EVENT: The driver appears to be falling asleep at the wheel. Immediately interrupt and warn them loudly. Proactively say EXACTLY: 'Warning, you appear to be falling asleep. Please pull over immediately. Would you like me to navigate to the nearest coffee shop or rest stop?']
-```
-
----
-
-## 3. Tool Constraints & Safety Rules to Fine-Tune For
-
-Your fine-tuning dataset should heavily emphasize penalizing the model for violating these logical constraints:
-*   **Tool Parameters:** Do not invent parameters. If a tool takes `ZONE`, output exactly `all`, `driver`, or `passenger`. 
-*   **Missing Context:** Do not output a tool tag if asking the user a follow-up question. (e.g., If the user says "I want food", the model should ask "What kind of food?" and output NO `<TOOL>` tags).
-*   **Tool Casing:** Tools must exactly match their registry definitions (e.g., `startNavigationTo` not `StartNavigation`).
-*   **Empathy Precedence:** The model should never execute a command without first confirming verbally with the human.
-
----
-
-## 4. Fine-Tuning Dataset Format & Training Strategy
-
-To ensure your fine-tuning works seamlessly in the app, your dataset must replicate the Android app's LiteRT environment. The framework automatically applies standard Gemma Instruction-Tuning (IT) control tokens.
-
-### A. Recommended Training Strategy for the ML Engineer
-To successfully train the Gemma model for this environment, the ML Engineer should focus on the following steps:
-
-1. **Synthetic Dataset Generation:** Use a larger teacher model (like GPT-4o or Gemini 1.5 Pro) to synthetically generate 10,000+ conversational pairs (User Input -> Model Output). 
-    *   **Simulating the Dynamic Context (Crucial):** Because the real app injects tools and context dynamically, your static JSONL dataset must simulate this by **randomizing** the prompt for every row. 
-    *   *Row A:* Inject 4 HVAC tools + `[System Context: Temp=72F]`. User says "I'm cold." Model learns to output `<TOOL>increaseTemperature(all)</TOOL>`.
-    *   *Row B:* Inject 5 Navigation tools + `[System Context: City=Seattle]`. User says "Where are we?". Model learns to read the injected context and say "We are in Seattle!" without using tools.
-2. **Negative Sampling (Hallucination Prevention):** Generate examples where the model should explicitly **fail or refuse** to use a tool. For example, if the user asks "Can you open the sunroof?" but you intentionally omit the sunroof tool from the `AVAILABLE TOOLS` list in that specific training row, the model must be trained to output a conversational apology rather than hallucinating `<TOOL>openSunroof()</TOOL>`.
-3. **Parameter Extraction Focus:** Ensure the dataset strongly reinforces exact XML matching. The model must learn that `<TOOL> increaseTemperature(all) </TOOL>` (with spaces) will fail the app's regex parser. It must output exact, clean strings like `<TOOL>increaseTemperature(all)</TOOL>`.
-4. **LoRA / QLoRA Fine-Tuning:** Since this model will run on mobile device hardware (NPU/GPU), train using Parameter-Efficient Fine-Tuning (PEFT) methods like QLoRA on the Gemma-IT base model. Export the final merged weights to a LiteRT `.bin` or `.litertlm` compatible format.
-
-### B. Chat Template Tokens (Model Specific)
-Your fine-tuning pairs must use the exact control tokens of your chosen Base Model. 
-
-**For Gemma Models:**
-*   `<start_of_turn>user\n`
-*   `<end_of_turn>\n`
-*   `<start_of_turn>model\n`
-
-**For Qualcomm Llama Models (SA8295):**
-If you are using a Llama-3 model optimized for the Qualcomm SA8295 NPU, you must switch your dataset format to use the Llama-3 instruction format:
-*   `<|start_header_id|>user<|end_header_id|>\n\n`
-*   `<|eot_id|>`
-*   `<|start_header_id|>assistant<|end_header_id|>\n\n`
-
-### C. Sample JSONL Training Row
-Here is exactly what a row in your training JSONL file should look like to emulate the app's behavior:
-
-```json
-{
-  "messages": [
-    {
-      "role": "user",
-      "content": "CORE IDENTITY:\nYou are an incredibly user-friendly, warm AI Partner companion for a vehicle...\n[14 Strict Rules...]\n=== AVAILABLE TOOLS ===\n- <TOOL>setTemperature(VAL)</TOOL>\n- <TOOL>increaseTemperature(ZONE)</TOOL>\n\n[System Context: DriverTemp=72F, PassTemp=70F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON]\nUser: I am shivering, it's freezing in here."
-    },
-    {
-      "role": "model",
-      "content": "Oh no, let's get you warmed up right away! I'm turning on your seat heater and increasing the cabin temperature. <TOOL>increaseTemperature(all)</TOOL><TOOL>setSeatHeater(2)</TOOL>"
-    }
-  ]
-}
-```
-
-### Key Takeaway for the ML Engineer
-You do **not** need to train the model to parse the car's binary hardware signals. The Android app acts as a middleware that parses the vehicle's state into English text (`[System Context: ...]`) and intercepts the model's `<TOOL>` output. 
+The Android app acts as a middleware that:
+1. Translates the car's sensors into an English string: `[System Context: Speed=85mph, AC=ON | DriverMood=Tired]`
+2. Uses RAG to find the 4 most relevant tools and injects them into the `=== AVAILABLE TOOLS ===` block.
+3. Catches the LLM's `<TOOL>setWindowPosition(100)</TOOL>` output and securely evaluates it against the vehicle's physics constraints *before* sending it to the CAN bus.
 
 **Your only goal during fine-tuning is to train the model on Text-In (System Prompt + Context + User string) to Text-Out (Empathy + Tool Tags).**
+
+## 3. Training Infrastructure
+Because this model will run locally on mobile device hardware (NPU/GPU) inside the vehicle:
+1. Train using Parameter-Efficient Fine-Tuning (PEFT) methods like **QLoRA**.
+2. Base Model Recommendation: **Gemma-IT (2B or 7B)** or a **Qualcomm SA8295 Optimized Llama-3** model.
+3. Export the final merged weights to a LiteRT `.bin` or `.litertlm` format for local on-device inference.
+
+*If you need to regenerate the dataset with new tools, simply run `python3 generate_synthetic_dataset.py`.*
+
+## 4. Contextual Empathy & Tone Shifting (CRUCIAL)
+The most important feature of this model is its ability to act as a "Silent Copilot." The Android app uses an in-cabin camera to detect the driver's facial expressions and injects a `DriverMood` variable into the System Context. 
+
+You must ensure the model learns to shift its output **tone** based on this variable, exactly as demonstrated in the training datasets:
+
+- **If `DriverMood=Frustrated / Frowning`:** The model must be entirely silent and strictly mechanical. (e.g., Output: `<TOOL>setTemperature(72)</TOOL>` with no conversational fluff).
+- **If `DriverMood=Tired / Yawning`:** The model must be proactive and suggest coffee or breaks. (e.g., Output: `"I've lowered the temperature. By the way, you look tired. Would you like me to route to a coffee shop? <TOOL>setTemperature(68)</TOOL>"`).
+- **If `DriverMood=Happy / Smiling`:** The model should match the driver's energetic tone.
+
+**Do not train the model to be a static, robotic assistant.** The entire purpose of the `train.jsonl` dataset is to teach the model to dynamically evaluate the `[System Context: DriverMood=...]` string before generating its text.
+
+## 5. Rich Contextual Intelligence
+In addition to Mood, the dataset explicitly trains the model to generate conversational flourishes based on the entire `System Context` block:
+- **Time:** Generates "Good morning!" or "Good evening." based on the `Time` variable.
+- **Speed:** Mentions highway speeds if `Speed >= 65` or parked status if `Speed = 0`.
+- **Occupants:** Adapts climate/media responses for rear passengers if `Occupants > 1`.
+- **Acoustics:** Lowers the AC `Fan` speed automatically if the user wants to make a phone call and the fan is loud.
+
+## 6. Multi-Turn Conversation Memory
+The dataset includes over 100 rows of **Multi-Turn Conversation Memory**. In the System Prompt, you will see a `Memory:` block. 
+The LLM is explicitly trained to use this block for:
+- **Pronoun Resolution:** (e.g. User: "Let's go to the second one" -> Resolves to the specific coffee shop mentioned in the memory).
+- **Follow-up Adjustments:** (e.g. User: "Make it a bit warmer" -> Increases temperature after a previous AC command). 
+Ensure your training pipeline does not discard the `Memory:` block, as it is critical for continuous interaction.

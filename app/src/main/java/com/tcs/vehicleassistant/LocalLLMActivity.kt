@@ -104,7 +104,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
     
     private lateinit var tts: TextToSpeech
-    private lateinit var speechRecognizer: SpeechRecognizer
+    private lateinit var localAudioManager: com.tcs.vehicleassistant.hardware.IAudioManager
 
 
     data class LlmModel(val name: String, val filename: String, val url: String, val size: String, val automotiveContext: String)
@@ -141,6 +141,16 @@ class LocalLLMActivity : AppCompatActivity() {
 
         loadRuntimePrefs(this)
         VehicleManager.initialize(this)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                Log.i("Soniqo", "Starting Soniqo model download/verification...")
+                audio.soniqo.speech.ModelManager.ensureModels(this@LocalLLMActivity)
+                Log.i("Soniqo", "Soniqo models are ready!")
+            } catch (e: Exception) {
+                Log.e("Soniqo", "Failed to ensure Soniqo models: ${e.message}")
+            }
+        }
         
         setContentView(R.layout.activity_main)
 
@@ -394,76 +404,57 @@ class LocalLLMActivity : AppCompatActivity() {
         val perms = arrayOf(
             Manifest.permission.RECORD_AUDIO,
             Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.CAMERA
         )
         val missingPerms = perms.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }
         if (missingPerms.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, missingPerms.toTypedArray(), 1)
-        }
-
-        // Setup STT
-        speechRecognizer = if (SpeechRecognizer.isOnDeviceRecognitionAvailable(this)) {
-            SpeechRecognizer.createOnDeviceSpeechRecognizer(this)
         } else {
-            SpeechRecognizer.createSpeechRecognizer(this)
-        }
-        val speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 300L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 200L)
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
         }
 
-        speechRecognizer.setRecognitionListener(object : RecognitionListener {
-            override fun onReadyForSpeech(params: Bundle?) {
-                LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onReadyForSpeech")
-                inputText.setText("")
-            }
-            override fun onBeginningOfSpeech() {
-                LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onBeginningOfSpeech")
-            }
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {
-                LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onEndOfSpeech")
-                inputText.setText("")
-            }
-            override fun onError(error: Int) {
-                val msg = when (error) {
-                    SpeechRecognizer.ERROR_NETWORK -> "Network Error"
-                    SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network Timeout"
-                    SpeechRecognizer.ERROR_NO_MATCH -> "I didn't quite catch that."
-                    SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Speech timeout"
-                    13 -> "Offline Language Pack Missing"
-                    else -> "Voice Error: $error"
-                }
-                inputText.setText(msg)
-                chatAdapter.addMessage(ChatMessage(msg, isUser = false))
-            }
-            override fun onResults(results: Bundle?) {
-                LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onResults")
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty()) {
-                    val voiceText = matches[0]
-
-                    generateText(voiceText, isVoice = true, displayPrompt = voiceText)
-                }
-            }
-            override fun onPartialResults(partialResults: Bundle?) {}
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
+        // Setup STT using AndroidAudioManager (Vosk)
+        localAudioManager = com.tcs.vehicleassistant.hardware.AndroidAudioManager(this)
+        localAudioManager.initialize({
+            localAudioManager.setRecognitionListener(
+                onReadyForSpeech = {
+                    runOnUiThread {
+                        LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onReadyForSpeech")
+                        inputText.setText("")
+                    }
+                },
+                onBeginningOfSpeech = {
+                    runOnUiThread { LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onBeginningOfSpeech") }
+                },
+                onEndOfSpeech = {
+                    runOnUiThread {
+                        LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onEndOfSpeech")
+                        inputText.setText("")
+                    }
+                },
+                onResult = { text ->
+                    runOnUiThread {
+                        LatencyLogger.log("LocalLLMActivity", "Speech Recognizer onResults")
+                        generateText(text, isVoice = true, displayPrompt = text)
+                    }
+                },
+                onEmptyResult = {},
+                onError = {
+                    runOnUiThread {
+                        val msg = "Voice Error: offline engine failed"
+                        inputText.setText(msg)
+                        chatAdapter.addMessage(ChatMessage(msg, isUser = false))
+                    }
+                },
+                onPartial = {}
+            )
+        }, {})
 
         voiceButton.setOnClickListener {
             LatencyLogger.reset()
             LatencyLogger.log("LocalLLMActivity", "Voice Button Clicked")
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) {
-                LatencyLogger.log("LocalLLMActivity", "Speech Recognizer startListening() called")
-                speechRecognizer.startListening(speechRecognizerIntent)
-            } else {
-                ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.RECORD_AUDIO), 1)
-            }
+            AssistantVoiceInteractionService.triggerSession(this)
         }
 
         tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
@@ -989,6 +980,16 @@ class LocalLLMActivity : AppCompatActivity() {
         startService(intent)
     }
 
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == 1) {
+            val cameraIndex = permissions.indexOf(android.Manifest.permission.CAMERA)
+            if (cameraIndex != -1 && grantResults.getOrNull(cameraIndex) == PackageManager.PERMISSION_GRANTED) {
+                com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
+            }
+        }
+    }
+
     override fun onDestroy() {
         stopEmergencyAlarm()
         orchestratorBridge?.destroy()
@@ -997,8 +998,8 @@ class LocalLLMActivity : AppCompatActivity() {
             tts.stop()
             tts.shutdown()
         }
-        if (::speechRecognizer.isInitialized) {
-            speechRecognizer.destroy()
+        if (::localAudioManager.isInitialized) {
+            localAudioManager.shutdown()
         }
         try {
             VehicleManager.cleanup()

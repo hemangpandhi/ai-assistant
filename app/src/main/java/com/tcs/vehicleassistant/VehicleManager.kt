@@ -688,11 +688,9 @@ object VehicleManager {
         // Not implemented in VHAL mock yet, but we'll print a log
         android.util.Log.d("VehicleManager", "Setting ambient color to R:$r G:$g B:$b")
     }
-    fun applySavedCabinPreferences(user: String) {
-        android.util.Log.d("VehicleManager", "Applying saved preferences for user: $user")
-        if (user == "Hemang") {
-            setTemperature(18f)
-        }
+    fun applySavedCabinPreferences(user: String, targetTemp: Float = 20.0f) {
+        android.util.Log.d("VehicleManager", "Applying saved preferences for user: $user (Target Temp: $targetTemp°C)")
+        setTemperature(targetTemp)
     }
     fun lockdownValetMode() {
         android.util.Log.d("VehicleManager", "Locking down Valet Mode")

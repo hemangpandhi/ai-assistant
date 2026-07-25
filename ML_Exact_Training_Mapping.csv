@@ -1,0 +1,1947 @@
+Tool Handler,User Intent,Dynamic Input (Added to Common Prompt),Exact LLM Output Expected
+analyzeCabinState,camera (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>analyzeCabinState()</TOOL>
+- <TOOL>enhanceNiceEvening()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Unknown]
+
+User: Can we adjust the camera?", <TOOL>analyzeCabinState()</TOOL>
+analyzeCabinState,camera (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>analyzeCabinState()</TOOL>
+- <TOOL>turnOffAC()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=ON, Fan=3, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Paused]
+
+User: What about the camera?"," By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>analyzeCabinState()</TOOL>"
+analyzeCabinState,camera (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>analyzeCabinState()</TOOL>
+- <TOOL>adjustBgmForSituation()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=4, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Afternoon, Media=Playing]
+
+User: I need to check the camera.",<TOOL>analyzeCabinState()</TOOL>
+setTemperature,temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setTemperature(VAL)</TOOL>
+- <TOOL>optimizeEnergyForRange()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Night, Media=Paused]
+
+User: What about the temperature?",Good evening. I've adjusted the cabin temperature. <TOOL>setTemperature(72)</TOOL>
+setTemperature,temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setTemperature(VAL)</TOOL>
+- <TOOL>turnOnAutoClimate()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=OFF, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Afternoon, Media=Unknown]
+
+User: I need to check the temperature.","I've adjusted the cabin temperature. I'll make sure everyone in the back is comfortable too. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setTemperature(72)</TOOL>"
+setTemperature,temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setTemperature(VAL)</TOOL>
+- <TOOL>setDriverTemperature(VAL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Playing]
+
+User: I need to check the temperature.",<TOOL>setTemperature(72)</TOOL>
+increaseTemperature,increase temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseTemperature(zone)</TOOL>
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: Hey, increase temperature.",I'm warming it up for you! <TOOL>increaseTemperature(all)</TOOL>
+increaseTemperature,increase temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseTemperature(zone)</TOOL>
+- <TOOL>closeAllWindows()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=ON, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Playing]
+
+User: Please increase temperature.","I'm warming it up for you! I'm turning on the climate system for you. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>increaseTemperature(all)</TOOL>"
+increaseTemperature,increase temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseTemperature(zone)</TOOL>
+- <TOOL>checkTripReadiness()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Afternoon, Media=Paused]
+
+User: Can you increase temperature?",<TOOL>increaseTemperature(all)</TOOL>
+decreaseTemperature,decrease temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseTemperature(zone)</TOOL>
+- <TOOL>turnOffAutoClimate()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Unknown]
+
+User: Hey, decrease temperature.",Cooling it down — you should feel better soon. I'll make sure everyone in the back is comfortable too. <TOOL>decreaseTemperature(all)</TOOL>
+decreaseTemperature,decrease temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseTemperature(zone)</TOOL>
+- <TOOL>stopMusic()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Paused]
+
+User: Hey, decrease temperature.","Good morning! Cooling it down — you should feel better soon. I'm turning on the climate system for you. I'll make sure everyone in the back is comfortable too. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>decreaseTemperature(all)</TOOL>"
+decreaseTemperature,decrease temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseTemperature(zone)</TOOL>
+- <TOOL>nextTrack()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=ON, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Morning, Media=Playing]
+
+User: Hey, decrease temperature.",<TOOL>decreaseTemperature(all)</TOOL>
+setFanSpeed,fan (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setFanSpeed(LEVEL)</TOOL>
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=ON, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Night, Media=Playing]
+
+User: What about the fan?",Good evening. I've adjusted the fan speed. <TOOL>setFanSpeed(2)</TOOL>
+setFanSpeed,fan (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setFanSpeed(LEVEL)</TOOL>
+- <TOOL>turnOnRearDefroster()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Evening, Media=Playing]
+
+User: I need to check the fan.","I've adjusted the fan speed. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setFanSpeed(2)</TOOL>"
+setFanSpeed,fan (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setFanSpeed(LEVEL)</TOOL>
+- <TOOL>suggestAlternateRoute()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: Can we adjust the fan?",<TOOL>setFanSpeed(2)</TOOL>
+increaseFanSpeed,increase fan (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseFanSpeed()</TOOL>
+- <TOOL>checkVehicleState()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Morning, Media=Playing]
+
+User: Hey, increase fan.",Good morning! Cranking up the fan for you! <TOOL>increaseFanSpeed()</TOOL>
+increaseFanSpeed,increase fan (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseFanSpeed()</TOOL>
+- <TOOL>closeAllWindows()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=ON, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Night, Media=Playing]
+
+User: Hey, increase fan.","Good evening. Cranking up the fan for you! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>increaseFanSpeed()</TOOL>"
+increaseFanSpeed,increase fan (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseFanSpeed()</TOOL>
+- <TOOL>turnOffRecirculation()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=ON, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Afternoon, Media=Paused]
+
+User: Can you increase fan?",<TOOL>increaseFanSpeed()</TOOL>
+decreaseFanSpeed,decrease fan (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseFanSpeed()</TOOL>
+- <TOOL>handleEmergencyFeeling()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=ON, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Morning, Media=Playing]
+
+User: Please decrease fan.",Good morning! Dialed the fan back a notch. <TOOL>decreaseFanSpeed()</TOOL>
+decreaseFanSpeed,decrease fan (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseFanSpeed()</TOOL>
+- <TOOL>remember(FACT)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Afternoon, Media=Paused]
+
+User: Please decrease fan.","Dialed the fan back a notch. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>decreaseFanSpeed()</TOOL>"
+decreaseFanSpeed,decrease fan (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseFanSpeed()</TOOL>
+- <TOOL>makeTripEnjoyable()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Unknown]
+
+User: Please decrease fan.",<TOOL>decreaseFanSpeed()</TOOL>
+setAirflowDirection,airflow (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setAirflowDirection(direction)</TOOL>
+- <TOOL>openApp()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Afternoon, Media=Playing]
+
+User: What about the airflow?",Adjusting the airflow — you should feel it soon. <TOOL>setAirflowDirection(face)</TOOL>
+setAirflowDirection,airflow (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setAirflowDirection(direction)</TOOL>
+- <TOOL>answerVehicleIdentity()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Unknown]
+
+User: I need to check the airflow.","Good morning! Adjusting the airflow — you should feel it soon. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setAirflowDirection(face)</TOOL>"
+setAirflowDirection,airflow (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setAirflowDirection(direction)</TOOL>
+- <TOOL>turnOffRecirculation()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: Please help me with the airflow.",<TOOL>setAirflowDirection(face)</TOOL>
+turnOnAC,turn on ac (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAC()</TOOL>
+- <TOOL>prevTrack()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Night, Media=Unknown]
+
+User: Can you turn on ac?",Good evening. AC is on — you should feel that soon. <TOOL>turnOnAC()</TOOL>
+turnOnAC,turn on ac (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAC()</TOOL>
+- <TOOL>setAllWindowsPosition()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=OFF, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Playing]
+
+User: Please turn on ac.","Good morning! AC is on — you should feel that soon. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOnAC()</TOOL>"
+turnOnAC,turn on ac (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAC()</TOOL>
+- <TOOL>turnOnHvacPower()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Night, Media=Playing]
+
+User: Can you turn on ac?",<TOOL>turnOnAC()</TOOL>
+turnOffAC,turn off ac (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffAC()</TOOL>
+- <TOOL>setWindowPosition(PCT)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Paused]
+
+User: Can you turn off ac?",I've turned off the AC. <TOOL>turnOffAC()</TOOL>
+turnOffAC,turn off ac (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffAC()</TOOL>
+- <TOOL>prepareForParking()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Unknown]
+
+User: Hey, turn off ac.","I've turned off the AC. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOffAC()</TOOL>"
+turnOffAC,turn off ac (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffAC()</TOOL>
+- <TOOL>setTemperature(VAL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Morning, Media=Paused]
+
+User: Can you turn off ac?",<TOOL>turnOffAC()</TOOL>
+turnOnAutoClimate,auto (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAutoClimate()</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: Can we adjust the auto?",I've turned on automatic climate control. <TOOL>turnOnAutoClimate()</TOOL>
+turnOnAutoClimate,auto (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAutoClimate()</TOOL>
+- <TOOL>decreaseTemperature(zone)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Afternoon, Media=Unknown]
+
+User: Can we adjust the auto?","I've turned on automatic climate control. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOnAutoClimate()</TOOL>"
+turnOnAutoClimate,auto (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAutoClimate()</TOOL>
+- <TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Paused]
+
+User: Please help me with the auto.",<TOOL>turnOnAutoClimate()</TOOL>
+turnOffAutoClimate,turn off automatic (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffAutoClimate()</TOOL>
+- <TOOL>increaseDriverTemperature()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Unknown]
+
+User: Please turn off automatic.",I've disabled automatic climate control. <TOOL>turnOffAutoClimate()</TOOL>
+turnOffAutoClimate,turn off automatic (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffAutoClimate()</TOOL>
+- <TOOL>turnOnHvacPower()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=4, Time=Evening, Media=Unknown]
+
+User: Can you turn off automatic?","I've disabled automatic climate control. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOffAutoClimate()</TOOL>"
+turnOffAutoClimate,turn off automatic (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffAutoClimate()</TOOL>
+- <TOOL>playMusic(SONG)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Night, Media=Unknown]
+
+User: Hey, turn off automatic.",<TOOL>turnOffAutoClimate()</TOOL>
+turnOnRecirculation,turn on recirculation (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnRecirculation()</TOOL>
+- <TOOL>analyzeCabinState()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Evening, Media=Paused]
+
+User: Can you turn on recirculation?",I've turned on air recirculation. <TOOL>turnOnRecirculation()</TOOL>
+turnOnRecirculation,turn on recirculation (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnRecirculation()</TOOL>
+- <TOOL>handleFeelingCold()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Night, Media=Playing]
+
+User: Can you turn on recirculation?","Good evening. I've turned on air recirculation. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOnRecirculation()</TOOL>"
+turnOnRecirculation,turn on recirculation (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnRecirculation()</TOOL>
+- <TOOL>setDriverTemperature(VAL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Afternoon, Media=Paused]
+
+User: Hey, turn on recirculation.",<TOOL>turnOnRecirculation()</TOOL>
+turnOffRecirculation,turn off recirculation (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffRecirculation()</TOOL>
+- <TOOL>increasePassengerTemperature()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=ON, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Night, Media=Playing]
+
+User: Hey, turn off recirculation.",Good evening. I've turned off air recirculation. <TOOL>turnOffRecirculation()</TOOL>
+turnOffRecirculation,turn off recirculation (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffRecirculation()</TOOL>
+- <TOOL>remember(FACT)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Playing]
+
+User: Please turn off recirculation.","I've turned off air recirculation. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOffRecirculation()</TOOL>"
+turnOffRecirculation,turn off recirculation (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffRecirculation()</TOOL>
+- <TOOL>defogWindshield()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=3, Time=Afternoon, Media=Unknown]
+
+User: Can you turn off recirculation?",<TOOL>turnOffRecirculation()</TOOL>
+turnOnHvacPower,turn on hvac (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnHvacPower()</TOOL>
+- <TOOL>increasePassengerTemperature()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Playing]
+
+User: Can you turn on hvac?",I've turned on the climate control system. <TOOL>turnOnHvacPower()</TOOL>
+turnOnHvacPower,turn on hvac (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnHvacPower()</TOOL>
+- <TOOL>suggestNearbyPlaces()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Morning, Media=Playing]
+
+User: Can you turn on hvac?","Good morning! I've turned on the climate control system. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOnHvacPower()</TOOL>"
+turnOnHvacPower,turn on hvac (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnHvacPower()</TOOL>
+- <TOOL>answerVehicleIdentity()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: Can you turn on hvac?",<TOOL>turnOnHvacPower()</TOOL>
+turnOffHvacPower,turn off hvac (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffHvacPower()</TOOL>
+- <TOOL>unlockDoors()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Morning, Media=Paused]
+
+User: Please turn off hvac.",Good morning! I've turned off the climate control system. <TOOL>turnOffHvacPower()</TOOL>
+turnOffHvacPower,turn off hvac (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffHvacPower()</TOOL>
+- <TOOL>prepareForIncomingRain()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Evening, Media=Playing]
+
+User: Please turn off hvac.","I've turned off the climate control system. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOffHvacPower()</TOOL>"
+turnOffHvacPower,turn off hvac (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffHvacPower()</TOOL>
+- <TOOL>bookRestaurant()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Paused]
+
+User: Hey, turn off hvac.",<TOOL>turnOffHvacPower()</TOOL>
+turnOnDefroster,turn on front defroster (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnDefroster()</TOOL>
+- <TOOL>suggestNearbyPlaces()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Playing]
+
+User: Hey, turn on front defroster.",Defroster's on — your view should clear up. <TOOL>turnOnDefroster()</TOOL>
+turnOnDefroster,turn on front defroster (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnDefroster()</TOOL>
+- <TOOL>optimizeEnergyForRange()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=ON, Fan=4, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: Hey, turn on front defroster.","Defroster's on — your view should clear up. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOnDefroster()</TOOL>"
+turnOnDefroster,turn on front defroster (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnDefroster()</TOOL>
+- <TOOL>setFanSpeed(LEVEL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Playing]
+
+User: Can you turn on front defroster?",<TOOL>turnOnDefroster()</TOOL>
+turnOffDefroster,turn off front defroster (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffDefroster()</TOOL>
+- <TOOL>adjustBgmForSituation()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Morning, Media=Playing]
+
+User: Please turn off front defroster.",Good morning! Deactivating front defroster. <TOOL>turnOffDefroster()</TOOL>
+turnOffDefroster,turn off front defroster (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffDefroster()</TOOL>
+- <TOOL>getNewsHighlights()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Unknown]
+
+User: Can you turn off front defroster?","Good morning! Deactivating front defroster. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOffDefroster()</TOOL>"
+turnOffDefroster,turn off front defroster (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffDefroster()</TOOL>
+- <TOOL>searchNearby(amenity)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=4, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Morning, Media=Paused]
+
+User: Hey, turn off front defroster.",<TOOL>turnOffDefroster()</TOOL>
+turnOnRearDefroster,turn on rear defroster (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnRearDefroster()</TOOL>
+- <TOOL>getNewsHighlights()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=2, AC=ON, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Morning, Media=Playing]
+
+User: Please turn on rear defroster.",Good morning! Activating rear defroster. <TOOL>turnOnRearDefroster()</TOOL>
+turnOnRearDefroster,turn on rear defroster (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnRearDefroster()</TOOL>
+- <TOOL>decreasePassengerTemperature()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Night, Media=Unknown]
+
+User: Hey, turn on rear defroster.","Good evening. Activating rear defroster. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOnRearDefroster()</TOOL>"
+turnOnRearDefroster,turn on rear defroster (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnRearDefroster()</TOOL>
+- <TOOL>movePassengerSeatForward()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Morning, Media=Paused]
+
+User: Please turn on rear defroster.",<TOOL>turnOnRearDefroster()</TOOL>
+turnOffRearDefroster,turn off rear defroster (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffRearDefroster()</TOOL>
+- <TOOL>suggestNearbyPlaces()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=ON, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Evening, Media=Playing]
+
+User: Can you turn off rear defroster?",Deactivating rear defroster. <TOOL>turnOffRearDefroster()</TOOL>
+turnOffRearDefroster,turn off rear defroster (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffRearDefroster()</TOOL>
+- <TOOL>suggestUmbrellaIfRainy()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Morning, Media=Playing]
+
+User: Hey, turn off rear defroster.","Good morning! Deactivating rear defroster. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOffRearDefroster()</TOOL>"
+turnOffRearDefroster,turn off rear defroster (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffRearDefroster()</TOOL>
+- <TOOL>setTemperature(VAL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=ON, Fan=4, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Evening, Media=Unknown]
+
+User: Please turn off rear defroster.",<TOOL>turnOffRearDefroster()</TOOL>
+openWindowsSlightly,open windows slightly (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>openWindowsSlightly()</TOOL>
+- <TOOL>search(search_term)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=ON, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Morning, Media=Paused]
+
+User: Hey, open windows slightly.",Good morning! I've opened the windows slightly. <TOOL>openWindowsSlightly()</TOOL>
+openWindowsSlightly,open windows slightly (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>openWindowsSlightly()</TOOL>
+- <TOOL>playMusic(SONG)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: Hey, open windows slightly.","I've opened the windows slightly. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>openWindowsSlightly()</TOOL>"
+openWindowsSlightly,open windows slightly (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>openWindowsSlightly()</TOOL>
+- <TOOL>handleDrowsyDriving()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=3, Time=Afternoon, Media=Playing]
+
+User: Hey, open windows slightly.",<TOOL>openWindowsSlightly()</TOOL>
+closeAllWindows,close windows (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>closeAllWindows()</TOOL>
+- <TOOL>prepareForIncomingRain()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=OFF, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Morning, Media=Paused]
+
+User: Hey, close windows.",Good morning! I've closed all the windows. <TOOL>closeAllWindows()</TOOL>
+closeAllWindows,close windows (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>closeAllWindows()</TOOL>
+- <TOOL>defogWindshield()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=OFF, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Evening, Media=Playing]
+
+User: Hey, close windows.","I've closed all the windows. We are at highway speeds, so I'll be careful. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>closeAllWindows()</TOOL>"
+closeAllWindows,close windows (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>closeAllWindows()</TOOL>
+- <TOOL>checkTripReadiness()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Paused]
+
+User: Can you close windows?",<TOOL>closeAllWindows()</TOOL>
+turnOnCabinLight,turn on cabin lights (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnCabinLight()</TOOL>
+- <TOOL>handleDrowsyDriving()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=OFF, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: Please turn on cabin lights.",I've turned on the cabin lights. <TOOL>turnOnCabinLight()</TOOL>
+turnOnCabinLight,turn on cabin lights (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnCabinLight()</TOOL>
+- <TOOL>prepareForAirportTrip()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Playing]
+
+User: Please turn on cabin lights.","I've turned on the cabin lights. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOnCabinLight()</TOOL>"
+turnOnCabinLight,turn on cabin lights (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnCabinLight()</TOOL>
+- <TOOL>checkTripReadiness()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Playing]
+
+User: Hey, turn on cabin lights.",<TOOL>turnOnCabinLight()</TOOL>
+turnOffCabinLight,turn off cabin lights (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffCabinLight()</TOOL>
+- <TOOL>nextTrack()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=OFF, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: Can you turn off cabin lights?",I've turned off the cabin lights. <TOOL>turnOffCabinLight()</TOOL>
+turnOffCabinLight,turn off cabin lights (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffCabinLight()</TOOL>
+- <TOOL>answerVehicleIdentity()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=OFF, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Playing]
+
+User: Please turn off cabin lights.","I've turned off the cabin lights. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>turnOffCabinLight()</TOOL>"
+turnOffCabinLight,turn off cabin lights (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>turnOffCabinLight()</TOOL>
+- <TOOL>defogWindshield()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Playing]
+
+User: Please turn off cabin lights.",<TOOL>turnOffCabinLight()</TOOL>
+setSeatHeater,warm seat (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+- <TOOL>getNewsHighlights()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Playing]
+
+User: I need to check the warm seat.",Seat heater's on — hope that warms you up! <TOOL>setSeatHeater(2)</TOOL>
+setSeatHeater,warm seat (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+- <TOOL>turnOffHvacPower()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=4, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: What about the warm seat?","Seat heater's on — hope that warms you up! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setSeatHeater(2)</TOOL>"
+setSeatHeater,warm seat (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+- <TOOL>checkVehicleState()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Paused]
+
+User: Please help me with the warm seat.",<TOOL>setSeatHeater(2)</TOOL>
+setSeatMassager,back massage (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setSeatMassager(LEVEL)</TOOL>
+- <TOOL>increaseTemperature(zone)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Night, Media=Playing]
+
+User: Can we adjust the back massage?",Good evening. I've turned on the seat massager for you. <TOOL>setSeatMassager(2)</TOOL>
+setSeatMassager,back massage (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setSeatMassager(LEVEL)</TOOL>
+- <TOOL>makeTripEnjoyable()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Paused]
+
+User: I need to check the back massage.","Good morning! I've turned on the seat massager for you. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setSeatMassager(2)</TOOL>"
+setSeatMassager,back massage (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setSeatMassager(LEVEL)</TOOL>
+- <TOOL>increaseFanSpeed()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: What about the back massage?",<TOOL>setSeatMassager(2)</TOOL>
+checkAllWindowsClosed,are all windows closed (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>checkAllWindowsClosed()</TOOL>
+- <TOOL>setWindowPosition(PCT)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Playing]
+
+User: Can we adjust the are all windows closed?","I've checked the status of all windows. We are at highway speeds, so I'll be careful. <TOOL>checkAllWindowsClosed()</TOOL>"
+checkAllWindowsClosed,are all windows closed (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>checkAllWindowsClosed()</TOOL>
+- <TOOL>openApp()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Evening, Media=Playing]
+
+User: I need to check the are all windows closed.","I've checked the status of all windows. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>checkAllWindowsClosed()</TOOL>"
+checkAllWindowsClosed,are all windows closed (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>checkAllWindowsClosed()</TOOL>
+- <TOOL>enableAdaptiveNightMode()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Night, Media=Unknown]
+
+User: What about the are all windows closed?",<TOOL>checkAllWindowsClosed()</TOOL>
+movePassengerSeatForward,move passenger seat forward (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>movePassengerSeatForward()</TOOL>
+- <TOOL>setVolumeLevel(VAL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=ON, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Night, Media=Playing]
+
+User: Please help me with the move passenger seat forward.",Good evening. I've moved the passenger seat forward. <TOOL>movePassengerSeatForward()</TOOL>
+movePassengerSeatForward,move passenger seat forward (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>movePassengerSeatForward()</TOOL>
+- <TOOL>search(search_term)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Night, Media=Playing]
+
+User: Can we adjust the move passenger seat forward?","Good evening. I've moved the passenger seat forward. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>movePassengerSeatForward()</TOOL>"
+movePassengerSeatForward,move passenger seat forward (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>movePassengerSeatForward()</TOOL>
+- <TOOL>checkTripReadiness()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Evening, Media=Paused]
+
+User: Please help me with the move passenger seat forward.",<TOOL>movePassengerSeatForward()</TOOL>
+setEnergeticCabinLighting,ambient (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setEnergeticCabinLighting()</TOOL>
+- <TOOL>makeTripEnjoyable()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: What about the ambient?","Okay, I've set the cabin lighting to an energetic mood. <TOOL>setEnergeticCabinLighting()</TOOL>"
+setEnergeticCabinLighting,ambient (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setEnergeticCabinLighting()</TOOL>
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=OFF, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Playing]
+
+User: I need to check the ambient.","Okay, I've set the cabin lighting to an energetic mood. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setEnergeticCabinLighting()</TOOL>"
+setEnergeticCabinLighting,ambient (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setEnergeticCabinLighting()</TOOL>
+- <TOOL>callContact(NAME)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=ON, Fan=5, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Evening, Media=Unknown]
+
+User: What about the ambient?",<TOOL>setEnergeticCabinLighting()</TOOL>
+enableFreshAirIntake,fresh air (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>enableFreshAirIntake()</TOOL>
+- <TOOL>improveRoadVisibility()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Paused]
+
+User: Can we adjust the fresh air?",I've opened the windows slightly for fresh air. <TOOL>enableFreshAirIntake()</TOOL>
+enableFreshAirIntake,fresh air (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>enableFreshAirIntake()</TOOL>
+- <TOOL>turnOffDefroster()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Night, Media=Playing]
+
+User: Can we adjust the fresh air?","Good evening. I've opened the windows slightly for fresh air. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>enableFreshAirIntake()</TOOL>"
+enableFreshAirIntake,fresh air (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>enableFreshAirIntake()</TOOL>
+- <TOOL>unlockDoors()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Paused]
+
+User: Can we adjust the fresh air?",<TOOL>enableFreshAirIntake()</TOOL>
+protectFromPollutedAir,too much pollution (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>protectFromPollutedAir()</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Paused]
+
+User: Too much pollution.",I've closed the windows and enabled recirculation. <TOOL>protectFromPollutedAir()</TOOL>
+protectFromPollutedAir,too much pollution (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>protectFromPollutedAir()</TOOL>
+- <TOOL>openWindowsSlightly()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=OFF, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Playing]
+
+User: Too much pollution.","I've closed the windows and enabled recirculation. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>protectFromPollutedAir()</TOOL>"
+protectFromPollutedAir,too much pollution (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>protectFromPollutedAir()</TOOL>
+- <TOOL>setSeatMassager(LEVEL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Afternoon, Media=Playing]
+
+User: Too much pollution.",<TOOL>protectFromPollutedAir()</TOOL>
+defogWindshield,visibility (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>defogWindshield()</TOOL>
+- <TOOL>increaseDriverTemperature()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Paused]
+
+User: Please help me with the visibility.",Clearing your windshield — safety first. <TOOL>defogWindshield()</TOOL>
+defogWindshield,visibility (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>defogWindshield()</TOOL>
+- <TOOL>setAirflowDirection(direction)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Afternoon, Media=Unknown]
+
+User: Please help me with the visibility.","Clearing your windshield — safety first. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>defogWindshield()</TOOL>"
+defogWindshield,visibility (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>defogWindshield()</TOOL>
+- <TOOL>prepareForImportantMeeting()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Morning, Media=Playing]
+
+User: I need to check the visibility.",<TOOL>defogWindshield()</TOOL>
+improveRoadVisibility,too dark (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>improveRoadVisibility()</TOOL>
+- <TOOL>remember(FACT)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: Too dark.",I've turned on the defrosters and optimized your airflow for maximum visibility. <TOOL>improveRoadVisibility()</TOOL>
+improveRoadVisibility,too dark (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>improveRoadVisibility()</TOOL>
+- <TOOL>prepareForImportantMeeting()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Paused]
+
+User: Too dark.","I've turned on the defrosters and optimized your airflow for maximum visibility. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>improveRoadVisibility()</TOOL>"
+improveRoadVisibility,too dark (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>improveRoadVisibility()</TOOL>
+- <TOOL>setVolumeLevel(VAL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Unknown]
+
+User: Too dark.",<TOOL>improveRoadVisibility()</TOOL>
+handleDrowsyDriving,feel sleepy (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>handleDrowsyDriving()</TOOL>
+- <TOOL>explainLowRange()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Paused]
+
+User: I need to check the feel sleepy.",I've adjusted the cabin to help keep you awake. <TOOL>handleDrowsyDriving()</TOOL>
+handleDrowsyDriving,feel sleepy (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>handleDrowsyDriving()</TOOL>
+- <TOOL>movePassengerSeatForward()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=OFF, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Night, Media=Playing]
+
+User: I need to check the feel sleepy.","Good evening. I've adjusted the cabin to help keep you awake. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>handleDrowsyDriving()</TOOL>"
+handleDrowsyDriving,feel sleepy (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>handleDrowsyDriving()</TOOL>
+- <TOOL>sendUpcomingEventReminder()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Unknown]
+
+User: Can we adjust the feel sleepy?",<TOOL>handleDrowsyDriving()</TOOL>
+enhanceNiceEvening,nice evening (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>enhanceNiceEvening()</TOOL>
+- <TOOL>turnOnHvacPower()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=ON, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Unknown]
+
+User: I need to check the nice evening.",I've adjusted the cabin for a pleasant evening drive. <TOOL>enhanceNiceEvening()</TOOL>
+enhanceNiceEvening,nice evening (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>enhanceNiceEvening()</TOOL>
+- <TOOL>bookRestaurant()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=ON, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Paused]
+
+User: Please help me with the nice evening.","I've adjusted the cabin for a pleasant evening drive. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>enhanceNiceEvening()</TOOL>"
+enhanceNiceEvening,nice evening (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>enhanceNiceEvening()</TOOL>
+- <TOOL>turnOffCabinLight()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=ON, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Morning, Media=Paused]
+
+User: Please help me with the nice evening.",<TOOL>enhanceNiceEvening()</TOOL>
+suggestOptimizedChargingRate,optimize charging (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestOptimizedChargingRate()</TOOL>
+- <TOOL>turnOnDefroster()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=ON, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Morning, Media=Paused]
+
+User: What about the optimize charging?",Good morning! I've analyzed the battery and suggested an optimized charging rate. <TOOL>suggestOptimizedChargingRate()</TOOL>
+suggestOptimizedChargingRate,optimize charging (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestOptimizedChargingRate()</TOOL>
+- <TOOL>checkTripReadiness()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: I need to check the optimize charging.","I've analyzed the battery and suggested an optimized charging rate. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>suggestOptimizedChargingRate()</TOOL>"
+suggestOptimizedChargingRate,optimize charging (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestOptimizedChargingRate()</TOOL>
+- <TOOL>setAllWindowsPosition()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: Please help me with the optimize charging.",<TOOL>suggestOptimizedChargingRate()</TOOL>
+sendUpcomingEventReminder,event reminder (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>sendUpcomingEventReminder()</TOOL>
+- <TOOL>alertDriverDistraction()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Afternoon, Media=Unknown]
+
+User: Please help me with the event reminder.",I've checked your upcoming events and prepared a reminder. <TOOL>sendUpcomingEventReminder()</TOOL>
+sendUpcomingEventReminder,event reminder (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>sendUpcomingEventReminder()</TOOL>
+- <TOOL>setAllWindowsPosition()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=ON, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=4, Time=Evening, Media=Unknown]
+
+User: Can we adjust the event reminder?","I've checked your upcoming events and prepared a reminder. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>sendUpcomingEventReminder()</TOOL>"
+sendUpcomingEventReminder,event reminder (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>sendUpcomingEventReminder()</TOOL>
+- <TOOL>explainLowRange()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=OFF, Fan=4, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Morning, Media=Playing]
+
+User: What about the event reminder?",<TOOL>sendUpcomingEventReminder()</TOOL>
+explainChildSeatInstallation,child seat (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>explainChildSeatInstallation()</TOOL>
+- <TOOL>turnOnAC()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=3, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Morning, Media=Paused]
+
+User: I need to check the child seat.",Good morning! I'll walk you through how to install the child seat safely. <TOOL>explainChildSeatInstallation()</TOOL>
+explainChildSeatInstallation,child seat (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>explainChildSeatInstallation()</TOOL>
+- <TOOL>optimizeEnergyForRange()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Playing]
+
+User: Can we adjust the child seat?","Good morning! I'll walk you through how to install the child seat safely. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>explainChildSeatInstallation()</TOOL>"
+explainChildSeatInstallation,child seat (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>explainChildSeatInstallation()</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=OFF, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Morning, Media=Unknown]
+
+User: Please help me with the child seat.",<TOOL>explainChildSeatInstallation()</TOOL>
+suggestUmbrellaIfRainy,umbrella (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestUmbrellaIfRainy()</TOOL>
+- <TOOL>turnOffAC()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=ON, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: Can we adjust the umbrella?",I've checked the weather and will remind you to carry an umbrella if rain is expected. <TOOL>suggestUmbrellaIfRainy()</TOOL>
+suggestUmbrellaIfRainy,umbrella (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestUmbrellaIfRainy()</TOOL>
+- <TOOL>bookRestaurant()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=4, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Playing]
+
+User: Can we adjust the umbrella?","I've checked the weather and will remind you to carry an umbrella if rain is expected. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>suggestUmbrellaIfRainy()</TOOL>"
+suggestUmbrellaIfRainy,umbrella (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestUmbrellaIfRainy()</TOOL>
+- <TOOL>increaseFanSpeed()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=1, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: Please help me with the umbrella.",<TOOL>suggestUmbrellaIfRainy()</TOOL>
+getNewsHighlights,today's news (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>getNewsHighlights()</TOOL>
+- <TOOL>turnOffAutoClimate()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Evening, Media=Playing]
+
+User: I need to check the today's news.",Here are today's news highlights. <TOOL>getNewsHighlights()</TOOL>
+getNewsHighlights,today's news (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>getNewsHighlights()</TOOL>
+- <TOOL>alertDriverDistraction()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=ON, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Paused]
+
+User: I need to check the today's news.","Here are today's news highlights. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>getNewsHighlights()</TOOL>"
+getNewsHighlights,today's news (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>getNewsHighlights()</TOOL>
+- <TOOL>turnOffRecirculation()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=3, Time=Night, Media=Playing]
+
+User: Please help me with the today's news.",<TOOL>getNewsHighlights()</TOOL>
+handleDriverFatigue,fatigue (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>
+- <TOOL>sendUpcomingEventReminder()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Unknown]
+
+User: Can we adjust the fatigue?",I've assessed your fatigue level and prepared recommendations. <TOOL>handleDriverFatigue(ALERT_2)</TOOL>
+handleDriverFatigue,fatigue (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>
+- <TOOL>setFanSpeed(LEVEL)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Morning, Media=Unknown]
+
+User: I need to check the fatigue.","Good morning! I've assessed your fatigue level and prepared recommendations. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>handleDriverFatigue(ALERT_2)</TOOL>"
+handleDriverFatigue,fatigue (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>
+- <TOOL>handleEmergencyFeeling()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Night, Media=Paused]
+
+User: What about the fatigue?",<TOOL>handleDriverFatigue(ALERT_2)</TOOL>
+alertDriverDistraction,distracted (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>alertDriverDistraction()</TOOL>
+- <TOOL>suggestAlternateRoute()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Morning, Media=Paused]
+
+User: Can we adjust the distracted?",Good morning! I'll monitor for distraction and alert you if needed. <TOOL>alertDriverDistraction()</TOOL>
+alertDriverDistraction,distracted (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>alertDriverDistraction()</TOOL>
+- <TOOL>improveRoadVisibility()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=OFF, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Playing]
+
+User: Please help me with the distracted.","Good morning! I'll monitor for distraction and alert you if needed. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>alertDriverDistraction()</TOOL>"
+alertDriverDistraction,distracted (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>alertDriverDistraction()</TOOL>
+- <TOOL>turnOffDefroster()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Afternoon, Media=Paused]
+
+User: I need to check the distracted.",<TOOL>alertDriverDistraction()</TOOL>
+provideLaneLevelGuidance,which lane (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>provideLaneLevelGuidance()</TOOL>
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Playing]
+
+User: Can we adjust the which lane?",I'll guide you with lane-level navigation. <TOOL>provideLaneLevelGuidance()</TOOL>
+provideLaneLevelGuidance,which lane (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>provideLaneLevelGuidance()</TOOL>
+- <TOOL>optimizeCabinForLongDrive()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Morning, Media=Playing]
+
+User: I need to check the which lane.","Good morning! I'll guide you with lane-level navigation. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>provideLaneLevelGuidance()</TOOL>"
+provideLaneLevelGuidance,which lane (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>provideLaneLevelGuidance()</TOOL>
+- <TOOL>callContact(NAME)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Morning, Media=Playing]
+
+User: Please help me with the which lane.",<TOOL>provideLaneLevelGuidance()</TOOL>
+suggestAlternateRoute,traffic congestion (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestAlternateRoute()</TOOL>
+- <TOOL>decreaseTemperature(zone)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=OFF, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Unknown]
+
+User: Please help me with the traffic congestion.",I've checked traffic and found an alternate route. <TOOL>suggestAlternateRoute()</TOOL>
+suggestAlternateRoute,traffic congestion (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestAlternateRoute()</TOOL>
+- <TOOL>improveRoadVisibility()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Afternoon, Media=Playing]
+
+User: What about the traffic congestion?","I've checked traffic and found an alternate route. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>suggestAlternateRoute()</TOOL>"
+suggestAlternateRoute,traffic congestion (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestAlternateRoute()</TOOL>
+- <TOOL>handleFeelingCold()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Paused]
+
+User: Can we adjust the traffic congestion?",<TOOL>suggestAlternateRoute()</TOOL>
+adjustBgmForSituation,background music (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>adjustBgmForSituation()</TOOL>
+- <TOOL>turnOffRearDefroster()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Night, Media=Paused]
+
+User: What about the background music?",Good evening. I've adjusted the background music to match the cabin situation. <TOOL>adjustBgmForSituation()</TOOL>
+adjustBgmForSituation,background music (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>adjustBgmForSituation()</TOOL>
+- <TOOL>openTrunk()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Evening, Media=Playing]
+
+User: Please help me with the background music.","I've adjusted the background music to match the cabin situation. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>adjustBgmForSituation()</TOOL>"
+adjustBgmForSituation,background music (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>adjustBgmForSituation()</TOOL>
+- <TOOL>increaseTemperature(zone)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Paused]
+
+User: Please help me with the background music.",<TOOL>adjustBgmForSituation()</TOOL>
+checkVehicleSecured,is everything secured (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>checkVehicleSecured()</TOOL>
+- <TOOL>enableAdaptiveNightMode()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Unknown]
+
+User: I need to check the is everything secured.",I've checked whether the vehicle is secured. <TOOL>checkVehicleSecured()</TOOL>
+checkVehicleSecured,is everything secured (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>checkVehicleSecured()</TOOL>
+- <TOOL>turnOffCabinLight()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: I need to check the is everything secured.","I've checked whether the vehicle is secured. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>checkVehicleSecured()</TOOL>"
+checkVehicleSecured,is everything secured (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>checkVehicleSecured()</TOOL>
+- <TOOL>explainLowRange()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Morning, Media=Playing]
+
+User: Please help me with the is everything secured.",<TOOL>checkVehicleSecured()</TOOL>
+prepareForCommute,get the car ready (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForCommute()</TOOL>
+- <TOOL>turnOffCabinLight()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Night, Media=Paused]
+
+User: Please help me with the get the car ready.",Good evening. I'm preparing the vehicle for your office commute. <TOOL>prepareForCommute()</TOOL>
+prepareForCommute,get the car ready (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForCommute()</TOOL>
+- <TOOL>suggestAlternateRoute()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=3, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Morning, Media=Playing]
+
+User: Can we adjust the get the car ready?","Good morning! I'm preparing the vehicle for your office commute. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prepareForCommute()</TOOL>"
+prepareForCommute,get the car ready (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForCommute()</TOOL>
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Unknown]
+
+User: Can we adjust the get the car ready?",<TOOL>prepareForCommute()</TOOL>
+optimizeCabinForLongDrive,long drive (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>optimizeCabinForLongDrive()</TOOL>
+- <TOOL>searchNearby(amenity)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=OFF, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: Please help me with the long drive.",I've optimized the cabin for a long drive. <TOOL>optimizeCabinForLongDrive()</TOOL>
+optimizeCabinForLongDrive,long drive (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>optimizeCabinForLongDrive()</TOOL>
+- <TOOL>decreaseFanSpeed()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=OFF, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Unknown]
+
+User: Please help me with the long drive.","I've optimized the cabin for a long drive. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>optimizeCabinForLongDrive()</TOOL>"
+optimizeCabinForLongDrive,long drive (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>optimizeCabinForLongDrive()</TOOL>
+- <TOOL>remember(FACT)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Unknown]
+
+User: Please help me with the long drive.",<TOOL>optimizeCabinForLongDrive()</TOOL>
+prepareForIncomingRain,wet (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForIncomingRain()</TOOL>
+- <TOOL>handleFeelingCold()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Evening, Media=Unknown]
+
+User: What about the wet?",I've prepared the vehicle for the incoming rain. <TOOL>prepareForIncomingRain()</TOOL>
+prepareForIncomingRain,wet (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForIncomingRain()</TOOL>
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=OFF, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Evening, Media=Playing]
+
+User: I need to check the wet.","I've prepared the vehicle for the incoming rain. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prepareForIncomingRain()</TOOL>"
+prepareForIncomingRain,wet (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForIncomingRain()</TOOL>
+- <TOOL>prepareForParking()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Morning, Media=Paused]
+
+User: Can we adjust the wet?",<TOOL>prepareForIncomingRain()</TOOL>
+prepareForParking,about to park (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForParking()</TOOL>
+- <TOOL>prepareForIncomingRain()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=ON, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Morning, Media=Unknown]
+
+User: Please help me with the about to park.",Good morning! I've prepared parking assistance for you. <TOOL>prepareForParking()</TOOL>
+prepareForParking,about to park (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForParking()</TOOL>
+- <TOOL>setSeatMassager(LEVEL)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Unknown]
+
+User: I need to check the about to park.","Good morning! I've prepared parking assistance for you. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prepareForParking()</TOOL>"
+prepareForParking,about to park (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForParking()</TOOL>
+- <TOOL>turnOnCabinLight()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Unknown]
+
+User: Please help me with the about to park.",<TOOL>prepareForParking()</TOOL>
+optimizeEnergyForRange,maximum battery range (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>optimizeEnergyForRange()</TOOL>
+- <TOOL>handleFeelingCold()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Morning, Media=Paused]
+
+User: I need to check the maximum battery range.",Good morning! I've optimized the vehicle for maximum range. <TOOL>optimizeEnergyForRange()</TOOL>
+optimizeEnergyForRange,maximum battery range (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>optimizeEnergyForRange()</TOOL>
+- <TOOL>adjustBgmForSituation()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Paused]
+
+User: Please help me with the maximum battery range.","I've optimized the vehicle for maximum range. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>optimizeEnergyForRange()</TOOL>"
+optimizeEnergyForRange,maximum battery range (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>optimizeEnergyForRange()</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=2, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Night, Media=Paused]
+
+User: I need to check the maximum battery range.",<TOOL>optimizeEnergyForRange()</TOOL>
+makeTripEnjoyable,make this trip enjoyable (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>makeTripEnjoyable()</TOOL>
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=ON, Fan=5, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Playing]
+
+User: What about the make this trip enjoyable?",I've adjusted settings to make this trip more enjoyable. <TOOL>makeTripEnjoyable()</TOOL>
+makeTripEnjoyable,make this trip enjoyable (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>makeTripEnjoyable()</TOOL>
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=ON, Fan=3, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Night, Media=Playing]
+
+User: What about the make this trip enjoyable?","Good evening. I've adjusted settings to make this trip more enjoyable. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>makeTripEnjoyable()</TOOL>"
+makeTripEnjoyable,make this trip enjoyable (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>makeTripEnjoyable()</TOOL>
+- <TOOL>suggestOptimizedChargingRate()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: Please help me with the make this trip enjoyable.",<TOOL>makeTripEnjoyable()</TOOL>
+checkTripReadiness,vehicle healthy (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>checkTripReadiness()</TOOL>
+- <TOOL>setPassengerTemperature(VAL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=3, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Paused]
+
+User: Can we adjust the vehicle healthy?",I've checked the vehicle's readiness for your trip. <TOOL>checkTripReadiness()</TOOL>
+checkTripReadiness,vehicle healthy (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>checkTripReadiness()</TOOL>
+- <TOOL>searchNearby(amenity)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Paused]
+
+User: I need to check the vehicle healthy.","Good morning! I've checked the vehicle's readiness for your trip. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>checkTripReadiness()</TOOL>"
+checkTripReadiness,vehicle healthy (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>checkTripReadiness()</TOOL>
+- <TOOL>optimizeCabinForLongDrive()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Afternoon, Media=Playing]
+
+User: I need to check the vehicle healthy.",<TOOL>checkTripReadiness()</TOOL>
+prepareForElderlyPassengers,parents travelling (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+- <TOOL>call(NUMBER)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Paused]
+
+User: What about the parents travelling?",I've adjusted cabin settings for your elderly passengers. <TOOL>prepareForElderlyPassengers()</TOOL>
+prepareForElderlyPassengers,parents travelling (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+- <TOOL>closeAllWindows()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=OFF, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Playing]
+
+User: What about the parents travelling?","Good morning! I've adjusted cabin settings for your elderly passengers. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prepareForElderlyPassengers()</TOOL>"
+prepareForElderlyPassengers,parents travelling (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=ON, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: I need to check the parents travelling.",<TOOL>prepareForElderlyPassengers()</TOOL>
+prepareForImportantMeeting,important client meeting (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForImportantMeeting()</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=5, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Afternoon, Media=Unknown]
+
+User: Can we adjust the important client meeting?",I've prepared the cabin and schedule for your important meeting. <TOOL>prepareForImportantMeeting()</TOOL>
+prepareForImportantMeeting,important client meeting (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForImportantMeeting()</TOOL>
+- <TOOL>turnOnDefroster()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=2, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=4, Time=Evening, Media=Paused]
+
+User: Please help me with the important client meeting.","I've prepared the cabin and schedule for your important meeting. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prepareForImportantMeeting()</TOOL>"
+prepareForImportantMeeting,important client meeting (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForImportantMeeting()</TOOL>
+- <TOOL>suggestAlternateRoute()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=ON, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Evening, Media=Unknown]
+
+User: I need to check the important client meeting.",<TOOL>prepareForImportantMeeting()</TOOL>
+prepareForArrival,prepare for arrival (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForArrival()</TOOL>
+- <TOOL>enhanceNiceEvening()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=ON, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Unknown]
+
+User: Can we adjust the prepare for arrival?",I've prepared the vehicle for your arrival. <TOOL>prepareForArrival()</TOOL>
+prepareForArrival,prepare for arrival (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForArrival()</TOOL>
+- <TOOL>enhanceNiceEvening()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=ON, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Afternoon, Media=Playing]
+
+User: Please help me with the prepare for arrival.","I've prepared the vehicle for your arrival. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prepareForArrival()</TOOL>"
+prepareForArrival,prepare for arrival (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForArrival()</TOOL>
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=OFF, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Unknown]
+
+User: Please help me with the prepare for arrival.",<TOOL>prepareForArrival()</TOOL>
+handleEmergencyFeeling,something feels wrong with the car (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>handleEmergencyFeeling()</TOOL>
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Night, Media=Playing]
+
+User: What about the something feels wrong with the car?",Good evening. I've evaluated the vehicle signals and prepared safety recommendations. <TOOL>handleEmergencyFeeling()</TOOL>
+handleEmergencyFeeling,something feels wrong with the car (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>handleEmergencyFeeling()</TOOL>
+- <TOOL>turnOnAutoClimate()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Evening, Media=Playing]
+
+User: Please help me with the something feels wrong with the car.","I've evaluated the vehicle signals and prepared safety recommendations. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>handleEmergencyFeeling()</TOOL>"
+handleEmergencyFeeling,something feels wrong with the car (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>handleEmergencyFeeling()</TOOL>
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Evening, Media=Paused]
+
+User: I need to check the something feels wrong with the car.",<TOOL>handleEmergencyFeeling()</TOOL>
+enableAdaptiveNightMode,night driving is difficult (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>enableAdaptiveNightMode()</TOOL>
+- <TOOL>search(search_term)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: I need to check the night driving is difficult.",Adaptive night driving mode is now enabled. <TOOL>enableAdaptiveNightMode()</TOOL>
+enableAdaptiveNightMode,night driving is difficult (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>enableAdaptiveNightMode()</TOOL>
+- <TOOL>setVolumeLevel(VAL)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Afternoon, Media=Playing]
+
+User: I need to check the night driving is difficult.","Adaptive night driving mode is now enabled. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>enableAdaptiveNightMode()</TOOL>"
+enableAdaptiveNightMode,night driving is difficult (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>enableAdaptiveNightMode()</TOOL>
+- <TOOL>turnOffCabinLight()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Morning, Media=Playing]
+
+User: I need to check the night driving is difficult.",<TOOL>enableAdaptiveNightMode()</TOOL>
+prepareForAirportTrip,going to the airport (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForAirportTrip()</TOOL>
+- <TOOL>playMusic(SONG)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Night, Media=Paused]
+
+User: I need to check the going to the airport.",Good evening. I've prepared navigation and settings for your airport trip. <TOOL>prepareForAirportTrip()</TOOL>
+prepareForAirportTrip,going to the airport (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForAirportTrip()</TOOL>
+- <TOOL>turnOffCabinLight()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=3, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=2, Time=Night, Media=Paused]
+
+User: Please help me with the going to the airport.","Good evening. I've prepared navigation and settings for your airport trip. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prepareForAirportTrip()</TOOL>"
+prepareForAirportTrip,going to the airport (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prepareForAirportTrip()</TOOL>
+- <TOOL>setDriverTemperature(VAL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Paused]
+
+User: I need to check the going to the airport.",<TOOL>prepareForAirportTrip()</TOOL>
+explainLowRange,why is my range low (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>explainLowRange()</TOOL>
+- <TOOL>turnOffAutoClimate()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=2, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Morning, Media=Paused]
+
+User: Please help me with the why is my range low.",Good morning! I've analyzed possible reasons for the lower range. <TOOL>explainLowRange()</TOOL>
+explainLowRange,why is my range low (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>explainLowRange()</TOOL>
+- <TOOL>setVolumeLevel(VAL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Night, Media=Playing]
+
+User: What about the why is my range low?","Good evening. I've analyzed possible reasons for the lower range. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>explainLowRange()</TOOL>"
+explainLowRange,why is my range low (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>explainLowRange()</TOOL>
+- <TOOL>enhanceNiceEvening()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Morning, Media=Paused]
+
+User: Can we adjust the why is my range low?",<TOOL>explainLowRange()</TOOL>
+answerVehicleIdentity,what model is this (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>answerVehicleIdentity()</TOOL>
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=OFF, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Morning, Media=Playing]
+
+User: I need to check the what model is this.",Good morning! I've checked the vehicle identity. <TOOL>answerVehicleIdentity()</TOOL>
+answerVehicleIdentity,what model is this (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>answerVehicleIdentity()</TOOL>
+- <TOOL>turnOnAC()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: Please help me with the what model is this.","I've checked the vehicle identity. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>answerVehicleIdentity()</TOOL>"
+answerVehicleIdentity,what model is this (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>answerVehicleIdentity()</TOOL>
+- <TOOL>turnOffDefroster()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Evening, Media=Unknown]
+
+User: What about the what model is this?",<TOOL>answerVehicleIdentity()</TOOL>
+playMusic,listen (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>playMusic(SONG)</TOOL>
+- <TOOL>adjustBgmForSituation()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Playing]
+
+User: What about the listen?",Great choice — putting that on for you! I'll pause your media. <TOOL>playMusic(Bohemian Rhapsody)</TOOL>
+playMusic,listen (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>playMusic(SONG)</TOOL>
+- <TOOL>checkVehicleState()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Night, Media=Playing]
+
+User: Please help me with the listen.","Good evening. Great choice — putting that on for you! I'll pause your media. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>playMusic(Bohemian Rhapsody)</TOOL>"
+playMusic,listen (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>playMusic(SONG)</TOOL>
+- <TOOL>protectFromPollutedAir()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Unknown]
+
+User: Please help me with the listen.",<TOOL>playMusic(Bohemian Rhapsody)</TOOL>
+pauseMusic,pause music (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>pauseMusic()</TOOL>
+- <TOOL>protectFromPollutedAir()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Night, Media=Paused]
+
+User: Can we adjust the pause music?",Good evening. I've paused the music. <TOOL>pauseMusic()</TOOL>
+pauseMusic,pause music (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>pauseMusic()</TOOL>
+- <TOOL>optimizeEnergyForRange()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Playing]
+
+User: What about the pause music?","Good morning! I've paused the music. I'll pause your media. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>pauseMusic()</TOOL>"
+pauseMusic,pause music (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>pauseMusic()</TOOL>
+- <TOOL>turnOffRecirculation()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=OFF, Fan=4, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Night, Media=Paused]
+
+User: I need to check the pause music.",<TOOL>pauseMusic()</TOOL>
+stopMusic,stop music (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>stopMusic()</TOOL>
+- <TOOL>prevTrack()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Night, Media=Paused]
+
+User: Please stop music.",Good evening. I've stopped the music. <TOOL>stopMusic()</TOOL>
+stopMusic,stop music (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>stopMusic()</TOOL>
+- <TOOL>setAllWindowsPosition()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Paused]
+
+User: Can you stop music?","Good morning! I've stopped the music. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>stopMusic()</TOOL>"
+stopMusic,stop music (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>stopMusic()</TOOL>
+- <TOOL>prepareForImportantMeeting()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Evening, Media=Playing]
+
+User: Hey, stop music.",<TOOL>stopMusic()</TOOL>
+nextTrack,next song (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>nextTrack()</TOOL>
+- <TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: Please help me with the next song.",I've skipped to the next track. <TOOL>nextTrack()</TOOL>
+nextTrack,next song (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>nextTrack()</TOOL>
+- <TOOL>turnOffDefroster()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Morning, Media=Paused]
+
+User: Please help me with the next song.","Good morning! I've skipped to the next track. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>nextTrack()</TOOL>"
+nextTrack,next song (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>nextTrack()</TOOL>
+- <TOOL>decreasePassengerTemperature()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=3, Time=Evening, Media=Playing]
+
+User: I need to check the next song.",<TOOL>nextTrack()</TOOL>
+prevTrack,previous song (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>prevTrack()</TOOL>
+- <TOOL>setEnergeticCabinLighting()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: I need to check the previous song.",I've gone back to the previous track. <TOOL>prevTrack()</TOOL>
+prevTrack,previous song (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>prevTrack()</TOOL>
+- <TOOL>optimizeEnergyForRange()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=ON, Fan=4, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Playing]
+
+User: What about the previous song?","I've gone back to the previous track. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>prevTrack()</TOOL>"
+prevTrack,previous song (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>prevTrack()</TOOL>
+- <TOOL>protectFromPollutedAir()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=2, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Morning, Media=Unknown]
+
+User: What about the previous song?",<TOOL>prevTrack()</TOOL>
+setVolumeLevel,increase volume (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setVolumeLevel(VAL)</TOOL>
+- <TOOL>setTemperature(VAL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Evening, Media=Unknown]
+
+User: Can you increase volume?",I've adjusted the volume. <TOOL>setVolumeLevel(72)</TOOL>
+setVolumeLevel,increase volume (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setVolumeLevel(VAL)</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=OFF, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Afternoon, Media=Unknown]
+
+User: Please increase volume.","I've adjusted the volume. I'll lower the fan speed so you can hear better. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setVolumeLevel(72)</TOOL>"
+setVolumeLevel,increase volume (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setVolumeLevel(VAL)</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Evening, Media=Unknown]
+
+User: Please increase volume.",<TOOL>setVolumeLevel(72)</TOOL>
+callContact,dial (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>callContact(NAME)</TOOL>
+- <TOOL>setPassengerTemperature(VAL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Morning, Media=Unknown]
+
+User: Please help me with the dial.",Good morning! Opening the dialer for you now. I'll lower the fan speed so you can hear better. <TOOL>callContact(Mom)</TOOL>
+callContact,dial (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>callContact(NAME)</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=ON, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Playing]
+
+User: I need to check the dial.","Opening the dialer for you now. I'll lower the fan speed so you can hear better. I'll pause your media. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>callContact(Mom)</TOOL>"
+callContact,dial (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>callContact(NAME)</TOOL>
+- <TOOL>prepareForAirportTrip()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=ON, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=1, Time=Night, Media=Paused]
+
+User: Can we adjust the dial?",<TOOL>callContact(Mom)</TOOL>
+sendText,text (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>sendText(NAME,MSG)</TOOL>
+- <TOOL>suggestUmbrellaIfRainy()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Evening, Media=Playing]
+
+User: Please help me with the text.","I've sent your message. <TOOL>sendText(Mom,I am driving)</TOOL>"
+sendText,text (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>sendText(NAME,MSG)</TOOL>
+- <TOOL>setAirflowDirection(direction)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Morning, Media=Unknown]
+
+User: What about the text?","Good morning! I've sent your message. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>sendText(Mom,I am driving)</TOOL>"
+sendText,text (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>sendText(NAME,MSG)</TOOL>
+- <TOOL>suggestAlternateRoute()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Evening, Media=Playing]
+
+User: Can we adjust the text?","<TOOL>sendText(Mom,I am driving)</TOOL>"
+remember,remember (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>remember(FACT)</TOOL>
+- <TOOL>increaseTemperature(zone)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=3, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Evening, Media=Unknown]
+
+User: What about the remember?",I've saved that information. <TOOL>remember(I like blue)</TOOL>
+remember,remember (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>remember(FACT)</TOOL>
+- <TOOL>prepareForAirportTrip()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Playing]
+
+User: Please help me with the remember.","Good morning! I've saved that information. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>remember(I like blue)</TOOL>"
+remember,remember (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>remember(FACT)</TOOL>
+- <TOOL>suggestOptimizedChargingRate()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=ON, Fan=2, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Playing]
+
+User: Can we adjust the remember?",<TOOL>remember(I like blue)</TOOL>
+getWeather,weather (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>getWeather(CITY)</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=ON, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Evening, Media=Paused]
+
+User: Can we adjust the weather?",Sure thing! <TOOL>getWeather(Seattle)</TOOL>
+getWeather,weather (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>getWeather(CITY)</TOOL>
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Night, Media=Playing]
+
+User: I need to check the weather.","Good evening. Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>getWeather(Seattle)</TOOL>"
+getWeather,weather (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>getWeather(CITY)</TOOL>
+- <TOOL>prepareForParking()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=5, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Morning, Media=Unknown]
+
+User: I need to check the weather.",<TOOL>getWeather(Seattle)</TOOL>
+searchNearby,hungry (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>searchNearby(amenity)</TOOL>
+- <TOOL>handleEmergencyFeeling()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: What about the hungry?",Sure thing! <TOOL>searchNearby(coffee)</TOOL>
+searchNearby,hungry (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>searchNearby(amenity)</TOOL>
+- <TOOL>decreaseDriverTemperature()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=OFF, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Morning, Media=Unknown]
+
+User: Can we adjust the hungry?","Good morning! Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>searchNearby(coffee)</TOOL>"
+searchNearby,hungry (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>searchNearby(amenity)</TOOL>
+- <TOOL>enhanceNiceEvening()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=OFF, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Paused]
+
+User: Can we adjust the hungry?",<TOOL>searchNearby(coffee)</TOOL>
+search,look up (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>search(search_term)</TOOL>
+- <TOOL>adjustBgmForSituation()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=2, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Unknown]
+
+User: I need to check the look up.",Sure thing! <TOOL>search(movies)</TOOL>
+search,look up (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>search(search_term)</TOOL>
+- <TOOL>remember(FACT)</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=OFF, Fan=4, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Unknown]
+
+User: What about the look up?","Good morning! Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>search(movies)</TOOL>"
+search,look up (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>search(search_term)</TOOL>
+- <TOOL>alertDriverDistraction()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=OFF, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Playing]
+
+User: I need to check the look up.",<TOOL>search(movies)</TOOL>
+startNavigationTo,drive to (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+- <TOOL>protectFromPollutedAir()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=OFF, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: I need to check the drive to.","Sure thing! <TOOL>startNavigationTo(""PLACE_Mom"")</TOOL>"
+startNavigationTo,drive to (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+- <TOOL>suggestNearbyPlaces()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=3, Time=Night, Media=Playing]
+
+User: Can we adjust the drive to?","Good evening. Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>startNavigationTo(""PLACE_Mom"")</TOOL>"
+startNavigationTo,drive to (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+- <TOOL>increaseFanSpeed()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Night, Media=Unknown]
+
+User: What about the drive to?","<TOOL>startNavigationTo(""PLACE_Mom"")</TOOL>"
+openTrunk,open (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>openTrunk()</TOOL>
+- <TOOL>increaseDriverTemperature()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: Hey, open.",I've popped the trunk. <TOOL>openTrunk()</TOOL>
+openTrunk,open (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>openTrunk()</TOOL>
+- <TOOL>turnOnRearDefroster()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=3, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Evening, Media=Paused]
+
+User: Can you open?","I've popped the trunk. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>openTrunk()</TOOL>"
+openTrunk,open (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>openTrunk()</TOOL>
+- <TOOL>handleEmergencyFeeling()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=ON, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Morning, Media=Paused]
+
+User: Please open.",<TOOL>openTrunk()</TOOL>
+setWindowPosition,roll down window (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setWindowPosition(PCT)</TOOL>
+- <TOOL>increaseTemperature(zone)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=OFF, Fan=3, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Playing]
+
+User: Please help me with the roll down window.",I've adjusted the windows. <TOOL>setWindowPosition(50)</TOOL>
+setWindowPosition,roll down window (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setWindowPosition(PCT)</TOOL>
+- <TOOL>analyzeCabinState()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=ON, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Morning, Media=Paused]
+
+User: Can we adjust the roll down window?","Good morning! I've adjusted the windows. We are at highway speeds, so I'll be careful. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setWindowPosition(50)</TOOL>"
+setWindowPosition,roll down window (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setWindowPosition(PCT)</TOOL>
+- <TOOL>increaseFanSpeed()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=OFF, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Afternoon, Media=Unknown]
+
+User: I need to check the roll down window.",<TOOL>setWindowPosition(50)</TOOL>
+unlockDoors,unlock (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>unlockDoors()</TOOL>
+- <TOOL>suggestAlternateRoute()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Morning, Media=Paused]
+
+User: I need to check the unlock.",Good morning! I've unlocked the doors. <TOOL>unlockDoors()</TOOL>
+unlockDoors,unlock (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>unlockDoors()</TOOL>
+- <TOOL>setPassengerTemperature(VAL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Night, Media=Paused]
+
+User: Please help me with the unlock.","Good evening. I've unlocked the doors. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>unlockDoors()</TOOL>"
+unlockDoors,unlock (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>unlockDoors()</TOOL>
+- <TOOL>movePassengerSeatForward()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Paused]
+
+User: Please help me with the unlock.",<TOOL>unlockDoors()</TOOL>
+setDriverTemperature,driver temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setDriverTemperature(VAL)</TOOL>
+- <TOOL>analyzeCabinState()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Unknown]
+
+User: What about the driver temperature?",I've adjusted the driver's side temperature. <TOOL>setDriverTemperature(72)</TOOL>
+setDriverTemperature,driver temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setDriverTemperature(VAL)</TOOL>
+- <TOOL>provideLaneLevelGuidance()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=70F, PassTemp=70F, SeatHeat=1, AC=OFF, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: Can we adjust the driver temperature?","I've adjusted the driver's side temperature. I'll make sure everyone in the back is comfortable too. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setDriverTemperature(72)</TOOL>"
+setDriverTemperature,driver temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setDriverTemperature(VAL)</TOOL>
+- <TOOL>sendText(NAME,MSG)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=3, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Evening, Media=Unknown]
+
+User: I need to check the driver temperature.",<TOOL>setDriverTemperature(72)</TOOL>
+setPassengerTemperature,passenger temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setPassengerTemperature(VAL)</TOOL>
+- <TOOL>enhanceNiceEvening()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=ON, Fan=3, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Night, Media=Paused]
+
+User: Can we adjust the passenger temperature?",Good evening. I've adjusted the passenger's side temperature. I'm turning on the climate system for you. I'll make sure everyone in the back is comfortable too. <TOOL>setPassengerTemperature(72)</TOOL>
+setPassengerTemperature,passenger temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setPassengerTemperature(VAL)</TOOL>
+- <TOOL>suggestOptimizedChargingRate()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=OFF, Fan=4, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Evening, Media=Paused]
+
+User: Can we adjust the passenger temperature?","I've adjusted the passenger's side temperature. I'll make sure everyone in the back is comfortable too. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setPassengerTemperature(72)</TOOL>"
+setPassengerTemperature,passenger temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setPassengerTemperature(VAL)</TOOL>
+- <TOOL>openWindowsSlightly()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=ON, Fan=1, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: Can we adjust the passenger temperature?",<TOOL>setPassengerTemperature(72)</TOOL>
+bookRestaurant,bookrestaurant (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>bookRestaurant()</TOOL>
+- <TOOL>turnOnRearDefroster()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Night, Media=Playing]
+
+User: Can we adjust the bookrestaurant?",Good evening. Sure thing! <TOOL>bookRestaurant()</TOOL>
+bookRestaurant,bookrestaurant (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>bookRestaurant()</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Playing]
+
+User: What about the bookrestaurant?","Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>bookRestaurant()</TOOL>"
+bookRestaurant,bookrestaurant (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>bookRestaurant()</TOOL>
+- <TOOL>setFanSpeed(LEVEL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=OFF, Fan=4, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Playing]
+
+User: I need to check the bookrestaurant.",<TOOL>bookRestaurant()</TOOL>
+queryMemory,querymemory (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>queryMemory()</TOOL>
+- <TOOL>suggestOptimizedChargingRate()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=OFF, Fan=5, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Morning, Media=Playing]
+
+User: Can we adjust the querymemory?",Good morning! Sure thing! <TOOL>queryMemory()</TOOL>
+queryMemory,querymemory (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>queryMemory()</TOOL>
+- <TOOL>turnOffRecirculation()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: Please help me with the querymemory.","Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>queryMemory()</TOOL>"
+queryMemory,querymemory (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>queryMemory()</TOOL>
+- <TOOL>turnOffAutoClimate()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=3, AC=ON, Fan=5, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=3, Time=Night, Media=Paused]
+
+User: What about the querymemory?",<TOOL>queryMemory()</TOOL>
+openApp,openapp (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>openApp()</TOOL>
+- <TOOL>handleDriverFatigue(ALERT_LEVEL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: Can you openapp?",Sure thing! <TOOL>openApp()</TOOL>
+openApp,openapp (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>openApp()</TOOL>
+- <TOOL>turnOnAC()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: Can you openapp?","Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>openApp()</TOOL>"
+openApp,openapp (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>openApp()</TOOL>
+- <TOOL>decreaseFanSpeed()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Night, Media=Unknown]
+
+User: Please openapp.",<TOOL>openApp()</TOOL>
+setAllWindowsPosition,setallwindowsposition (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>setAllWindowsPosition()</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=ON, Fan=3, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Paused]
+
+User: Hey, setallwindowsposition.",Sure thing! <TOOL>setAllWindowsPosition()</TOOL>
+setAllWindowsPosition,setallwindowsposition (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>setAllWindowsPosition()</TOOL>
+- <TOOL>prevTrack()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=1, HVAC=ON | DriverMood=Tired / Yawning, Occupants=4, Time=Night, Media=Paused]
+
+User: Can you setallwindowsposition?","Good evening. Sure thing! We are at highway speeds, so I'll be careful. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>setAllWindowsPosition()</TOOL>"
+setAllWindowsPosition,setallwindowsposition (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>setAllWindowsPosition()</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Night, Media=Paused]
+
+User: Please setallwindowsposition.",<TOOL>setAllWindowsPosition()</TOOL>
+checkVehicleState,check state (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>checkVehicleState()</TOOL>
+- <TOOL>queryMemory()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Night, Media=Playing]
+
+User: What about the check state?",Good evening. Sure thing! <TOOL>checkVehicleState()</TOOL>
+checkVehicleState,check state (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>checkVehicleState()</TOOL>
+- <TOOL>setTemperature(VAL)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=ON, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Evening, Media=Paused]
+
+User: Can we adjust the check state?","Sure thing! By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>checkVehicleState()</TOOL>"
+checkVehicleState,check state (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>checkVehicleState()</TOOL>
+- <TOOL>prepareForElderlyPassengers()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=2, Time=Morning, Media=Unknown]
+
+User: I need to check the check state.",<TOOL>checkVehicleState()</TOOL>
+increasePassengerTemperature,increase passenger temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>increasePassengerTemperature()</TOOL>
+- <TOOL>checkVehicleState()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=ON, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Night, Media=Paused]
+
+User: Please increase passenger temperature.",Good evening. I've increased the passenger's temperature. I'll make sure everyone in the back is comfortable too. <TOOL>increasePassengerTemperature()</TOOL>
+increasePassengerTemperature,increase passenger temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>increasePassengerTemperature()</TOOL>
+- <TOOL>enableFreshAirIntake()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=ON, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Morning, Media=Paused]
+
+User: Please increase passenger temperature.","Good morning! I've increased the passenger's temperature. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>increasePassengerTemperature()</TOOL>"
+increasePassengerTemperature,increase passenger temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>increasePassengerTemperature()</TOOL>
+- <TOOL>handleFeelingCold()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=1, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=1, Time=Evening, Media=Unknown]
+
+User: Hey, increase passenger temperature.",<TOOL>increasePassengerTemperature()</TOOL>
+decreasePassengerTemperature,decrease passenger temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>decreasePassengerTemperature()</TOOL>
+- <TOOL>prepareForImportantMeeting()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=70F, PassTemp=70F, SeatHeat=3, AC=ON, Fan=2, HVAC=ON | DriverMood=Neutral / Focused, Occupants=1, Time=Afternoon, Media=Paused]
+
+User: Please decrease passenger temperature.",I've decreased the passenger's temperature. <TOOL>decreasePassengerTemperature()</TOOL>
+decreasePassengerTemperature,decrease passenger temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>decreasePassengerTemperature()</TOOL>
+- <TOOL>setPassengerTemperature(VAL)</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=OFF, Fan=3, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Night, Media=Playing]
+
+User: Please decrease passenger temperature.","Good evening. I've decreased the passenger's temperature. I'll make sure everyone in the back is comfortable too. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>decreasePassengerTemperature()</TOOL>"
+decreasePassengerTemperature,decrease passenger temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>decreasePassengerTemperature()</TOOL>
+- <TOOL>provideLaneLevelGuidance()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Paused]
+
+User: Hey, decrease passenger temperature.",<TOOL>decreasePassengerTemperature()</TOOL>
+increaseDriverTemperature,increase driver temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseDriverTemperature()</TOOL>
+- <TOOL>explainLowRange()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=0, AC=ON, Fan=2, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=4, Time=Afternoon, Media=Unknown]
+
+User: Can you increase driver temperature?",I've increased the driver's temperature. I'm turning on the climate system for you. I'll make sure everyone in the back is comfortable too. <TOOL>increaseDriverTemperature()</TOOL>
+increaseDriverTemperature,increase driver temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseDriverTemperature()</TOOL>
+- <TOOL>provideLaneLevelGuidance()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=1, Time=Afternoon, Media=Unknown]
+
+User: Can you increase driver temperature?","I've increased the driver's temperature. I'm turning on the climate system for you. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>increaseDriverTemperature()</TOOL>"
+increaseDriverTemperature,increase driver temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseDriverTemperature()</TOOL>
+- <TOOL>enableAdaptiveNightMode()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=75F, PassTemp=75F, SeatHeat=0, AC=OFF, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=4, Time=Morning, Media=Paused]
+
+User: Hey, increase driver temperature.",<TOOL>increaseDriverTemperature()</TOOL>
+decreaseDriverTemperature,decrease driver temperature (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseDriverTemperature()</TOOL>
+- <TOOL>turnOffAC()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=ON, Fan=5, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=2, Time=Evening, Media=Playing]
+
+User: Can you decrease driver temperature?",I've decreased the driver's temperature. I'm turning on the climate system for you. I'll make sure everyone in the back is comfortable too. <TOOL>decreaseDriverTemperature()</TOOL>
+decreaseDriverTemperature,decrease driver temperature (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseDriverTemperature()</TOOL>
+- <TOOL>enableAdaptiveNightMode()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=80F, PassTemp=80F, SeatHeat=0, AC=ON, Fan=5, HVAC=OFF | DriverMood=Tired / Yawning, Occupants=3, Time=Morning, Media=Unknown]
+
+User: Please decrease driver temperature.","Good morning! I've decreased the driver's temperature. I'm turning on the climate system for you. I'll make sure everyone in the back is comfortable too. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>decreaseDriverTemperature()</TOOL>"
+decreaseDriverTemperature,decrease driver temperature (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>decreaseDriverTemperature()</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=70F, PassTemp=70F, SeatHeat=0, AC=ON, Fan=1, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Afternoon, Media=Unknown]
+
+User: Can you decrease driver temperature?",<TOOL>decreaseDriverTemperature()</TOOL>
+handleFeelingCold,feeling cold (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>handleFeelingCold()</TOOL>
+- <TOOL>getWeather(CITY)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=OFF, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Evening, Media=Playing]
+
+User: Feeling cold.",Would you like me to turn on the seat heater? <TOOL>handleFeelingCold()</TOOL>
+handleFeelingCold,feeling cold (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>handleFeelingCold()</TOOL>
+- <TOOL>checkAllWindowsClosed()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=3, AC=ON, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=1, Time=Night, Media=Playing]
+
+User: Feeling cold.","Good evening. Would you like me to turn on the seat heater? By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>handleFeelingCold()</TOOL>"
+handleFeelingCold,feeling cold (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>handleFeelingCold()</TOOL>
+- <TOOL>optimizeEnergyForRange()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=60F, PassTemp=60F, SeatHeat=0, AC=OFF, Fan=4, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Afternoon, Media=Playing]
+
+User: Feeling cold.",<TOOL>handleFeelingCold()</TOOL>
+call,call number (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>call(NUMBER)</TOOL>
+- <TOOL>search(search_term)</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=OFF, Fan=4, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=1, Time=Evening, Media=Paused]
+
+User: Please help me with the call number.",Dialing the number. I'll lower the fan speed so you can hear better. <TOOL>call(555-0199)</TOOL>
+call,call number (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>call(NUMBER)</TOOL>
+- <TOOL>getNewsHighlights()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=80F, PassTemp=80F, SeatHeat=1, AC=ON, Fan=5, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Night, Media=Paused]
+
+User: Please help me with the call number.","Good evening. Dialing the number. I'll lower the fan speed so you can hear better. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>call(555-0199)</TOOL>"
+call,call number (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>call(NUMBER)</TOOL>
+- <TOOL>handleEmergencyFeeling()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=75F, PassTemp=75F, SeatHeat=1, AC=ON, Fan=2, HVAC=ON | DriverMood=Frustrated / Frowning, Occupants=3, Time=Evening, Media=Playing]
+
+User: Can we adjust the call number?",<TOOL>call(555-0199)</TOOL>
+suggestNearbyPlaces,suggest places (Neutral),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestNearbyPlaces()</TOOL>
+- <TOOL>answerVehicleIdentity()</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=5, HVAC=ON | DriverMood=Neutral / Focused, Occupants=2, Time=Afternoon, Media=Paused]
+
+User: What about the suggest places?",Here are some nearby places. <TOOL>suggestNearbyPlaces()</TOOL>
+suggestNearbyPlaces,suggest places (Tired),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestNearbyPlaces()</TOOL>
+- <TOOL>increaseDriverTemperature()</TOOL>
+
+[System Context: Speed=30mph, DriverTemp=80F, PassTemp=80F, SeatHeat=2, AC=OFF, Fan=2, HVAC=ON | DriverMood=Tired / Yawning, Occupants=2, Time=Morning, Media=Unknown]
+
+User: I need to check the suggest places.","Good morning! Here are some nearby places. By the way, you look a bit tired. Let me know if you want me to route to a coffee shop. <TOOL>suggestNearbyPlaces()</TOOL>"
+suggestNearbyPlaces,suggest places (Frustrated),"=== AVAILABLE TOOLS ===
+- <TOOL>suggestNearbyPlaces()</TOOL>
+- <TOOL>checkTripReadiness()</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=60F, PassTemp=60F, SeatHeat=3, AC=ON, Fan=3, HVAC=OFF | DriverMood=Frustrated / Frowning, Occupants=4, Time=Night, Media=Paused]
+
+User: Can we adjust the suggest places?",<TOOL>suggestNearbyPlaces()</TOOL>
+(No Tool),Chit-Chat / Out-of-Domain,"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAC()</TOOL>
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=75F, PassTemp=75F, SeatHeat=2, AC=OFF, Fan=5, HVAC=ON | DriverMood=Happy / Smiling, Occupants=2, Time=Night, Media=Unknown]
+Memory: None
+
+User: Tell me a joke.",Good evening. Why did the car get a flat tire? Because there was a fork in the road!
+(No Tool),Chit-Chat / Out-of-Domain,"=== AVAILABLE TOOLS ===
+- <TOOL>turnOnAC()</TOOL>
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+
+[System Context: Speed=85mph, DriverTemp=60F, PassTemp=60F, SeatHeat=1, AC=OFF, Fan=1, HVAC=ON | DriverMood=Neutral / Focused, Occupants=3, Time=Evening, Media=Unknown]
+Memory: None
+
+User: What is the meaning of life?","I'm just a passenger seat companion, ready to help you drive safely!"
+startNavigationTo,Multi-Turn Memory (Disambiguation),"=== AVAILABLE TOOLS ===
+- <TOOL>startNavigationTo(""PLACE_NAME"")</TOOL>
+- <TOOL>turnOnAC()</TOOL>
+
+[System Context: Speed=0mph, DriverTemp=65F, PassTemp=65F, SeatHeat=2, AC=OFF, Fan=4, HVAC=ON | DriverMood=Neutral / Focused, Occupants=4, Time=Morning, Media=Paused]
+Memory:
+Assistant: I found a Starbucks and a Peet's Coffee nearby.
+
+User: Let's go to the second one.","Good morning! Good choice! I'm routing you to Peet's Coffee now. <TOOL>startNavigationTo(""Peet's Coffee"")</TOOL>"
+increaseTemperature,Multi-Turn Memory (Follow-up Adjustment),"=== AVAILABLE TOOLS ===
+- <TOOL>increaseTemperature(zone)</TOOL>
+- <TOOL>setSeatHeater(LEVEL)</TOOL>
+
+[System Context: Speed=65mph, DriverTemp=65F, PassTemp=65F, SeatHeat=3, AC=ON, Fan=1, HVAC=OFF | DriverMood=Neutral / Focused, Occupants=3, Time=Morning, Media=Playing]
+Memory:
+User: Turn on the AC.
+Assistant: Sure thing, the AC is on.
+
+User: Actually, make it a bit warmer in here.","Good morning! No problem, I'm warming it up for you. <TOOL>increaseTemperature(all)</TOOL>"

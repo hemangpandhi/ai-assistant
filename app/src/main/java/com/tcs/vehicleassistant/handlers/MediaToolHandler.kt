@@ -39,8 +39,22 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                         searchIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
                         searchIntent.putExtra(android.app.SearchManager.QUERY, query)
                         searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
-                        success = true
+                        
+                        if (searchIntent.resolveActivity(context.packageManager) != null) {
+                            if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
+                            success = true
+                        } else {
+                            val musicAppIntent = context.packageManager.getLaunchIntentForPackage("com.android.music") ?: 
+                                                 context.packageManager.getLaunchIntentForPackage("com.android.car.media")
+                            if (musicAppIntent != null) {
+                                musicAppIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                if (intentHandler != null) intentHandler(musicAppIntent) else context.startActivity(musicAppIntent)
+                                success = true
+                            } else {
+                                Log.e(TAG, "No app found to handle MEDIA_PLAY_FROM_SEARCH or default music app.")
+                                success = false
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "MediaSession search failed, using fallback intent", e)
@@ -49,10 +63,20 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                         searchIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
                         searchIntent.putExtra(android.app.SearchManager.QUERY, query)
                         searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                        if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
-                        success = true
+                        
+                        if (searchIntent.resolveActivity(context.packageManager) != null) {
+                            if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)
+                            success = true
+                        } else {
+                            val musicAppIntent = Intent(Intent.ACTION_MAIN)
+                            musicAppIntent.addCategory(Intent.CATEGORY_APP_MUSIC)
+                            musicAppIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            if (intentHandler != null) intentHandler(musicAppIntent) else context.startActivity(musicAppIntent)
+                            success = true
+                        }
                     } catch (e2: Exception) {
                         Log.e(TAG, "Fallback intent failed", e2)
+                        success = false
                     }
                 }
                 if (success) {

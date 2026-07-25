@@ -9,8 +9,8 @@ import androidx.fragment.app.Fragment
 import com.tcs.vehicleassistant.R
 
 class HealthMonitorFragment : Fragment() {
-    private lateinit var tvBpm: TextView
-    private lateinit var tvStress: TextView
+    private var tvBpm: TextView? = null
+    private var tvStress: TextView? = null
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -23,7 +23,7 @@ class HealthMonitorFragment : Fragment() {
     }
 
     fun updateStats(bpm: Int, stress: String) {
-        tvBpm.text = "BPM: $bpm"
-        tvStress.text = "Stress: $stress"
+        tvBpm?.text = "BPM: $bpm"
+        tvStress?.text = "Stress: $stress"
     }
 }

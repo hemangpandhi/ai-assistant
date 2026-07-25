@@ -164,10 +164,27 @@ class AgentOrchestrator(
     }
 
     private fun onTtsFinalUtteranceError(utteranceId: String) {
-        if (utteranceId == "STATEMENT_FINAL_TOOL" || utteranceId == "STATEMENT_FINAL") {
-            scope.launch {
-                delay(50)
-                _events.tryEmit(OrchestratorEvent.FinishSession)
+        scope.launch {
+            when (utteranceId) {
+                "QUESTION_FINAL" -> {
+                    delay(500)
+                    _events.tryEmit(OrchestratorEvent.StartListening)
+                }
+                "STATEMENT_FINAL_TOOL" -> {
+                    for (job in currentPendingTools) {
+                        try { job.await() } catch (_: Exception) {}
+                    }
+                    pendingIntentToLaunch?.let { intent ->
+                        _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
+                        pendingIntentToLaunch = null
+                    }
+                    delay(3000) // Artificial delay to allow user to read text since TTS failed
+                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                }
+                "STATEMENT_FINAL" -> {
+                    delay(4000) // Artificial delay to allow user to read text since TTS failed
+                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                }
             }
         }
     }
@@ -312,7 +329,7 @@ class AgentOrchestrator(
             if (LocalLLMActivity.isCloudModelActive) {
                 "$sysPrompt\n\n[Conversation History]\n${if (priorHistory.isNotEmpty()) priorHistory else "(start)"}\n\n$vehicleState\n${if (currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
             } else {
-                "$stateInject$toolsInject$historyBlock\nUser: $interceptedQuery\nAssistant:"
+                "$stateInject$toolsInject$interceptedQuery"
             }
         }
 

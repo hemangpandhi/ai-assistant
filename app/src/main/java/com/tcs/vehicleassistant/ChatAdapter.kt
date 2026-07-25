@@ -67,4 +67,8 @@ class ChatAdapter(private val messages: MutableList<ChatMessage>) : RecyclerView
         messages.clear()
         notifyDataSetChanged()
     }
+    
+    fun getLastMessageText(): String? {
+        return messages.lastOrNull()?.text
+    }
 }

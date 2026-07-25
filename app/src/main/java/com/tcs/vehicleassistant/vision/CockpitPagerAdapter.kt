@@ -22,6 +22,16 @@ class CockpitPagerAdapter(activity: FragmentActivity) : FragmentStateAdapter(act
     }
 
     fun setVisionService(service: CockpitVisionService?) {
-        // Implementation can be added if fragments need direct access
+        driverSafetyFragment.visionService = service
+        service?.onStatsUpdateCallback = { healthState, gestureFeedback, similarity, userName ->
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                cabinSenseFragment.updateStats(
+                    mood = gestureFeedback?.mood ?: "Neutral",
+                    gesture = gestureFeedback?.gestureName ?: "NONE"
+                )
+                driverSafetyFragment.updateStats(similarity, userName)
+                healthMonitorFragment.updateStats(healthState.heartRate, healthState.stressLevel)
+            }
+        }
     }
 }
