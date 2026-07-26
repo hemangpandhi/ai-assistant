@@ -8,18 +8,18 @@ The immersive assistant is split so UI/session chrome never depends on IVI vehic
 |--------|------|
 | `:assistant-api` | Pure contracts: `AssistantBackend`, `AssistantHost`, session events/models. No Compose. |
 | `:assistant` | Face UI, overlay service, demo backend, STT/TTS adapters. Depends only on `:assistant-api`. |
-| `:app` | Implements `AssistantHost` (`DesignAssistantHost`), installs runtime in `DesignApplication`, publishes cabin context from `DesignAppShell`. |
+| `:app` | Implements `AssistantHost` (`VehicleAssistantHost`), installs runtime in `VehicleApplication` via `AssistantRuntimeBootstrap`. |
+
+Full UI/UX + ADB guide: [ASSISTANT_UI_UX.md](./ASSISTANT_UI_UX.md).
 
 ## Wiring today
 
 ```kotlin
-AssistantRuntime.install(
-    host = DesignAssistantHost(app),
-    backend = DemoAssistantBackend(speakingTts = platformAssistantTts(app)),
-)
+AssistantRuntimeBootstrap.install(app, useDemoBackend = true)
+// → AssistantRuntime.install(VehicleAssistantHost(app), DemoAssistantBackend(...))
 ```
 
-`ImmersiveAssistantOverlay` collects `AssistantBackend.events` and forwards mic input via `onSpeechInput`. Swap `DemoAssistantBackend` for a remote/LLM client without touching Compose.
+`ImmersiveAssistantOverlay` collects `AssistantBackend.events` and forwards mic input via `onSpeechInput`. Swap `DemoAssistantBackend` for `VehicleAgentAssistantBackend` without touching Compose.
 
 ## Standalone APK path
 
