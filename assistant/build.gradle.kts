@@ -1,13 +1,13 @@
 plugins {
-    alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.compose)
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.test.design.assistant"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 35
+
     defaultConfig {
         minSdk = 34
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -15,6 +15,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = "11"
     }
     buildFeatures {
         compose = true
@@ -24,25 +27,31 @@ android {
 dependencies {
     api(project(":assistant-api"))
 
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material3.window.size)
-    implementation(libs.androidx.graphics.shapes)
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.foundation)
-    implementation(libs.androidx.compose.material.icons.extended)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.lifecycle.runtime.compose)
-    implementation(libs.androidx.lifecycle.service)
-    implementation(libs.androidx.navigation.compose)
+    // Design assistant uses Material3 Expressive (MaterialShapes) + Path.quadraticTo.
+    val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
+    implementation(composeBom)
+    androidTestImplementation(composeBom)
 
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
-    debugImplementation(libs.androidx.compose.ui.tooling)
+    implementation("androidx.activity:activity-compose")
+    // Expressive MaterialShapes / ExperimentalMaterial3ExpressiveApi (not public in stable BOM)
+    implementation("androidx.compose.material3:material3:1.5.0-alpha04")
+    implementation("androidx.compose.material3:material3-window-size-class")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-graphics")
+    implementation("androidx.compose.foundation:foundation")
+    implementation("androidx.compose.animation:animation")
+    implementation("androidx.compose.material:material-icons-extended")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.graphics:graphics-shapes:1.0.1")
+    implementation("androidx.core:core-ktx:1.15.0")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-service:2.8.7")
+    implementation("androidx.navigation:navigation-compose:2.8.5")
+
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
+    debugImplementation("androidx.compose.ui:ui-tooling")
 }

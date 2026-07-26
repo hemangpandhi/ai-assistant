@@ -7,8 +7,8 @@
   Runs Gradle assembleDebug, then installs the APK onto a running adb device
   with replace (-r) and runtime permission grant (-g). Optionally launches the app.
 
-  Gradle 8.4 cannot run on JDK 25+. This script auto-selects a compatible JDK
-  (17-21), preferring Android Studio's bundled JBR.
+  This project's Gradle cannot run on JDK 25+. The script auto-selects a
+  compatible JDK (17-21), preferring Android Studio's bundled JBR.
 
 .PARAMETER Serial
   Target a specific device when more than one is connected (adb -s).
@@ -190,8 +190,8 @@ try {
         $jdk = Resolve-GradleJavaHome -Preferred $JavaHome
         if (-not $jdk) {
             throw @"
-No compatible JDK (17-21) found for Gradle 8.4.
-Current default Java is likely JDK 25+, which Gradle 8.4 cannot use.
+No compatible JDK (17-21) found for Gradle.
+Current default Java is likely JDK 25+, which this Gradle setup cannot use.
 Install Android Studio (bundled JBR) or JDK 17/21, then re-run.
 Optional: .\buildDeploy.ps1 -JavaHome 'C:\Path\To\JDK21'
 "@

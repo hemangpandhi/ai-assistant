@@ -56,6 +56,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
         android:name=".VehicleApplication"
@@ -111,6 +112,65 @@
         <service android:name=".vision.CockpitVisionService"
                  android:foregroundServiceType="camera"
                  android:exported="false" />
+
+        <!-- Compose design assistant entry points (UI decoupled from agent core) -->
+        <activity
+            android:name="com.test.design.presentation.assistant.VirtualAssistantActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="com.test.design.action.OPEN_ASSISTANT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.test.design.presentation.assistant.gallery.AssistantUiGalleryActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+            <intent-filter>
+                <action android:name="com.test.design.action.OPEN_ASSISTANT_GALLERY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.test.design.presentation.assistant.overlay.AssistantOverlayBootstrapActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="com.test.design.action.START_ASSISTANT_OVERLAY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="com.test.design.presentation.assistant.ImmersiveAssistantOverlayService"
+            android:exported="true" />
+
+        <service
+            android:name="com.test.design.presentation.assistant.overlay.AssistantOverlayService"
+            android:exported="false" />
+
+        <receiver
+            android:name="com.test.design.presentation.assistant.AssistantFaceReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.test.design.action.SET_ASSISTANT_FACE" />
+                <action android:name="com.test.design.action.GET_ASSISTANT_FACE" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".assistant.AssistantUiProfileReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.SET_ASSISTANT_UI" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_ASSISTANT_UI" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

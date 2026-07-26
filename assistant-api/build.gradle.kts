@@ -1,12 +1,12 @@
 plugins {
-    alias(libs.plugins.android.library)
+    id("com.android.library")
+    id("org.jetbrains.kotlin.android")
 }
 
 android {
     namespace = "com.test.design.assistant.api"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 35
+
     defaultConfig {
         minSdk = 34
     }
@@ -14,11 +14,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    kotlinOptions {
+        jvmTarget = "11"
+    }
 }
 
 dependencies {
-    implementation(libs.androidx.core.ktx)
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.9.0")
-    testImplementation(libs.junit)
-    testImplementation(libs.kotlinx.coroutines.test)
+    implementation("androidx.core:core-ktx:1.12.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
 }

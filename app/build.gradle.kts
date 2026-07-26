@@ -11,11 +11,12 @@ val geminiApiKey: String = localProperties.getProperty("GEMINI_API_KEY", "")
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "com.tcs.vehicleassistant"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.tcs.vehicleassistant"
@@ -56,20 +57,33 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "11"
     }
     buildFeatures {
         viewBinding = true
         buildConfig = true
+        compose = true
     }
     useLibrary("android.car")
 }
 
 dependencies {
+    implementation(project(":assistant"))
+
+    val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
+    implementation(composeBom)
+    implementation("androidx.activity:activity-compose")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3:1.5.0-alpha04")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.savedstate:savedstate-ktx:1.2.1")
+
     implementation("org.tensorflow:tensorflow-lite:2.13.0")
     implementation("com.google.mediapipe:tasks-vision:0.10.14")
     implementation("androidx.core:core-ktx:1.12.0")
