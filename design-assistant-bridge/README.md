@@ -1,29 +1,13 @@
-# Design assistant import (drop-in copy)
+# Design assistant import
 
-Copied from the Design demo repo for later integration. **Not wired into Gradle yet.**
+The Compose assistant libraries live in `:assistant` + `:assistant-api` and are wired into `:app`.
 
-## What’s here
+Host implementation (replaces the Design-demo stub):
 
-| Path | Contents |
-|------|----------|
-| `../assistant/` | Face UI, immersive overlay, gallery, demo backend, overlay services |
-| `../assistant-api/` | `AssistantBackend`, `AssistantHost`, `AssistantRuntime`, events/models |
-| `DesignAssistantHost.kt` | Example host that supplies cabin context (IVI-specific; rewrite for this app) |
-| `../docs/design-assistant/` | Standalone extraction + ADB face-switch notes |
+- `app/.../assistant/VehicleAssistantHost.kt`
+- `app/.../assistant/AssistantRuntimeBootstrap.kt`
+- `app/.../assistant/AssistantUiProfile.kt`
 
-Packages are still `com.test.design.*`.
+ADB docs: [`../docs/design-assistant/assistant-adb.md`](../docs/design-assistant/assistant-adb.md)
 
-## Entry points to wire later
-
-1. **Immersive overlay (main widget open):** `VirtualAssistantScreen` → `ImmersiveAssistantOverlay`
-2. **Gallery:** `AssistantUiGalleryScreen` / `AssistantUiGalleryActivity`
-3. **Runtime install** (Application / DI):
-   ```kotlin
-   AssistantRuntime.install(
-       host = /* your AssistantHost */,
-       backend = /* your AssistantBackend or DemoAssistantBackend */,
-   )
-   ```
-4. **Gradle:** `include(":assistant-api")` + `include(":assistant")`, then `implementation(project(":assistant"))` from `:app` (and align Compose / SDK with this project’s catalog).
-
-See `../docs/design-assistant/assistant-standalone.md` for the intended module boundary.
+`DesignAssistantHost.kt` in this folder is a Design-demo reference only and is **not** compiled.
