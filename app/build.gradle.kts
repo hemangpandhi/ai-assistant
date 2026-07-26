@@ -28,7 +28,8 @@ android {
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         
         ndk {
-            abiFilters.add("arm64-v8a")
+            // Physical boards are arm64; AAOS emulator images are typically x86_64.
+            abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
         }
     }
 
