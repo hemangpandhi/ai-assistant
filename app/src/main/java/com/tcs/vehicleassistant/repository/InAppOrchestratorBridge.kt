@@ -88,6 +88,7 @@ class InAppOrchestratorBridge(
 
         override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) = onSuccess()
         override fun startListening() {}
+        override fun restartListening(delayedMs: Long) {}
         override fun stopListening() {}
         override fun destroySpeechRecognizer() {}
         override fun shutdown() {}
