@@ -139,8 +139,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             isBound = true
             viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
-            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(viewModel)
-            if (!usingComposeUi) {
+            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
+                viewModel,
+                audioManager,
+            )
+            if (usingComposeUi) {
+                startObservingComposeAgentEvents()
+            } else {
                 startObservingViewModel()
             }
         }
@@ -186,18 +191,21 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         observerScope.launch(Dispatchers.IO) {
             runCatching { LocalLLMActivity.loadRuntimePrefs(context.applicationContext) }
             runCatching { VehicleManager.initialize(context.applicationContext) }
+            // Kick LLM early so the first spoken query isn't blocked on cold load.
+            runCatching {
+                if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
+                    LLMManager.autoInitialize(context.applicationContext)
+                }
+            }
             withContext(Dispatchers.Main) {
                 runCatching { VehicleCabinContextStore.publishFromVehicleManager() }
             }
         }
-        // Compose demo path does not need VehicleAgentService on the critical path.
-        // XML plates still bind the agent for mic / ViewModel.
-        if (!usingComposeUi) {
-            val intent = Intent(context, VehicleAgentService::class.java)
-            runCatching {
-                context.startForegroundService(intent)
-                context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-            }
+        // Always bind the agent — Compose immersive drives mic/TTS/LLM through it.
+        val intent = Intent(context, VehicleAgentService::class.java)
+        runCatching {
+            context.startForegroundService(intent)
+            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
     }
 
@@ -244,10 +252,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         onDismiss = { hide() },
                         modifier = Modifier.fillMaxSize(),
                         awaitHotword = false,
-                        // Defer continuous STT until after first paint (handled in overlay).
-                        enableLiveSpeech = true,
-                        // Silent lip-sync on first sessions — platform TTS init is a major
-                        // cold-start hitch after install; chime/haptics still play.
+                        // Agent owns STT via VehicleAgentService / AndroidAudioManager.
+                        enableLiveSpeech = false,
+                        // Agent owns TTS via orchestrator audioManager.
                         enableTts = false,
                     )
                 }
@@ -376,6 +383,34 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         setContentView(overlayView)
     }
 
+    private fun startObservingComposeAgentEvents() {
+        // Compose face/transcript come from AssistantBackend events; this only
+        // handles host-side intents the overlay cannot start itself.
+        observerScope.launch {
+            viewModel?.events?.collect { event ->
+                when (event) {
+                    is ViewModelEvent.LaunchIntent -> {
+                        try {
+                            event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            this@AssistantSession.startVoiceActivity(event.intent)
+                        } catch (e: Exception) {
+                            android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
+                            try {
+                                event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.applicationContext.startActivity(event.intent)
+                            } catch (e2: Exception) {
+                                android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
+                            }
+                        }
+                    }
+                    is ViewModelEvent.ShowToast ->
+                        Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                    else -> Unit
+                }
+            }
+        }
+    }
+
     private fun startObservingViewModel() {
         if (viewModel == null || usingComposeUi) return
 
@@ -481,11 +516,25 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         context.startService(stopListeningIntent)
 
         if (usingComposeUi) {
-            // VoiceInteractionSession is reused across system-bar launches. After a
-            // prior SessionComplete the Compose tree can sit at visible=false
-            // (empty dim overlay). Always re-summon so the face appears immediately.
+            // Re-summon face; open agent mic for system-bar / assist / hotword shows.
+            val assist = (showFlags and SHOW_WITH_ASSIST) != 0
             overlayView.post {
                 notifyImmersiveAssistantHotword()
+                (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
+                if (assist) {
+                    observerScope.launch {
+                        delay(600)
+                        (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
+                    }
+                }
+            }
+            // Ensure LLM is warming while the face is up.
+            observerScope.launch(Dispatchers.IO) {
+                runCatching {
+                    if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
+                        LLMManager.autoInitialize(context.applicationContext)
+                    }
+                }
             }
             return
         }

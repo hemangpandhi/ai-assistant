@@ -71,10 +71,10 @@ class WakeWordService : Service() {
             }
         }
         
-        // Background LLM prewarm — delayed so first assistant UI launch after install
-        // isn't fighting model load / Vosk unpack for CPU and I/O.
+        // Background LLM prewarm — short delay so first UI paint wins, then model loads
+        // for the real agent query path.
         CoroutineScope(Dispatchers.Main).launch {
-            delay(8_000)
+            delay(2_000)
             LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
                 override fun onSuccess() {
                 }

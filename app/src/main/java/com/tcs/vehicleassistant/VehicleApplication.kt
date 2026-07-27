@@ -18,7 +18,7 @@ class VehicleApplication : Application() {
         }
 
         DemoSettingsPresets.ensureDefaults(this)
-        // Demo backend first; swap useDemoBackend=false for VehicleAgentAssistantBackend.
-        AssistantRuntimeBootstrap.install(this, useDemoBackend = true)
+        // Production agent backend (mic / hotword / LLM / TTS).
+        AssistantRuntimeBootstrap.install(this, useDemoBackend = false)
     }
 }
