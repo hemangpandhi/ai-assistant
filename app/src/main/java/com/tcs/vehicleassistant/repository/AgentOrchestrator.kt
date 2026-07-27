@@ -49,7 +49,6 @@ class AgentOrchestrator(
         com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(context),
 ) {
     private val speechPresenter = com.tcs.vehicleassistant.domain.SpeechPresenter(audioManager)
-    private val followUpUseCase = com.tcs.vehicleassistant.domain.FollowUpUseCase()
 
     private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
     val state: StateFlow<OrchestratorState> = _state.asStateFlow()
