@@ -37,12 +37,15 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
 
         audioManager.initialize(
             onSuccess = {
+                audioManager.ensureWarmRecognizer()
                 audioManager.playSilentUtterance(10, "PREWARM")
             },
             onError = {
                 // Ignore silent failure in background
             }
         )
+        // Eager warm even if TTS is slow — STT create is independent.
+        audioManager.ensureWarmRecognizer()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {

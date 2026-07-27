@@ -132,6 +132,11 @@ class AgentOrchestrator(
     }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
+        // Zero-LLM path first — never block capture/response on model warm-up.
+        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
+            return
+        }
+
         // Queue instead of rejecting while KV cache prewarm is in progress.
         if (LLMManager.isPrewarming) {
             pendingPrewarmQuery = query to retryCount
@@ -153,6 +158,7 @@ class AgentOrchestrator(
         }
 
         if (!featureFlags.isCloudActive && !LLMManager.isReady()) {
+            pendingPrewarmQuery = query to retryCount
             _state.value = OrchestratorState.Thinking
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
             scope.launch {
@@ -160,16 +166,17 @@ class AgentOrchestrator(
                     val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
                         .inject(org.koin.core.qualifier.named("edge"))
                     edgeProvider.initialize(context, force = false)
-                    handleQuery(query, retryCount)
+                    val queued = pendingPrewarmQuery
+                    pendingPrewarmQuery = null
+                    if (queued != null) {
+                        handleQuery(queued.first, queued.second)
+                    }
                 } catch (e: Exception) {
+                    pendingPrewarmQuery = null
                     _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                 }
             }
-            return
-        }
-
-        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
             return
         }
 

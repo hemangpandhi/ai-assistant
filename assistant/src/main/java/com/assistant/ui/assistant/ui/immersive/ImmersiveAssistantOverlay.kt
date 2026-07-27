@@ -231,10 +231,11 @@ fun ImmersiveAssistantOverlay(
     }
 
     // Forward device STT into the backend (UI stays dumb).
-    // Wait for wake-word AudioRecord to fully release before binding SpeechRecognizer.
+    // Agent production path uses VehicleAgentAssistantBackend STT; this is a
+    // lightweight secondary stream — keep the wait short so it never blocks feel.
     LaunchedEffect(visible, session, enableLiveSpeech) {
         if (!visible || !enableLiveSpeech) return@LaunchedEffect
-        delay(if (!awaitHotword) 700 else 150)
+        delay(if (!awaitHotword) 120 else 80)
         if (!visible) return@LaunchedEffect
         assistantSpeechEvents(context).collectLatest { event ->
             if (!visible) return@collectLatest

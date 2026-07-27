@@ -50,6 +50,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
+        // Warm STT early — independent of TTS init.
+        mainHandler.post { ensureRecognizer() }
         tts = TextToSpeech(appContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
                 tts?.language = Locale.US
@@ -96,6 +98,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             }
         }
     }
+
+    override fun ensureWarmRecognizer() {
+        val run = Runnable { ensureRecognizer() }
+        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+    }
+
+    override fun isActivelyListening(): Boolean =
+        sttPhase == SttPhase.Starting || sttPhase == SttPhase.Listening
 
     override fun startListening() {
         val run = Runnable { startListeningOnMain(forceRecreate = false) }

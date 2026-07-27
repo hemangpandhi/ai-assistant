@@ -70,7 +70,14 @@ class AssistantViewModel(
         viewModelScope.launch {
             orchestrator.state.collect { state ->
                 _uiState.value = when (state) {
-                    is OrchestratorState.Idle -> AssistantUiState.Idle
+                    is OrchestratorState.Idle -> {
+                        // Don't clobber an already-open ear (pre-armed STT / Listening).
+                        if (audioManager.isActivelyListening()) {
+                            AssistantUiState.Listening
+                        } else {
+                            AssistantUiState.Idle
+                        }
+                    }
                     is OrchestratorState.Thinking -> AssistantUiState.Thinking
                     is OrchestratorState.Streaming -> AssistantUiState.Streaming(state.displayMsg)
                     is OrchestratorState.Speaking -> AssistantUiState.Speaking(state.finalMsg)

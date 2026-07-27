@@ -40,11 +40,37 @@ class WakeWordService : Service() {
 
         /**
          * True while Vosk holds [android.media.AudioRecord].
-         * AssistantSession waits for false before opening SpeechRecognizer.
+         * AssistantSession / MicCaptureCoordinator wait for release before STT.
          */
         @Volatile
         var isHoldingMic: Boolean = false
             private set
+
+        @Volatile
+        private var releaseGate: kotlinx.coroutines.CompletableDeferred<Unit> =
+            kotlinx.coroutines.CompletableDeferred<Unit>().also { it.complete(Unit) }
+
+        fun beginMicHold() {
+            if (releaseGate.isCompleted) {
+                releaseGate = kotlinx.coroutines.CompletableDeferred()
+            }
+            isHoldingMic = true
+        }
+
+        fun signalMicReleased() {
+            isHoldingMic = false
+            if (!releaseGate.isCompleted) {
+                releaseGate.complete(Unit)
+            }
+        }
+
+        /** Suspend until Vosk releases the mic, or [timeoutMs] elapses. */
+        suspend fun awaitMicReleased(timeoutMs: Long = 1000L): Boolean {
+            if (!isHoldingMic && releaseGate.isCompleted) return true
+            return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
+                releaseGate.await()
+            } != null
+        }
     }
 
     private val serviceJob = SupervisorJob()
@@ -155,7 +181,7 @@ class WakeWordService : Service() {
                 }
 
                 customAudioRecord?.startRecording()
-                isHoldingMic = true
+                beginMicHold()
                 val buffer = ShortArray(bufferSize)
 
                 var loopCount = 0
@@ -204,7 +230,7 @@ class WakeWordService : Service() {
                 } catch (_: Exception) {
                 }
                 customAudioRecord = null
-                isHoldingMic = false
+                signalMicReleased()
             }
         }
     }
@@ -252,10 +278,10 @@ class WakeWordService : Service() {
                     } catch (_: Exception) {
                     }
                     customAudioRecord = null
-                    isHoldingMic = false
+                    signalMicReleased()
                     Log.d(TAG, "Hotword AudioRecord fully released")
                 } catch (e: Exception) {
-                    isHoldingMic = false
+                    signalMicReleased()
                     Log.e(TAG, "Failed to stop hotword cleanly: ${e.message}")
                 }
             }
@@ -273,7 +299,7 @@ class WakeWordService : Service() {
         } catch (_: Exception) {
         }
         customAudioRecord = null
-        isHoldingMic = false
+        signalMicReleased()
         customRecognizer?.close()
         super.onDestroy()
     }
@@ -310,9 +336,7 @@ class WakeWordService : Service() {
 
         if (isMatch) {
             Log.d(TAG, "Wake word detected: $wakeWord")
-            AssistantVoiceInteractionService.triggerSession(this@WakeWordService, fromHotword = true)
-
-            // Stop listening. The AssistantSession will explicitly send ACTION_RESTART_LISTENING when it hides.
+            // Release mic FIRST, then pre-arm command STT, then show overlay.
             isRecording = false
             try {
                 customAudioRecord?.stop()
@@ -320,7 +344,12 @@ class WakeWordService : Service() {
             } catch (_: Exception) {
             }
             customAudioRecord = null
-            isHoldingMic = false
+            signalMicReleased()
+            com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(
+                this@WakeWordService,
+                reason = "hotword",
+            )
+            AssistantVoiceInteractionService.triggerSession(this@WakeWordService, fromHotword = true)
         }
     }
 

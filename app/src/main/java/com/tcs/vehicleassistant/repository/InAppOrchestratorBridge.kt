@@ -87,6 +87,8 @@ class InAppOrchestratorBridge(
         }
 
         override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) = onSuccess()
+        override fun ensureWarmRecognizer() {}
+        override fun isActivelyListening(): Boolean = false
         override fun startListening() {}
         override fun restartListening(delayedMs: Long) {}
         override fun stopListening() {}

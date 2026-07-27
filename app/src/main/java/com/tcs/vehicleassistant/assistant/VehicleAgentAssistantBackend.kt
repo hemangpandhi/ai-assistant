@@ -121,8 +121,14 @@ class VehicleAgentAssistantBackend(
         }
 
         flushPendingQuery()
-        if (_sessionActive.value && listenJob?.isActive != true && !micArmed) {
-            scheduleStartMic(reason = "attach-while-active", delayMs = MIC_POST_RELEASE_MS)
+        if (_sessionActive.value &&
+            listenJob?.isActive != true &&
+            !micArmed &&
+            !com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)
+        ) {
+            scheduleStartMic(reason = "attach-while-active", delayMs = 0L)
+        } else if (com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)) {
+            micArmed = true
         }
     }
 
@@ -136,11 +142,23 @@ class VehicleAgentAssistantBackend(
         config: AssistantSessionConfig,
     ) {
         _sessionActive.value = true
-        micArmed = false
         clientErrorRetries = 0
         AssistantDebugLog.clear()
         AssistantDebugLog.d(TAG, "startSession reason=$reason")
-        viewModel?.resetUiState()
+
+        val alreadyOpen = com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager) ||
+            audioManager?.isActivelyListening() == true ||
+            micArmed
+
+        if (!alreadyOpen) {
+            // Avoid wiping Listening UI / re-arming if STT was pre-armed before overlay.
+            viewModel?.resetUiState()
+            micArmed = false
+        } else {
+            micArmed = true
+            AssistantDebugLog.d(TAG, "startSession — ear already open, skip re-arm")
+        }
+
         scope.launch {
             emitMood(AssistantMoodId.Listening)
             _events.emit(
@@ -154,8 +172,9 @@ class VehicleAgentAssistantBackend(
             )
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
-        // Short handoff wait after wake-word AudioRecord release (was 1400ms).
-        scheduleStartMic(reason = "startSession:$reason", delayMs = MIC_POST_RELEASE_MS, force = true)
+        if (!alreadyOpen) {
+            scheduleStartMic(reason = "startSession:$reason", delayMs = 0L, force = false)
+        }
     }
 
     override fun stopSession() {
@@ -164,6 +183,8 @@ class VehicleAgentAssistantBackend(
         listenJob?.cancel()
         listenJob = null
         micArmed = false
+        com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
+        // Soft stop — keep warm SpeechRecognizer for the next summon.
         runCatching { audioManager?.stopListening() }
     }
 
@@ -181,6 +202,7 @@ class VehicleAgentAssistantBackend(
             is AssistantSpeechInput.Final -> {
                 if (input.text.isBlank()) return
                 micArmed = false
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                 scope.launch {
                     _events.emit(
                         AssistantSessionEvent.Transcript(
@@ -210,8 +232,13 @@ class VehicleAgentAssistantBackend(
                 )
                 _events.emit(AssistantSessionEvent.MouthAmplitude((0.15f + n * 0.55f).coerceIn(0f, 1f)))
             }
-            AssistantSpeechInput.Hotword ->
-                scheduleStartMic(reason = "hotword-input", delayMs = MIC_HANDOFF_MS, force = true)
+            AssistantSpeechInput.Hotword -> {
+                if (!micArmed &&
+                    !com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)
+                ) {
+                    scheduleStartMic(reason = "hotword-input", delayMs = 0L, force = false)
+                }
+            }
         }
     }
 
@@ -221,13 +248,15 @@ class VehicleAgentAssistantBackend(
         if (!_sessionActive.value) {
             _sessionActive.value = true
         }
-        if (listenJob?.isActive == true || micArmed) {
-            AssistantDebugLog.d(TAG, "requestListen skipped (scheduled/armed)")
+        if (listenJob?.isActive == true || micArmed ||
+            com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)
+        ) {
+            micArmed = true
+            AssistantDebugLog.d(TAG, "requestListen skipped — already capturing")
             return
         }
         AssistantDebugLog.d(TAG, "requestListen")
-        // Session already awaited wake-word release — only a short settle is needed.
-        scheduleStartMic(reason = "session-request", delayMs = MIC_POST_RELEASE_MS, force = true)
+        scheduleStartMic(reason = "session-request", delayMs = 0L, force = false)
     }
 
     private fun scheduleStartMic(
@@ -240,24 +269,18 @@ class VehicleAgentAssistantBackend(
             AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms")
             if (delayMs > 0) delay(delayMs)
             if (!isActive || !_sessionActive.value) return@launch
-            // If Vosk still holds the mic, wait briefly instead of ERROR_CLIENT looping.
             if (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
-                AssistantDebugLog.d(TAG, "mic schedule waiting for wake-word release")
-                val freed = withTimeoutOrNull(800L) {
-                    while (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) delay(20)
-                }
-                if (freed == null) {
-                    AssistantDebugLog.w(TAG, "wake-word still holding mic — trying STT anyway")
-                }
-                delay(40)
+                AssistantDebugLog.d(TAG, "mic schedule awaiting wake-word release")
+                com.tcs.vehicleassistant.WakeWordService.awaitMicReleased(800L)
+                delay(25)
             }
             if (!isActive || !_sessionActive.value) return@launch
             repeat(8) { attempt ->
                 if (!_sessionActive.value) return@launch
-                if (startMic(reason = "$reason#$attempt", force = force || attempt == 0)) {
+                if (startMic(reason = "$reason#$attempt", force = force || attempt > 0)) {
                     return@launch
                 }
-                delay(200)
+                delay(150)
             }
             AssistantDebugLog.w(TAG, "mic schedule gave up — agent unbound")
             _events.emit(AssistantSessionEvent.Error("Microphone not ready. Try again."))
@@ -283,28 +306,19 @@ class VehicleAgentAssistantBackend(
             AssistantDebugLog.d(TAG, "startMic($reason) skip — processing")
             return true
         }
-        if (micArmed && !force) {
-            AssistantDebugLog.d(TAG, "startMic($reason) skip — armed")
+        if ((micArmed || audio.isActivelyListening()) && !force) {
+            micArmed = true
+            AssistantDebugLog.d(TAG, "startMic($reason) skip — already listening")
             return true
         }
         return try {
-            // Do NOT stopListening() then startListening() on the same instance —
-            // that is the usual ERROR_CLIENT (5) trigger. Fresh start only.
+            audio.ensureWarmRecognizer()
             if (force && reason.contains("client-retry")) {
                 audio.restartListening(delayedMs = MIC_CLIENT_RETRY_MS)
-            } else if (force && (
-                    reason.contains("session-request") ||
-                        reason.contains("startSession") ||
-                        reason.contains("attach-while-active") ||
-                        reason.contains("hotword-input")
-                    )
-            ) {
-                // Fresh recognizer after Vosk — avoids ERROR_CLIENT from a stale instance.
-                audio.restartListening(delayedMs = 0L)
             } else {
+                // Prefer warm startListening — destroy/recreate only on client-retry.
                 audio.startListening()
             }
-            // Optimistic arm so a second requestListen does not double-start during handoff.
             micArmed = true
             AssistantDebugLog.d(TAG, "startMic($reason) issued")
             true

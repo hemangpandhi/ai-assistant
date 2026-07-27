@@ -273,12 +273,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         baselineResumedActivity = null
         baselineTopPackage = null
         unregisterDismissWatchers()
-        // Drop STT before wake-word reclaims the mic.
+        // Drop STT before wake-word reclaims the mic — keep warm recognizer instance.
         notifyImmersiveAssistantDismiss()
         AssistantRuntime.backend?.stopSession()
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
-        audioManager?.destroySpeechRecognizer()
+        // Do NOT destroySpeechRecognizer here — recreating it every session adds handoff latency.
+        com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
         // Restore music volume immediately when the overlay goes away.
         audioManager?.abandonAssistantDuck()
         abandonFallbackDuck()
@@ -842,7 +843,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             val origin = ImmersiveSummonOrigin.fromBundleToken(
                 args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
             )
-            // Summon UI immediately; arm mic as soon as Vosk releases AudioRecord.
+            // Summon UI immediately. STT is pre-armed on hotword/icon; only fall back here.
             overlayView.post {
                 notifyImmersiveAssistantSummon(origin)
             }
@@ -852,18 +853,19 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             )
             micHandoffJob?.cancel()
             micHandoffJob = observerScope.launch {
-                val released = withTimeoutOrNull(900L) {
-                    // Hotword path often already released; icon/assist may still hold the mic.
-                    while (WakeWordService.isHoldingMic) {
-                        delay(20)
-                    }
+                if (com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager) ||
+                    audioManager?.isActivelyListening() == true
+                ) {
+                    AssistantDebugLog.d("Session", "mic already live — overlay attaches only")
+                    AssistantRuntime.backend?.asMicController()?.requestListen()
+                    return@launch
                 }
+                val released = WakeWordService.awaitMicReleased(timeoutMs = 900L)
                 AssistantDebugLog.d(
                     "Session",
-                    "mic handoff ready holding=${WakeWordService.isHoldingMic} timedOut=${released == null}",
+                    "mic handoff fallback released=$released holding=${WakeWordService.isHoldingMic}",
                 )
-                // Tiny settle so AudioRecord teardown finishes before SpeechRecognizer.
-                delay(40)
+                delay(25)
                 if (!sessionUiVisible) return@launch
                 AssistantRuntime.backend?.asMicController()?.requestListen()
             }
