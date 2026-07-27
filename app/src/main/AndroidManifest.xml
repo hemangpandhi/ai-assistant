@@ -179,6 +179,15 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".assistant.AssistantIdleTimeoutReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.SET_IDLE_TIMEOUT" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_IDLE_TIMEOUT" />
+            </intent-filter>
+        </receiver>
+
         <service android:name="audio.soniqo.speech.service.SpeechRecognitionService"
                  android:permission="android.permission.BIND_RECOGNITION_SERVICE"
                  android:exported="true">
