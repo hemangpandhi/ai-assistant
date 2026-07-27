@@ -19,8 +19,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.test.design.assistant.api.AssistantRuntime
 import com.test.design.presentation.assistant.AssistantTheme
@@ -43,6 +51,48 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+/**
+ * Lifecycle / SavedState / ViewModel host for Compose content inside a
+ * [VoiceInteractionSession] (which is not itself a LifecycleOwner).
+ *
+ * SavedStateRegistry's Restarter may only be registered while the owner is still
+ * [Lifecycle.State.INITIALIZED] — jumping straight to RESUMED before
+ * [SavedStateRegistryController.performRestore] crashes with:
+ * "Restarter must be created only during owner's initialization stage".
+ */
+private class SessionComposeHost :
+    LifecycleOwner,
+    SavedStateRegistryOwner,
+    ViewModelStoreOwner {
+
+    private val registry = LifecycleRegistry(this)
+    private val savedStateController = SavedStateRegistryController.create(this)
+    private val store = ViewModelStore()
+
+    override val lifecycle: Lifecycle get() = registry
+    override val savedStateRegistry: SavedStateRegistry
+        get() = savedStateController.savedStateRegistry
+    override val viewModelStore: ViewModelStore get() = store
+
+    fun start() {
+        // Attach + restore while still INITIALIZED (LifecycleRegistry default).
+        savedStateController.performAttach()
+        savedStateController.performRestore(null)
+        registry.currentState = Lifecycle.State.RESUMED
+    }
+
+    fun destroy() {
+        if (registry.currentState == Lifecycle.State.INITIALIZED ||
+            registry.currentState == Lifecycle.State.DESTROYED
+        ) {
+            store.clear()
+            return
+        }
+        registry.currentState = Lifecycle.State.DESTROYED
+        store.clear()
+    }
+}
 
 /**
  * System voice-interaction session.
@@ -70,6 +120,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var usingComposeUi = true
     private var currentUiToken: String = ""
     private var currentLayoutStyle = -1
+    private var composeHost: SessionComposeHost? = null
 
     private var dotAnimatorJob: Job? = null
     private var typewriterJob: Job? = null
@@ -145,6 +196,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     private fun inflateComposeLayout() {
         currentLayoutStyle = -1
+        // Tear down any previous Compose host before creating a new one (profile swap).
+        composeHost?.destroy()
+        composeHost = null
+
         val host = FrameLayout(context).apply {
             layoutParams = ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
@@ -153,30 +208,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
 
-        // VoiceInteractionSession content needs a lifecycle owner for Compose.
-        val lifecycleOwner = object : androidx.lifecycle.LifecycleOwner {
-            private val registry = androidx.lifecycle.LifecycleRegistry(this)
-            init {
-                registry.currentState = androidx.lifecycle.Lifecycle.State.RESUMED
-            }
-            override val lifecycle: androidx.lifecycle.Lifecycle get() = registry
-        }
-        val savedStateOwner = object : androidx.savedstate.SavedStateRegistryOwner {
-            private val controller = androidx.savedstate.SavedStateRegistryController.create(this)
-            init {
-                controller.performRestore(null)
-            }
-            override val lifecycle: androidx.lifecycle.Lifecycle get() = lifecycleOwner.lifecycle
-            override val savedStateRegistry: androidx.savedstate.SavedStateRegistry
-                get() = controller.savedStateRegistry
-        }
-        val vmStoreOwner = object : androidx.lifecycle.ViewModelStoreOwner {
-            override val viewModelStore = androidx.lifecycle.ViewModelStore()
-        }
+        // VoiceInteractionSession is not a LifecycleOwner; provide a host that
+        // attaches SavedState while still INITIALIZED, then advances to RESUMED.
+        val sessionHost = SessionComposeHost().also { it.start() }
+        composeHost = sessionHost
 
-        host.setViewTreeLifecycleOwner(lifecycleOwner)
-        host.setViewTreeSavedStateRegistryOwner(savedStateOwner)
-        host.setViewTreeViewModelStoreOwner(vmStoreOwner)
+        host.setViewTreeLifecycleOwner(sessionHost)
+        host.setViewTreeSavedStateRegistryOwner(sessionHost)
+        host.setViewTreeViewModelStoreOwner(sessionHost)
 
         val composeView = ComposeView(context).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
@@ -205,6 +244,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     private fun inflateAndBindLayout(layoutStyle: Int) {
         currentLayoutStyle = layoutStyle
+        composeHost?.destroy()
+        composeHost = null
 
         val layoutRes = when (layoutStyle) {
             0 -> R.layout.assistant_overlay
@@ -563,6 +604,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
         observerScope.cancel()
+        composeHost?.destroy()
+        composeHost = null
         if (isBound) {
             context.unbindService(serviceConnection)
             isBound = false
