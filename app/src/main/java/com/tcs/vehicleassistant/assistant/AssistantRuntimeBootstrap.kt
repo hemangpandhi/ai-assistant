@@ -4,26 +4,23 @@ import android.app.Application
 import com.test.design.assistant.api.AssistantRuntime
 import com.test.design.presentation.assistant.AssistantFaceConfig
 import com.test.design.presentation.assistant.AssistantFaceKind
-import com.test.design.presentation.assistant.backend.DemoAssistantBackend
-import com.test.design.presentation.assistant.backend.SilentAssistantTts
 
 /**
  * Installs Compose assistant runtime + UI profile for the host app.
  *
- * Default UI: Compose immersive with immersive-hybrid face.
- * Swap [DemoAssistantBackend] for [VehicleAgentAssistantBackend] when ready.
+ * Default: production [VehicleAgentAssistantBackend] (mic / hotword / LLM / TTS via agent).
  */
 object AssistantRuntimeBootstrap {
-    fun install(app: Application, useDemoBackend: Boolean = true) {
+    fun install(app: Application, useDemoBackend: Boolean = false) {
         AssistantUiProfile.install(app)
         AssistantFaceConfig.install(app)
         ensureDefaultFace(app)
 
         val host = VehicleAssistantHost(app)
-        // Demo uses silent lip-sync by default — platform TTS cold-init after install
-        // stalls the first system-bar show. Swap speakingTts when real voice is needed.
         val backend = if (useDemoBackend) {
-            DemoAssistantBackend(speakingTts = SilentAssistantTts)
+            com.test.design.presentation.assistant.backend.DemoAssistantBackend(
+                speakingTts = com.test.design.presentation.assistant.backend.SilentAssistantTts,
+            )
         } else {
             VehicleAgentAssistantBackend()
         }

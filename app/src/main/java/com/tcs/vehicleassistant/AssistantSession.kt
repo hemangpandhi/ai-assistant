@@ -139,8 +139,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             isBound = true
             viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
-            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(viewModel)
-            if (!usingComposeUi) {
+            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
+                viewModel,
+                audioManager,
+            )
+            if (usingComposeUi) {
+                startObservingComposeAgentEvents()
+            } else {
                 startObservingViewModel()
             }
         }
@@ -308,6 +313,34 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
 
         setContentView(overlayView)
+    }
+
+    private fun startObservingComposeAgentEvents() {
+        // Compose face/transcript come from AssistantBackend events; this only
+        // handles host-side intents the overlay cannot start itself.
+        observerScope.launch {
+            viewModel?.events?.collect { event ->
+                when (event) {
+                    is ViewModelEvent.LaunchIntent -> {
+                        try {
+                            event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                            this@AssistantSession.startVoiceActivity(event.intent)
+                        } catch (e: Exception) {
+                            android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
+                            try {
+                                event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                context.applicationContext.startActivity(event.intent)
+                            } catch (e2: Exception) {
+                                android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
+                            }
+                        }
+                    }
+                    is ViewModelEvent.ShowToast ->
+                        Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
+                    else -> Unit
+                }
+            }
+        }
     }
 
     private fun startObservingViewModel() {
