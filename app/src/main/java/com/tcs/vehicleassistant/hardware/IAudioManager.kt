@@ -26,6 +26,12 @@ interface IAudioManager {
     fun startListening()
 
     /**
+     * Adaptive endpointing (plan Tier 3.11): shorter silence for cabin commands,
+     * longer for open questions. Applied on the next [startListening].
+     */
+    fun setEndpointingProfile(profile: EndpointingProfile)
+
+    /**
      * Destroys any existing recognizer and starts listening again (after optional delay).
      * Use after ERROR_CLIENT / ERROR_RECOGNIZER_BUSY.
      */

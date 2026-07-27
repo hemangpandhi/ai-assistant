@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
+import com.tcs.vehicleassistant.domain.SpeculativeToolPrep
+import com.tcs.vehicleassistant.hardware.EndpointingProfile
 import com.tcs.vehicleassistant.hardware.IAudioManager
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import com.tcs.vehicleassistant.repository.OrchestratorEvent
@@ -43,21 +45,33 @@ class AssistantViewModel(
                 _liveTranscript.value = ""
                 _uiState.value = AssistantUiState.Listening
             },
-            onBeginningOfSpeech = { },
+            onBeginningOfSpeech = {
+                // Barge-in lite: supersede in-flight Think/Act/Speak when user talks again.
+                if (orchestrator.isProcessing()) {
+                    orchestrator.cancelInFlight()
+                }
+                runCatching { audioManager.stopSpeaking() }
+                _uiState.value = AssistantUiState.Listening
+            },
             onEndOfSpeech = {
-                _uiState.value = AssistantUiState.Thinking
+                // Partial-driven UI only: stay Listening until final commits Phase B.
+                // Never jump to Thinking on endpoint alone.
             },
             onResult = { spokenText ->
+                // Phase A: utterance text committed (transcript + input).
                 audioManager.stopSpeaking()
                 _liveTranscript.value = spokenText
                 _events.tryEmit(ViewModelEvent.SetInputText(spokenText))
+                // Phase B: FollowUp / LLM on agent dispatcher — does not block re-listen.
                 dispatch(AssistantUiIntent.SubmitQuery(spokenText))
             },
             onEmptyResult = {
+                SpeculativeToolPrep.clear()
                 _liveTranscript.value = ""
                 _uiState.value = AssistantUiState.Error("I didn't hear anything.")
             },
             onError = { errorCode ->
+                SpeculativeToolPrep.clear()
                 val errorMsg = mapSpeechError(errorCode)
                 _uiState.value = AssistantUiState.Error(errorMsg)
                 val recoverable = errorCode == android.speech.SpeechRecognizer.ERROR_CLIENT ||
@@ -71,6 +85,8 @@ class AssistantViewModel(
             },
             onPartial = { partialText ->
                 if (partialText.isNotBlank()) {
+                    SpeculativeToolPrep.onPartial(partialText)
+                    audioManager.setEndpointingProfile(endpointingForPartial(partialText))
                     _liveTranscript.value = partialText
                     _events.tryEmit(ViewModelEvent.SetInputText(partialText))
                 }
@@ -114,11 +130,16 @@ class AssistantViewModel(
     fun dispatch(intent: AssistantUiIntent) {
         when (intent) {
             is AssistantUiIntent.SubmitQuery -> processQuery(intent.query, intent.retryCount)
-            AssistantUiIntent.Reset -> orchestrator.resetState()
+            AssistantUiIntent.Reset -> {
+                SpeculativeToolPrep.clear()
+                orchestrator.resetState()
+            }
         }
     }
 
     fun isProcessing(): Boolean = orchestrator.isProcessing()
+
+    fun cancelInFlight() = orchestrator.cancelInFlight()
 
     val lastTtsUpdateTime: Long
         get() = orchestrator.lastTtsUpdateTime
@@ -132,6 +153,7 @@ class AssistantViewModel(
 
     fun resetUiState() {
         _liveTranscript.value = ""
+        SpeculativeToolPrep.clear()
         dispatch(AssistantUiIntent.Reset)
     }
 
@@ -141,6 +163,20 @@ class AssistantViewModel(
 
     override fun onCleared() {
         super.onCleared()
+    }
+
+    private fun endpointingForPartial(partial: String): EndpointingProfile {
+        val q = partial.trim().lowercase()
+        if (SpeculativeToolPrep.looksLikeCommand(partial)) {
+            return EndpointingProfile.ShortCommand
+        }
+        if (q.startsWith("what ") || q.startsWith("why ") || q.startsWith("how ") ||
+            q.startsWith("where ") || q.startsWith("when ") || q.startsWith("who ") ||
+            q.contains("tell me") || q.contains("explain")
+        ) {
+            return EndpointingProfile.OpenQuestion
+        }
+        return EndpointingProfile.Default
     }
 
     private fun mapSpeechError(errorCode: Int): String {
