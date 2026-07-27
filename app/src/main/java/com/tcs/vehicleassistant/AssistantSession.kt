@@ -1,5 +1,7 @@
 package com.tcs.vehicleassistant
 
+import android.app.Activity
+import android.app.Application
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -9,6 +11,7 @@ import android.os.IBinder
 import android.service.voice.VoiceInteractionSession
 import android.view.View
 import android.view.ViewGroup
+import android.view.ViewTreeObserver
 import android.widget.Button
 import android.widget.EditText
 import android.widget.FrameLayout
@@ -30,6 +33,7 @@ import androidx.savedstate.SavedStateRegistry
 import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
@@ -124,6 +128,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var currentUiToken: String = ""
     private var currentLayoutStyle = -1
     private var composeHost: SessionComposeHost? = null
+    /** True between [onShow] and [onHide] — used to dismiss when another system-bar UI opens. */
+    private var sessionUiVisible = false
+    private var baselineResumedActivity: String? = null
+    private var focusListenerRegistered = false
 
     private var dotAnimatorJob: Job? = null
     private var typewriterJob: Job? = null
@@ -133,6 +141,45 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var unloadJob: Job? = null
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private val activityWatcher = object : Application.ActivityLifecycleCallbacks {
+        override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
+        override fun onActivityStarted(a: Activity) = Unit
+        override fun onActivityStopped(a: Activity) = Unit
+        override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
+        override fun onActivityDestroyed(a: Activity) = Unit
+        override fun onActivityPaused(a: Activity) = Unit
+        override fun onActivityResumed(a: Activity) {
+            if (!sessionUiVisible) return
+            val name = a.javaClass.name
+            if (baselineResumedActivity == null) {
+                baselineResumedActivity = name
+                AssistantDebugLog.d("Session", "baseline activity=$name")
+                return
+            }
+            if (name != baselineResumedActivity) {
+                AssistantDebugLog.d("Session", "other UI resumed=$name — hide overlay")
+                hide()
+            }
+        }
+    }
+
+    private val windowFocusListener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+        if (!sessionUiVisible) return@OnWindowFocusChangeListener
+        AssistantDebugLog.d("Session", "window focus=$hasFocus")
+        if (!hasFocus) {
+            // System bar / another panel took focus — dismiss so UI isn't stuck over nav.
+            observerScope.launch {
+                delay(120)
+                if (sessionUiVisible && overlayView.windowToken != null &&
+                    !overlayView.hasWindowFocus()
+                ) {
+                    AssistantDebugLog.d("Session", "lost focus — hide overlay")
+                    hide()
+                }
+            }
+        }
+    }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -424,6 +471,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
+        AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
+        sessionUiVisible = true
+        baselineResumedActivity = null
+        registerDismissWatchers()
 
         window?.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -563,6 +614,27 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
     }
 
+    private fun registerDismissWatchers() {
+        val app = context.applicationContext as? Application ?: return
+        runCatching { app.unregisterActivityLifecycleCallbacks(activityWatcher) }
+        app.registerActivityLifecycleCallbacks(activityWatcher)
+        if (!focusListenerRegistered && ::overlayView.isInitialized) {
+            overlayView.viewTreeObserver.addOnWindowFocusChangeListener(windowFocusListener)
+            focusListenerRegistered = true
+        }
+    }
+
+    private fun unregisterDismissWatchers() {
+        val app = context.applicationContext as? Application
+        runCatching { app?.unregisterActivityLifecycleCallbacks(activityWatcher) }
+        if (focusListenerRegistered && ::overlayView.isInitialized) {
+            runCatching {
+                overlayView.viewTreeObserver.removeOnWindowFocusChangeListener(windowFocusListener)
+            }
+            focusListenerRegistered = false
+        }
+    }
+
     private fun stopDotAnimation(finalText: String = "") {
         dotAnimatorJob?.cancel()
         if (finalText.isNotEmpty()) {
@@ -589,6 +661,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     override fun onDestroy() {
+        sessionUiVisible = false
+        unregisterDismissWatchers()
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
         observerScope.cancel()

@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.assistant.ui.assistant.api.AssistantDebugInfo
+import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.api.AssistantSessionConfig
 import com.assistant.ui.assistant.api.AssistantSessionEvent
@@ -465,47 +466,57 @@ fun ImmersiveAssistantOverlay(
     }
 }
 
-/** Polestar-style model / backend tags + error line (debug builds only via host). */
+/** Polestar-style model / backend tags + live debug log + error (debug builds). */
 @Composable
 private fun ImmersiveAssistantDebugStrip(
     debugInfo: AssistantDebugInfo?,
     errorMessage: String?,
     modifier: Modifier = Modifier,
 ) {
-    // Model/backend tags are debug-only (host returns null in release).
-    // Errors ride along on the same strip when debug chrome is visible.
     if (debugInfo == null) return
-    val tagColor = Color(0xFF8AB4F8).copy(alpha = 0.8f)
+    val logLines by AssistantDebugLog.lines.collectAsStateWithLifecycle()
+    val tagColor = Color(0xFF8AB4F8).copy(alpha = 0.85f)
+    val logColor = Color(0xFFB0BEC5).copy(alpha = 0.9f)
     val errorColor = Color(0xFFFF8A80).copy(alpha = 0.95f)
     Column(
-        modifier = modifier.padding(horizontal = 24.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = modifier
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .background(Color(0xCC0A0E14))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (debugInfo != null) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = debugInfo.backendLabel,
-                    color = tagColor,
-                    style = MaterialTheme.typography.labelMedium,
-                    letterSpacing = 0.1.sp,
-                )
-                Text(
-                    text = debugInfo.modelLabel,
-                    color = tagColor,
-                    style = MaterialTheme.typography.labelMedium,
-                    letterSpacing = 0.1.sp,
-                )
-            }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = debugInfo.backendLabel,
+                color = tagColor,
+                style = MaterialTheme.typography.labelMedium,
+                letterSpacing = 0.1.sp,
+            )
+            Text(
+                text = debugInfo.modelLabel,
+                color = tagColor,
+                style = MaterialTheme.typography.labelMedium,
+                letterSpacing = 0.1.sp,
+            )
         }
         if (!errorMessage.isNullOrBlank()) {
             Text(
-                text = errorMessage,
+                text = "ERR: $errorMessage",
                 color = errorColor,
                 style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+        logLines.takeLast(8).forEach { line ->
+            Text(
+                text = line,
+                color = if (line.contains(" E/") || line.contains("ERR")) errorColor else logColor,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 2,
                 modifier = Modifier.fillMaxWidth(),
             )
         }
