@@ -5,6 +5,13 @@ Host package: `com.tcs.vehicleassistant`
 Default UI: **Compose immersive** with face **hybrid** (immersive hybrid).  
 Legacy XML voice plates remain available via UI profile.
 
+| Section | Settings.Global key |
+|---------|---------------------|
+| UI profile | `vehicle_assistant_ui` |
+| Face | `design_assistant_face` |
+| Debug strip | `vehicle_assistant_debug_strip` |
+| Idle timeout | `vehicle_assistant_idle_timeout_sec` |
+
 ## Prerequisites
 
 ```bash
