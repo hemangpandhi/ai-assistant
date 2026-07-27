@@ -87,6 +87,8 @@ class AssistantViewModel(
                     is OrchestratorEvent.LaunchIntent -> _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))
                     is OrchestratorEvent.StartListening -> _events.tryEmit(ViewModelEvent.StartListening)
                     is OrchestratorEvent.FinishSession -> _events.tryEmit(ViewModelEvent.FinishSession)
+                    is OrchestratorEvent.AffectiveMood ->
+                        _events.tryEmit(ViewModelEvent.AffectiveMood(event.mood))
                 }
             }
         }

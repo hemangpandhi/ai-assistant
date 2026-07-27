@@ -5,6 +5,7 @@ import com.assistant.ui.assistant.api.AssistantBackend
 import com.assistant.ui.assistant.api.AssistantCabinContext
 import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantMoodId
+import com.assistant.ui.assistant.api.FaceMoodResolver
 import com.assistant.ui.assistant.api.AssistantSessionConfig
 import com.assistant.ui.assistant.api.AssistantSessionEvent
 import com.assistant.ui.assistant.api.AssistantSpeaker
@@ -59,6 +60,11 @@ class VehicleAgentAssistantBackend(
     private var lastMouthEmitMs = 0L
     private var lastEmittedTranscript: String? = null
 
+    /** Harness turn-taking mood (Listening / Thinking / Speaking / …). */
+    private var pipelineMood: AssistantMoodId = AssistantMoodId.Idle
+    /** Optional LLM / heuristic emotion (Happy / Sad / …). */
+    private var affectiveMood: AssistantMoodId? = null
+
     fun attachViewModel(vm: AssistantViewModel?, audio: IAudioManager? = null) {
         attachSession(vm, audio)
     }
@@ -95,7 +101,7 @@ class VehicleAgentAssistantBackend(
                                 speaker = AssistantSpeaker.User,
                             ),
                         )
-                        emitMood(AssistantMoodId.Listening)
+                        setPipelineMood(AssistantMoodId.Listening)
                     }
                 }
             }
@@ -115,13 +121,13 @@ class VehicleAgentAssistantBackend(
                                     speaker = AssistantSpeaker.User,
                                 ),
                             )
-                            emitMood(AssistantMoodId.Listening)
+                            setPipelineMood(AssistantMoodId.Listening)
                         }
                     }
                     is ViewModelEvent.FinishSession -> {
                         micArmed = false
                         AssistantDebugLog.d(TAG, "event FinishSession → re-arm mic")
-                        emitMood(AssistantMoodId.Listening)
+                        setPipelineMood(AssistantMoodId.Listening)
                         _events.emit(
                             AssistantSessionEvent.Transcript(
                                 text = "Listening…",
@@ -129,6 +135,9 @@ class VehicleAgentAssistantBackend(
                             ),
                         )
                         scheduleStartMic(reason = "finish-retry", delayMs = MIC_REARM_MS, force = true)
+                    }
+                    is ViewModelEvent.AffectiveMood -> {
+                        setAffectiveMood(event.mood)
                     }
                     else -> Unit
                 }
@@ -175,7 +184,7 @@ class VehicleAgentAssistantBackend(
         }
 
         scope.launch {
-            emitMood(AssistantMoodId.Listening)
+            setPipelineMood(AssistantMoodId.Listening)
             val live = viewModel?.liveTranscript?.value.orEmpty()
             if (live.isBlank()) {
                 _events.emit(
@@ -222,7 +231,7 @@ class VehicleAgentAssistantBackend(
                         speaker = AssistantSpeaker.User,
                     ),
                 )
-                emitMood(AssistantMoodId.Listening)
+                setPipelineMood(AssistantMoodId.Listening)
             }
             is AssistantSpeechInput.Final -> {
                 if (input.text.isBlank()) return
@@ -351,7 +360,7 @@ class VehicleAgentAssistantBackend(
             micArmed = false
             AssistantDebugLog.e(TAG, "startMic($reason) failed: ${t.message}")
             scope.launch {
-                emitMood(AssistantMoodId.Sad)
+                setPipelineMood(AssistantMoodId.Sad)
                 _events.emit(AssistantSessionEvent.Error("Microphone unavailable."))
             }
             false
@@ -361,14 +370,14 @@ class VehicleAgentAssistantBackend(
     private suspend fun mapUiState(state: AssistantUiState) {
         when (state) {
             is AssistantUiState.Idle -> {
-                emitMood(AssistantMoodId.Idle)
+                setPipelineMood(AssistantMoodId.Idle)
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
             is AssistantUiState.Listening -> {
                 micArmed = true
                 clientErrorRetries = 0
                 AssistantDebugLog.d(TAG, "ui Listening (ready)")
-                emitMood(AssistantMoodId.Listening)
+                setPipelineMood(AssistantMoodId.Listening)
                 // Never clobber live user partials with the placeholder.
                 val live = viewModel?.liveTranscript?.value.orEmpty()
                 if (live.isBlank()) {
@@ -384,7 +393,7 @@ class VehicleAgentAssistantBackend(
             is AssistantUiState.Thinking -> {
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Thinking")
-                emitMood(AssistantMoodId.Thinking)
+                setPipelineMood(AssistantMoodId.Thinking)
                 // Keep last user transcript visible while thinking; only show Thinking… if empty.
                 val live = viewModel?.liveTranscript?.value.orEmpty()
                 _events.emit(
@@ -402,7 +411,7 @@ class VehicleAgentAssistantBackend(
                     lastStreamingUiMs = now
                     lastEmittedTranscript = state.displayText
                     AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
-                    emitMood(AssistantMoodId.Speaking)
+                    setPipelineMood(AssistantMoodId.Speaking)
                     _events.emit(
                         AssistantSessionEvent.Transcript(
                             text = state.displayText,
@@ -421,7 +430,7 @@ class VehicleAgentAssistantBackend(
                 micArmed = false
                 lastEmittedTranscript = state.finalMessage
                 AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
-                emitMood(AssistantMoodId.Speaking)
+                setPipelineMood(AssistantMoodId.Speaking)
                 _events.emit(
                     AssistantSessionEvent.Transcript(
                         text = state.finalMessage,
@@ -433,7 +442,7 @@ class VehicleAgentAssistantBackend(
             is AssistantUiState.Error -> {
                 micArmed = false
                 AssistantDebugLog.e(TAG, "ui Error: ${state.errorMessage}")
-                emitMood(AssistantMoodId.Sad)
+                setPipelineMood(AssistantMoodId.Sad)
                 _events.emit(AssistantSessionEvent.Error(state.errorMessage))
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
 
@@ -449,8 +458,28 @@ class VehicleAgentAssistantBackend(
         }
     }
 
-    private suspend fun emitMood(mood: AssistantMoodId) {
-        _events.emit(AssistantSessionEvent.MoodChanged(mood))
+    private suspend fun setPipelineMood(mood: AssistantMoodId) {
+        pipelineMood = mood
+        // New listen cycle drops prior reply emotion so the ear face stays clear.
+        if (mood == AssistantMoodId.Listening) {
+            affectiveMood = null
+        }
+        publishResolvedMood()
+    }
+
+    private suspend fun setAffectiveMood(mood: AssistantMoodId) {
+        if (!FaceMoodResolver.isAffective(mood)) {
+            AssistantDebugLog.d(TAG, "ignore non-affective mood from model: $mood")
+            return
+        }
+        affectiveMood = mood
+        AssistantDebugLog.d(TAG, "affective=$mood pipeline=$pipelineMood")
+        publishResolvedMood()
+    }
+
+    private suspend fun publishResolvedMood() {
+        val resolved = FaceMoodResolver.resolve(pipelineMood, affectiveMood)
+        _events.emit(AssistantSessionEvent.MoodChanged(resolved))
     }
 
     companion object {
