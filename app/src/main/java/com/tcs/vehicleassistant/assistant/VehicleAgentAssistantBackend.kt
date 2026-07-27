@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Production [AssistantBackend] bridge to [AssistantViewModel] / [IAudioManager].
@@ -121,7 +122,7 @@ class VehicleAgentAssistantBackend(
 
         flushPendingQuery()
         if (_sessionActive.value && listenJob?.isActive != true && !micArmed) {
-            scheduleStartMic(reason = "attach-while-active", delayMs = MIC_HANDOFF_MS)
+            scheduleStartMic(reason = "attach-while-active", delayMs = MIC_POST_RELEASE_MS)
         }
     }
 
@@ -154,7 +155,7 @@ class VehicleAgentAssistantBackend(
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
         // Short handoff wait after wake-word AudioRecord release (was 1400ms).
-        scheduleStartMic(reason = "startSession:$reason", delayMs = MIC_HANDOFF_MS, force = true)
+        scheduleStartMic(reason = "startSession:$reason", delayMs = MIC_POST_RELEASE_MS, force = true)
     }
 
     override fun stopSession() {
@@ -225,7 +226,8 @@ class VehicleAgentAssistantBackend(
             return
         }
         AssistantDebugLog.d(TAG, "requestListen")
-        scheduleStartMic(reason = "session-request", delayMs = MIC_HANDOFF_MS, force = true)
+        // Session already awaited wake-word release — only a short settle is needed.
+        scheduleStartMic(reason = "session-request", delayMs = MIC_POST_RELEASE_MS, force = true)
     }
 
     private fun scheduleStartMic(
@@ -238,12 +240,24 @@ class VehicleAgentAssistantBackend(
             AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms")
             if (delayMs > 0) delay(delayMs)
             if (!isActive || !_sessionActive.value) return@launch
+            // If Vosk still holds the mic, wait briefly instead of ERROR_CLIENT looping.
+            if (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
+                AssistantDebugLog.d(TAG, "mic schedule waiting for wake-word release")
+                val freed = withTimeoutOrNull(800L) {
+                    while (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) delay(20)
+                }
+                if (freed == null) {
+                    AssistantDebugLog.w(TAG, "wake-word still holding mic — trying STT anyway")
+                }
+                delay(40)
+            }
+            if (!isActive || !_sessionActive.value) return@launch
             repeat(8) { attempt ->
                 if (!_sessionActive.value) return@launch
                 if (startMic(reason = "$reason#$attempt", force = force || attempt == 0)) {
                     return@launch
                 }
-                delay(300)
+                delay(200)
             }
             AssistantDebugLog.w(TAG, "mic schedule gave up — agent unbound")
             _events.emit(AssistantSessionEvent.Error("Microphone not ready. Try again."))
@@ -278,9 +292,20 @@ class VehicleAgentAssistantBackend(
             // that is the usual ERROR_CLIENT (5) trigger. Fresh start only.
             if (force && reason.contains("client-retry")) {
                 audio.restartListening(delayedMs = MIC_CLIENT_RETRY_MS)
+            } else if (force && (
+                    reason.contains("session-request") ||
+                        reason.contains("startSession") ||
+                        reason.contains("attach-while-active") ||
+                        reason.contains("hotword-input")
+                    )
+            ) {
+                // Fresh recognizer after Vosk — avoids ERROR_CLIENT from a stale instance.
+                audio.restartListening(delayedMs = 0L)
             } else {
                 audio.startListening()
             }
+            // Optimistic arm so a second requestListen does not double-start during handoff.
+            micArmed = true
             AssistantDebugLog.d(TAG, "startMic($reason) issued")
             true
         } catch (t: Throwable) {
@@ -385,8 +410,10 @@ class VehicleAgentAssistantBackend(
 
     companion object {
         private const val TAG = "VehicleAgentBackend"
-        /** Wake-word → STT mic handoff (was 1400ms). */
-        private const val MIC_HANDOFF_MS = 250L
+        /** Settle after confirmed wake-word mic release (was 250–1400ms blind delay). */
+        private const val MIC_POST_RELEASE_MS = 60L
+        /** Legacy blind handoff when release was not awaited. */
+        private const val MIC_HANDOFF_MS = 120L
         /** Re-arm after TTS / turn complete. */
         private const val MIC_REARM_MS = 200L
         /** SpeechRecognizer ERROR_CLIENT rebuild delay. */
