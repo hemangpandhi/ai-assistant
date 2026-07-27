@@ -2,9 +2,10 @@ package com.tcs.vehicleassistant.assistant
 
 import android.app.Application
 import com.test.design.assistant.api.AssistantRuntime
-import com.test.design.presentation.assistant.AssistantFaceConfig
-import com.test.design.presentation.assistant.AssistantFaceKind
-
+import com.test.design.assistant.face.AssistantFaceConfig
+import com.test.design.assistant.face.AssistantFaceKind
+import com.test.design.assistant.backend.DemoAssistantBackend
+import com.test.design.assistant.backend.SilentAssistantTts
 /**
  * Installs Compose assistant runtime + UI profile for the host app.
  *
@@ -18,8 +19,8 @@ object AssistantRuntimeBootstrap {
 
         val host = VehicleAssistantHost(app)
         val backend = if (useDemoBackend) {
-            com.test.design.presentation.assistant.backend.DemoAssistantBackend(
-                speakingTts = com.test.design.presentation.assistant.backend.SilentAssistantTts,
+            DemoAssistantBackend(
+                speakingTts = SilentAssistantTts,
             )
         } else {
             VehicleAgentAssistantBackend()

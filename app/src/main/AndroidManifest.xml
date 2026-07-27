@@ -115,7 +115,7 @@
 
         <!-- Compose design assistant entry points (UI decoupled from agent core) -->
         <activity
-            android:name="com.test.design.presentation.assistant.VirtualAssistantActivity"
+            android:name="com.test.design.assistant.entry.VirtualAssistantActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
             android:excludeFromRecents="true">
@@ -126,7 +126,7 @@
         </activity>
 
         <activity
-            android:name="com.test.design.presentation.assistant.gallery.AssistantUiGalleryActivity"
+            android:name="com.test.design.assistant.ui.gallery.AssistantUiGalleryActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
             <intent-filter>
@@ -136,7 +136,7 @@
         </activity>
 
         <activity
-            android:name="com.test.design.presentation.assistant.overlay.AssistantOverlayBootstrapActivity"
+            android:name="com.test.design.assistant.ui.overlay.AssistantOverlayBootstrapActivity"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true">
@@ -147,15 +147,15 @@
         </activity>
 
         <service
-            android:name="com.test.design.presentation.assistant.ImmersiveAssistantOverlayService"
+            android:name="com.test.design.assistant.ui.immersive.ImmersiveAssistantOverlayService"
             android:exported="true" />
 
         <service
-            android:name="com.test.design.presentation.assistant.overlay.AssistantOverlayService"
+            android:name="com.test.design.assistant.ui.overlay.AssistantOverlayService"
             android:exported="false" />
 
         <receiver
-            android:name="com.test.design.presentation.assistant.AssistantFaceReceiver"
+            android:name="com.test.design.assistant.face.AssistantFaceReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="com.test.design.action.SET_ASSISTANT_FACE" />

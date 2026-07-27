@@ -6,6 +6,7 @@ import android.util.Log
 import com.test.design.assistant.api.AssistantCabinContext
 import com.test.design.assistant.api.AssistantHost
 import com.tcs.vehicleassistant.CockpitAwarenessActivity
+import com.test.design.assistant.api.AssistantRuntime
 
 /**
  * Host bridge for the Compose assistant module — cabin context + optional cluster hand-off.

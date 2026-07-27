@@ -1,4 +1,4 @@
-package com.test.design.presentation.assistant
+package com.test.design.assistant.host
 
 import android.app.Application
 import android.content.Intent
@@ -11,7 +11,7 @@ import com.test.design.presentation.ivi.vehicle.VehicleUiState
 
 /**
  * Process-wide cabin snapshot for [DesignAssistantHost].
- * Updated from [com.test.design.presentation.DesignAppShell] so the assistant
+ * Updated from the host DesignAppShell so the assistant
  * module never imports vehicle ViewModels.
  */
 object DesignCabinContextStore {
