@@ -20,26 +20,27 @@ UI polish (glow, TTS quality, rich context) stays off the critical path.
 
 ## Tier 1 — Highest leverage (same process, low risk)
 
-1. **Speculative tool prep**  
-   On strong partials (`"turn on the a…"`, `"set temp to 7…"`), resolve candidate tool + args early; **execute only on final** (or high-confidence endpoint). Cuts tool TTFR without wrong HVAC writes.
+1. **Speculative tool prep** ✅  
+   On strong partials (`"turn on the a…"`, `"set temp to 7…"`), resolve candidate tool + args early; **execute only on final** (or high-confidence endpoint). Cuts tool TTFR without wrong HVAC writes.  
+   → `SpeculativeToolPrep` + `AgentOrchestrator.tryHandleDirectFollowUp`
 
-2. **Two-phase utterance commit**  
-   - Phase A: endpoint → commit text + optional “Got it”  
-   - Phase B: FollowUpRouter / LLM on a background dispatcher  
+2. **Two-phase utterance commit** ✅  
+   - Phase A: endpoint → commit text (`liveTranscript` / `SetInputText`)  
+   - Phase B: FollowUpRouter / LLM on agent dispatcher (`queryJob`)  
    Never block the next listen cycle on inference.
 
-3. **Listen-through while thinking (barge-in lite)**  
-   Keep STT armed during short Thinking; if the user speaks, cancel/supersede the in-flight turn.
+3. **Listen-through while thinking (barge-in lite)** ✅  
+   Keep STT armed during Thinking; `cancelInFlight()` on `onBeginningOfSpeech` supersedes the turn.
 
-4. **Partial-driven UI only**  
-   Partials update transcript/mouth; **never** move orchestrator to Thinking until final (or explicit endpoint).
+4. **Partial-driven UI only** ✅  
+   Partials update transcript/mouth; **never** move to Thinking on `onEndOfSpeech` — only when orchestrator starts Phase B.
 
-5. **Prompt / KV deferral**  
-   Build tool top‑K + telemetry **after** final, off Main, only if FollowUpRouter misses. Short commands skip VHAL context (extend length gate).
+5. **Prompt / KV deferral** ✅  
+   Build tool top‑K + telemetry **after** final, off Main, only if FollowUpRouter misses. Short / command-like turns skip VHAL context (length ≥ 50 gate).
 
 ---
 
-## Tier 2 — Architecture (more invasive)
+## Tier 2 — Architecture (more invasive) — deferred
 
 6. **Shared PCM ring buffer**  
    One `AudioRecord` → wake-word + command ASR consumers. Removes exclusive Vosk ↔ SpeechRecognizer handoff (largest remaining hard latency).
@@ -60,30 +61,30 @@ UI polish (glow, TTS quality, rich context) stays off the critical path.
 
 ## Tier 3 — Product polish (snappy feel)
 
-11. **Adaptive silence / endpointing**  
-    Shorter complete-silence for short cabin phrases; longer for open questions. Drive from FollowUpRouter likelihood on partials.
+11. **Adaptive silence / endpointing** ✅  
+    `EndpointingProfile` (ShortCommand / Default / OpenQuestion) from partial likelihood; applied on next `startListening`.
 
-12. **TTS / listen overlap policy**  
-    Duck + arm mic on last TTS phoneme (or silent tail), not after full utterance teardown.
+12. **TTS / listen overlap policy** ✅  
+    Faster `QUESTION_FINAL` → StartListening (~80ms) + shorter mic re-arm; Thinking re-arms ear for barge-in.
 
-13. **Idle timeout = “quiet after ready”**  
-    Grace after Speak; reset countdown on partial; never arm before Listening.
+13. **Idle timeout = “quiet after ready”** ✅ (baseline)  
+    Grace after Speak; reset countdown on partial (`SetInputText` → `noteUserActivity`); never arm before Listening.
 
-14. **Prewarm ladder**  
-    Process start: STT create → TTS → tool registry → LLM. Never LLM before ear.
+14. **Prewarm ladder** ✅ (baseline)  
+    Process start: STT create (`VehicleAgentService` / `AndroidAudioManager`) → TTS → tool registry → LLM (wake-word delayed). Never LLM before ear.
 
 ---
 
 ## Suggested implementation order
 
-| Order | Item | Why |
-|------:|------|-----|
-| 1 | Speculative tool prep (execute on final) | Big win, small surface |
-| 2 | Two-phase commit + no Thinking on partial | Cleaner state, faster re-listen |
-| 3 | Barge-in lite during Thinking | Feels always-alive |
-| 4 | Stricter prompt/telemetry deferral | CPU/NPU headroom |
-| 5 | Shared PCM **or** small command SLU | Removes handoff wall |
-| 6 | Speculative LLM + cancel | Only after 1–4 |
+| Order | Item | Status |
+|------:|------|--------|
+| 1 | Speculative tool prep (execute on final) | ✅ Done |
+| 2 | Two-phase commit + no Thinking on partial | ✅ Done |
+| 3 | Barge-in lite during Thinking | ✅ Done |
+| 4 | Stricter prompt/telemetry deferral | ✅ Done |
+| 5 | Shared PCM **or** small command SLU | Deferred (Tier 2) |
+| 6 | Speculative LLM + cancel | Deferred (Tier 2) |
 
 ---
 

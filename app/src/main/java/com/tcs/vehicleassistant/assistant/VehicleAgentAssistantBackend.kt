@@ -348,8 +348,8 @@ class VehicleAgentAssistantBackend(
             return false
         }
         if (vm.isProcessing()) {
-            AssistantDebugLog.d(TAG, "startMic($reason) skip — processing")
-            return true
+            // Barge-in lite: still arm STT while Understand/Act runs.
+            AssistantDebugLog.d(TAG, "startMic($reason) while processing — barge-in arm")
         }
         if ((micArmed || audio.isActivelyListening()) && !force) {
             micArmed = true
@@ -402,8 +402,8 @@ class VehicleAgentAssistantBackend(
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
             is AssistantUiState.Thinking -> {
-                micArmed = false
-                AssistantDebugLog.d(TAG, "ui Thinking")
+                // Barge-in lite: keep / re-arm ear during Think — cancelInFlight on speech begin.
+                AssistantDebugLog.d(TAG, "ui Thinking (ear open for barge-in)")
                 setPipelineMood(AssistantMoodId.Thinking)
                 // Keep last user transcript visible while thinking; only show Thinking… if empty.
                 val live = viewModel?.liveTranscript?.value.orEmpty()
@@ -413,6 +413,12 @@ class VehicleAgentAssistantBackend(
                         speaker = if (live.isBlank()) AssistantSpeaker.System else AssistantSpeaker.User,
                     ),
                 )
+                val audio = audioManager
+                if (audio == null || !audio.isActivelyListening()) {
+                    scheduleStartMic(reason = "barge-in-think", delayMs = 40L, force = false)
+                } else {
+                    micArmed = true
+                }
             }
             is AssistantUiState.Streaming -> {
                 micArmed = false
@@ -500,7 +506,7 @@ class VehicleAgentAssistantBackend(
         /** Legacy blind handoff when release was not awaited. */
         private const val MIC_HANDOFF_MS = 120L
         /** Re-arm after TTS / turn complete. */
-        private const val MIC_REARM_MS = 200L
+        private const val MIC_REARM_MS = 80L
         /** SpeechRecognizer ERROR_CLIENT rebuild delay. */
         private const val MIC_CLIENT_RETRY_MS = 400L
         private const val UI_FRAME_MS = 32L
