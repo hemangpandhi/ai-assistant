@@ -64,9 +64,15 @@ class AssistantViewModel(
             onError = { errorCode ->
                 val errorMsg = mapSpeechError(errorCode)
                 _uiState.value = AssistantUiState.Error(errorMsg)
-                scope.launch {
-                    delay(2000)
-                    _events.tryEmit(ViewModelEvent.FinishSession)
+                // CLIENT / BUSY: backend rebuilds the recognizer. Avoid FinishSession
+                // loops that keep the UI stuck on "Listening…".
+                val recoverable = errorCode == android.speech.SpeechRecognizer.ERROR_CLIENT ||
+                    errorCode == android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY
+                if (!recoverable) {
+                    scope.launch {
+                        delay(2000)
+                        _events.tryEmit(ViewModelEvent.FinishSession)
+                    }
                 }
             },
             onPartial = { partialText ->

@@ -70,15 +70,16 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     override fun startListening() {
-        // Always (re)create on the calling thread after a clean destroy so stacked
-        // startListening calls from session show hooks don't leave a busy recognizer.
         if (speechRecognizer == null) {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
             speechRecognizer?.setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
+                    android.util.Log.d("AndroidAudioManager", "onReadyForSpeech")
+                    com.assistant.ui.assistant.api.AssistantDebugLog.d("STT", "ready")
                     onSttReadyForSpeech?.invoke()
                 }
                 override fun onBeginningOfSpeech() {
+                    com.assistant.ui.assistant.api.AssistantDebugLog.d("STT", "speech begin")
                     onSttBeginningOfSpeech?.invoke()
                 }
                 override fun onRmsChanged(rmsdB: Float) {}
@@ -88,6 +89,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                         audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
                     } catch (_: Exception) {}
+                    com.assistant.ui.assistant.api.AssistantDebugLog.d("STT", "speech end")
                     onSttEndOfSpeech?.invoke()
                 }
                 override fun onError(error: Int) {
@@ -95,14 +97,16 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                         audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
                     } catch (_: Exception) {}
-                    android.util.Log.w("AndroidAudioManager", "SpeechRecognizer onError=$error")
+                    com.assistant.ui.assistant.api.AssistantDebugLog.e("STT", "onError=$error")
                     onSttError?.invoke(error)
                 }
                 override fun onResults(results: Bundle?) {
                     val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                     if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
+                        com.assistant.ui.assistant.api.AssistantDebugLog.d("STT", "result=${matches[0].take(40)}")
                         onSttResult?.invoke(matches[0])
                     } else {
+                        com.assistant.ui.assistant.api.AssistantDebugLog.w("STT", "empty result")
                         onSttEmptyResult?.invoke()
                     }
                 }
@@ -125,9 +129,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
         try {
+            com.assistant.ui.assistant.api.AssistantDebugLog.d("STT", "startListening()")
             speechRecognizer?.startListening(intent)
         } catch (t: Throwable) {
-            android.util.Log.w("AndroidAudioManager", "startListening failed", t)
+            com.assistant.ui.assistant.api.AssistantDebugLog.e("STT", "startListening failed: ${t.message}")
             throw t
         }
     }
