@@ -83,7 +83,22 @@ class VehicleAgentAssistantBackend(
         uiCollectJob = scope.launch {
             vm.uiState.collect { state -> mapUiState(state) }
         }
+        // Prefer StateFlow for live STT — survives attach races; SharedFlow events can be dropped.
         eventCollectJob = scope.launch {
+            launch {
+                vm.liveTranscript.collect { text ->
+                    if (text.isNotBlank()) {
+                        AssistantDebugLog.d(TAG, "live: ${text.take(48)}")
+                        _events.emit(
+                            AssistantSessionEvent.Transcript(
+                                text = text,
+                                speaker = AssistantSpeaker.User,
+                            ),
+                        )
+                        emitMood(AssistantMoodId.Listening)
+                    }
+                }
+            }
             vm.events.collect { event ->
                 when (event) {
                     is ViewModelEvent.StartListening -> {
@@ -91,8 +106,8 @@ class VehicleAgentAssistantBackend(
                         scheduleStartMic(reason = "orchestrator", delayMs = MIC_REARM_MS, force = true)
                     }
                     is ViewModelEvent.SetInputText -> {
+                        // liveTranscript collector is primary; keep as fallback for late subscribers.
                         if (event.text.isNotBlank()) {
-                            micArmed = false
                             AssistantDebugLog.d(TAG, "user: ${event.text.take(48)}")
                             _events.emit(
                                 AssistantSessionEvent.Transcript(
@@ -161,15 +176,25 @@ class VehicleAgentAssistantBackend(
 
         scope.launch {
             emitMood(AssistantMoodId.Listening)
-            _events.emit(
-                AssistantSessionEvent.Transcript(
-                    text = when (reason) {
-                        AssistantStartReason.Hotword -> "Listening…"
-                        else -> "Hi, how can I help you?"
-                    },
-                    speaker = AssistantSpeaker.System,
-                ),
-            )
+            val live = viewModel?.liveTranscript?.value.orEmpty()
+            if (live.isBlank()) {
+                _events.emit(
+                    AssistantSessionEvent.Transcript(
+                        text = when (reason) {
+                            AssistantStartReason.Hotword -> "Listening…"
+                            else -> "Hi, how can I help you?"
+                        },
+                        speaker = AssistantSpeaker.System,
+                    ),
+                )
+            } else {
+                _events.emit(
+                    AssistantSessionEvent.Transcript(
+                        text = live,
+                        speaker = AssistantSpeaker.User,
+                    ),
+                )
+            }
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
         if (!alreadyOpen) {
@@ -344,22 +369,28 @@ class VehicleAgentAssistantBackend(
                 clientErrorRetries = 0
                 AssistantDebugLog.d(TAG, "ui Listening (ready)")
                 emitMood(AssistantMoodId.Listening)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = "Listening…",
-                        speaker = AssistantSpeaker.System,
-                    ),
-                )
+                // Never clobber live user partials with the placeholder.
+                val live = viewModel?.liveTranscript?.value.orEmpty()
+                if (live.isBlank()) {
+                    _events.emit(
+                        AssistantSessionEvent.Transcript(
+                            text = "Listening…",
+                            speaker = AssistantSpeaker.System,
+                        ),
+                    )
+                }
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
             is AssistantUiState.Thinking -> {
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Thinking")
                 emitMood(AssistantMoodId.Thinking)
+                // Keep last user transcript visible while thinking; only show Thinking… if empty.
+                val live = viewModel?.liveTranscript?.value.orEmpty()
                 _events.emit(
                     AssistantSessionEvent.Transcript(
-                        text = "Thinking…",
-                        speaker = AssistantSpeaker.System,
+                        text = live.ifBlank { "Thinking…" },
+                        speaker = if (live.isBlank()) AssistantSpeaker.System else AssistantSpeaker.User,
                     ),
                 )
             }

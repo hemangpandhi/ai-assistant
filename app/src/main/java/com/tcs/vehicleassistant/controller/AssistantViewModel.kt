@@ -30,6 +30,10 @@ class AssistantViewModel(
     private val _uiState = MutableStateFlow<AssistantUiState>(AssistantUiState.Idle)
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
 
+    /** Live STT partial/final text — StateFlow so UI is not dependent on SharedFlow subscribers. */
+    private val _liveTranscript = MutableStateFlow("")
+    val liveTranscript: StateFlow<String> = _liveTranscript.asStateFlow()
+
     private val _events = MutableSharedFlow<ViewModelEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<ViewModelEvent> = _events.asSharedFlow()
 
@@ -44,10 +48,12 @@ class AssistantViewModel(
             },
             onResult = { spokenText ->
                 audioManager.stopSpeaking()
+                _liveTranscript.value = spokenText
                 _events.tryEmit(ViewModelEvent.SetInputText(spokenText))
                 dispatch(AssistantUiIntent.SubmitQuery(spokenText))
             },
             onEmptyResult = {
+                _liveTranscript.value = ""
                 _uiState.value = AssistantUiState.Error("I didn't hear anything.")
             },
             onError = { errorCode ->
@@ -106,6 +112,7 @@ class AssistantViewModel(
     }
 
     fun resetUiState() {
+        _liveTranscript.value = ""
         dispatch(AssistantUiIntent.Reset)
     }
 
