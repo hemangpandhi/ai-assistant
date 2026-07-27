@@ -653,7 +653,8 @@ fun ImmersiveBackdrop(
 }
 
 /**
- * Purple-blue perimeter glow: ~5dp thick at the screen edge, fading inward.
+ * Purple-blue perimeter glow: wide soft bloom at the screen edge that eases
+ * inward to full transparency (no hard rim).
  */
 @Composable
 fun ImmersiveBorderGlow(
@@ -663,8 +664,8 @@ fun ImmersiveBorderGlow(
     Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val thickness = 5.dp.toPx()
-        // Blend brand tint toward a purple-blue frame.
+        // Wide bloom so the fade reads as a soft aura, not a hard 5dp line.
+        val thickness = 36.dp.toPx()
         val purpleBlue = Color(0xFF7B6CFF)
         val edge = Color(
             red = (purpleBlue.red * 0.65f + glowColor.red * 0.35f),
@@ -672,60 +673,58 @@ fun ImmersiveBorderGlow(
             blue = (purpleBlue.blue * 0.65f + glowColor.blue * 0.35f),
             alpha = 1f,
         )
-        val edgeStrong = edge.copy(alpha = 0.90f)
-        val edgeMid = edge.copy(alpha = 0.45f)
-        val clear = Color.Transparent
+        // Multi-stop ease: bright at the rim → soft wash → clear (natural blend).
+        val inwardFade = arrayOf(
+            0.00f to edge.copy(alpha = 0.72f),
+            0.12f to edge.copy(alpha = 0.48f),
+            0.32f to edge.copy(alpha = 0.22f),
+            0.58f to edge.copy(alpha = 0.08f),
+            0.82f to edge.copy(alpha = 0.02f),
+            1.00f to Color.Transparent,
+        )
+        val outwardFade = arrayOf(
+            0.00f to Color.Transparent,
+            0.18f to edge.copy(alpha = 0.02f),
+            0.42f to edge.copy(alpha = 0.08f),
+            0.68f to edge.copy(alpha = 0.22f),
+            0.88f to edge.copy(alpha = 0.48f),
+            1.00f to edge.copy(alpha = 0.72f),
+        )
 
-        // Top edge — strong at y=0, fades downward (inward).
+        // Top — fades downward (inward).
         drawRect(
             brush = Brush.verticalGradient(
-                colorStops = arrayOf(
-                    0.00f to edgeStrong,
-                    0.45f to edgeMid,
-                    1.00f to clear,
-                ),
+                colorStops = inwardFade,
                 startY = 0f,
                 endY = thickness,
             ),
             topLeft = Offset.Zero,
             size = Size(w, thickness),
         )
-        // Bottom edge — strong at bottom, fades upward (inward).
+        // Bottom — fades upward (inward).
         drawRect(
             brush = Brush.verticalGradient(
-                colorStops = arrayOf(
-                    0.00f to clear,
-                    0.55f to edgeMid,
-                    1.00f to edgeStrong,
-                ),
+                colorStops = outwardFade,
                 startY = h - thickness,
                 endY = h,
             ),
             topLeft = Offset(0f, h - thickness),
             size = Size(w, thickness),
         )
-        // Left edge — strong at x=0, fades rightward (inward).
+        // Left — fades rightward (inward).
         drawRect(
             brush = Brush.horizontalGradient(
-                colorStops = arrayOf(
-                    0.00f to edgeStrong,
-                    0.45f to edgeMid,
-                    1.00f to clear,
-                ),
+                colorStops = inwardFade,
                 startX = 0f,
                 endX = thickness,
             ),
             topLeft = Offset.Zero,
             size = Size(thickness, h),
         )
-        // Right edge — strong at right, fades leftward (inward).
+        // Right — fades leftward (inward).
         drawRect(
             brush = Brush.horizontalGradient(
-                colorStops = arrayOf(
-                    0.00f to clear,
-                    0.55f to edgeMid,
-                    1.00f to edgeStrong,
-                ),
+                colorStops = outwardFade,
                 startX = w - thickness,
                 endX = w,
             ),
