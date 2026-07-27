@@ -1,0 +1,20 @@
+package com.assistant.ui.assistant.backend
+
+import android.content.Context
+import com.assistant.ui.assistant.api.AssistantTtsEngine
+import com.assistant.ui.assistant.audio.assistantUtteranceLipSync
+import kotlinx.coroutines.flow.Flow
+
+/** Host TTS + lip-sync via Android [android.speech.tts.TextToSpeech]. */
+fun platformAssistantTts(context: Context): AssistantTtsEngine {
+    val app = context.applicationContext
+    return AssistantTtsEngine { text, holdMs ->
+        assistantUtteranceLipSync(app, text, holdMs)
+    }
+}
+
+private fun AssistantTtsEngine(
+    block: (text: String, holdMs: Long) -> Flow<Float>,
+): AssistantTtsEngine = object : AssistantTtsEngine {
+    override fun speak(text: String, holdMs: Long): Flow<Float> = block(text, holdMs)
+}

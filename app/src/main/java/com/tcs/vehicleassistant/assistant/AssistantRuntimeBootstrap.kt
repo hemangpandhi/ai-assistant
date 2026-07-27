@@ -1,11 +1,11 @@
 package com.tcs.vehicleassistant.assistant
 
 import android.app.Application
-import com.test.design.assistant.api.AssistantRuntime
-import com.test.design.assistant.face.AssistantFaceConfig
-import com.test.design.assistant.face.AssistantFaceKind
-import com.test.design.assistant.backend.DemoAssistantBackend
-import com.test.design.assistant.backend.SilentAssistantTts
+import com.assistant.ui.assistant.api.AssistantRuntime
+import com.assistant.ui.assistant.face.AssistantFaceConfig
+import com.assistant.ui.assistant.face.AssistantFaceKind
+import com.assistant.ui.assistant.backend.DemoAssistantBackend
+import com.assistant.ui.assistant.backend.SilentAssistantTts
 /**
  * Installs Compose assistant runtime + UI profile for the host app.
  *
