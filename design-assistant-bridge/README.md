@@ -1,6 +1,6 @@
 # Design assistant import
 
-The Compose assistant libraries live in `:assistant` + `:assistant-api` and are wired into `:app`.
+The Compose assistant library lives in `:assistant` and is wired into `:app`.
 
 Host implementation (replaces the Design-demo stub):
 
