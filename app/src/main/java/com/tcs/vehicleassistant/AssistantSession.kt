@@ -45,6 +45,7 @@ import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
 import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantHotword
+import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
@@ -147,6 +148,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var currentDisplayLength = 0
     private val typingSpeedMs: Long = 15L
     private var unloadJob: Job? = null
+    /** Countdown that closes the overlay after quiet listening. */
+    private var idleJob: Job? = null
+    /** Collects uiState / events to arm or pause [idleJob]. */
+    private var idleWatchJob: Job? = null
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -236,6 +241,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 startObservingComposeAgentEvents()
             } else {
                 startObservingViewModel()
+            }
+            if (sessionUiVisible) {
+                startIdleWatch()
             }
         }
 
@@ -383,6 +391,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         btnSend?.setOnClickListener {
             val query = etInput?.text?.toString().orEmpty()
             if (query.isNotBlank()) {
+                noteUserActivity()
                 audioManager?.stopSpeaking()
                 resetDisplayState()
                 viewModel?.handleQuery(query)
@@ -395,6 +404,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 android.util.Log.w("AssistantSession", "Ignoring mic trigger because query is still being processed.")
                 return@setOnClickListener
             }
+            noteUserActivity()
             LatencyLogger.reset()
             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
             audioManager?.stopSpeaking()
@@ -411,7 +421,136 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnMic?.isEnabled = true
         }
 
+        etInput?.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (!s.isNullOrEmpty()) noteUserActivity()
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
         setContentView(overlayView)
+    }
+
+    /**
+     * Quiet-listening auto-close: after [AssistantIdleTimeout] seconds with no speech /
+     * LLM / text activity, dismiss the overlay and finish the session.
+     *
+     * Busy states (thinking / streaming / speaking) and model warm-up pause the timer.
+     */
+    private fun startIdleWatch() {
+        AssistantIdleTimeout.install(context)
+        idleWatchJob?.cancel()
+        idleWatchJob = observerScope.launch {
+            val vm = viewModel
+            if (vm != null) {
+                launch {
+                    vm.uiState.collect { state -> onUiStateForIdle(state) }
+                }
+                launch {
+                    vm.events.collect { event ->
+                        when (event) {
+                            is ViewModelEvent.SetInputText -> {
+                                if (event.text.isNotBlank()) noteUserActivity()
+                            }
+                            is ViewModelEvent.StartListening -> armIdleTimer("start-listening")
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+            // Begin counting even before the ViewModel binds (first open).
+            armIdleTimer("watch-start")
+        }
+    }
+
+    private fun cancelIdleWatch() {
+        idleJob?.cancel()
+        idleJob = null
+        idleWatchJob?.cancel()
+        idleWatchJob = null
+    }
+
+    private fun onUiStateForIdle(state: AssistantUiState) {
+        when (state) {
+            is AssistantUiState.Thinking,
+            is AssistantUiState.Streaming,
+            is AssistantUiState.Speaking,
+            -> pauseIdleTimer()
+            is AssistantUiState.Idle,
+            is AssistantUiState.Listening,
+            is AssistantUiState.Error,
+            -> {
+                if (isModelWarmingUp()) {
+                    pauseIdleTimer()
+                } else {
+                    armIdleTimer("ui:${state::class.simpleName}")
+                }
+            }
+        }
+    }
+
+    private fun isModelWarmingUp(): Boolean {
+        if (LocalLLMActivity.isCloudModelActive) return false
+        return LLMManager.isInitializing || LLMManager.isPrewarming || !LLMManager.isReady()
+    }
+
+    /** Reset the idle countdown after real user / pipeline activity. */
+    private fun noteUserActivity() {
+        if (!sessionUiVisible) return
+        if (viewModel?.isProcessing() == true) {
+            pauseIdleTimer()
+            return
+        }
+        armIdleTimer("user-activity")
+    }
+
+    private fun pauseIdleTimer() {
+        idleJob?.cancel()
+        idleJob = null
+    }
+
+    private fun armIdleTimer(reason: String) {
+        idleJob?.cancel()
+        if (!sessionUiVisible) return
+        val timeoutMs = AssistantIdleTimeout.currentMs()
+        if (timeoutMs <= 0L) {
+            AssistantDebugLog.d("Session", "idle timer disabled ($reason)")
+            idleJob = null
+            return
+        }
+        idleJob = observerScope.launch {
+            AssistantDebugLog.d("Session", "idle arm ${timeoutMs}ms ($reason)")
+            delay(timeoutMs)
+            if (!isActive || !sessionUiVisible) return@launch
+            // Still busy? Skip close (e.g. race with Thinking).
+            val busy = when (viewModel?.uiState?.value) {
+                is AssistantUiState.Thinking,
+                is AssistantUiState.Streaming,
+                is AssistantUiState.Speaking,
+                -> true
+                else -> viewModel?.isProcessing() == true
+            }
+            if (busy || isModelWarmingUp()) {
+                AssistantDebugLog.d("Session", "idle fire skipped — busy")
+                return@launch
+            }
+            dismissForIdleTimeout()
+        }
+    }
+
+    private fun dismissForIdleTimeout() {
+        AssistantDebugLog.d("Session", "idle-timeout — closing overlay + assistant")
+        if (usingComposeUi) {
+            // Play Compose exit animation (AssistantTokens.ExitMs ≈ 280), then tear down.
+            notifyImmersiveAssistantDismiss()
+            observerScope.launch {
+                delay(320L)
+                dismissForExternalUi("idle-timeout")
+            }
+        } else {
+            dismissForExternalUi("idle-timeout")
+        }
     }
 
     private fun startObservingComposeAgentEvents() {
@@ -549,6 +688,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         baselineResumedActivity = null
         baselineTopPackage = null
         registerDismissWatchers()
+        startIdleWatch()
 
         // Duck music immediately — do not wait for STT (~1.4s) or service bind.
         audioManager?.requestAssistantDuck() ?: requestFallbackDuck()
@@ -616,6 +756,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             inputControls?.visibility = View.VISIBLE
             btnSend?.isEnabled = true
             btnMic?.isEnabled = true
+            armIdleTimer("xml-ready")
 
             if (showFlags and SHOW_WITH_ASSIST != 0) {
                 observerScope.launch {
@@ -884,6 +1025,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     override fun onDestroy() {
         sessionUiVisible = false
+        cancelIdleWatch()
         unregisterDismissWatchers()
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
