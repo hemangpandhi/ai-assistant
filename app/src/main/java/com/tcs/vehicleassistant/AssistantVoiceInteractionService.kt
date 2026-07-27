@@ -48,16 +48,21 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
 
     override fun onReady() {
         super.onReady()
-        // Defer car bind + wake-word service so the first VoiceInteractionSession
-        // after install can paint immediately without competing for main-thread work.
+        // Start wake-word as a foreground service so hotword stays alive.
         android.os.Handler(mainLooper).post {
             try {
                 VehicleManager.initialize(this)
             } catch (_: Exception) {
             }
             try {
-                startService(Intent(this, WakeWordService::class.java))
-            } catch (_: Exception) {
+                val wake = Intent(this, WakeWordService::class.java)
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                    startForegroundService(wake)
+                } else {
+                    startService(wake)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("WakeWord", "Failed to start WakeWordService", e)
             }
         }
     }
