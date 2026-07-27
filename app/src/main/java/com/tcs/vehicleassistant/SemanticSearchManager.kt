@@ -67,9 +67,14 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
     }
 
     fun search(query: String, topK: Int = 10): List<ToolManager.ToolDefinition> {
-        if (!isInitialized) return toolManager.getAllTools().values.take(topK).toList()
-        
-        val queryVector = embedText(query.lowercase()) ?: return toolManager.getAllTools().values.take(topK).toList()
+        if (!isInitialized) return emptyList()
+
+        val queryVector = embedText(query.lowercase())
+        // Embedder disabled / unavailable: never dump full registry (prompt bloat).
+        if (queryVector == null) {
+            Log.d(TAG, "search fallback empty (no embeddings) for: ${query.take(40)}")
+            return emptyList()
+        }
         
         val scoredTools = mutableListOf<Pair<ToolManager.ToolDefinition, Float>>()
         

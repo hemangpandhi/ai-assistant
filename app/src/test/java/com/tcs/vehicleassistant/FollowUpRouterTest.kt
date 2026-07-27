@@ -48,4 +48,24 @@ class FollowUpRouterTest {
         val tool = FollowUpRouter.resolveDirectTool("yes", "Would you like me to turn on the seat heater?")
         assertEquals("setSeatHeater(2)", tool)
     }
+
+    @Test
+    fun resolveDirectCommand_acOn() {
+        assertEquals("turnOnAC()", FollowUpRouter.resolveDirectCommand("please turn on the ac"))
+    }
+
+    @Test
+    fun resolveDirectCommand_increaseTemp() {
+        assertEquals("increaseTemperature(2)", FollowUpRouter.resolveDirectCommand("make it warmer"))
+    }
+
+    @Test
+    fun resolveDirectCommand_setTemp() {
+        assertEquals("setTemperature(70)", FollowUpRouter.resolveDirectCommand("set temperature to 70"))
+    }
+
+    @Test
+    fun resolveDirectCommand_playMusic() {
+        assertEquals("playMusic(music)", FollowUpRouter.resolveDirectTool("play music", ""))
+    }
 }

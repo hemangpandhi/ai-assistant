@@ -255,9 +255,8 @@ class ToolManager {
             return exactMatches.distinct()
         }
         
-        // Slow path: Semantic Search (2000ms+)
-        // ONLY use the userQuery for semantic search to avoid massive latency spikes from embedding history!
-        // Top 4 is enough. Injecting 8 tools causes the LLM's memory buffer to overflow!
+        // Slow path: Semantic Search — when embedder is disabled, do NOT dump
+        // arbitrary tools into the prompt (bloats TTFT). Keyword miss = empty.
         val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
         return semanticSearchManager.search(userQuery, 4)
     }
