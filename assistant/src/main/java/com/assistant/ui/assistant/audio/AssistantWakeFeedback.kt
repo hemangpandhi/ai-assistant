@@ -2,9 +2,13 @@ package com.assistant.ui.assistant.audio
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -23,7 +27,8 @@ import kotlin.concurrent.thread
  * Soft haptics + sonification for assistant presence (slide up / slide down).
  *
  * Entry uses a **soft bell**; exit uses a quiet settle tone. Both play via
- * [AudioTrack] with [AudioAttributes.USAGE_ASSISTANCE_SONIFICATION].
+ * [AudioTrack] with [AudioAttributes.USAGE_MEDIA] so AAOS car audio actually
+ * routes the chime (USAGE_ASSISTANCE_SONIFICATION is often silent).
  */
 class AssistantWakeFeedback(
     private val context: Context,
@@ -70,7 +75,36 @@ class AssistantWakeFeedback(
     private fun playChime(entry: Boolean) {
         thread(name = "assistant-chime", isDaemon = true) {
             var track: AudioTrack? = null
+            var focusRequest: AudioFocusRequest? = null
+            val am = try {
+                context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            } catch (_: Exception) {
+                null
+            }
+            val focusListener = AudioManager.OnAudioFocusChangeListener { }
             try {
+                // Brief duck so the chime is heard over media (session also ducks for longer).
+                if (am != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val focusAttrs = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                    val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(focusAttrs)
+                        .setOnAudioFocusChangeListener(focusListener, Handler(Looper.getMainLooper()))
+                        .setWillPauseWhenDucked(false)
+                        .build()
+                    focusRequest = req
+                    am.requestAudioFocus(req)
+                } else if (am != null) {
+                    @Suppress("DEPRECATION")
+                    am.requestAudioFocus(
+                        focusListener,
+                        AudioManager.STREAM_MUSIC,
+                        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                    )
+                }
+
                 val sampleRate = 44_100
                 val durationMs: Int
                 val n: Int
@@ -80,7 +114,7 @@ class AssistantWakeFeedback(
                     durationMs = 900
                     n = sampleRate * durationMs / 1_000
                     pcm = ShortArray(n)
-                    val master = 0.11
+                    val master = 0.14
                     val partials = arrayOf(
                         // amp, ratio, decay — fundamental-led, highs heavily damped
                         doubleArrayOf(1.00, 1.00, 2.8),
@@ -101,7 +135,7 @@ class AssistantWakeFeedback(
                     durationMs = 520
                     n = sampleRate * durationMs / 1_000
                     pcm = ShortArray(n)
-                    val master = 0.10
+                    val master = 0.12
                     val notesHz = doubleArrayOf(392.00, 293.66)
                     val strikesAt = doubleArrayOf(0.00, 0.18)
                     val noteGains = doubleArrayOf(1.00, 0.75)
@@ -127,8 +161,9 @@ class AssistantWakeFeedback(
                     }
                 }
 
+                // USAGE_MEDIA matches Compose TTS — audible on AAOS volume groups.
                 val attrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
                 val format = AudioFormat.Builder()
@@ -142,7 +177,7 @@ class AssistantWakeFeedback(
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .setBufferSizeInBytes(n * 2)
                     .build()
-                track.setVolume(if (entry) 0.38f else 0.32f)
+                track.setVolume(if (entry) 0.55f else 0.42f)
                 track.write(pcm, 0, n)
                 track.play()
                 Thread.sleep((durationMs + 60).toLong())
@@ -154,6 +189,16 @@ class AssistantWakeFeedback(
                 }
                 try {
                     track?.release()
+                } catch (_: Exception) {
+                }
+                // Release only this chime's brief focus; the session keeps its own duck.
+                try {
+                    if (am != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        focusRequest?.let { am.abandonAudioFocusRequest(it) }
+                    } else if (am != null) {
+                        @Suppress("DEPRECATION")
+                        am.abandonAudioFocus(focusListener)
+                    }
                 } catch (_: Exception) {
                 }
             }
