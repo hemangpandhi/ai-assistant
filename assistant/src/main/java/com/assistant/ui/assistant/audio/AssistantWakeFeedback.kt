@@ -12,6 +12,7 @@ import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.hapticfeedback.HapticFeedback
@@ -27,8 +28,11 @@ import kotlin.concurrent.thread
  * Soft haptics + sonification for assistant presence (slide up / slide down).
  *
  * Entry uses a short rising melodic motif; exit uses a quiet settle tone.
- * Both play via [AudioTrack] with [AudioAttributes.USAGE_MEDIA] so AAOS car
- * audio actually routes the chime (USAGE_ASSISTANCE_SONIFICATION is often silent).
+ *
+ * Playback uses [AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE] — the same
+ * volume group the session duck holds — so AAOS does not attenuate the chime.
+ * [AudioAttributes.USAGE_MEDIA] is ducked with background music; SONIFICATION is
+ * often silent on car audio builds.
  */
 class AssistantWakeFeedback(
     private val context: Context,
@@ -82,20 +86,21 @@ class AssistantWakeFeedback(
                 null
             }
             val focusListener = AudioManager.OnAudioFocusChangeListener { }
+            // Match session duck usage so the earcon rides the unducked nav volume group.
+            val chimeAttrs = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
             try {
-                // Brief duck so the chime is heard over media (session also ducks for longer).
                 if (am != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    val focusAttrs = AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                        .build()
                     val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-                        .setAudioAttributes(focusAttrs)
+                        .setAudioAttributes(chimeAttrs)
                         .setOnAudioFocusChangeListener(focusListener, Handler(Looper.getMainLooper()))
                         .setWillPauseWhenDucked(false)
                         .build()
                     focusRequest = req
-                    am.requestAudioFocus(req)
+                    val focusResult = am.requestAudioFocus(req)
+                    Log.d(TAG, "chime focus result=$focusResult entry=$entry")
                 } else if (am != null) {
                     @Suppress("DEPRECATION")
                     am.requestAudioFocus(
@@ -110,16 +115,15 @@ class AssistantWakeFeedback(
                 val n: Int
                 val pcm: ShortArray
                 if (entry) {
-                    // Rising C–E–G major arpeggio — melodic welcome, not a flat single strike.
+                    // Rising C–E–G major arpeggio — melodic welcome.
                     durationMs = 820
                     n = sampleRate * durationMs / 1_000
                     pcm = ShortArray(n)
-                    val master = 0.16
+                    val master = 0.32
                     val notesHz = doubleArrayOf(523.25, 659.25, 783.99) // C5–E5–G5
                     val strikesAt = doubleArrayOf(0.00, 0.13, 0.26)
                     val noteGains = doubleArrayOf(1.00, 0.92, 0.84)
                     val partials = arrayOf(
-                        // amp, ratio, decay — kalimba-like, fundamental-led
                         doubleArrayOf(1.00, 1.00, 2.6),
                         doubleArrayOf(0.30, 2.00, 4.8),
                         doubleArrayOf(0.10, 3.01, 7.5),
@@ -144,7 +148,7 @@ class AssistantWakeFeedback(
                     durationMs = 520
                     n = sampleRate * durationMs / 1_000
                     pcm = ShortArray(n)
-                    val master = 0.12
+                    val master = 0.22
                     val notesHz = doubleArrayOf(392.00, 293.66)
                     val strikesAt = doubleArrayOf(0.00, 0.18)
                     val noteGains = doubleArrayOf(1.00, 0.75)
@@ -170,27 +174,48 @@ class AssistantWakeFeedback(
                     }
                 }
 
-                // USAGE_MEDIA matches Compose TTS — audible on AAOS volume groups.
-                val attrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_MEDIA)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
                 val format = AudioFormat.Builder()
                     .setSampleRate(sampleRate)
                     .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
                     .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
                     .build()
+                val minBuf = AudioTrack.getMinBufferSize(
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                ).coerceAtLeast(1)
+                // MODE_STREAM is more reliable on AAOS than MODE_STATIC for short PCM.
+                val bufferBytes = maxOf(minBuf, 4_096)
                 track = AudioTrack.Builder()
-                    .setAudioAttributes(attrs)
+                    .setAudioAttributes(chimeAttrs)
                     .setAudioFormat(format)
-                    .setTransferMode(AudioTrack.MODE_STATIC)
-                    .setBufferSizeInBytes(n * 2)
+                    .setTransferMode(AudioTrack.MODE_STREAM)
+                    .setBufferSizeInBytes(bufferBytes)
                     .build()
-                track.setVolume(if (entry) 0.55f else 0.42f)
-                track.write(pcm, 0, n)
+                if (track.state != AudioTrack.STATE_INITIALIZED) {
+                    Log.w(TAG, "AudioTrack not initialized state=${track.state}")
+                    return@thread
+                }
+                track.setVolume(if (entry) 1.0f else 0.75f)
                 track.play()
-                Thread.sleep((durationMs + 60).toLong())
-            } catch (_: Exception) {
+                var offset = 0
+                while (offset < n) {
+                    val written = track.write(pcm, offset, n - offset)
+                    if (written < 0) {
+                        Log.w(TAG, "AudioTrack write failed result=$written at offset=$offset")
+                        break
+                    }
+                    if (written == 0) {
+                        Thread.sleep(4)
+                        continue
+                    }
+                    offset += written
+                }
+                // Let the last buffer drain.
+                Thread.sleep((durationMs + 80).toLong())
+                Log.d(TAG, "chime played entry=$entry samples=$n written=$offset")
+            } catch (t: Exception) {
+                Log.w(TAG, "chime failed entry=$entry: ${t.message}", t)
             } finally {
                 try {
                     track?.stop()
@@ -234,6 +259,10 @@ class AssistantWakeFeedback(
             sum += amp * env * sin(2.0 * PI * fundamentalHz * ratio * t)
         }
         return sum
+    }
+
+    companion object {
+        private const val TAG = "AssistantWakeChime"
     }
 }
 

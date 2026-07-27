@@ -120,6 +120,8 @@ class VehicleAgentAssistantBackend(
                     is ViewModelEvent.SetInputText -> {
                         // liveTranscript collector is primary; keep as fallback for late subscribers.
                         if (event.text.isNotBlank()) {
+                            // Do not clear micArmed here — partials arrive while STT is still live.
+                            // Clearing it caused attach/requestListen to fight the recognizer.
                             AssistantDebugLog.d(TAG, "user: ${event.text.take(48)}")
                             _events.emit(
                                 AssistantSessionEvent.Transcript(
@@ -358,14 +360,22 @@ class VehicleAgentAssistantBackend(
         }
         return try {
             audio.ensureWarmRecognizer()
-            if (force && reason.contains("client-retry")) {
-                audio.restartListening(delayedMs = MIC_CLIENT_RETRY_MS)
+            // Forced starts must actually restart. A plain startListening() no-ops while
+            // Starting/Listening and returns "success", leaving the mic unarmed.
+            if (force) {
+                audio.restartListening(
+                    delayedMs = if (reason.contains("client-retry")) {
+                        MIC_CLIENT_RETRY_MS
+                    } else {
+                        MIC_REARM_MS
+                    },
+                )
             } else {
-                // Prefer warm startListening — destroy/recreate only on client-retry.
+                // Prefer warm startListening — destroy/recreate only on forced paths.
                 audio.startListening()
             }
             micArmed = true
-            AssistantDebugLog.d(TAG, "startMic($reason) issued")
+            AssistantDebugLog.d(TAG, "startMic($reason) issued force=$force")
             true
         } catch (t: Throwable) {
             micArmed = false

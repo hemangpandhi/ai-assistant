@@ -173,44 +173,57 @@ class AgentOrchestrator(
             return
         }
 
-        // Queue instead of rejecting while KV cache prewarm is in progress.
-        if (LLMManager.isPrewarming) {
+        // Wait out prewarm / cold start so voice finals still reach the LLM
+        // (ui-ux fix: previously dropped after STT painted the transcript).
+        if (LLMManager.isPrewarming ||
+            (!featureFlags.isCloudActive && !LLMManager.isReady())
+        ) {
             pendingPrewarmQuery = query to retryCount
             _state.value = OrchestratorState.Thinking
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+            if (retryCount == 0) {
+                _events.tryEmit(
+                    OrchestratorEvent.ShowToast("Model is warming up — one moment…"),
+                )
+            }
             if (prewarmWaitJob?.isActive != true) {
                 prewarmWaitJob = scope.launch {
-                    while (LLMManager.isPrewarming) {
-                        delay(50)
+                    try {
+                        if (!featureFlags.isCloudActive && !LLMManager.isReady()) {
+                            val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
+                                .inject(org.koin.core.qualifier.named("edge"))
+                            edgeProvider.initialize(context, force = false)
+                        }
+                        var waits = 0
+                        while (
+                            waits < 40 &&
+                            (LLMManager.isPrewarming ||
+                                (!featureFlags.isCloudActive && !LLMManager.isReady()))
+                        ) {
+                            delay(250)
+                            waits++
+                        }
+                        val queued = pendingPrewarmQuery
+                        pendingPrewarmQuery = null
+                        if (LLMManager.isPrewarming ||
+                            (!featureFlags.isCloudActive && !LLMManager.isReady())
+                        ) {
+                            _state.value = OrchestratorState.Error(
+                                "Model not ready yet. Try again in a moment.",
+                            )
+                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                            return@launch
+                        }
+                        if (queued != null) {
+                            handleQuery(queued.first, queued.second)
+                        }
+                    } catch (e: Exception) {
+                        pendingPrewarmQuery = null
+                        _state.value = OrchestratorState.Error(
+                            "Model not loaded. Open the app to load a model.",
+                        )
+                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                     }
-                    val queued = pendingPrewarmQuery
-                    pendingPrewarmQuery = null
-                    if (queued != null) {
-                        handleQuery(queued.first, queued.second)
-                    }
-                }
-            }
-            return
-        }
-
-        if (!featureFlags.isCloudActive && !LLMManager.isReady()) {
-            pendingPrewarmQuery = query to retryCount
-            _state.value = OrchestratorState.Thinking
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-            queryJob = scope.launch {
-                try {
-                    val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
-                        .inject(org.koin.core.qualifier.named("edge"))
-                    edgeProvider.initialize(context, force = false)
-                    val queued = pendingPrewarmQuery
-                    pendingPrewarmQuery = null
-                    if (queued != null) {
-                        handleQuery(queued.first, queued.second)
-                    }
-                } catch (e: Exception) {
-                    pendingPrewarmQuery = null
-                    _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                 }
             }
             return
