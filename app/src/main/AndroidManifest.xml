@@ -115,51 +115,51 @@
 
         <!-- Compose design assistant entry points (UI decoupled from agent core) -->
         <activity
-            android:name="com.test.design.assistant.entry.VirtualAssistantActivity"
+            android:name="com.assistant.ui.assistant.entry.VirtualAssistantActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
             android:excludeFromRecents="true">
             <intent-filter>
-                <action android:name="com.test.design.action.OPEN_ASSISTANT" />
+                <action android:name="com.assistant.ui.action.OPEN_ASSISTANT" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
         <activity
-            android:name="com.test.design.assistant.ui.gallery.AssistantUiGalleryActivity"
+            android:name="com.assistant.ui.assistant.ui.gallery.AssistantUiGalleryActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
             <intent-filter>
-                <action android:name="com.test.design.action.OPEN_ASSISTANT_GALLERY" />
+                <action android:name="com.assistant.ui.action.OPEN_ASSISTANT_GALLERY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
         <activity
-            android:name="com.test.design.assistant.ui.overlay.AssistantOverlayBootstrapActivity"
+            android:name="com.assistant.ui.assistant.ui.overlay.AssistantOverlayBootstrapActivity"
             android:exported="true"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:excludeFromRecents="true">
             <intent-filter>
-                <action android:name="com.test.design.action.START_ASSISTANT_OVERLAY" />
+                <action android:name="com.assistant.ui.action.START_ASSISTANT_OVERLAY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 
         <service
-            android:name="com.test.design.assistant.ui.immersive.ImmersiveAssistantOverlayService"
+            android:name="com.assistant.ui.assistant.ui.immersive.ImmersiveAssistantOverlayService"
             android:exported="true" />
 
         <service
-            android:name="com.test.design.assistant.ui.overlay.AssistantOverlayService"
+            android:name="com.assistant.ui.assistant.ui.overlay.AssistantOverlayService"
             android:exported="false" />
 
         <receiver
-            android:name="com.test.design.assistant.face.AssistantFaceReceiver"
+            android:name="com.assistant.ui.assistant.face.AssistantFaceReceiver"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.test.design.action.SET_ASSISTANT_FACE" />
-                <action android:name="com.test.design.action.GET_ASSISTANT_FACE" />
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_FACE" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_FACE" />
             </intent-filter>
         </receiver>
 

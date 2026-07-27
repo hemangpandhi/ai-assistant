@@ -1,14 +1,14 @@
 package com.tcs.vehicleassistant.assistant
 
 import android.util.Log
-import com.test.design.assistant.api.AssistantBackend
-import com.test.design.assistant.api.AssistantCabinContext
-import com.test.design.assistant.api.AssistantMoodId
-import com.test.design.assistant.api.AssistantSessionConfig
-import com.test.design.assistant.api.AssistantSessionEvent
-import com.test.design.assistant.api.AssistantSpeaker
-import com.test.design.assistant.api.AssistantSpeechInput
-import com.test.design.assistant.api.AssistantStartReason
+import com.assistant.ui.assistant.api.AssistantBackend
+import com.assistant.ui.assistant.api.AssistantCabinContext
+import com.assistant.ui.assistant.api.AssistantMoodId
+import com.assistant.ui.assistant.api.AssistantSessionConfig
+import com.assistant.ui.assistant.api.AssistantSessionEvent
+import com.assistant.ui.assistant.api.AssistantSpeaker
+import com.assistant.ui.assistant.api.AssistantSpeechInput
+import com.assistant.ui.assistant.api.AssistantStartReason
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent

@@ -137,12 +137,12 @@ XML selection also mirrors into `app_prefs` / `ui_layout_pref` for the legacy pa
 Persisted in SharedPreferences + `Settings.Global` (`design_assistant_face`). Live while the process is up.
 
 ```bash
-adb shell am broadcast -a com.test.design.action.SET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.test.design.assistant.face.AssistantFaceReceiver \
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver \
   --es face hybrid
 
-adb shell am broadcast -a com.test.design.action.GET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.test.design.assistant.face.AssistantFaceReceiver
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver
 adb logcat -d -s AssistantFace:I | tail -n 3
 
 adb shell settings put global design_assistant_face hybrid
@@ -172,22 +172,22 @@ Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `
 
 ```bash
 # Standalone Compose activity (uses overlay service if SYSTEM_ALERT_WINDOW allowed)
-adb shell am start -a com.test.design.action.OPEN_ASSISTANT \
-  -n com.tcs.vehicleassistant/com.test.design.assistant.entry.VirtualAssistantActivity \
+adb shell am start -a com.assistant.ui.action.OPEN_ASSISTANT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.entry.VirtualAssistantActivity \
   --es face hybrid
 
 # UI style gallery (debug / design review)
-adb shell am start -a com.test.design.action.OPEN_ASSISTANT_GALLERY \
-  -n com.tcs.vehicleassistant/com.test.design.assistant.ui.gallery.AssistantUiGalleryActivity
+adb shell am start -a com.assistant.ui.action.OPEN_ASSISTANT_GALLERY \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.gallery.AssistantUiGalleryActivity
 
 # Overlay service summon / stop (secondary path; needs SYSTEM_ALERT_WINDOW)
 adb shell am startservice \
-  -n com.tcs.vehicleassistant/com.test.design.assistant.ui.immersive.ImmersiveAssistantOverlayService \
-  -a com.test.design.assistant.IMMERSIVE_SUMMON
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.ImmersiveAssistantOverlayService \
+  -a com.assistant.ui.assistant.IMMERSIVE_SUMMON
 
 adb shell am startservice \
-  -n com.tcs.vehicleassistant/com.test.design.assistant.ui.immersive.ImmersiveAssistantOverlayService \
-  -a com.test.design.assistant.IMMERSIVE_STOP
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.ImmersiveAssistantOverlayService \
+  -a com.assistant.ui.assistant.IMMERSIVE_STOP
 ```
 
 Primary production summon remains the **Voice Interaction** path (wake word / assistant button). That session hosts Compose by default inside `AssistantSession`.
@@ -260,4 +260,4 @@ AssistantRuntimeBootstrap.install(this, useDemoBackend = false)
 1. Flip default backend from Demo → `VehicleAgentAssistantBackend` once STT/TTS event mapping is validated end-to-end.
 2. Remove XML layouts after OEM sign-off on Compose.
 3. Optional later: ADB tokens for full gallery chrome styles (`VoicePlate`, `SideRail`, …) beyond face + compose/xml.
-4. Optional later: rename `com.test.design.*` packages into `com.tcs.vehicleassistant.*`.
+4. Optional later: rename `com.assistant.ui.*` packages into `com.tcs.vehicleassistant.*`.
