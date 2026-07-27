@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -48,7 +50,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.assistant.ui.assistant.api.AssistantDebugInfo
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.api.AssistantSessionConfig
 import com.assistant.ui.assistant.api.AssistantSessionEvent
@@ -131,6 +135,7 @@ fun ImmersiveAssistantOverlay(
     var thumbsTick by remember { mutableIntStateOf(0) }
     var contextGlyph by remember { mutableStateOf<AssistantContextGlyph?>(null) }
     var glyphGazeActive by remember { mutableStateOf(false) }
+    var lastError by remember { mutableStateOf<String?>(null) }
 
     fun summon() {
         if (visible) {
@@ -144,6 +149,7 @@ fun ImmersiveAssistantOverlay(
             showThumbs = false
             contextGlyph = null
             glyphGazeActive = false
+            lastError = null
             gazeX = -0.42f
             gazeY = 0.05f
             return
@@ -158,6 +164,7 @@ fun ImmersiveAssistantOverlay(
         showThumbs = false
         contextGlyph = null
         glyphGazeActive = false
+        lastError = null
         gazeX = -0.42f
         gazeY = 0.05f
         visible = true
@@ -207,10 +214,18 @@ fun ImmersiveAssistantOverlay(
         launch {
             backend.events.collect { event ->
                 when (event) {
-                    is AssistantSessionEvent.MoodChanged -> mood = event.mood.toUiMood()
+                    is AssistantSessionEvent.MoodChanged -> {
+                        mood = event.mood.toUiMood()
+                        if (mood == AssistantMood.Listening) lastError = null
+                    }
                     is AssistantSessionEvent.Transcript -> {
                         transcript = event.text
                         speaker = event.speaker.toUiSpeaker()
+                    }
+                    is AssistantSessionEvent.Error -> {
+                        lastError = event.message
+                        transcript = event.message
+                        speaker = DialogueSpeaker.System
                     }
                     is AssistantSessionEvent.Gaze -> {
                         gazeX = event.x
@@ -244,6 +259,7 @@ fun ImmersiveAssistantOverlay(
                             showThumbs = false
                             contextGlyph = null
                             glyphGazeActive = false
+                            lastError = null
                         }
                     }
                 }
@@ -423,6 +439,63 @@ fun ImmersiveAssistantOverlay(
                 faceAlpha = faceAlpha.value,
                 transcriptAlpha = transcriptAlpha.value,
                 faceSizeScale = 1.32f, // 1.10 baseline × 1.20
+            )
+
+            ImmersiveAssistantDebugStrip(
+                debugInfo = host.debugInfo(),
+                errorMessage = lastError,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                    .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
+            )
+        }
+    }
+}
+
+/** Polestar-style model / backend tags + error line (debug builds only via host). */
+@Composable
+private fun ImmersiveAssistantDebugStrip(
+    debugInfo: AssistantDebugInfo?,
+    errorMessage: String?,
+    modifier: Modifier = Modifier,
+) {
+    // Model/backend tags are debug-only (host returns null in release).
+    // Errors ride along on the same strip when debug chrome is visible.
+    if (debugInfo == null) return
+    val tagColor = Color(0xFF8AB4F8).copy(alpha = 0.8f)
+    val errorColor = Color(0xFFFF8A80).copy(alpha = 0.95f)
+    Column(
+        modifier = modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        if (debugInfo != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = debugInfo.backendLabel,
+                    color = tagColor,
+                    style = MaterialTheme.typography.labelMedium,
+                    letterSpacing = 0.1.sp,
+                )
+                Text(
+                    text = debugInfo.modelLabel,
+                    color = tagColor,
+                    style = MaterialTheme.typography.labelMedium,
+                    letterSpacing = 0.1.sp,
+                )
+            }
+        }
+        if (!errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                color = errorColor,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

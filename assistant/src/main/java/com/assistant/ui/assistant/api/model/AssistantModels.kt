@@ -73,3 +73,12 @@ data class AssistantSessionConfig(
     val enableTts: Boolean = false,
     val enableLiveSpeech: Boolean = true,
 )
+
+/**
+ * Optional debug chrome labels (model / backend) supplied by the host.
+ * Null from [AssistantHost.debugInfo] hides the strip (e.g. release builds).
+ */
+data class AssistantDebugInfo(
+    val modelLabel: String,
+    val backendLabel: String,
+)
