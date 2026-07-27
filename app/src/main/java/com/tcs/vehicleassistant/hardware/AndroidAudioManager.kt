@@ -348,6 +348,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 } catch (e: Exception) {}
             }
         }
+        if (holdingDuck) {
+            requestAssistantDuckLocked()
+        }
     }
 
     override fun speak(text: String, utteranceId: String) {

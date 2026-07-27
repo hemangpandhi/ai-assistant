@@ -203,11 +203,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     private fun dismissForExternalUi(reason: String) {
-        if (!sessionUiVisible) return
-        AssistantDebugLog.d("Session", "dismiss overlay ($reason)")
+        AssistantDebugLog.d("Session", "dismiss overlay ($reason) visible=$sessionUiVisible")
+        val wasVisible = sessionUiVisible
         sessionUiVisible = false
-        runCatching { hide() }
-        // Some AAOS builds keep the session window until finish().
+        if (wasVisible) {
+            runCatching { hide() }
+        }
+        // Some AAOS builds keep the session window until finish() — always tear it down
+        // even if hide() already cleared sessionUiVisible (Compose LaunchIntent race).
         observerScope.launch {
             delay(50)
             runCatching { finish() }
@@ -225,6 +228,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 viewModel,
                 audioManager,
             )
+            // Duck as soon as the agent audio manager is ready (may have missed onShow).
+            if (sessionUiVisible) {
+                audioManager?.requestAssistantDuck()
+            }
             if (usingComposeUi) {
                 startObservingComposeAgentEvents()
             } else {
@@ -426,8 +433,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                                 android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
                             }
                         }
-                        // Voice session windows stay on top of newly launched apps unless
-                        // we explicitly tear the session down.
+                        // Match XML path: dismissForExternalUi owns hide()+finish().
+                        // Calling hide() first cleared sessionUiVisible and skipped finish().
                         dismissForExternalUi("compose-launch-intent")
                     }
                     is ViewModelEvent.ShowToast ->
@@ -524,12 +531,27 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     override fun onShow(args: Bundle?, showFlags: Int) {
+        // Assist / system-bar icon while already open → toggle closed (with Compose exit anim).
+        if (sessionUiVisible) {
+            AssistantDebugLog.d("Session", "onShow while visible — toggle dismiss")
+            super.onShow(args, showFlags)
+            if (usingComposeUi) {
+                notifyImmersiveAssistantDismiss()
+            } else {
+                runCatching { hide() }
+            }
+            return
+        }
+
         super.onShow(args, showFlags)
         AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
         sessionUiVisible = true
         baselineResumedActivity = null
         baselineTopPackage = null
         registerDismissWatchers()
+
+        // Duck music immediately — do not wait for STT (~1.4s) or service bind.
+        audioManager?.requestAssistantDuck() ?: requestFallbackDuck()
 
         window?.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -805,6 +827,59 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             }
         }
         return spannable
+    }
+
+    /**
+     * Fallback duck when [audioManager] is not bound yet (first frames of onShow).
+     * Matches [com.tcs.vehicleassistant.hardware.AndroidAudioManager] policy.
+     */
+    private var fallbackDuckRequest: android.media.AudioFocusRequest? = null
+    private val fallbackDuckListener =
+        android.media.AudioManager.OnAudioFocusChangeListener { /* session-owned */ }
+
+    private fun requestFallbackDuck() {
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val attrs = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                val req = android.media.AudioFocusRequest.Builder(
+                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                )
+                    .setAudioAttributes(attrs)
+                    .setOnAudioFocusChangeListener(fallbackDuckListener)
+                    .setWillPauseWhenDucked(false)
+                    .build()
+                fallbackDuckRequest = req
+                am.requestAudioFocus(req)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(
+                    fallbackDuckListener,
+                    android.media.AudioManager.STREAM_MUSIC,
+                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                )
+            }
+            AssistantDebugLog.d("Session", "fallback duck requested")
+        } catch (t: Throwable) {
+            AssistantDebugLog.w("Session", "fallback duck failed: ${t.message}")
+        }
+    }
+
+    private fun abandonFallbackDuck() {
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                fallbackDuckRequest?.let { am.abandonAudioFocusRequest(it) }
+                fallbackDuckRequest = null
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(fallbackDuckListener)
+            }
+        } catch (_: Throwable) {
+        }
     }
 
     override fun onDestroy() {
