@@ -371,37 +371,46 @@ fun ImmersiveAssistantOverlay(
         faceAlpha.value > 0.02f
 
     Box(
-        modifier = modifier
-            .fillMaxSize()
-            .then(
-                if (!visible) {
-                    // Hidden / awaiting hotword — tap anywhere to summon.
-                    Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            onRequestHotwordListen?.invoke()
-                            summon()
-                        },
-                    )
-                } else {
-                    Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { visible = false },
-                    )
-                },
-            ),
+        modifier = modifier.fillMaxSize(),
     ) {
         if (showOverlay) {
             // Blur / dark stage — independent of face chrome.
+            // Tap empty backdrop to dismiss; face/transcript consume their own input
+            // so a tap on the assistant no longer kills the session mid-listen.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
+                    .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) }
+                    .then(
+                        if (visible) {
+                            Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { visible = false },
+                            )
+                        } else {
+                            Modifier
+                        },
+                    ),
             ) {
                 ImmersiveBackdrop()
                 ImmersiveBorderGlow(glowColor = brandGlow)
+            }
+
+            if (!visible) {
+                // Awaiting hotword — tap anywhere to summon.
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
+                                onRequestHotwordListen?.invoke()
+                                summon()
+                            },
+                        ),
+                )
             }
 
             val glyphGaze = contextGlyphGaze()
@@ -436,6 +445,11 @@ fun ImmersiveAssistantOverlay(
                 faceAlpha = faceAlpha.value,
                 transcriptAlpha = transcriptAlpha.value,
                 faceSizeScale = 1.32f, // 1.10 baseline × 1.20
+                modifier = Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { /* consume — keep session alive */ },
+                ),
             )
 
             ImmersiveAssistantDebugStrip(
