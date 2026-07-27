@@ -72,7 +72,7 @@ class WakeWordService : Service() {
         }
         
         // Background LLM prewarm — short delay so first UI paint wins, then model loads
-        // for the real agent query path.
+        // for the real agent query path (and Soniqo/Gemini Nano when available).
         CoroutineScope(Dispatchers.Main).launch {
             delay(2_000)
             LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
@@ -83,6 +83,8 @@ class WakeWordService : Service() {
                 }
             })
         }
+
+
     }
     
     private fun updateWakeWord() {

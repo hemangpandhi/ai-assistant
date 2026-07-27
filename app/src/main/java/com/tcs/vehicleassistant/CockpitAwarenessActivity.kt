@@ -70,11 +70,34 @@ class CockpitAwarenessActivity : AppCompatActivity() {
     }
 
     private fun startVisionService() {
-        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val lastUrl = prefs.getString("camera_url", "http://192.168.1.100:8080/video")
+        val options = arrayOf("Native Camera", "IP Camera")
+        var selectedIndex = 0
 
+        android.app.AlertDialog.Builder(this)
+            .setTitle("Select Camera Source")
+            .setSingleChoiceItems(options, selectedIndex) { _, which ->
+                selectedIndex = which
+            }
+            .setPositiveButton("Proceed") { _, _ ->
+                if (selectedIndex == 0) {
+                    launchService("native")
+                } else {
+                    val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    val lastUrl = prefs.getString("camera_url", "http://10.169.205.226:8080/video")
+                    showIpCameraDialog(lastUrl)
+                }
+            }
+            .setNegativeButton("Cancel") { dialog, _ ->
+                dialog.cancel()
+                finish()
+            }
+            .show()
+    }
+
+    private fun showIpCameraDialog(lastUrl: String?) {
         val input = android.widget.EditText(this)
         input.setText(lastUrl)
+        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
         android.app.AlertDialog.Builder(this)
             .setTitle("IP Camera Connection")
@@ -83,20 +106,23 @@ class CockpitAwarenessActivity : AppCompatActivity() {
             .setPositiveButton("Connect") { _, _ ->
                 val url = input.text.toString()
                 prefs.edit().putString("camera_url", url).apply()
-
-                val intent = Intent(this, CockpitVisionService::class.java).apply {
-                    putExtra("CAMERA_URL", url)
-                }
-                
-                // Start FGS and then bind to it
-                startForegroundService(intent)
-                bindService(intent, connection, Context.BIND_AUTO_CREATE)
+                launchService(url)
             }
             .setNegativeButton("Cancel") { dialog, _ ->
                 dialog.cancel()
                 finish()
             }
             .show()
+    }
+
+    private fun launchService(url: String) {
+        val intent = Intent(this, CockpitVisionService::class.java).apply {
+            putExtra("CAMERA_URL", url)
+        }
+        
+        // Start FGS and then bind to it
+        startForegroundService(intent)
+        bindService(intent, connection, Context.BIND_AUTO_CREATE)
     }
 
     override fun onStart() {

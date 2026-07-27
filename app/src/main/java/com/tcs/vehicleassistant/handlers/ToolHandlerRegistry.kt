@@ -7,7 +7,7 @@ object ToolHandlerRegistry {
     val mediaHandlers = setOf("playMusic", "pauseMusic", "stopMusic", "nextTrack", "prevTrack", "adjustBgmForSituation", "setVolumeLevel")
     val navHandlers = setOf("startNavigationTo", "searchNearby", "search", "suggestNearbyPlaces", "provideLaneLevelGuidance", "suggestAlternateRoute")
     val commHandlers = setOf("call", "bookRestaurant", "queryMemory", "callContact", "sendText")
-    val systemHandlers = setOf("remember", "getWeather", "openApp", "sendUpcomingEventReminder", "explainChildSeatInstallation", "suggestUmbrellaIfRainy", "getNewsHighlights", "checkVehicleState", "answerVehicleIdentity", "openTrunk", "setEnergeticCabinLighting", "turnOffCabinLight", "turnOnCabinLight", "unlockDoors")
+    val systemHandlers = setOf("remember", "getWeather", "openApp", "sendUpcomingEventReminder", "explainChildSeatInstallation", "suggestUmbrellaIfRainy", "getNewsHighlights", "checkVehicleState", "answerVehicleIdentity", "openTrunk", "setEnergeticCabinLighting", "turnOffCabinLight", "turnOnCabinLight", "unlockDoors", "analyzeCabinState")
     val windowHandlers = setOf("setAllWindowsPosition", "openWindowsSlightly", "closeAllWindows", "setWindowPosition", "checkAllWindowsClosed")
     val macroHandlers = setOf("prepareForCommute", "optimizeCabinForLongDrive", "makeTripEnjoyable", "prepareForElderlyPassengers", "prepareForImportantMeeting", "prepareForArrival", "enableAdaptiveNightMode", "prepareForAirportTrip", "enhanceNiceEvening", "prepareForIncomingRain", "prepareForParking", "handleEmergencyFeeling")
     val safetyHandlers = setOf("handleDrowsyDriving", "handleDriverFatigue", "alertDriverDistraction", "checkVehicleSecured", "checkTripReadiness", "improveRoadVisibility")

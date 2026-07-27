@@ -141,7 +141,13 @@ class VisionOrchestratorBridge(private val context: Context, private val orchest
         }
     }
 
+    var isProactiveSpeechEnabled: Boolean = false
+
     private fun triggerLLM(systemPrompt: String) {
+        if (!isProactiveSpeechEnabled) {
+            Log.d("VisionOrchestrator", "Proactive speech disabled; ignoring event: $systemPrompt")
+            return
+        }
         orchestrator.triggerProactiveEvent(systemPrompt)
     }
 }

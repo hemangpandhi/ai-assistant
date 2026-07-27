@@ -10,8 +10,8 @@ object FollowUpRouter {
     fun extractNumberedOptions(assistantText: String): List<String> {
         val map = linkedMapOf<Int, String>()
         val patterns = listOf(
-            Regex("""(?:^|[,;\n])\s*(\d+)\.\s*([^,\n;]+)"""),
-            Regex("""(\d+)\)\s*([^,\n;]+)""")
+            Regex("""(?:^|[:,;\n\s])\s*(\d+)\.\s*([^,\n;.]+)"""),
+            Regex("""(?:^|[:,;\n\s])\s*(\d+)\)\s*([^,\n;.]+)""")
         )
         for (pattern in patterns) {
             for (match in pattern.findAll(assistantText)) {

@@ -6,7 +6,7 @@ import android.util.Log
 import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.VehicleManager
 
-class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolManager.ToolDefinition) : ToolHandler {
+class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolManager.ToolDefinition? = null) : ToolHandler {
     private val TAG = "HVACToolHandler"
 
     override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {

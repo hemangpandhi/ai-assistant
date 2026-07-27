@@ -235,7 +235,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     override fun speak(text: String, utteranceId: String) {
         try {
-            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+            val result = tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+            if (result == TextToSpeech.ERROR || tts == null) {
+                initialize(
+                    onSuccess = {
+                        tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                    },
+                    onError = {
+                        onTtsError?.invoke(utteranceId)
+                    },
+                )
+            }
         } catch (t: Throwable) {
             android.util.Log.w("AndroidAudioManager", "speak failed", t)
         }
@@ -243,7 +253,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
         try {
-            tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+            val result = tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+            if (result == TextToSpeech.ERROR || tts == null) {
+                initialize(
+                    onSuccess = {
+                        tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+                    },
+                    onError = {
+                        onTtsError?.invoke(utteranceId)
+                    },
+                )
+            }
         } catch (t: Throwable) {
             android.util.Log.w("AndroidAudioManager", "playSilentUtterance failed", t)
         }

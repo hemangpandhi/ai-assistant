@@ -89,6 +89,9 @@ class SystemToolHandler(override val handlerKey: String) : ToolHandler {
             "unlockDoors" -> {
                 ToolExecutionResult(true, "I've unlocked the doors.")
             }
+            "analyzeCabinState" -> {
+                com.tcs.vehicleassistant.handlers.CameraToolHandler.handleAnalyzeCabinState()
+            }
             else -> ToolExecutionResult(false, "System Error: System Handler not recognized.")
         }
     }

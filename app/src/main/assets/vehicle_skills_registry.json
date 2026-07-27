@@ -67,6 +67,32 @@
   ],
   "tools": [
     {
+      "prompt_string": "<TOOL>analyzeCabinState()</TOOL>",
+      "handler_key": "analyzeCabinState",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "camera",
+        "see me",
+        "how do i look",
+        "mood",
+        "face",
+        "passengers",
+        "tired",
+        "occupant"
+      ],
+      "offline_capable": true,
+      "success_message": "",
+      "error_message": "I cannot access the camera right now.",
+      "requires_vehicle_state": false,
+      "aliases": [
+        "detectMood",
+        "checkDriverMood",
+        "countPassengers",
+        "lookAtMe"
+      ],
+      "instruction": "Use this tool to analyze the cabin using the camera. It returns the number of occupants and the driver's current mood or state (e.g. happy, tired, angry). Use this when the user asks how they look, if they seem tired, or asks how many people are in the car."
+    },
+    {
       "prompt_string": "<TOOL>setTemperature(VAL)</TOOL>",
       "handler_key": "setTemperature",
       "handler_type": "CUSTOM_KOTLIN",
@@ -92,7 +118,7 @@
         "setcabintemp",
         "setTempTo"
       ],
-      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Only ask driver vs passenger if they give an exact number without specifying a zone."
+      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Do NOT use this tool for relative commands like 'increase temperature', 'decrease temperature', 'warmer', or 'cooler' unless a specific target number is provided. Use increaseTemperature or decreaseTemperature instead."
     },
     {
       "prompt_string": "<TOOL>increaseTemperature(zone)</TOOL>",
@@ -137,7 +163,7 @@
         "boiling"
       ],
       "offline_capable": true,
-      "success_message": "Cooling it down — you should feel better soon.",
+      "success_message": "Cooling it down \u2014 you should feel better soon.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "aliases": [
@@ -209,7 +235,7 @@
         "windshield"
       ],
       "offline_capable": true,
-      "success_message": "Adjusting the airflow — you should feel it soon.",
+      "success_message": "Adjusting the airflow \u2014 you should feel it soon.",
       "requires_vehicle_state": false
     },
     {
@@ -219,7 +245,7 @@
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
-      "success_message": "AC is on — you should feel that soon.",
+      "success_message": "AC is on \u2014 you should feel that soon.",
       "keywords": [
         "turn on ac",
         "start ac",
@@ -391,7 +417,7 @@
       "data_type": "BOOLEAN",
       "area_id": 1,
       "value_to_write": "true",
-      "success_message": "Defroster's on — your view should clear up.",
+      "success_message": "Defroster's on \u2014 your view should clear up.",
       "keywords": [
         "turn on front defroster",
         "defrost front windshield",
@@ -538,7 +564,7 @@
       "data_type": "INT",
       "area_id": 0,
       "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
-      "success_message": "Seat heater's on — hope that warms you up!",
+      "success_message": "Seat heater's on \u2014 hope that warms you up!",
       "keywords": [
         "warm seat",
         "heated seat",
@@ -684,7 +710,7 @@
       "prompt_string": "<TOOL>defogWindshield()</TOOL>",
       "handler_key": "defogWindshield",
       "handler_type": "CUSTOM_KOTLIN",
-      "success_message": "Clearing your windshield — safety first.",
+      "success_message": "Clearing your windshield \u2014 safety first.",
       "keywords": [
         "visibility",
         "mist",
@@ -1159,7 +1185,7 @@
       ],
       "offline_capable": false,
       "requires_agentic_loop": false,
-      "success_message": "Great choice — putting that on for you!",
+      "success_message": "Great choice \u2014 putting that on for you!",
       "requires_vehicle_state": false,
       "instruction": "Plays music. You MUST replace 'SONG' with the EXACT FULL name of the artist, song, AND genre requested by the user. For example, if they say 'Play Hello by Adele', you must output <TOOL>playMusic(Hello by Adele)</TOOL>. Do not omit the artist name! If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their preferred genre or song (e.g., 'bollywood'), immediately execute <TOOL>playMusic(bollywood)</TOOL> replacing 'bollywood' with whatever they asked for.",
       "aliases": [
@@ -1567,6 +1593,97 @@
         "model",
         "vehicle"
       ]
+    },
+    {
+      "prompt_string": "<TOOL>increasePassengerTemperature()</TOOL>",
+      "handler_key": "increasePassengerTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "increase passenger temperature",
+        "warmer for passenger",
+        "passenger is cold"
+      ],
+      "offline_capable": true,
+      "success_message": "I've increased the passenger's temperature.",
+      "requires_vehicle_state": true
+    },
+    {
+      "prompt_string": "<TOOL>decreasePassengerTemperature()</TOOL>",
+      "handler_key": "decreasePassengerTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "decrease passenger temperature",
+        "cooler for passenger",
+        "passenger is hot"
+      ],
+      "offline_capable": true,
+      "success_message": "I've decreased the passenger's temperature.",
+      "requires_vehicle_state": true
+    },
+    {
+      "prompt_string": "<TOOL>increaseDriverTemperature()</TOOL>",
+      "handler_key": "increaseDriverTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "increase driver temperature",
+        "warmer for driver",
+        "driver is cold"
+      ],
+      "offline_capable": true,
+      "success_message": "I've increased the driver's temperature.",
+      "requires_vehicle_state": true
+    },
+    {
+      "prompt_string": "<TOOL>decreaseDriverTemperature()</TOOL>",
+      "handler_key": "decreaseDriverTemperature",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "decrease driver temperature",
+        "cooler for driver",
+        "driver is hot"
+      ],
+      "offline_capable": true,
+      "success_message": "I've decreased the driver's temperature.",
+      "requires_vehicle_state": true
+    },
+    {
+      "prompt_string": "<TOOL>handleFeelingCold()</TOOL>",
+      "handler_key": "handleFeelingCold",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "feeling cold",
+        "i am cold",
+        "it's freezing",
+        "shivering"
+      ],
+      "offline_capable": true,
+      "success_message": "Would you like me to turn on the seat heater?",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>call(NUMBER)</TOOL>",
+      "handler_key": "call",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "call number",
+        "dial number"
+      ],
+      "offline_capable": true,
+      "success_message": "Dialing the number.",
+      "requires_vehicle_state": false
+    },
+    {
+      "prompt_string": "<TOOL>suggestNearbyPlaces()</TOOL>",
+      "handler_key": "suggestNearbyPlaces",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "suggest places",
+        "places to visit",
+        "nearby attractions"
+      ],
+      "offline_capable": false,
+      "success_message": "Here are some nearby places.",
+      "requires_vehicle_state": false
     }
   ],
   "system_instructions": [

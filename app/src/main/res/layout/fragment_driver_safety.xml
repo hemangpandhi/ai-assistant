@@ -41,5 +41,14 @@
             android:textColor="#AAAAAA"
             android:textSize="24sp"
             android:layout_marginTop="8dp"/>
+
+        <Button
+            android:id="@+id/btnRegisterFace"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Save Driver Face"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#BB86FC"
+            android:layout_marginTop="16dp"/>
     </LinearLayout>
 </LinearLayout>

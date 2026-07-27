@@ -61,6 +61,22 @@ object SmartContextInjector {
             }
         }
 
+        // 4. Cabin Camera Domain (Always injected for Contextual Empathy)
+        val mood = com.tcs.vehicleassistant.hardware.CabinCameraManager.currentMood
+        val occupants = com.tcs.vehicleassistant.hardware.CabinCameraManager.occupantCount
+        
+        // 5. Time and Media
+        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        val timeOfDay = when (hour) {
+            in 5..11 -> "Morning"
+            in 12..16 -> "Afternoon"
+            in 17..20 -> "Evening"
+            else -> "Night"
+        }
+        val mediaState = "Unknown" // Placeholder for actual media state
+        
+        parts.add("DriverMood=$mood, Occupants=$occupants, Time=$timeOfDay, Media=$mediaState")
+
         if (parts.isEmpty()) return ""
         
         return parts.joinToString(" | ")

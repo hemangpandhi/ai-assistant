@@ -56,10 +56,7 @@ class AssistantViewModel(
             },
             onEmptyResult = {
                 _uiState.value = AssistantUiState.Error("I didn't hear anything.")
-                scope.launch {
-                    delay(2000)
-                    _events.tryEmit(ViewModelEvent.FinishSession)
-                }
+                // Do not dismiss automatically so user can try again
             },
             onError = { errorCode ->
                 val errorMsg = mapSpeechError(errorCode)
