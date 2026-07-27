@@ -15,12 +15,18 @@ interface IAudioManager {
      * Starts listening for voice input.
      */
     fun startListening()
-    
+
+    /**
+     * Destroys any existing recognizer and starts listening again (after optional delay).
+     * Use after ERROR_CLIENT / ERROR_RECOGNIZER_BUSY.
+     */
+    fun restartListening(delayedMs: Long = 0L)
+
     /**
      * Stops listening for voice input.
      */
     fun stopListening()
-    
+
     /**
      * Destroys the speech recognizer and releases its resources.
      * Call this when the session hides to free the microphone.
