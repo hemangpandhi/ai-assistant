@@ -12,6 +12,29 @@ The immersive assistant is split so UI/session chrome never depends on IVI vehic
 
 Full UI/UX + ADB guide: [ASSISTANT_UI_UX.md](./ASSISTANT_UI_UX.md).
 
+## Package layout
+
+Packages align with the Android `namespace` (`com.test.design.assistant` / `…assistant.api`):
+
+```text
+:assistant-api
+  com.test.design.assistant.api/          # AssistantBackend, AssistantHost, AssistantRuntime
+  com.test.design.assistant.api/model/    # events + models (package stays …assistant.api)
+
+:assistant
+  …assistant.api consumers live under:
+  audio/       STT, TTS, wake feedback
+  backend/     DemoAssistantBackend + mood mapping
+  dialogue/    scripts + playback
+  entry/       VirtualAssistantActivity / overlay entry
+  face/        moods, faces, face config / receiver
+  ui/theme/    AssistantTheme + tokens
+  ui/chrome/   shared chrome helpers (waveform, presence, props)
+  ui/immersive/ immersive stage + overlay service
+  ui/overlay/  floating overlay service
+  ui/gallery/  UI variant gallery
+```
+
 ## Wiring today
 
 ```kotlin

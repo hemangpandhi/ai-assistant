@@ -138,11 +138,11 @@ Persisted in SharedPreferences + `Settings.Global` (`design_assistant_face`). Li
 
 ```bash
 adb shell am broadcast -a com.test.design.action.SET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.test.design.presentation.assistant.AssistantFaceReceiver \
+  -n com.tcs.vehicleassistant/com.test.design.assistant.face.AssistantFaceReceiver \
   --es face hybrid
 
 adb shell am broadcast -a com.test.design.action.GET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.test.design.presentation.assistant.AssistantFaceReceiver
+  -n com.tcs.vehicleassistant/com.test.design.assistant.face.AssistantFaceReceiver
 adb logcat -d -s AssistantFace:I | tail -n 3
 
 adb shell settings put global design_assistant_face hybrid
@@ -173,20 +173,20 @@ Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `
 ```bash
 # Standalone Compose activity (uses overlay service if SYSTEM_ALERT_WINDOW allowed)
 adb shell am start -a com.test.design.action.OPEN_ASSISTANT \
-  -n com.tcs.vehicleassistant/com.test.design.presentation.assistant.VirtualAssistantActivity \
+  -n com.tcs.vehicleassistant/com.test.design.assistant.entry.VirtualAssistantActivity \
   --es face hybrid
 
 # UI style gallery (debug / design review)
 adb shell am start -a com.test.design.action.OPEN_ASSISTANT_GALLERY \
-  -n com.tcs.vehicleassistant/com.test.design.presentation.assistant.gallery.AssistantUiGalleryActivity
+  -n com.tcs.vehicleassistant/com.test.design.assistant.ui.gallery.AssistantUiGalleryActivity
 
 # Overlay service summon / stop (secondary path; needs SYSTEM_ALERT_WINDOW)
 adb shell am startservice \
-  -n com.tcs.vehicleassistant/com.test.design.presentation.assistant.ImmersiveAssistantOverlayService \
+  -n com.tcs.vehicleassistant/com.test.design.assistant.ui.immersive.ImmersiveAssistantOverlayService \
   -a com.test.design.assistant.IMMERSIVE_SUMMON
 
 adb shell am startservice \
-  -n com.tcs.vehicleassistant/com.test.design.presentation.assistant.ImmersiveAssistantOverlayService \
+  -n com.tcs.vehicleassistant/com.test.design.assistant.ui.immersive.ImmersiveAssistantOverlayService \
   -a com.test.design.assistant.IMMERSIVE_STOP
 ```
 
