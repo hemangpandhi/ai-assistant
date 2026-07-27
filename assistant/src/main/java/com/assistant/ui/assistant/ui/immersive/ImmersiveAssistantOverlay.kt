@@ -909,12 +909,7 @@ private fun ImmersiveSummonBridge(
     val summonState = rememberUpdatedState(onSummon)
     val dismissState = rememberUpdatedState(onDismiss)
 
-    LaunchedEffect(Unit) {
-        ImmersiveStageBus.summon.collect {
-            summonState.value(ImmersiveSummonOrigin.Hotword)
-        }
-    }
-
+    // Dismiss still rides the SharedFlow bus; summon is origin-aware via handlers.
     LaunchedEffect(Unit) {
         ImmersiveStageBus.dismiss.collect {
             dismissState.value()
@@ -950,7 +945,7 @@ fun notifyImmersiveAssistantHotword() {
 
 /** Summon with an explicit enter style (icon emerge vs hotword bottom→top). */
 fun notifyImmersiveAssistantSummon(origin: ImmersiveSummonOrigin) {
-    ImmersiveStageBus.notifySummon()
+    // Origin-aware handler list is the source of truth (StageBus is Unit-only).
     val handlers = immersiveSummonHandlers.toList()
     if (handlers.isEmpty()) {
         // Composition may not have registered yet (session onShow races first frame).
