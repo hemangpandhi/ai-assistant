@@ -1,6 +1,7 @@
 package com.tcs.vehicleassistant.assistant
 
 import android.app.Application
+import com.assistant.ui.assistant.api.AssistantDebugStripConfig
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.face.AssistantFaceConfig
 import com.assistant.ui.assistant.face.AssistantFaceKind
@@ -15,6 +16,7 @@ object AssistantRuntimeBootstrap {
     fun install(app: Application, useDemoBackend: Boolean = false) {
         AssistantUiProfile.install(app)
         AssistantFaceConfig.install(app)
+        AssistantDebugStripConfig.install(app)
         ensureDefaultFace(app)
 
         val host = VehicleAssistantHost(app)
