@@ -30,8 +30,8 @@ internal object AssistantTokens {
     val PanelGlowSoft = Color(0x448AB4F8)
     val PanelGlowEdge = Color(0xFF8AB4F8)
 
-    /** Soft stage dim — empty areas stay mostly see-through (~32% black). */
-    val Scrim = Color(0x52101014)
+    /** Soft stage dim — slight blackening tint, UI still visible underneath (~42% black). */
+    val Scrim = Color(0x6B101014)
 
     const val EnterMs = 400
     const val ExitMs = 280
