@@ -58,6 +58,8 @@ class AgentOrchestrator(
         private set
 
     private val currentPendingTools = mutableListOf<Deferred<String?>>()
+    private var pendingPrewarmQuery: Pair<String, Int>? = null
+    private var prewarmWaitJob: Job? = null
 
     init {
         audioManager.setUtteranceListener(
@@ -92,10 +94,23 @@ class AgentOrchestrator(
     }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
+        // Queue instead of rejecting while KV cache prewarm is in progress.
         if (LLMManager.isPrewarming) {
-            _events.tryEmit(OrchestratorEvent.ShowToast("Model is prewarming, please wait a moment..."))
-            _state.value = OrchestratorState.Idle
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+            pendingPrewarmQuery = query to retryCount
+            _state.value = OrchestratorState.Thinking
+            _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+            if (prewarmWaitJob?.isActive != true) {
+                prewarmWaitJob = scope.launch {
+                    while (LLMManager.isPrewarming) {
+                        delay(50)
+                    }
+                    val queued = pendingPrewarmQuery
+                    pendingPrewarmQuery = null
+                    if (queued != null) {
+                        handleQuery(queued.first, queued.second)
+                    }
+                }
+            }
             return
         }
 
@@ -403,6 +418,15 @@ class AgentOrchestrator(
                         _state.value = OrchestratorState.Streaming(displayMsg)
                     }
 
+                    // Eager mid-stream tool execution as soon as </TOOL> closes.
+                    val completeTools = ToolCallParser.extractCompleteToolCalls(currentText)
+                    for (parsed in completeTools) {
+                        val toolCall = parsed.invocation
+                        if (executedTools.add(toolCall)) {
+                            scheduleEagerTool(toolCall)
+                        }
+                    }
+
                     val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
                     var remainingText = displayMsg.substring(safeStartIndex)
                     val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.,!?](?:\\s+|$))".toRegex()
@@ -435,21 +459,11 @@ class AgentOrchestrator(
                         EmergencyAlarmManager.start(context)
                     }
 
-                    val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
+                    val parsedTools = ToolCallParser.extractCompleteToolCalls(tempFinalMsg)
                     for (parsed in parsedTools) {
-                        val toolCall = "${parsed.toolName}(${parsed.args})"
+                        val toolCall = parsed.invocation
                         if (executedTools.add(toolCall)) {
-                            val toolDef = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(toolCall)
-                            if (toolDef?.requiresConfirmation == true) {
-                                pendingConfirmationTool = toolCall
-                            } else {
-                                val job = CoroutineScope(Dispatchers.IO).async {
-                                    withTimeoutOrNull(10000L) {
-                                        executeToolCall(toolCall)
-                                    } ?: "System Error: Tool execution timed out."
-                                }
-                                currentPendingTools.add(job)
-                            }
+                            scheduleEagerTool(toolCall)
                         }
                     }
 
@@ -607,6 +621,22 @@ class AgentOrchestrator(
                 }
             }
         }
+    }
+
+    private fun scheduleEagerTool(toolCall: String) {
+        val toolDef = org.koin.java.KoinJavaComponent.getKoin()
+            .get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(toolCall)
+        if (toolDef?.requiresConfirmation == true) {
+            pendingConfirmationTool = toolCall
+            return
+        }
+        val job = CoroutineScope(Dispatchers.IO).async {
+            withTimeoutOrNull(10000L) {
+                executeToolCall(toolCall)
+            } ?: "System Error: Tool execution timed out."
+        }
+        currentPendingTools.add(job)
+        LatencyLogger.log("Orchestrator", "Eager tool scheduled: $toolCall")
     }
 
     private suspend fun executeToolCall(toolCall: String): String? {

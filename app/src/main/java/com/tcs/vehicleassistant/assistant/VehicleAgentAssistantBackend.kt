@@ -76,7 +76,7 @@ class VehicleAgentAssistantBackend(
                 when (event) {
                     is ViewModelEvent.StartListening -> {
                         AssistantDebugLog.d(TAG, "event StartListening")
-                        scheduleStartMic(reason = "orchestrator", delayMs = 350L, force = true)
+                        scheduleStartMic(reason = "orchestrator", delayMs = MIC_REARM_MS, force = true)
                     }
                     is ViewModelEvent.SetInputText -> {
                         if (event.text.isNotBlank()) {
@@ -101,7 +101,7 @@ class VehicleAgentAssistantBackend(
                                 speaker = AssistantSpeaker.System,
                             ),
                         )
-                        scheduleStartMic(reason = "finish-retry", delayMs = 500L, force = true)
+                        scheduleStartMic(reason = "finish-retry", delayMs = MIC_REARM_MS, force = true)
                     }
                     else -> Unit
                 }
@@ -110,7 +110,7 @@ class VehicleAgentAssistantBackend(
 
         flushPendingQuery()
         if (_sessionActive.value && listenJob?.isActive != true && !micArmed) {
-            scheduleStartMic(reason = "attach-while-active", delayMs = 600L)
+            scheduleStartMic(reason = "attach-while-active", delayMs = MIC_HANDOFF_MS)
         }
     }
 
@@ -138,7 +138,8 @@ class VehicleAgentAssistantBackend(
             )
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
-        scheduleStartMic(reason = "startSession:$reason", delayMs = 1_400L, force = true)
+        // Short handoff wait after wake-word AudioRecord release (was 1400ms).
+        scheduleStartMic(reason = "startSession:$reason", delayMs = MIC_HANDOFF_MS, force = true)
     }
 
     override fun stopSession() {
@@ -191,7 +192,7 @@ class VehicleAgentAssistantBackend(
                 _events.emit(AssistantSessionEvent.MouthAmplitude((0.15f + n * 0.55f).coerceIn(0f, 1f)))
             }
             AssistantSpeechInput.Hotword ->
-                scheduleStartMic(reason = "hotword-input", delayMs = 700L, force = true)
+                scheduleStartMic(reason = "hotword-input", delayMs = MIC_HANDOFF_MS, force = true)
         }
     }
 
@@ -206,7 +207,7 @@ class VehicleAgentAssistantBackend(
             return
         }
         AssistantDebugLog.d(TAG, "requestListen")
-        scheduleStartMic(reason = "session-request", delayMs = 1_400L, force = true)
+        scheduleStartMic(reason = "session-request", delayMs = MIC_HANDOFF_MS, force = true)
     }
 
     private fun scheduleStartMic(
@@ -258,7 +259,7 @@ class VehicleAgentAssistantBackend(
             // Do NOT stopListening() then startListening() on the same instance —
             // that is the usual ERROR_CLIENT (5) trigger. Fresh start only.
             if (force && reason.contains("client-retry")) {
-                audio.restartListening(delayedMs = 700L)
+                audio.restartListening(delayedMs = MIC_CLIENT_RETRY_MS)
             } else {
                 audio.startListening()
             }
@@ -354,5 +355,11 @@ class VehicleAgentAssistantBackend(
 
     companion object {
         private const val TAG = "VehicleAgentBackend"
+        /** Wake-word → STT mic handoff (was 1400ms). */
+        private const val MIC_HANDOFF_MS = 250L
+        /** Re-arm after TTS / turn complete. */
+        private const val MIC_REARM_MS = 200L
+        /** SpeechRecognizer ERROR_CLIENT rebuild delay. */
+        private const val MIC_CLIENT_RETRY_MS = 400L
     }
 }
