@@ -3,6 +3,7 @@ package com.assistant.ui.assistant.ui.immersive
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -47,12 +48,22 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.graphics.ComposeShader
+import android.graphics.LinearGradient
+import android.graphics.Matrix
+import android.graphics.PorterDuff
+import android.graphics.Shader
+import android.graphics.SweepGradient
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.assistant.ui.assistant.api.AssistantDebugInfo
 import com.assistant.ui.assistant.api.AssistantDebugLog
@@ -632,84 +643,113 @@ fun ImmersiveBackdrop(
 }
 
 /**
- * Purple-blue perimeter glow: wide soft bloom at the screen edge that eases
- * inward to full transparency (no hard rim).
+ * Alive multi-color perimeter glow: wide neon spectrum bloom at the screen edge
+ * (indigo → blue → red → orange → gold → violet) that eases inward to full
+ * transparency. Colors slowly drift around the frame when idle motion is on.
  */
 @Composable
 fun ImmersiveBorderGlow(
     modifier: Modifier = Modifier,
     glowColor: Color = Color(0xFF7B6CFF),
 ) {
+    val idleMotion = LocalAssistantIdleMotion.current
+    val sweepAngle = remember { Animatable(0f) }
+    LaunchedEffect(idleMotion) {
+        if (!idleMotion) {
+            sweepAngle.snapTo(0f)
+            return@LaunchedEffect
+        }
+        while (true) {
+            sweepAngle.snapTo(0f)
+            sweepAngle.animateTo(
+                targetValue = 360f,
+                animationSpec = tween(durationMillis = 14_000, easing = LinearEasing),
+            )
+        }
+    }
+    val paint = remember { Paint().asFrameworkPaint().apply { isAntiAlias = true } }
+    val shaderMatrix = remember { Matrix() }
+    val angle = sweepAngle.value
+    val spectrum = remember(glowColor) {
+        fun tint(c: Color): Color = Color(
+            red = c.red * 0.82f + glowColor.red * 0.18f,
+            green = c.green * 0.82f + glowColor.green * 0.18f,
+            blue = c.blue * 0.82f + glowColor.blue * 0.18f,
+            alpha = 1f,
+        )
+        // Perimeter spectrum (clockwise from top after -90° base rotate).
+        intArrayOf(
+            tint(Color(0xFF3D2EFF)).toArgb(), // deep indigo
+            tint(Color(0xFF2F6BFF)).toArgb(), // saturated blue
+            tint(Color(0xFFFF2D55)).toArgb(), // vivid red
+            tint(Color(0xFFFF6A00)).toArgb(), // warm orange
+            tint(Color(0xFFFFC400)).toArgb(), // golden yellow
+            tint(Color(0xFFC026FF)).toArgb(), // violet
+            tint(Color(0xFF9B1AFF)).toArgb(), // magenta
+            tint(Color(0xFF5B2CFF)).toArgb(), // indigo-purple
+            tint(Color(0xFF3D2EFF)).toArgb(), // close the loop
+        )
+    }
+    val colorStops = remember {
+        floatArrayOf(0.00f, 0.12f, 0.25f, 0.37f, 0.50f, 0.62f, 0.75f, 0.88f, 1.00f)
+    }
+    val fadeAlphas = remember {
+        intArrayOf(
+            0xB8FFFFFF.toInt(),
+            0x7AFFFFFF.toInt(),
+            0x38FFFFFF.toInt(),
+            0x14FFFFFF.toInt(),
+            0x05FFFFFF.toInt(),
+            0x00FFFFFF,
+        )
+    }
+    val fadeStops = remember {
+        floatArrayOf(0.00f, 0.12f, 0.32f, 0.58f, 0.82f, 1.00f)
+    }
+
     Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        // Wide bloom so the fade reads as a soft aura, not a hard 5dp line.
-        val thickness = 36.dp.toPx()
-        val purpleBlue = Color(0xFF7B6CFF)
-        val edge = Color(
-            red = (purpleBlue.red * 0.65f + glowColor.red * 0.35f),
-            green = (purpleBlue.green * 0.65f + glowColor.green * 0.35f),
-            blue = (purpleBlue.blue * 0.65f + glowColor.blue * 0.35f),
-            alpha = 1f,
-        )
-        // Multi-stop ease: bright at the rim → soft wash → clear (natural blend).
-        val inwardFade = arrayOf(
-            0.00f to edge.copy(alpha = 0.72f),
-            0.12f to edge.copy(alpha = 0.48f),
-            0.32f to edge.copy(alpha = 0.22f),
-            0.58f to edge.copy(alpha = 0.08f),
-            0.82f to edge.copy(alpha = 0.02f),
-            1.00f to Color.Transparent,
-        )
-        val outwardFade = arrayOf(
-            0.00f to Color.Transparent,
-            0.18f to edge.copy(alpha = 0.02f),
-            0.42f to edge.copy(alpha = 0.08f),
-            0.68f to edge.copy(alpha = 0.22f),
-            0.88f to edge.copy(alpha = 0.48f),
-            1.00f to edge.copy(alpha = 0.72f),
-        )
+        // Extra-wide bloom: bright rim + deep soft wash into the stage.
+        val thickness = 72.dp.toPx()
+        val cx = w * 0.5f
+        val cy = h * 0.5f
+
+        fun drawEdge(
+            left: Float,
+            top: Float,
+            right: Float,
+            bottom: Float,
+            ax0: Float,
+            ay0: Float,
+            ax1: Float,
+            ay1: Float,
+        ) {
+            val sweep = SweepGradient(cx, cy, spectrum, colorStops)
+            shaderMatrix.reset()
+            // Android sweep starts at 3 o'clock; -90° puts indigo at the top.
+            shaderMatrix.postRotate(angle - 90f, cx, cy)
+            sweep.setLocalMatrix(shaderMatrix)
+            val fade = LinearGradient(
+                ax0, ay0, ax1, ay1,
+                fadeAlphas,
+                fadeStops,
+                Shader.TileMode.CLAMP,
+            )
+            paint.shader = ComposeShader(sweep, fade, PorterDuff.Mode.DST_IN)
+            drawIntoCanvas { canvas ->
+                canvas.nativeCanvas.drawRect(left, top, right, bottom, paint)
+            }
+        }
 
         // Top — fades downward (inward).
-        drawRect(
-            brush = Brush.verticalGradient(
-                colorStops = inwardFade,
-                startY = 0f,
-                endY = thickness,
-            ),
-            topLeft = Offset.Zero,
-            size = Size(w, thickness),
-        )
+        drawEdge(0f, 0f, w, thickness, 0f, 0f, 0f, thickness)
         // Bottom — fades upward (inward).
-        drawRect(
-            brush = Brush.verticalGradient(
-                colorStops = outwardFade,
-                startY = h - thickness,
-                endY = h,
-            ),
-            topLeft = Offset(0f, h - thickness),
-            size = Size(w, thickness),
-        )
+        drawEdge(0f, h - thickness, w, h, 0f, h, 0f, h - thickness)
         // Left — fades rightward (inward).
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colorStops = inwardFade,
-                startX = 0f,
-                endX = thickness,
-            ),
-            topLeft = Offset.Zero,
-            size = Size(thickness, h),
-        )
+        drawEdge(0f, 0f, thickness, h, 0f, 0f, thickness, 0f)
         // Right — fades leftward (inward).
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colorStops = outwardFade,
-                startX = w - thickness,
-                endX = w,
-            ),
-            topLeft = Offset(w - thickness, 0f),
-            size = Size(thickness, h),
-        )
+        drawEdge(w - thickness, 0f, w, h, w, 0f, w - thickness, 0f)
     }
 }
 
