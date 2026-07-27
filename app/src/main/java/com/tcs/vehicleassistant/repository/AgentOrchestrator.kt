@@ -78,6 +78,8 @@ class AgentOrchestrator(
     private val currentPendingTools = mutableListOf<Deferred<String?>>()
     private var pendingPrewarmQuery: Pair<String, Int>? = null
     private var prewarmWaitJob: Job? = null
+    /** Active understand/act job — cancelled on barge-in. */
+    private var queryJob: Job? = null
 
     private fun emitStreamingUi(displayMsg: String, force: Boolean = false) {
         synchronized(streamEmitLock) {
@@ -132,12 +134,38 @@ class AgentOrchestrator(
 
     fun isProcessing(): Boolean = !isQueryProcessed
 
+    /**
+     * Barge-in lite: cancel in-flight Understand/Act so a new utterance can supersede.
+     * Capture stays armed; caller re-submits the new final when ready.
+     */
+    fun cancelInFlight() {
+        queryJob?.cancel()
+        queryJob = null
+        timeoutJob?.cancel()
+        prewarmWaitJob?.cancel()
+        pendingPrewarmQuery = null
+        currentPendingTools.clear()
+        pendingConfirmationTool = null
+        pendingIntentToLaunch = null
+        com.tcs.vehicleassistant.domain.SpeculativeToolPrep.clear()
+        runCatching { audioManager.stopSpeaking() }
+        speechPresenter.reset()
+        isQueryProcessed = true
+        _state.value = OrchestratorState.Idle
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+    }
+
     fun triggerProactiveEvent(prompt: String) {
         handleQuery(prompt)
     }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
+        // Supersede any prior turn (two-phase / barge-in).
+        queryJob?.cancel()
+        queryJob = null
+
         // Zero-LLM path first — never block capture/response on model warm-up.
+        // Speculative prep may already have resolved the tool from strong partials.
         if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
             return
         }
@@ -166,7 +194,7 @@ class AgentOrchestrator(
             pendingPrewarmQuery = query to retryCount
             _state.value = OrchestratorState.Thinking
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-            scope.launch {
+            queryJob = scope.launch {
                 try {
                     val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
                         .inject(org.koin.core.qualifier.named("edge"))
@@ -194,7 +222,8 @@ class AgentOrchestrator(
         _state.value = OrchestratorState.Thinking
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
 
-        scope.launch {
+        // Phase B: understand / act / speak on agent dispatcher — never blocks re-listen.
+        queryJob = scope.launch {
             processQuery(query, retryCount)
         }
     }
@@ -207,7 +236,8 @@ class AgentOrchestrator(
         scope.launch {
             when (utteranceId) {
                 "QUESTION_FINAL" -> {
-                    delay(500)
+                    // TTS/listen overlap: arm ear almost immediately after silent tail.
+                    delay(80)
                     _events.tryEmit(OrchestratorEvent.StartListening)
                 }
                 "STATEMENT_FINAL_TOOL" -> {
@@ -233,7 +263,7 @@ class AgentOrchestrator(
         scope.launch {
             when (utteranceId) {
                 "QUESTION_FINAL" -> {
-                    delay(500)
+                    delay(80)
                     _events.tryEmit(OrchestratorEvent.StartListening)
                 }
                 "STATEMENT_FINAL_TOOL" -> {
@@ -256,6 +286,8 @@ class AgentOrchestrator(
     }
 
     fun destroy() {
+        queryJob?.cancel()
+        queryJob = null
         timeoutJob?.cancel()
         prewarmWaitJob?.cancel()
         EmergencyAlarmManager.stop()
@@ -264,7 +296,9 @@ class AgentOrchestrator(
 
     private fun tryHandleDirectFollowUp(query: String): Boolean {
         if (pendingConfirmationTool != null) return false
-        val toolCall = followUpUseCase.resolve(query, LLMManager.lastAiResponse) ?: return false
+        // Prefer speculative candidate resolved from strong partials; else fresh FollowUp.
+        val toolCall = com.tcs.vehicleassistant.domain.SpeculativeToolPrep.resolveForFinal(query)
+            ?: return false
 
         lastResponseBuilder.clear()
         ttsSpokenLength = 0
@@ -274,7 +308,7 @@ class AgentOrchestrator(
         _state.value = OrchestratorState.Thinking
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
 
-        scope.launch {
+        queryJob = scope.launch {
             memory.captureLongTermFacts(context, query)
             memory.addTurn("User", query)
 
@@ -370,7 +404,11 @@ class AgentOrchestrator(
             }
 
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            val needsTelemetry = !isAgenticObservation && (interceptedQuery.length >= 40 || isFollowUp)
+            // Stricter deferral: short / command-like turns skip VHAL telemetry injection.
+            val looksCommand = com.tcs.vehicleassistant.domain.SpeculativeToolPrep.looksLikeCommand(interceptedQuery)
+            val needsTelemetry = !isAgenticObservation &&
+                !looksCommand &&
+                (interceptedQuery.length >= 50 || isFollowUp)
             val dynamicState = if (needsTelemetry) {
                 SmartContextInjector.getInjectedContext(interceptedQuery, context)
             } else {

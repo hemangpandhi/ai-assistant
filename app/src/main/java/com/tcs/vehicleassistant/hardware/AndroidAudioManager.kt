@@ -107,9 +107,16 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun isActivelyListening(): Boolean =
         sttPhase == SttPhase.Starting || sttPhase == SttPhase.Listening
 
+    @Volatile
+    private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
+
     override fun startListening() {
         val run = Runnable { startListeningOnMain(forceRecreate = false) }
         if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+    }
+
+    override fun setEndpointingProfile(profile: EndpointingProfile) {
+        endpointingProfile = profile
     }
 
     /**
@@ -152,16 +159,29 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         // Keep media ducked while the recognizer arms (avoids a full pause gap).
         requestAssistantDuck()
 
+        val profile = endpointingProfile
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            // Tightened for short vehicle commands (was 1500 / 1000).
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 800L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 600L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 400L)
+            putExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
+                profile.completeSilenceMs,
+            )
+            putExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
+                profile.possiblyCompleteSilenceMs,
+            )
+            putExtra(
+                RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
+                profile.minimumLengthMs,
+            )
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
         }
+        AssistantDebugLog.d(
+            "STT",
+            "endpointing=${profile.name} silence=${profile.completeSilenceMs}ms",
+        )
         try {
             sttPhase = SttPhase.Starting
             AssistantDebugLog.d("STT", "startListening() phase=Starting")

@@ -90,6 +90,7 @@ class InAppOrchestratorBridge(
         override fun ensureWarmRecognizer() {}
         override fun isActivelyListening(): Boolean = false
         override fun startListening() {}
+        override fun setEndpointingProfile(profile: com.tcs.vehicleassistant.hardware.EndpointingProfile) {}
         override fun restartListening(delayedMs: Long) {}
         override fun stopListening() {}
         override fun destroySpeechRecognizer() {}
