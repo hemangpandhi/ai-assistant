@@ -170,6 +170,7 @@ class WakeWordService : Service() {
                 }
 
                 customAudioRecord?.startRecording()
+                isHoldingMic = true
                 val buffer = ShortArray(bufferSize)
 
                 var loopCount = 0
@@ -224,6 +225,7 @@ class WakeWordService : Service() {
                 } catch (_: Exception) {
                 }
                 customAudioRecord = null
+                isHoldingMic = false
             }
         }
     }
@@ -291,6 +293,7 @@ class WakeWordService : Service() {
         } catch (_: Exception) {
         }
         customAudioRecord = null
+        isHoldingMic = false
         customRecognizer?.close()
         super.onDestroy()
     }
@@ -337,6 +340,7 @@ class WakeWordService : Service() {
             } catch (_: Exception) {
             }
             customAudioRecord = null
+            isHoldingMic = false
         }
     }
 
