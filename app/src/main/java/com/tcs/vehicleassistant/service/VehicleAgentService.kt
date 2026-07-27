@@ -3,6 +3,7 @@ package com.tcs.vehicleassistant.service
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.ComponentCallbacks2
 import android.content.Intent
 import android.os.Binder
 import android.os.Build
@@ -10,15 +11,15 @@ import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.R
 import com.tcs.vehicleassistant.controller.AssistantViewModel
+import com.tcs.vehicleassistant.core.AgentRuntime
 import com.tcs.vehicleassistant.hardware.AndroidAudioManager
 import com.tcs.vehicleassistant.hardware.IAudioManager
-import android.content.ComponentCallbacks2
 import org.koin.java.KoinJavaComponent.getKoin
 
 class VehicleAgentService : Service(), ComponentCallbacks2 {
 
     private val binder = LocalBinder()
-    
+
     lateinit var audioManager: AndroidAudioManager
     lateinit var viewModel: AssistantViewModel
 
@@ -28,11 +29,12 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
 
     override fun onCreate() {
         super.onCreate()
+        AgentRuntime.resetForService()
         createNotificationChannel()
-        
+
         audioManager = getKoin().get<IAudioManager>() as AndroidAudioManager
         viewModel = getKoin().get()
-        
+
         audioManager.initialize(
             onSuccess = {
                 audioManager.playSilentUtterance(10, "PREWARM")
@@ -49,7 +51,7 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
             .setContentText("Processing tasks in the background...")
             .setSmallIcon(R.drawable.ic_mic_small)
             .build()
-            
+
         startForeground(1, notification)
         return START_NOT_STICKY
     }
@@ -57,7 +59,7 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
     override fun onBind(intent: Intent?): IBinder {
         return binder
     }
-    
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
@@ -71,16 +73,23 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
+        AgentRuntime.shutdown()
         audioManager.destroySpeechRecognizer()
+        super.onDestroy()
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
-        if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
-            android.util.Log.w("VehicleAgentService", "OS Memory Pressure Critical (Level $level). Unloading LLM from RAM.")
+        // Unload sooner under pressure — do not force System.gc() (causes jank).
+        if (level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE ||
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND
+        ) {
+            android.util.Log.w(
+                "VehicleAgentService",
+                "OS memory pressure (level $level). Unloading LLM.",
+            )
             com.tcs.vehicleassistant.LLMManager.unload()
-            System.gc()
+            AgentRuntime.cancelChildren()
         }
     }
 }

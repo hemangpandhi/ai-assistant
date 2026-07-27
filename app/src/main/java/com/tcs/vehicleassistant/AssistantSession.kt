@@ -578,7 +578,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnMic?.isEnabled = true
 
             if (showFlags and SHOW_WITH_ASSIST != 0) {
-                CoroutineScope(Dispatchers.Main).launch {
+                observerScope.launch {
                     delay(500)
                     btnMic?.performClick()
                 }
@@ -641,7 +641,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             statusText?.text = ""
             return
         }
-        dotAnimatorJob = CoroutineScope(Dispatchers.Main).launch {
+        dotAnimatorJob = observerScope.launch {
             var dotCount = 0
             while (isActive) {
                 statusText?.text = "$baseText${".".repeat(dotCount)}"

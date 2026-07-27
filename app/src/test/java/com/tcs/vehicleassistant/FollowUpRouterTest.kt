@@ -68,4 +68,29 @@ class FollowUpRouterTest {
     fun resolveDirectCommand_playMusic() {
         assertEquals("playMusic(music)", FollowUpRouter.resolveDirectTool("play music", ""))
     }
+
+    @Test
+    fun resolveDirectCommand_imCold() {
+        assertEquals("increaseTemperature(2)", FollowUpRouter.resolveDirectCommand("i'm cold"))
+    }
+
+    @Test
+    fun resolveDirectCommand_fanUp() {
+        assertEquals("increaseFanSpeed()", FollowUpRouter.resolveDirectCommand("turn up the fan"))
+    }
+
+    @Test
+    fun resolveDirectCommand_defrost() {
+        assertEquals("turnOnDefroster()", FollowUpRouter.resolveDirectCommand("the windshield is foggy"))
+    }
+
+    @Test
+    fun resolveDirectCommand_skip() {
+        assertEquals("nextTrack()", FollowUpRouter.resolveDirectCommand("skip"))
+    }
+
+    @Test
+    fun resolveDirectCommand_seatHeater() {
+        assertEquals("setSeatHeater(2)", FollowUpRouter.resolveDirectCommand("turn on the seat heater"))
+    }
 }
