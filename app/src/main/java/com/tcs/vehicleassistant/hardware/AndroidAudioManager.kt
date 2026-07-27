@@ -129,38 +129,57 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     override fun stopListening() {
-        speechRecognizer?.stopListening()
-        speechRecognizer?.cancel()
+        try {
+            speechRecognizer?.stopListening()
+        } catch (t: Throwable) {
+            android.util.Log.w("AndroidAudioManager", "stopListening failed", t)
+        }
     }
 
     override fun destroySpeechRecognizer() {
+        val recognizer = speechRecognizer ?: return
+        speechRecognizer = null
         try {
-            speechRecognizer?.cancel()
-            speechRecognizer?.destroy()
-            speechRecognizer = null
-        } catch (_: Exception) {}
+            // destroy() cancels internally — do not call cancel() first (DeadObjectException).
+            recognizer.destroy()
+        } catch (t: Throwable) {
+            android.util.Log.w("AndroidAudioManager", "destroySpeechRecognizer failed", t)
+        }
     }
 
     override fun speak(text: String, utteranceId: String) {
-        tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+        try {
+            tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+        } catch (t: Throwable) {
+            android.util.Log.w("AndroidAudioManager", "speak failed", t)
+        }
     }
 
     override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
-        tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+        try {
+            tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+        } catch (t: Throwable) {
+            android.util.Log.w("AndroidAudioManager", "playSilentUtterance failed", t)
+        }
     }
 
     override fun stopSpeaking() {
-        tts?.stop()
+        try {
+            tts?.stop()
+        } catch (t: Throwable) {
+            android.util.Log.w("AndroidAudioManager", "stopSpeaking failed", t)
+        }
     }
 
     override fun shutdown() {
-        tts?.stop()
-        tts?.shutdown()
+        try {
+            tts?.stop()
+            tts?.shutdown()
+        } catch (t: Throwable) {
+            android.util.Log.w("AndroidAudioManager", "TTS shutdown failed", t)
+        }
         tts = null
-        
-        speechRecognizer?.cancel()
-        speechRecognizer?.destroy()
-        speechRecognizer = null
+        destroySpeechRecognizer()
     }
 
     override fun setUtteranceListener(

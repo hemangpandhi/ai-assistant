@@ -117,6 +117,21 @@ fun ImmersiveAssistantOverlay(
     var glyphGazeActive by remember { mutableStateOf(false) }
 
     fun summon() {
+        if (visible) {
+            // Already on stage — refresh listening UX without recreating the
+            // SpeechRecognizer binder (cancel/destroy thrash → DeadObjectException).
+            mood = AssistantMood.Listening
+            transcript = ""
+            speaker = DialogueSpeaker.System
+            gesture = FaceGesture.None
+            mouthAmplitude = null
+            showThumbs = false
+            contextGlyph = null
+            glyphGazeActive = false
+            gazeX = -0.42f
+            gazeY = 0.05f
+            return
+        }
         session += 1
         presentation = AssistantPresentation.Immersive
         mood = AssistantMood.Listening
