@@ -1,11 +1,15 @@
 package com.tcs.vehicleassistant
 
 import android.app.Activity
+import android.app.ActivityManager
 import android.app.Application
+import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.service.voice.VoiceInteractionSession
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -131,7 +136,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     /** True between [onShow] and [onHide] — used to dismiss when another system-bar UI opens. */
     private var sessionUiVisible = false
     private var baselineResumedActivity: String? = null
+    private var baselineTopPackage: String? = null
     private var focusListenerRegistered = false
+    private var topTaskPollJob: Job? = null
+    private var closeSystemDialogsReceiverRegistered = false
 
     private var dotAnimatorJob: Job? = null
     private var typewriterJob: Job? = null
@@ -144,7 +152,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     private val activityWatcher = object : Application.ActivityLifecycleCallbacks {
         override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
-        override fun onActivityStarted(a: Activity) = Unit
+        override fun onActivityStarted(a: Activity) {
+            // Same-process apps (e.g. LocalLLMActivity) — dismiss as soon as they start.
+            if (!sessionUiVisible) return
+            if (a.javaClass.name.contains("AssistantSession")) return
+            AssistantDebugLog.d("Session", "activity started=${a.javaClass.simpleName} — dismiss")
+            dismissForExternalUi("activity-started:${a.javaClass.simpleName}")
+        }
         override fun onActivityStopped(a: Activity) = Unit
         override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
         override fun onActivityDestroyed(a: Activity) = Unit
@@ -158,8 +172,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 return
             }
             if (name != baselineResumedActivity) {
-                AssistantDebugLog.d("Session", "other UI resumed=$name — hide overlay")
-                hide()
+                dismissForExternalUi("activity-resumed:$name")
             }
         }
     }
@@ -168,16 +181,36 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         if (!sessionUiVisible) return@OnWindowFocusChangeListener
         AssistantDebugLog.d("Session", "window focus=$hasFocus")
         if (!hasFocus) {
-            // System bar / another panel took focus — dismiss so UI isn't stuck over nav.
             observerScope.launch {
-                delay(120)
-                if (sessionUiVisible && overlayView.windowToken != null &&
+                delay(80)
+                if (sessionUiVisible && ::overlayView.isInitialized &&
                     !overlayView.hasWindowFocus()
                 ) {
-                    AssistantDebugLog.d("Session", "lost focus — hide overlay")
-                    hide()
+                    dismissForExternalUi("window-focus-lost")
                 }
             }
+        }
+    }
+
+    private val closeSystemDialogsReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            if (!sessionUiVisible) return
+            val reason = intent?.getStringExtra("reason") ?: intent?.action ?: "unknown"
+            AssistantDebugLog.d("Session", "CLOSE_SYSTEM_DIALOGS reason=$reason")
+            // Home / recent / system bar often fires this when leaving the assistant.
+            dismissForExternalUi("close-system-dialogs:$reason")
+        }
+    }
+
+    private fun dismissForExternalUi(reason: String) {
+        if (!sessionUiVisible) return
+        AssistantDebugLog.d("Session", "dismiss overlay ($reason)")
+        sessionUiVisible = false
+        runCatching { hide() }
+        // Some AAOS builds keep the session window until finish().
+        observerScope.launch {
+            delay(50)
+            runCatching { finish() }
         }
     }
 
@@ -376,6 +409,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                                 android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
                             }
                         }
+                        // Voice session windows stay on top of newly launched apps unless
+                        // we explicitly tear the session down.
+                        dismissForExternalUi("compose-launch-intent")
                     }
                     is ViewModelEvent.ShowToast ->
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
@@ -454,6 +490,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         } catch (e: Exception) {
                             android.util.Log.e("AssistantSession", "startActivity failed for intent: ${event.intent}", e)
                         }
+                        dismissForExternalUi("xml-launch-intent")
                     }
                     is ViewModelEvent.FinishSession -> finish()
                     is ViewModelEvent.StartListening -> btnMic?.performClick()
@@ -474,6 +511,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
         sessionUiVisible = true
         baselineResumedActivity = null
+        baselineTopPackage = null
         registerDismissWatchers()
 
         window?.window?.setLayout(
@@ -622,9 +660,26 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             overlayView.viewTreeObserver.addOnWindowFocusChangeListener(windowFocusListener)
             focusListenerRegistered = true
         }
+        if (!closeSystemDialogsReceiverRegistered) {
+            val filter = IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+            runCatching {
+                ContextCompat.registerReceiver(
+                    context.applicationContext,
+                    closeSystemDialogsReceiver,
+                    filter,
+                    ContextCompat.RECEIVER_NOT_EXPORTED,
+                )
+                closeSystemDialogsReceiverRegistered = true
+            }.onFailure {
+                AssistantDebugLog.w("Session", "CLOSE_SYSTEM_DIALOGS register failed: ${it.message}")
+            }
+        }
+        startTopTaskPoller()
     }
 
     private fun unregisterDismissWatchers() {
+        topTaskPollJob?.cancel()
+        topTaskPollJob = null
         val app = context.applicationContext as? Application
         runCatching { app?.unregisterActivityLifecycleCallbacks(activityWatcher) }
         if (focusListenerRegistered && ::overlayView.isInitialized) {
@@ -633,6 +688,81 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             }
             focusListenerRegistered = false
         }
+        if (closeSystemDialogsReceiverRegistered) {
+            runCatching {
+                context.applicationContext.unregisterReceiver(closeSystemDialogsReceiver)
+            }
+            closeSystemDialogsReceiverRegistered = false
+        }
+    }
+
+    /**
+     * Cross-process dismiss: ActivityLifecycleCallbacks only see *this* app's activities.
+     * System-bar launches (Maps, phone, …) live in other processes — poll the foreground
+     * task/package and hide when it changes.
+     */
+    private fun startTopTaskPoller() {
+        topTaskPollJob?.cancel()
+        topTaskPollJob = observerScope.launch {
+            // Let the session settle before sampling the baseline top package.
+            delay(350)
+            while (isActive && sessionUiVisible) {
+                val top = foregroundPackage()
+                if (top != null) {
+                    if (baselineTopPackage == null) {
+                        baselineTopPackage = top
+                        AssistantDebugLog.d("Session", "baseline topPkg=$top")
+                    } else if (top != baselineTopPackage && !isTransientSystemPackage(top)) {
+                        // Confirm once — AAOS system UI can briefly report a different pkg.
+                        delay(120)
+                        val confirmed = foregroundPackage()
+                        if (confirmed == top && confirmed != baselineTopPackage && sessionUiVisible) {
+                            dismissForExternalUi("top-pkg $baselineTopPackage → $confirmed")
+                            break
+                        }
+                    }
+                }
+                delay(250)
+            }
+        }
+    }
+
+    /** Packages that flicker without meaning a real app launch from the system bar. */
+    private fun isTransientSystemPackage(pkg: String): Boolean {
+        return pkg == "android" ||
+            pkg == "com.android.systemui" ||
+            pkg.endsWith(".systemui") ||
+            pkg.contains("permissioncontroller")
+    }
+
+    private fun foregroundPackage(): String? {
+        // 1) Running tasks (works for priv-apps with REAL_GET_TASKS on AAOS).
+        runCatching {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
+            val pkg = am.getRunningTasks(1)?.firstOrNull()?.topActivity?.packageName
+            if (!pkg.isNullOrBlank()) return pkg
+        }
+        // 2) Importance-based process list.
+        runCatching {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val proc = am.runningAppProcesses?.firstOrNull {
+                it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            }
+            val pkg = proc?.pkgList?.firstOrNull() ?: proc?.processName
+            if (!pkg.isNullOrBlank()) return pkg
+        }
+        // 3) Usage stats (if granted).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            runCatching {
+                val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+                val end = System.currentTimeMillis()
+                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, end - 15_000, end)
+                val top = stats?.maxByOrNull { it.lastTimeUsed }?.packageName
+                if (!top.isNullOrBlank()) return top
+            }
+        }
+        return null
     }
 
     private fun stopDotAnimation(finalText: String = "") {
