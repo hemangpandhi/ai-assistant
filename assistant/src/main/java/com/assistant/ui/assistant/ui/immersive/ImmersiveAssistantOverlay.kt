@@ -38,6 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -196,7 +197,6 @@ fun ImmersiveAssistantOverlay(
 
     LaunchedEffect(autoPresent) {
         if (autoPresent) {
-            // Give the summon bridge a beat to install, then present if still idle.
             delay(1)
             if (!visible) summon(ImmersiveSummonOrigin.Icon)
         }
@@ -208,7 +208,7 @@ fun ImmersiveAssistantOverlay(
         }
     }
 
-    ImmersiveHotwordBridge(
+    ImmersiveSummonBridge(
         onSummon = { origin -> summon(origin) },
         onDismiss = {
             if (visible) visible = false
@@ -359,55 +359,62 @@ fun ImmersiveAssistantOverlay(
     }
 
     // Enter by summon origin; exit reverses the same reveal.
-    LaunchedEffect(visible, session, summonOrigin) {
+    // Keys: visible + session only — do not restart when origin is assigned in the same summon.
+    LaunchedEffect(visible, session) {
         if (visible) {
             hasPresented = true
             if (immersiveEnteredSession != session) {
                 immersiveEnteredSession = session
+                val origin = summonOrigin
                 transcriptAlpha.snapTo(0f)
                 overlayReveal.snapTo(0f)
                 faceAlpha.snapTo(1f)
-                when (summonOrigin) {
+                when (origin) {
                     ImmersiveSummonOrigin.Icon -> {
                         // Emerge from assist-icon / bottom-end — whole stage scales up.
-                        backdropAlpha.snapTo(0f)
+                        backdropAlpha.snapTo(1f)
                         faceRise.snapTo(0.18f)
                         faceScale.snapTo(1f)
-                        launch {
-                            backdropAlpha.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
-                        }
-                        launch {
+                        try {
+                            launch {
+                                faceRise.animateTo(
+                                    0f,
+                                    spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+                                )
+                            }
                             overlayReveal.animateTo(
                                 1f,
                                 tween(420, easing = FastOutSlowInEasing),
                             )
+                        } finally {
+                            if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
                         }
-                        faceRise.animateTo(
-                            0f,
-                            spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
-                        )
                     }
                     ImmersiveSummonOrigin.Hotword -> {
                         // Bottom → top wipe; border completes as the wipe reaches the top.
                         backdropAlpha.snapTo(1f)
                         faceRise.snapTo(0.35f)
                         faceScale.snapTo(0.96f)
-                        launch {
-                            faceScale.animateTo(
+                        try {
+                            launch {
+                                faceScale.animateTo(
+                                    1f,
+                                    spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                                )
+                            }
+                            launch {
+                                faceRise.animateTo(
+                                    0f,
+                                    spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+                                )
+                            }
+                            overlayReveal.animateTo(
                                 1f,
-                                spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                                tween(560, easing = FastOutSlowInEasing),
                             )
+                        } finally {
+                            if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
                         }
-                        launch {
-                            faceRise.animateTo(
-                                0f,
-                                spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
-                            )
-                        }
-                        overlayReveal.animateTo(
-                            1f,
-                            tween(560, easing = FastOutSlowInEasing),
-                        )
                     }
                 }
                 // Chime / haptic after first paint so AudioTrack init never blocks TTFF.
@@ -861,6 +868,8 @@ fun ImmersiveTranscript(
 
 private val immersiveSummonHandlers = mutableListOf<(ImmersiveSummonOrigin) -> Unit>()
 private val immersiveDismissHandlers = mutableListOf<() -> Unit>()
+@Volatile
+private var pendingSummonOrigin: ImmersiveSummonOrigin? = null
 
 /**
  * Whole-stage enter transform:
@@ -876,50 +885,69 @@ private fun immersiveSummonGraphics(
         ImmersiveSummonOrigin.Icon -> Modifier.graphicsLayer {
             val eased = FastOutSlowInEasing.transform(t)
             transformOrigin = TransformOrigin(0.92f, 1f) // system-bar assist icon / bottom-end
-            val scale = 0.10f + 0.90f * eased
+            val scale = 0.18f + 0.82f * eased
             scaleX = scale
             scaleY = scale
-            alpha = eased
+            // Keep a little opacity from the first frames so the stage never looks blank.
+            alpha = (0.20f + 0.80f * eased).coerceIn(0f, 1f)
             translationX = (1f - eased) * 28f
             translationY = (1f - eased) * 64f
         }
-        ImmersiveSummonOrigin.Hotword -> Modifier
-            .graphicsLayer {
-                compositingStrategy = CompositingStrategy.Offscreen
-                alpha = (0.35f + 0.65f * t).coerceIn(0f, 1f)
-                translationY = (1f - t) * size.height * 0.06f
+        ImmersiveSummonOrigin.Hotword -> {
+            if (t >= 0.999f) {
+                Modifier
+            } else {
+                Modifier
+                    .graphicsLayer {
+                        compositingStrategy = CompositingStrategy.Offscreen
+                        alpha = (0.45f + 0.55f * t).coerceIn(0f, 1f)
+                        translationY = (1f - t) * size.height * 0.06f
+                    }
+                    .drawWithContent {
+                        drawContent()
+                        // Opaque from the rising front down to the bottom → bottom-to-top unveil.
+                        val front = (1f - t).coerceIn(0f, 1f)
+                        val soft = 0.08f
+                        val softStart = (front - soft).coerceIn(0f, 1f)
+                        drawRect(
+                            brush = Brush.verticalGradient(
+                                colorStops = arrayOf(
+                                    0f to Color.Transparent,
+                                    softStart to Color.Transparent,
+                                    front.coerceAtLeast(softStart + 0.001f) to Color.White,
+                                    1f to Color.White,
+                                ),
+                            ),
+                            blendMode = BlendMode.DstIn,
+                        )
+                    }
             }
-            .drawWithContent {
-                drawContent()
-                // Opaque from the rising front down to the bottom → bottom-to-top unveil.
-                val front = (1f - t).coerceIn(0f, 1f)
-                val soft = 0.08f
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0f to Color.Transparent,
-                            (front - soft).coerceAtLeast(0f) to Color.Transparent,
-                            front to Color.White,
-                            1f to Color.White,
-                        ),
-                    ),
-                    blendMode = BlendMode.DstIn,
-                )
-            }
+        }
     }
 }
 
 @Composable
-private fun ImmersiveHotwordBridge(
+private fun ImmersiveSummonBridge(
     onSummon: (ImmersiveSummonOrigin) -> Unit,
     onDismiss: () -> Unit = {},
 ) {
-    DisposableEffect(onSummon, onDismiss) {
-        immersiveSummonHandlers += onSummon
-        immersiveDismissHandlers += onDismiss
+    val summonState = rememberUpdatedState(onSummon)
+    val dismissState = rememberUpdatedState(onDismiss)
+    DisposableEffect(Unit) {
+        val summonHandler: (ImmersiveSummonOrigin) -> Unit = { origin ->
+            summonState.value(origin)
+        }
+        val dismissHandler: () -> Unit = { dismissState.value() }
+        immersiveSummonHandlers += summonHandler
+        immersiveDismissHandlers += dismissHandler
+        // Deliver a summon that arrived before this composition registered.
+        pendingSummonOrigin?.let { pending ->
+            pendingSummonOrigin = null
+            summonHandler(pending)
+        }
         onDispose {
-            immersiveSummonHandlers -= onSummon
-            immersiveDismissHandlers -= onDismiss
+            immersiveSummonHandlers -= summonHandler
+            immersiveDismissHandlers -= dismissHandler
         }
     }
 }
@@ -934,12 +962,20 @@ fun notifyImmersiveAssistantHotword() {
 
 /** Summon with an explicit enter style (icon emerge vs hotword bottom→top). */
 fun notifyImmersiveAssistantSummon(origin: ImmersiveSummonOrigin) {
-    immersiveSummonHandlers.toList().forEach { it.invoke(origin) }
+    val handlers = immersiveSummonHandlers.toList()
+    if (handlers.isEmpty()) {
+        // Composition may not have registered yet (session onShow races first frame).
+        pendingSummonOrigin = origin
+    } else {
+        pendingSummonOrigin = null
+        handlers.forEach { it.invoke(origin) }
+    }
     notifyAssistantHotword()
 }
 
 /** Release Compose STT / stage when the VoiceInteractionSession hides. */
 fun notifyImmersiveAssistantDismiss() {
+    pendingSummonOrigin = null
     immersiveDismissHandlers.toList().forEach { it.invoke() }
 }
 

@@ -799,10 +799,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             val origin = ImmersiveSummonOrigin.fromBundleToken(
                 args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
             )
+            // post + delayed retry: composition may register the summon bridge a frame late.
             overlayView.post {
                 notifyImmersiveAssistantSummon(origin)
                 (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
             }
+            overlayView.postDelayed(
+                { notifyImmersiveAssistantSummon(origin) },
+                80L,
+            )
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
                     if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
