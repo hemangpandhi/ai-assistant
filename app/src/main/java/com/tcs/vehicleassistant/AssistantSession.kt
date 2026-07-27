@@ -192,7 +192,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         AssistantUiProfile.install(context)
         inflateContentForProfile()
 
-        // Heavy car / agent / prefs work runs after the first frame.
+        // Bind the agent immediately so startMic isn't racing a deferred post{}.
+        val intent = Intent(context, VehicleAgentService::class.java)
+        runCatching {
+            context.startForegroundService(intent)
+            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        }
+
+        // Heavy car / prefs / LLM work runs after the first frame.
         overlayView.post {
             warmSessionDependencies()
         }
