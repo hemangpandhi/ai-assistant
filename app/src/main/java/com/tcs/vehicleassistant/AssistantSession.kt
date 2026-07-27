@@ -33,6 +33,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.test.design.assistant.api.AssistantRuntime
 import com.test.design.presentation.assistant.AssistantTheme
 import com.test.design.presentation.assistant.VirtualAssistantOverlay
+import com.test.design.presentation.assistant.notifyImmersiveAssistantDismiss
 import com.test.design.presentation.assistant.notifyImmersiveAssistantHotword
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
@@ -161,11 +162,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     override fun onHide() {
         super.onHide()
+        // Drop Compose STT before wake-word reclaims the mic.
+        notifyImmersiveAssistantDismiss()
         audioManager?.destroySpeechRecognizer()
 
-        val restartIntent = Intent(context, WakeWordService::class.java)
-        restartIntent.action = "ACTION_RESTART_LISTENING"
-        context.startService(restartIntent)
+        observerScope.launch {
+            // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
+            delay(450)
+            val restartIntent = Intent(context, WakeWordService::class.java)
+            restartIntent.action = "ACTION_RESTART_LISTENING"
+            context.startService(restartIntent)
+        }
 
         unloadJob?.cancel()
         unloadJob = CoroutineScope(Dispatchers.Main).launch {
@@ -252,8 +259,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         onDismiss = { hide() },
                         modifier = Modifier.fillMaxSize(),
                         awaitHotword = false,
-                        // Agent owns STT via VehicleAgentService / AndroidAudioManager.
-                        enableLiveSpeech = false,
+                        // Compose owns STT → backend.onSpeechInput → agent handleQuery.
+                        enableLiveSpeech = true,
                         // Agent owns TTS via orchestrator audioManager.
                         enableTts = false,
                     )
@@ -516,25 +523,21 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         context.startService(stopListeningIntent)
 
         if (usingComposeUi) {
-            // Re-summon face; open agent mic for system-bar / assist / hotword shows.
+            // Stop wake-word AudioRecord fully, then summon + open Compose STT.
             val assist = (showFlags and SHOW_WITH_ASSIST) != 0
             overlayView.post {
                 notifyImmersiveAssistantHotword()
                 (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
-                if (assist) {
-                    observerScope.launch {
-                        delay(600)
-                        (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
-                    }
-                }
             }
-            // Ensure LLM is warming while the face is up.
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
                     if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
                         LLMManager.autoInitialize(context.applicationContext)
                     }
                 }
+            }
+            if (assist) {
+                android.util.Log.d("AssistantSession", "SHOW_WITH_ASSIST — Compose STT will listen")
             }
             return
         }

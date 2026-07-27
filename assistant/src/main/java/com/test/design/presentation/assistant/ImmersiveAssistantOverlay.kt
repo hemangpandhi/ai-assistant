@@ -153,17 +153,19 @@ fun ImmersiveAssistantOverlay(
         }
     }
 
-    ImmersiveHotwordBridge(onSummon = { summon() })
+    ImmersiveHotwordBridge(
+        onSummon = { summon() },
+        onDismiss = {
+            if (visible) visible = false
+        },
+    )
 
     // Forward device STT into the backend (UI stays dumb).
-    // Delay binding SpeechRecognizer until after the face is on screen so the
-    // first system-bar launch isn't blocked by recognition-service binder setup.
+    // Wait for wake-word AudioRecord to fully release before binding SpeechRecognizer.
     LaunchedEffect(visible, session, enableLiveSpeech) {
         if (!visible || !enableLiveSpeech) return@LaunchedEffect
-        if (!awaitHotword) {
-            delay(450)
-            if (!visible) return@LaunchedEffect
-        }
+        delay(if (!awaitHotword) 700 else 150)
+        if (!visible) return@LaunchedEffect
         assistantSpeechEvents(context).collectLatest { event ->
             if (!visible) return@collectLatest
             when (event) {
@@ -570,12 +572,20 @@ fun ImmersiveTranscript(
 }
 
 private val immersiveSummonHandlers = mutableListOf<() -> Unit>()
+private val immersiveDismissHandlers = mutableListOf<() -> Unit>()
 
 @Composable
-private fun ImmersiveHotwordBridge(onSummon: () -> Unit) {
-    DisposableEffect(onSummon) {
+private fun ImmersiveHotwordBridge(
+    onSummon: () -> Unit,
+    onDismiss: () -> Unit = {},
+) {
+    DisposableEffect(onSummon, onDismiss) {
         immersiveSummonHandlers += onSummon
-        onDispose { immersiveSummonHandlers -= onSummon }
+        immersiveDismissHandlers += onDismiss
+        onDispose {
+            immersiveSummonHandlers -= onSummon
+            immersiveDismissHandlers -= onDismiss
+        }
     }
 }
 
@@ -583,6 +593,11 @@ private fun ImmersiveHotwordBridge(onSummon: () -> Unit) {
 fun notifyImmersiveAssistantHotword() {
     immersiveSummonHandlers.toList().forEach { it.invoke() }
     notifyAssistantHotword()
+}
+
+/** Release Compose STT / stage when the VoiceInteractionSession hides. */
+fun notifyImmersiveAssistantDismiss() {
+    immersiveDismissHandlers.toList().forEach { it.invoke() }
 }
 
 /**

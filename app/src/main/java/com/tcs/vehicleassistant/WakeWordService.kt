@@ -197,12 +197,27 @@ class WakeWordService : Service() {
             }
         } else if (intent?.action == "ACTION_STOP_LISTENING") {
             Log.d("WakeWord", "ACTION_STOP_LISTENING received. Stopping HOTWORD loop.")
-            isRecording = false
-            try {
-                customAudioRecord?.stop()
-                customAudioRecord?.release()
-            } catch (e: Exception) {}
-            customAudioRecord = null
+            restartJob?.cancel()
+            restartJob = CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    isRecording = false
+                    try {
+                        customAudioRecord?.stop()
+                    } catch (_: Exception) {
+                    }
+                    // Wait for the IO loop to exit before releasing — otherwise the
+                    // assistant SpeechRecognizer races for the mic and fails silently.
+                    listeningJob?.join()
+                    try {
+                        customAudioRecord?.release()
+                    } catch (_: Exception) {
+                    }
+                    customAudioRecord = null
+                    Log.d("WakeWord", "Hotword AudioRecord fully released")
+                } catch (e: Exception) {
+                    Log.e("WakeWord", "Failed to stop hotword cleanly: ${e.message}")
+                }
+            }
         }
         updateWakeWord()
         return START_STICKY
