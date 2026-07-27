@@ -14,12 +14,12 @@ Full UI/UX + ADB guide: [ASSISTANT_UI_UX.md](./ASSISTANT_UI_UX.md).
 
 ## Package layout
 
-Packages align with the Android `namespace` (`com.test.design.assistant` / `…assistant.api`):
+Packages align with the Android `namespace` (`com.assistant.ui.assistant` / `…assistant.api`):
 
 ```text
 :assistant-api
-  com.test.design.assistant.api/          # AssistantBackend, AssistantHost, AssistantRuntime
-  com.test.design.assistant.api/model/    # events + models (package stays …assistant.api)
+  com.assistant.ui.assistant.api/          # AssistantBackend, AssistantHost, AssistantRuntime
+  com.assistant.ui.assistant.api/model/    # events + models (package stays …assistant.api)
 
 :assistant
   …assistant.api consumers live under:

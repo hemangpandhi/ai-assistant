@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.test.design.assistant"
+    namespace = "com.assistant.ui.assistant"
     compileSdk = 35
 
     defaultConfig {

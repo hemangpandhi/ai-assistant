@@ -3,14 +3,14 @@ package com.tcs.vehicleassistant.assistant
 import android.app.Application
 import android.content.Intent
 import android.util.Log
-import com.test.design.assistant.api.AssistantCabinContext
-import com.test.design.assistant.api.AssistantHost
+import com.assistant.ui.assistant.api.AssistantCabinContext
+import com.assistant.ui.assistant.api.AssistantHost
 import com.tcs.vehicleassistant.CockpitAwarenessActivity
-import com.test.design.assistant.api.AssistantRuntime
+import com.assistant.ui.assistant.api.AssistantRuntime
 
 /**
  * Host bridge for the Compose assistant module — cabin context + optional cluster hand-off.
- * View layer must not import this type; it only reaches Compose via [com.test.design.assistant.api.AssistantRuntime].
+ * View layer must not import this type; it only reaches Compose via [com.assistant.ui.assistant.api.AssistantRuntime].
  */
 class VehicleAssistantHost(
     private val app: Application,

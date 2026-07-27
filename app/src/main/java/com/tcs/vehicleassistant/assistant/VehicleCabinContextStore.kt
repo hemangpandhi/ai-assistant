@@ -1,6 +1,6 @@
 package com.tcs.vehicleassistant.assistant
 
-import com.test.design.assistant.api.AssistantCabinContext
+import com.assistant.ui.assistant.api.AssistantCabinContext
 import com.tcs.vehicleassistant.VehicleManager
 import kotlin.math.roundToInt
 

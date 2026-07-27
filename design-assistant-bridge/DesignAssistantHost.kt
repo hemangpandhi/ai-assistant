@@ -1,13 +1,13 @@
-package com.test.design.assistant.host
+package com.assistant.ui.assistant.host
 
 import android.app.Application
 import android.content.Intent
-import com.test.design.assistant.api.AssistantCabinContext
-import com.test.design.assistant.api.AssistantHost
-import com.test.design.core.DrivingUxState
-import com.test.design.core.cluster.ClusterUiState
-import com.test.design.presentation.ivi.glanceables.DrivingStatusGlanceActivity
-import com.test.design.presentation.ivi.vehicle.VehicleUiState
+import com.assistant.ui.assistant.api.AssistantCabinContext
+import com.assistant.ui.assistant.api.AssistantHost
+import com.assistant.ui.core.DrivingUxState
+import com.assistant.ui.core.cluster.ClusterUiState
+import com.assistant.ui.presentation.ivi.glanceables.DrivingStatusGlanceActivity
+import com.assistant.ui.presentation.ivi.vehicle.VehicleUiState
 
 /**
  * Process-wide cabin snapshot for [DesignAssistantHost].
