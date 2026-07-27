@@ -25,8 +25,6 @@ android {
 }
 
 dependencies {
-    api(project(":assistant-api"))
-
     // Design assistant uses Material3 Expressive (MaterialShapes) + Path.quadraticTo.
     val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
     implementation(composeBom)
@@ -44,6 +42,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.graphics:graphics-shapes:1.0.1")
     implementation("androidx.core:core-ktx:1.15.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")

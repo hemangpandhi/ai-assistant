@@ -60,8 +60,7 @@ Wake word / Home button (VoiceInteractionService)
 
 | Module | Role |
 |--------|------|
-| `:assistant-api` | Contracts: `AssistantBackend`, `AssistantHost`, session events/models |
-| `:assistant` | Compose faces, immersive overlay, gallery, demo backend |
+| `:assistant` | Contracts (`AssistantBackend`, `AssistantHost`, events/models) + Compose faces, immersive overlay, gallery, demo backend |
 | `:app` | Host install, ADB receivers, VIS session dual renderer, agent services |
 
 ---
