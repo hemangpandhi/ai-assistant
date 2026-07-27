@@ -91,6 +91,8 @@ class InAppOrchestratorBridge(
         override fun restartListening(delayedMs: Long) {}
         override fun stopListening() {}
         override fun destroySpeechRecognizer() {}
+        override fun requestAssistantDuck() {}
+        override fun abandonAssistantDuck() {}
         override fun shutdown() {}
 
         override fun speak(text: String, utteranceId: String) {
