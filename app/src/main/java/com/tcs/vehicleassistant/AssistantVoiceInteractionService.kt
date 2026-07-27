@@ -48,10 +48,18 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
 
     override fun onReady() {
         super.onReady()
-        VehicleManager.initialize(this) // 'this' is a Service, which is a valid Context for Car Service binding!
-        try {
-            startService(Intent(this, WakeWordService::class.java))
-        } catch (e: Exception) {}
+        // Defer car bind + wake-word service so the first VoiceInteractionSession
+        // after install can paint immediately without competing for main-thread work.
+        android.os.Handler(mainLooper).post {
+            try {
+                VehicleManager.initialize(this)
+            } catch (_: Exception) {
+            }
+            try {
+                startService(Intent(this, WakeWordService::class.java))
+            } catch (_: Exception) {
+            }
+        }
     }
 
     override fun onShutdown() {

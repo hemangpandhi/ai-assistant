@@ -156,8 +156,14 @@ fun ImmersiveAssistantOverlay(
     ImmersiveHotwordBridge(onSummon = { summon() })
 
     // Forward device STT into the backend (UI stays dumb).
+    // Delay binding SpeechRecognizer until after the face is on screen so the
+    // first system-bar launch isn't blocked by recognition-service binder setup.
     LaunchedEffect(visible, session, enableLiveSpeech) {
         if (!visible || !enableLiveSpeech) return@LaunchedEffect
+        if (!awaitHotword) {
+            delay(450)
+            if (!visible) return@LaunchedEffect
+        }
         assistantSpeechEvents(context).collectLatest { event ->
             if (!visible) return@collectLatest
             when (event) {
@@ -283,26 +289,16 @@ fun ImmersiveAssistantOverlay(
                 transcriptAlpha.snapTo(0f)
                 backdropAlpha.snapTo(0f)
 
-                wake.play()
                 if (!awaitHotword) {
-                    // Immediate face presence for system-bar / dock launches.
-                    launch {
-                        backdropAlpha.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
-                    }
-                    launch {
-                        faceAlpha.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
-                    }
-                    launch {
-                        faceScale.animateTo(
-                            1f,
-                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
-                        )
-                    }
-                    faceRise.animateTo(
-                        0f,
-                        spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
-                    )
+                    // Snap face + stage on first frame for system-bar / dock — no long rise.
+                    backdropAlpha.snapTo(1f)
+                    faceRise.snapTo(0f)
+                    faceScale.snapTo(1f)
+                    faceAlpha.snapTo(1f)
+                    transcriptAlpha.snapTo(1f)
+                    launch { wake.play() }
                 } else {
+                    wake.play()
                     backdropAlpha.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
                     delay(60)
                     launch {
@@ -318,9 +314,9 @@ fun ImmersiveAssistantOverlay(
                         0f,
                         spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                     )
+                    delay(80)
+                    transcriptAlpha.animateTo(1f, tween(340, easing = FastOutSlowInEasing))
                 }
-                delay(80)
-                transcriptAlpha.animateTo(1f, tween(340, easing = FastOutSlowInEasing))
             }
         } else if (hasPresented) {
             wake.playDismiss() // soft chime as the face starts sliding down
