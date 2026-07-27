@@ -65,6 +65,7 @@ import android.graphics.Matrix
 import android.graphics.PorterDuff
 import android.graphics.Shader
 import android.graphics.SweepGradient
+import kotlin.math.hypot
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.assistant.ui.assistant.api.AssistantDebugInfo
 import com.assistant.ui.assistant.api.AssistantDebugLog
@@ -291,15 +292,17 @@ fun ImmersiveAssistantOverlay(
     }
 
     val backdropAlpha = remember { Animatable(if (!awaitHotword) 1f else 0f) }
-    val faceRise = remember { Animatable(if (!awaitHotword) 0.12f else 1f) } // 1 = below screen, 0 = settled
-    val faceScale = remember { Animatable(if (!awaitHotword) 0.96f else 0.88f) }
-    val faceAlpha = remember { Animatable(if (!awaitHotword) 1f else 0f) }
+    // Dock soft-enters: glow expands from the hardkey/bottom first, then face fades up.
+    val faceRise = remember { Animatable(if (!awaitHotword) 0.32f else 1f) } // 1 = below screen, 0 = settled
+    val faceScale = remember { Animatable(if (!awaitHotword) 0.92f else 0.88f) }
+    val faceAlpha = remember { Animatable(0f) }
     val transcriptAlpha = remember { Animatable(0f) }
+    val glowReveal = remember { Animatable(0f) }
     // Avoid calling onDismiss on first composition when awaitHotword keeps us hidden.
     var hasPresented by remember { mutableStateOf(!awaitHotword) }
     var immersiveEnteredSession by remember { mutableIntStateOf(if (!awaitHotword) 0 else -1) }
-    // Two-phase paint: first frame = lite scrim + face (no Offscreen / idle loops).
-    // Rich effects (glow, blur blooms, infinite motion) enable after first vsync.
+    // Two-phase paint: first frame = lite scrim (no Offscreen / idle loops).
+    // Rich effects (glow bloom GPU, blur blooms, infinite motion) enable after first vsync.
     var richEffects by remember { mutableStateOf(false) }
 
     LaunchedEffect(visible, session) {
@@ -314,25 +317,40 @@ fun ImmersiveAssistantOverlay(
         AssistantUiLatency.mark("rich effects enabled")
     }
 
-    // Enter: dim stage + face rise. Exit: face slides down → dim hides.
-    // Dock / system-bar (!awaitHotword) snaps presence onto the first frame so
-    // time-to-visible stays under the 100ms target (no empty alpha=0 wait).
+    // Enter: glow expands from bottom/hardkey → face fades & rises. Exit reverses.
+    // Dock / system-bar (!awaitHotword) keeps backdrop on first frame for TTFF,
+    // but face + glow animate so presence does not pop fully formed.
     LaunchedEffect(visible, session) {
         if (visible) {
             hasPresented = true
             if (immersiveEnteredSession != session) {
                 immersiveEnteredSession = session
                 transcriptAlpha.snapTo(0f)
+                glowReveal.snapTo(0f)
                 if (!awaitHotword) {
-                    // Already snapped for first paint — finish the last ~12% rise.
                     if (backdropAlpha.value < 0.99f) backdropAlpha.snapTo(1f)
-                    if (faceAlpha.value < 0.99f) faceAlpha.snapTo(1f)
+                    faceAlpha.snapTo(0f)
+                    faceRise.snapTo(0.32f)
+                    faceScale.snapTo(0.92f)
+                    // Glow leads — expands from bottom-center like a hardkey summon.
                     launch {
+                        glowReveal.animateTo(
+                            1f,
+                            tween(420, easing = FastOutSlowInEasing),
+                        )
+                    }
+                    launch {
+                        delay(100)
+                        faceAlpha.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
+                    }
+                    launch {
+                        delay(80)
                         faceScale.animateTo(
                             1f,
                             spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
                         )
                     }
+                    delay(80)
                     faceRise.animateTo(
                         0f,
                         spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
@@ -342,18 +360,28 @@ fun ImmersiveAssistantOverlay(
                     faceScale.snapTo(0.86f)
                     faceAlpha.snapTo(0f)
                     backdropAlpha.snapTo(0f)
+                    glowReveal.snapTo(0f)
                     launch {
-                        backdropAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
+                        backdropAlpha.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
                     }
                     launch {
-                        faceAlpha.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+                        glowReveal.animateTo(
+                            1f,
+                            tween(480, easing = FastOutSlowInEasing),
+                        )
                     }
                     launch {
+                        delay(120)
+                        faceAlpha.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
+                    }
+                    launch {
+                        delay(100)
                         faceScale.animateTo(
                             1f,
                             spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
                         )
                     }
+                    delay(100)
                     faceRise.animateTo(
                         0f,
                         spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
@@ -364,8 +392,8 @@ fun ImmersiveAssistantOverlay(
                     withFrameNanos { }
                     wake.play()
                 }
-                delay(40)
-                transcriptAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
+                delay(120)
+                transcriptAlpha.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
             }
         } else if (hasPresented) {
             richEffects = false
@@ -373,6 +401,9 @@ fun ImmersiveAssistantOverlay(
             transcriptAlpha.animateTo(0f, tween(160))
             launch {
                 faceAlpha.animateTo(0f, tween(320, easing = FastOutSlowInEasing))
+            }
+            launch {
+                glowReveal.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
             }
             faceRise.animateTo(
                 1f,
@@ -384,6 +415,7 @@ fun ImmersiveAssistantOverlay(
             faceScale.snapTo(0.88f)
             faceAlpha.snapTo(0f)
             transcriptAlpha.snapTo(0f)
+            glowReveal.snapTo(0f)
             immersiveEnteredSession = -1
             onPresentationChanged(AssistantPresentation.Compact)
             // Collapse host (clears Modifier.blur) after face + blur exit.
@@ -394,7 +426,8 @@ fun ImmersiveAssistantOverlay(
     val brandGlow = rememberAssistantBrandGlow(mood, brandAccent).copy(alpha = 0.65f)
     val showOverlay = visible ||
         backdropAlpha.value > 0.02f ||
-        faceAlpha.value > 0.02f
+        faceAlpha.value > 0.02f ||
+        glowReveal.value > 0.02f
     val debugStripVisible by AssistantDebugStripConfig.visible.collectAsStateWithLifecycle()
 
     Box(
@@ -421,8 +454,11 @@ fun ImmersiveAssistantOverlay(
                     ),
             ) {
                 ImmersiveBackdrop(rich = richEffects)
-                if (richEffects) {
-                    ImmersiveBorderGlow(glowColor = brandGlow)
+                if (glowReveal.value > 0.01f) {
+                    ImmersiveBorderGlow(
+                        glowColor = brandGlow,
+                        revealProgress = glowReveal.value,
+                    )
                 }
             }
 
@@ -650,6 +686,9 @@ fun ImmersiveBackdrop(
  * Soft cockpit-edge glow: cool teal → ice-blue → steel spectrum bloom that
  * eases inward to full transparency. Colors drift slowly when idle motion is on.
  *
+ * [revealProgress] 0→1 expands the rim from the bottom-center (hardkey origin)
+ * outward to fill the frame — summon expand, not an instant full border.
+ *
  * [windowInsets] inset the glow from system bars (e.g. bottom nav) so the rim
  * stays visible; pass [WindowInsets] with zeros for true edge-to-edge.
  */
@@ -658,6 +697,7 @@ fun ImmersiveBorderGlow(
     modifier: Modifier = Modifier,
     glowColor: Color = Color(0xFF8AB4F8),
     windowInsets: WindowInsets = WindowInsets.systemBars,
+    revealProgress: Float = 1f,
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
     val sweepAngle = remember { Animatable(0f) }
@@ -677,6 +717,7 @@ fun ImmersiveBorderGlow(
     val paint = remember { Paint().asFrameworkPaint().apply { isAntiAlias = true } }
     val shaderMatrix = remember { Matrix() }
     val angle = sweepAngle.value
+    val progress = revealProgress.coerceIn(0f, 1f)
     val spectrum = remember(glowColor) {
         fun tint(c: Color): Color = Color(
             red = c.red * 0.72f + glowColor.red * 0.28f,
@@ -716,7 +757,13 @@ fun ImmersiveBorderGlow(
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .windowInsetsPadding(windowInsets),
+            .windowInsetsPadding(windowInsets)
+            .graphicsLayer {
+                // Offscreen layer required for DstIn reveal mask while expanding.
+                if (progress < 0.999f) {
+                    compositingStrategy = CompositingStrategy.Offscreen
+                }
+            },
     ) {
         val w = size.width
         val h = size.height
@@ -760,6 +807,27 @@ fun ImmersiveBorderGlow(
         drawEdge(0f, 0f, thickness, h, 0f, 0f, thickness, 0f)
         // Right — fades leftward (inward).
         drawEdge(w - thickness, 0f, w, h, w, 0f, w - thickness, 0f)
+
+        // Expand from bottom-center (system-bar / hardkey origin) to fill the frame.
+        if (progress < 0.999f) {
+            val origin = Offset(cx, h)
+            val maxRadius = hypot(cx.toDouble(), h.toDouble()).toFloat() * 1.12f
+            val radius = (maxRadius * progress).coerceAtLeast(1f)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.00f to Color.White,
+                        0.78f to Color.White,
+                        1.00f to Color.Transparent,
+                    ),
+                    center = origin,
+                    radius = radius,
+                ),
+                radius = radius,
+                center = origin,
+                blendMode = BlendMode.DstIn,
+            )
+        }
     }
 }
 
