@@ -24,7 +24,7 @@ Related:
 |---------|---------|--------|
 | UI renderer | `compose` | Immersive Compose stage in the voice session |
 | Face | `hybrid` | Immersive hybrid eyes |
-| Backend (UI events) | `DemoAssistantBackend` | Scripted demo for UI validation; real agent bridge is ready to swap |
+| Backend (UI events) | `VehicleAgentAssistantBackend` (default) / `DemoAssistantBackend` | Production agent bridge; demo scripts for UI-only validation |
 
 Legacy XML plates (`polestar`, `pill`, `hud`, …) remain available via ADB and will be discarded gradually.
 
@@ -224,7 +224,7 @@ After changing Global settings, summon the assistant again (or restart the app p
 Installed from `VehicleApplication`:
 
 ```kotlin
-AssistantRuntimeBootstrap.install(this, useDemoBackend = true)
+AssistantRuntimeBootstrap.install(this, useDemoBackend = false)
 ```
 
 | Class | Path | Role |
@@ -233,7 +233,8 @@ AssistantRuntimeBootstrap.install(this, useDemoBackend = true)
 | `VehicleAssistantHost` | same | `AssistantHost` cabin + cluster hand-off |
 | `AssistantUiProfile` | same | Compose vs XML profile |
 | `VehicleAgentAssistantBackend` | same | Production bridge skeleton to `AssistantViewModel` |
-| `DemoAssistantBackend` | `:assistant` | Current Compose event driver |
+| `VehicleAgentAssistantBackend` | `:app` | Default Compose event driver (production) |
+| `DemoAssistantBackend` | `:assistant` | Optional scripted demo for UI validation |
 
 To switch Compose onto the real agent:
 

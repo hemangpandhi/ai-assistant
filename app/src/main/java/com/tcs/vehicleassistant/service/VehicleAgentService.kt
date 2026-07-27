@@ -11,7 +11,9 @@ import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.R
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.hardware.AndroidAudioManager
+import com.tcs.vehicleassistant.hardware.IAudioManager
 import android.content.ComponentCallbacks2
+import org.koin.java.KoinJavaComponent.getKoin
 
 class VehicleAgentService : Service(), ComponentCallbacks2 {
 
@@ -28,8 +30,8 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
         super.onCreate()
         createNotificationChannel()
         
-        audioManager = AndroidAudioManager(this)
-        viewModel = AssistantViewModel(this, audioManager)
+        audioManager = getKoin().get<IAudioManager>() as AndroidAudioManager
+        viewModel = getKoin().get()
         
         audioManager.initialize(
             onSuccess = {

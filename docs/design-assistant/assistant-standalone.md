@@ -33,8 +33,9 @@ Packages align with the Android `namespace` (`com.assistant.ui.assistant`); API 
 ## Wiring today
 
 ```kotlin
-AssistantRuntimeBootstrap.install(app, useDemoBackend = true)
-// → AssistantRuntime.install(VehicleAssistantHost(app), DemoAssistantBackend(...))
+AssistantRuntimeBootstrap.install(app, useDemoBackend = false)
+// Default production path → VehicleAgentAssistantBackend
+// Demo path: useDemoBackend = true → DemoAssistantBackend for UI-only validation
 ```
 
 `ImmersiveAssistantOverlay` collects `AssistantBackend.events` and forwards mic input via `onSpeechInput`. Swap `DemoAssistantBackend` for `VehicleAgentAssistantBackend` without touching Compose.

@@ -63,6 +63,11 @@ class LocalLLMActivity : AppCompatActivity() {
                 .putBoolean("cloud_model_active", active)
                 .putString("cloud_model_name", modelName)
                 .apply()
+            runCatching {
+                org.koin.java.KoinJavaComponent.getKoin()
+                    .get<com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags>()
+                    .setCloudMode(active, modelName)
+            }
         }
     }
 

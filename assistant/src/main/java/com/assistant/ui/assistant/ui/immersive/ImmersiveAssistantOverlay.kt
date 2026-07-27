@@ -62,6 +62,10 @@ import com.assistant.ui.assistant.api.AssistantStartReason
 import com.assistant.ui.assistant.api.AssistantContextGlyph
 import com.assistant.ui.assistant.backend.toUiGesture
 import com.assistant.ui.assistant.backend.toUiMood
+import com.assistant.ui.assistant.mvi.AssistantStageStore
+import com.assistant.ui.assistant.mvi.StageIntent
+import com.assistant.ui.assistant.mvi.StageState
+import com.assistant.ui.assistant.mvi.StageEffect
 import com.assistant.ui.assistant.backend.toUiSpeaker
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -120,52 +124,52 @@ fun ImmersiveAssistantOverlay(
         AssistantFaceConfig.install(context)
     }
 
-    var visible by remember { mutableStateOf(!awaitHotword) }
-    var session by remember { mutableIntStateOf(if (!awaitHotword) 1 else 0) }
-    var presentation by remember { mutableStateOf(AssistantPresentation.Immersive) }
-    var mood by remember {
-        mutableStateOf(if (!awaitHotword) AssistantMood.Listening else initialMood)
+    val stageStore = remember {
+        AssistantStageStore(
+            StageState(
+                visible = !awaitHotword,
+                session = if (!awaitHotword) 1 else 0,
+                mood = if (!awaitHotword) AssistantMood.Listening else initialMood,
+            )
+        )
     }
-    var transcript by remember { mutableStateOf("") }
-    var speaker by remember { mutableStateOf(DialogueSpeaker.System) }
-    var gazeX by remember { mutableStateOf<Float?>(-0.42f) }
-    var gazeY by remember { mutableStateOf<Float?>(0.05f) }
-    var mouthAmplitude by remember { mutableStateOf<Float?>(null) }
-    var gesture by remember { mutableStateOf(FaceGesture.None) }
-    var showThumbs by remember { mutableStateOf(false) }
-    var thumbsTick by remember { mutableIntStateOf(0) }
-    var contextGlyph by remember { mutableStateOf<AssistantContextGlyph?>(null) }
-    var glyphGazeActive by remember { mutableStateOf(false) }
-    var lastError by remember { mutableStateOf<String?>(null) }
+    val stage = stageStore.state
+    val visible = stage.visible
+    val session = stage.session
+    val presentation = stage.presentation
+    val mood = stage.mood
+    val transcript = stage.transcript
+    val speaker = stage.speaker
+    val gazeX = stage.gazeX
+    val gazeY = stage.gazeY
+    val mouthAmplitude = stage.mouthAmplitude
+    val gesture = stage.gesture
+    val showThumbs = stage.showThumbs
+    val thumbsTick = stage.thumbsTick
+    val contextGlyph = stage.contextGlyph
+    val glyphGazeActive = stage.glyphGazeActive
+    val lastError = stage.lastError
 
     fun summon() {
         if (visible) {
-            // Already on stage — refresh listening mood only.
-            // Do not wipe transcript: onShow re-summons and would erase user/assistant text
-            // (and the greeting emitted by startSession).
-            mood = AssistantMood.Listening
-            gesture = FaceGesture.None
-            mouthAmplitude = null
-            showThumbs = false
-            lastError = null
-            gazeX = -0.42f
-            gazeY = 0.05f
+            // Already on stage — refresh listening mood only; keep transcript.
+            stageStore.update {
+                it.copy(
+                    mood = AssistantMood.Listening,
+                    gesture = FaceGesture.None,
+                    mouthAmplitude = null,
+                    showThumbs = false,
+                    lastError = null,
+                    gazeX = -0.42f,
+                    gazeY = 0.05f,
+                )
+            }
             return
         }
-        session += 1
-        presentation = AssistantPresentation.Immersive
-        mood = AssistantMood.Listening
-        transcript = ""
-        speaker = DialogueSpeaker.System
-        gesture = FaceGesture.None
-        mouthAmplitude = null
-        showThumbs = false
-        contextGlyph = null
-        glyphGazeActive = false
-        lastError = null
-        gazeX = -0.42f
-        gazeY = 0.05f
-        visible = true
+        stageStore.dispatch(StageIntent.Summon)
+        stageStore.update {
+            it.copy(transcript = "", presentation = AssistantPresentation.Immersive)
+        }
     }
 
     LaunchedEffect(presentation, visible) {
@@ -177,9 +181,20 @@ fun ImmersiveAssistantOverlay(
     ImmersiveHotwordBridge(
         onSummon = { summon() },
         onDismiss = {
-            if (visible) visible = false
+            if (visible) stageStore.dispatch(StageIntent.Dismiss)
         },
     )
+
+    LaunchedEffect(Unit) {
+        stageStore.effects.collect { effect ->
+            when (effect) {
+                StageEffect.RequestListen -> Unit // mic owned by agent backend in production
+                StageEffect.ClusterHandOff -> host.openClusterHandOff()
+                StageEffect.FinishSession -> Unit
+                StageEffect.StopSession -> backend.stopSession()
+            }
+        }
+    }
 
     // Forward device STT into the backend (UI stays dumb).
     // Wait for wake-word AudioRecord to fully release before binding SpeechRecognizer.
@@ -211,55 +226,15 @@ fun ImmersiveAssistantOverlay(
         }
         launch {
             backend.events.collect { event ->
-                when (event) {
-                    is AssistantSessionEvent.MoodChanged -> {
-                        mood = event.mood.toUiMood()
-                        if (mood == AssistantMood.Listening) lastError = null
+                if (event is AssistantSessionEvent.SessionComplete && awaitHotword) {
+                    if (stageStore.state.visible) stageStore.dispatch(StageIntent.Dismiss)
+                } else if (event is AssistantSessionEvent.Error) {
+                    stageStore.dispatch(StageIntent.BackendEvent(event))
+                    stageStore.update {
+                        it.copy(transcript = event.message, speaker = DialogueSpeaker.System)
                     }
-                    is AssistantSessionEvent.Transcript -> {
-                        transcript = event.text
-                        speaker = event.speaker.toUiSpeaker()
-                    }
-                    is AssistantSessionEvent.Error -> {
-                        lastError = event.message
-                        transcript = event.message
-                        speaker = DialogueSpeaker.System
-                    }
-                    is AssistantSessionEvent.Gaze -> {
-                        gazeX = event.x
-                        gazeY = event.y
-                    }
-                    is AssistantSessionEvent.GestureChanged ->
-                        gesture = event.gesture.toUiGesture()
-                    is AssistantSessionEvent.MouthAmplitude -> mouthAmplitude = event.value
-                    is AssistantSessionEvent.ThumbsVisible -> {
-                        showThumbs = event.visible
-                        if (event.visible) thumbsTick += 1
-                    }
-                    is AssistantSessionEvent.ContextGlyph -> {
-                        contextGlyph = event.glyph
-                        glyphGazeActive = event.glyph != null
-                    }
-                    is AssistantSessionEvent.PresentationHint -> Unit
-                    AssistantSessionEvent.RequestClusterHandOff -> host.openClusterHandOff()
-                    AssistantSessionEvent.SessionComplete -> {
-                        if (awaitHotword) {
-                            // Hotword mode collapses back to tap-to-summon.
-                            if (visible) visible = false
-                        } else {
-                            // Dock / system-bar launches must keep the face on stage.
-                            // Collapsing here left only a dim overlay until the next tap.
-                            mood = AssistantMood.Listening
-                            transcript = ""
-                            speaker = DialogueSpeaker.System
-                            mouthAmplitude = null
-                            gesture = FaceGesture.None
-                            showThumbs = false
-                            contextGlyph = null
-                            glyphGazeActive = false
-                            lastError = null
-                        }
-                    }
+                } else {
+                    stageStore.dispatch(StageIntent.BackendEvent(event))
                 }
             }
         }
@@ -276,18 +251,18 @@ fun ImmersiveAssistantOverlay(
     LaunchedEffect(showThumbs, thumbsTick, mood) {
         if (!showThumbs) return@LaunchedEffect
         if (mood == AssistantMood.Listening) {
-            showThumbs = false
+            stageStore.update { it.copy(showThumbs = false) }
             return@LaunchedEffect
         }
         delay(4_000)
-        showThumbs = false
+        stageStore.update { it.copy(showThumbs = false) }
     }
 
     LaunchedEffect(gesture) {
         if (gesture == FaceGesture.Nod || gesture == FaceGesture.Shake) {
             delay(700)
-            if (gesture == FaceGesture.Nod || gesture == FaceGesture.Shake) {
-                gesture = FaceGesture.None
+            if (stageStore.state.gesture == FaceGesture.Nod || stageStore.state.gesture == FaceGesture.Shake) {
+                stageStore.update { it.copy(gesture = FaceGesture.None) }
             }
         }
     }
@@ -295,7 +270,7 @@ fun ImmersiveAssistantOverlay(
     LaunchedEffect(contextGlyph, glyphGazeActive) {
         if (!glyphGazeActive || contextGlyph == null) return@LaunchedEffect
         delay(800)
-        glyphGazeActive = false
+        stageStore.update { it.copy(glyphGazeActive = false) }
     }
 
     val backdropAlpha = remember { Animatable(0f) }
@@ -387,7 +362,7 @@ fun ImmersiveAssistantOverlay(
                             Modifier.clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { visible = false },
+                                onClick = { stageStore.dispatch(StageIntent.Dismiss) },
                             )
                         } else {
                             Modifier
@@ -690,6 +665,13 @@ private fun ImmersiveHotwordBridge(
     onSummon: () -> Unit,
     onDismiss: () -> Unit = {},
 ) {
+    // SharedFlow bus (preferred) + legacy handler list for any external registrants.
+    LaunchedEffect(onSummon) {
+        ImmersiveStageBus.summon.collect { onSummon() }
+    }
+    LaunchedEffect(onDismiss) {
+        ImmersiveStageBus.dismiss.collect { onDismiss() }
+    }
     DisposableEffect(onSummon, onDismiss) {
         immersiveSummonHandlers += onSummon
         immersiveDismissHandlers += onDismiss
@@ -702,12 +684,14 @@ private fun ImmersiveHotwordBridge(
 
 /** Called when hotword is detected; also notifies the legacy NOMI overlay handlers. */
 fun notifyImmersiveAssistantHotword() {
+    ImmersiveStageBus.notifySummon()
     immersiveSummonHandlers.toList().forEach { it.invoke() }
     notifyAssistantHotword()
 }
 
 /** Release Compose STT / stage when the VoiceInteractionSession hides. */
 fun notifyImmersiveAssistantDismiss() {
+    ImmersiveStageBus.notifyDismiss()
     immersiveDismissHandlers.toList().forEach { it.invoke() }
 }
 

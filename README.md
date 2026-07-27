@@ -27,21 +27,16 @@ For a comprehensive component breakdown and block diagram, see the [Architecture
 
 ```mermaid
 graph TD
-    UserVoice(🗣️ Voice) --> |STT| UI[📱 LocalLLMActivity]
-    UserText(⌨️ Text) --> UI
-    UI --> |Query| SM[🧠 LLMManager]
-    SM --> |Sensor Data| VM[🚗 VehicleManager]
-    VM -.-> SM
-    SM --> |Prompt| Engine{⚙️ LiteRT-LM / Cloud API}
-    Engine -.-> |Response| SM
-    SM --> |&lt;TOOL&gt;| TM[🛠️ ToolManager]
-    SM --> |Text| TTS[🔊 Android TTS]
-    
-    JSON[📄 vehicle_skills_registry.json] -.-> |Loads Tool Routes| TM
-    JSON -.-> |Loads VHAL Properties| VM
-
-    TM --> VM
-    TM --> Intents[📱 Apps]
+    UserVoice(Voice) --> |STT| Sess[AssistantSession / Compose]
+    UserText(Text) --> Act[LocalLLMActivity]
+    Sess --> VM[AssistantViewModel]
+    Act --> Bridge[InAppOrchestratorBridge]
+    VM --> Orch[AgentOrchestrator]
+    Bridge --> Orch
+    Orch --> Edge[LlmEngine / ILLMProvider]
+    Orch --> TM[ToolManager]
+    TM --> VHAL[VhalGateway]
+    JSON[vehicle_skills_registry.json] -.-> TM
 ```
 
 For a detailed breakdown of the system architecture, including the **Eager Streaming Tool Execution** and **Sentence-Boundary Streaming TTS** pipelines, please read the full [Architecture Documentation](ARCHITECTURE.md).
