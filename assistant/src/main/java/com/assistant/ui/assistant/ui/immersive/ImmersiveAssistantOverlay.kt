@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -667,11 +668,15 @@ fun ImmersiveBackdrop(
  * Alive multi-color perimeter glow: wide neon spectrum bloom at the screen edge
  * (indigo → blue → red → orange → gold → violet) that eases inward to full
  * transparency. Colors slowly drift around the frame when idle motion is on.
+ *
+ * [windowInsets] inset the glow from system bars (e.g. bottom nav) so the rim
+ * stays visible; pass [WindowInsets] with zeros for true edge-to-edge.
  */
 @Composable
 fun ImmersiveBorderGlow(
     modifier: Modifier = Modifier,
     glowColor: Color = Color(0xFF7B6CFF),
+    windowInsets: WindowInsets = WindowInsets.systemBars,
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
     val sweepAngle = remember { Animatable(0f) }
@@ -728,7 +733,11 @@ fun ImmersiveBorderGlow(
         floatArrayOf(0.00f, 0.12f, 0.32f, 0.58f, 0.82f, 1.00f)
     }
 
-    Canvas(modifier = modifier.fillMaxSize()) {
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(windowInsets),
+    ) {
         val w = size.width
         val h = size.height
         // Extra-wide bloom: bright rim + deep soft wash into the stage.
