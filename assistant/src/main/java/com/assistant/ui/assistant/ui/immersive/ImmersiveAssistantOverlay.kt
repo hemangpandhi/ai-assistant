@@ -68,6 +68,7 @@ import android.graphics.SweepGradient
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.assistant.ui.assistant.api.AssistantDebugInfo
 import com.assistant.ui.assistant.api.AssistantDebugLog
+import com.assistant.ui.assistant.api.AssistantDebugStripConfig
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.api.AssistantSessionConfig
 import com.assistant.ui.assistant.api.AssistantSessionEvent
@@ -133,6 +134,7 @@ fun ImmersiveAssistantOverlay(
 
     LaunchedEffect(Unit) {
         AssistantFaceConfig.install(context)
+        AssistantDebugStripConfig.install(context)
     }
 
     var visible by remember { mutableStateOf(!awaitHotword) }
@@ -418,6 +420,7 @@ fun ImmersiveAssistantOverlay(
     val showOverlay = visible ||
         backdropAlpha.value > 0.02f ||
         faceAlpha.value > 0.02f
+    val debugStripVisible by AssistantDebugStripConfig.visible.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -500,7 +503,7 @@ fun ImmersiveAssistantOverlay(
                 )
             }
 
-            if (richEffects) {
+            if (richEffects && debugStripVisible) {
                 ImmersiveAssistantDebugStrip(
                     debugInfo = host.debugInfo(),
                     errorMessage = lastError,

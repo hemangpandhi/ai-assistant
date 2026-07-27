@@ -64,6 +64,33 @@ adb shell settings put global design_assistant_face hybrid
 adb shell settings get global design_assistant_face
 ```
 
+## Debug strip (model / backend / live log)
+
+On debuggable builds the immersive overlay shows a top debug strip. Hide or restore it:
+
+```bash
+# Hide
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_DEBUG_STRIP \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.api.AssistantDebugStripReceiver \
+  --es visible off
+
+# Show
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_DEBUG_STRIP \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.api.AssistantDebugStripReceiver \
+  --es visible on
+
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_DEBUG_STRIP \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.api.AssistantDebugStripReceiver
+adb logcat -d -s AssistantDebugStrip:I | tail -n 3
+
+# Survives process
+adb shell settings put global vehicle_assistant_debug_strip off
+adb shell settings get global vehicle_assistant_debug_strip
+```
+
+Tokens: `on` | `off` | `1` | `0` | `show` | `hide` | `true` | `false`  
+Default: `on` (strip still only appears on debuggable APKs).
+
 ## Launch assistant surfaces
 
 ```bash
