@@ -33,6 +33,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.test.design.assistant.api.AssistantRuntime
 import com.test.design.presentation.assistant.AssistantTheme
 import com.test.design.presentation.assistant.VirtualAssistantOverlay
+import com.test.design.presentation.assistant.notifyImmersiveAssistantHotword
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.VehicleAgentAssistantBackend

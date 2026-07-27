@@ -191,7 +191,21 @@ fun ImmersiveAssistantOverlay(
                     is AssistantSessionEvent.PresentationHint -> Unit
                     AssistantSessionEvent.RequestClusterHandOff -> host.openClusterHandOff()
                     AssistantSessionEvent.SessionComplete -> {
-                        if (visible) visible = false
+                        if (awaitHotword) {
+                            // Hotword mode collapses back to tap-to-summon.
+                            if (visible) visible = false
+                        } else {
+                            // Dock / system-bar launches must keep the face on stage.
+                            // Collapsing here left only a dim overlay until the next tap.
+                            mood = AssistantMood.Listening
+                            transcript = ""
+                            speaker = DialogueSpeaker.System
+                            mouthAmplitude = null
+                            gesture = FaceGesture.None
+                            showThumbs = false
+                            contextGlyph = null
+                            glyphGazeActive = false
+                        }
                     }
                 }
             }
@@ -240,7 +254,9 @@ fun ImmersiveAssistantOverlay(
     var hasPresented by remember { mutableStateOf(false) }
     var immersiveEnteredSession by remember { mutableIntStateOf(-1) }
 
-    // Enter: blur first → face slides up. Exit: face slides down → blur hides.
+    // Enter: dim stage + face rise. Exit: face slides down → dim hides.
+    // Dock / system-bar (!awaitHotword) brings the face up with the scrim so the
+    // assistant never looks like an empty overlay waiting for a tap.
     LaunchedEffect(visible, session) {
         if (visible) {
             hasPresented = true
@@ -252,22 +268,42 @@ fun ImmersiveAssistantOverlay(
                 transcriptAlpha.snapTo(0f)
                 backdropAlpha.snapTo(0f)
 
-                backdropAlpha.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
-                delay(60)
-                wake.play() // soft chime as the face starts sliding up
-                launch {
-                    faceAlpha.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
-                }
-                launch {
-                    faceScale.animateTo(
-                        1f,
-                        spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+                wake.play()
+                if (!awaitHotword) {
+                    // Immediate face presence for system-bar / dock launches.
+                    launch {
+                        backdropAlpha.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
+                    }
+                    launch {
+                        faceAlpha.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
+                    }
+                    launch {
+                        faceScale.animateTo(
+                            1f,
+                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    faceRise.animateTo(
+                        0f,
+                        spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
+                    )
+                } else {
+                    backdropAlpha.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
+                    delay(60)
+                    launch {
+                        faceAlpha.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
+                    }
+                    launch {
+                        faceScale.animateTo(
+                            1f,
+                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
+                        )
+                    }
+                    faceRise.animateTo(
+                        0f,
+                        spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
                     )
                 }
-                faceRise.animateTo(
-                    0f,
-                    spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
-                )
                 delay(80)
                 transcriptAlpha.animateTo(1f, tween(340, easing = FastOutSlowInEasing))
             }
@@ -371,12 +407,18 @@ fun ImmersiveAssistantOverlay(
 }
 
 /**
- * Center-band stage: darken/blur only the middle ~40% width (soft 30–40–30),
- * with the same gradual falloff used vertically — side gutters stay clear.
+ * Full-stage dim for the immersive assistant, with a stronger bottom/center pool
+ * behind the face so chrome stays readable over maps / launcher.
  */
 @Composable
 fun ImmersiveBackdrop(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize()) {
+        // Full-screen base dim — darker than the previous soft center-band only.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(AssistantTokens.Scrim),
+        )
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -384,11 +426,11 @@ fun ImmersiveBackdrop(modifier: Modifier = Modifier) {
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to Color(0x00000000),
-                            0.52f to Color(0x00000000),
-                            0.70f to Color(0x33101820),
-                            0.86f to Color(0x6610141C),
-                            1.0f to Color(0x990A0C10),
+                            0.0f to Color(0x6610141C),
+                            0.40f to Color(0x99101820),
+                            0.68f to Color(0xCC0E1218),
+                            0.86f to Color(0xE60A0C10),
+                            1.0f to Color(0xF2050608),
                         ),
                     ),
                 )
@@ -402,7 +444,7 @@ fun ImmersiveBackdrop(modifier: Modifier = Modifier) {
                     )
                 },
         )
-        // Light bottom-center pool — confined to the center band.
+        // Darker bottom-center pool — confined to the center band.
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
@@ -413,13 +455,13 @@ fun ImmersiveBackdrop(modifier: Modifier = Modifier) {
             drawRect(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to Color(0x99000000),
-                        0.42f to Color(0x55000000),
-                        0.78f to Color(0x22000000),
+                        0.0f to Color(0xE6000000),
+                        0.40f to Color(0x99000000),
+                        0.72f to Color(0x44000000),
                         1.0f to Color.Transparent,
                     ),
                     center = Offset(w * 0.5f, h * 0.88f),
-                    radius = minOf(w * 0.22f, h * 0.36f),
+                    radius = minOf(w * 0.28f, h * 0.42f),
                 ),
             )
             drawRect(
