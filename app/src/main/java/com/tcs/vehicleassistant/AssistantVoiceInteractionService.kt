@@ -7,6 +7,8 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.service.voice.VoiceInteractionService
 import android.service.voice.VoiceInteractionSession
+import com.assistant.ui.assistant.ui.immersive.AssistantComposePrewarmer
+import kotlin.concurrent.thread
 
 class AssistantVoiceInteractionService : VoiceInteractionService() {
 
@@ -49,11 +51,10 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
     override fun onReady() {
         super.onReady()
         // Start wake-word as a foreground service so hotword stays alive.
+        // Car init is off the main thread; Compose is prewarmed so the first
+        // session inflate does not pay cold class-load / runtime cost.
         android.os.Handler(mainLooper).post {
-            try {
-                VehicleManager.initialize(this)
-            } catch (_: Exception) {
-            }
+            AssistantComposePrewarmer.warm(this)
             try {
                 val wake = Intent(this, WakeWordService::class.java)
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -63,6 +64,12 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("WakeWord", "Failed to start WakeWordService", e)
+            }
+            thread(name = "vis-car-init", isDaemon = true) {
+                try {
+                    VehicleManager.initialize(this@AssistantVoiceInteractionService)
+                } catch (_: Exception) {
+                }
             }
         }
     }
