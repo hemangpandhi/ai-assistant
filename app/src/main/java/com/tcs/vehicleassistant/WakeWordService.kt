@@ -37,6 +37,14 @@ class WakeWordService : Service() {
         private const val SILENCE_THRESHOLD = 180
         /** When silent, run recognizer on 1 of every N buffers. */
         private const val SILENT_DUTY_SKIP = 4
+
+        /**
+         * True while Vosk holds [android.media.AudioRecord].
+         * AssistantSession waits for false before opening SpeechRecognizer.
+         */
+        @Volatile
+        var isHoldingMic: Boolean = false
+            private set
     }
 
     private val serviceJob = SupervisorJob()
@@ -147,6 +155,7 @@ class WakeWordService : Service() {
                 }
 
                 customAudioRecord?.startRecording()
+                isHoldingMic = true
                 val buffer = ShortArray(bufferSize)
 
                 var loopCount = 0
@@ -195,6 +204,7 @@ class WakeWordService : Service() {
                 } catch (_: Exception) {
                 }
                 customAudioRecord = null
+                isHoldingMic = false
             }
         }
     }
@@ -242,8 +252,10 @@ class WakeWordService : Service() {
                     } catch (_: Exception) {
                     }
                     customAudioRecord = null
+                    isHoldingMic = false
                     Log.d(TAG, "Hotword AudioRecord fully released")
                 } catch (e: Exception) {
+                    isHoldingMic = false
                     Log.e(TAG, "Failed to stop hotword cleanly: ${e.message}")
                 }
             }
@@ -261,6 +273,7 @@ class WakeWordService : Service() {
         } catch (_: Exception) {
         }
         customAudioRecord = null
+        isHoldingMic = false
         customRecognizer?.close()
         super.onDestroy()
     }
@@ -307,6 +320,7 @@ class WakeWordService : Service() {
             } catch (_: Exception) {
             }
             customAudioRecord = null
+            isHoldingMic = false
         }
     }
 

@@ -64,6 +64,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import com.assistant.ui.assistant.api.AssistantBackend
 
 /**
@@ -153,6 +154,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var idleJob: Job? = null
     /** Collects uiState / events to arm or pause [idleJob]. */
     private var idleWatchJob: Job? = null
+    /**
+     * Idle auto-close must not run until STT has reached Listening at least once.
+     * Otherwise the 5s timer races wake-word mic release and closes before the user can speak.
+     */
+    private var idleArmedAfterMicReady = false
+    /** Opens agent STT after wake-word AudioRecord is released. */
+    private var micHandoffJob: Job? = null
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -527,9 +535,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
      * LLM / text activity, dismiss the overlay and finish the session.
      *
      * Busy states (thinking / streaming / speaking) and model warm-up pause the timer.
+     * Timer does not start until the mic has reached Listening at least once.
      */
     private fun startIdleWatch() {
         AssistantIdleTimeout.install(context)
+        idleArmedAfterMicReady = false
         idleWatchJob?.cancel()
         idleWatchJob = observerScope.launch {
             val vm = viewModel
@@ -543,14 +553,25 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                             is ViewModelEvent.SetInputText -> {
                                 if (event.text.isNotBlank()) noteUserActivity()
                             }
-                            is ViewModelEvent.StartListening -> armIdleTimer("start-listening")
+                            is ViewModelEvent.StartListening -> {
+                                idleArmedAfterMicReady = true
+                                armIdleTimer("start-listening")
+                            }
                             else -> Unit
                         }
                     }
                 }
             }
-            // Begin counting even before the ViewModel binds (first open).
-            armIdleTimer("watch-start")
+            // Do not count down until STT is ready — pause while warming / handoff.
+            pauseIdleTimer()
+            AssistantDebugLog.d("Session", "idle watch started — waiting for mic ready")
+            // Safety: if STT never reaches Listening, still allow close after a long grace.
+            delay(15_000)
+            if (isActive && sessionUiVisible && !idleArmedAfterMicReady) {
+                AssistantDebugLog.w("Session", "idle grace — mic never ready, arming anyway")
+                idleArmedAfterMicReady = true
+                armIdleTimer("mic-ready-fallback")
+            }
         }
     }
 
@@ -559,6 +580,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         idleJob = null
         idleWatchJob?.cancel()
         idleWatchJob = null
+        micHandoffJob?.cancel()
+        micHandoffJob = null
+        idleArmedAfterMicReady = false
     }
 
     private fun onUiStateForIdle(state: AssistantUiState) {
@@ -567,11 +591,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             is AssistantUiState.Streaming,
             is AssistantUiState.Speaking,
             -> pauseIdleTimer()
+            is AssistantUiState.Listening -> {
+                idleArmedAfterMicReady = true
+                if (isModelWarmingUp()) {
+                    pauseIdleTimer()
+                } else {
+                    armIdleTimer("ui:Listening")
+                }
+            }
             is AssistantUiState.Idle,
-            is AssistantUiState.Listening,
             is AssistantUiState.Error,
             -> {
-                if (isModelWarmingUp()) {
+                if (!idleArmedAfterMicReady || isModelWarmingUp()) {
                     pauseIdleTimer()
                 } else {
                     armIdleTimer("ui:${state::class.simpleName}")
@@ -592,6 +623,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             pauseIdleTimer()
             return
         }
+        if (!idleArmedAfterMicReady) return
         armIdleTimer("user-activity")
     }
 
@@ -603,6 +635,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private fun armIdleTimer(reason: String) {
         idleJob?.cancel()
         if (!sessionUiVisible) return
+        if (!idleArmedAfterMicReady) {
+            AssistantDebugLog.d("Session", "idle arm skipped — mic not ready ($reason)")
+            return
+        }
         val timeoutMs = AssistantIdleTimeout.currentMs()
         if (timeoutMs <= 0L) {
             AssistantDebugLog.d("Session", "idle timer disabled ($reason)")
@@ -623,6 +659,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             }
             if (busy || isModelWarmingUp()) {
                 AssistantDebugLog.d("Session", "idle fire skipped — busy")
+                return@launch
+            }
+            // Never close while STT is still starting (not yet Listening).
+            if (viewModel?.uiState?.value !is AssistantUiState.Listening &&
+                viewModel?.uiState?.value !is AssistantUiState.Idle &&
+                viewModel?.uiState?.value !is AssistantUiState.Error
+            ) {
                 return@launch
             }
             dismissForIdleTimeout()
@@ -799,15 +842,31 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             val origin = ImmersiveSummonOrigin.fromBundleToken(
                 args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
             )
-            // post + delayed retry: composition may register the summon bridge a frame late.
+            // Summon UI immediately; arm mic as soon as Vosk releases AudioRecord.
             overlayView.post {
                 notifyImmersiveAssistantSummon(origin)
-                AssistantRuntime.backend?.asMicController()?.requestListen()
             }
             overlayView.postDelayed(
                 { notifyImmersiveAssistantSummon(origin) },
                 80L,
             )
+            micHandoffJob?.cancel()
+            micHandoffJob = observerScope.launch {
+                val released = withTimeoutOrNull(900L) {
+                    // Hotword path often already released; icon/assist may still hold the mic.
+                    while (WakeWordService.isHoldingMic) {
+                        delay(20)
+                    }
+                }
+                AssistantDebugLog.d(
+                    "Session",
+                    "mic handoff ready holding=${WakeWordService.isHoldingMic} timedOut=${released == null}",
+                )
+                // Tiny settle so AudioRecord teardown finishes before SpeechRecognizer.
+                delay(40)
+                if (!sessionUiVisible) return@launch
+                AssistantRuntime.backend?.asMicController()?.requestListen()
+            }
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
                     if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
