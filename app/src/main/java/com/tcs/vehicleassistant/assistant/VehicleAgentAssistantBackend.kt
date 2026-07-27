@@ -35,7 +35,7 @@ import kotlinx.coroutines.launch
  */
 class VehicleAgentAssistantBackend(
     private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
-) : AssistantBackend {
+) : AssistantBackend, com.assistant.ui.assistant.api.AssistantMicController {
 
     private val _events = MutableSharedFlow<AssistantSessionEvent>(extraBufferCapacity = 64)
     override val events: Flow<AssistantSessionEvent> = _events.asSharedFlow()
@@ -54,11 +54,17 @@ class VehicleAgentAssistantBackend(
     private var clientErrorRetries = 0
 
     fun attachViewModel(vm: AssistantViewModel?, audio: IAudioManager? = null) {
+        attachSession(vm, audio)
+    }
+
+    override fun attachSession(session: Any?, audio: Any?) {
+        val vm = session as? AssistantViewModel
+        val audioMgr = audio as? IAudioManager
         uiCollectJob?.cancel()
         eventCollectJob?.cancel()
         viewModel = vm
-        if (audio != null) {
-            audioManager = audio
+        if (audioMgr != null) {
+            audioManager = audioMgr
         } else if (vm == null) {
             audioManager = null
         }
@@ -112,6 +118,10 @@ class VehicleAgentAssistantBackend(
         if (_sessionActive.value && listenJob?.isActive != true && !micArmed) {
             scheduleStartMic(reason = "attach-while-active", delayMs = MIC_HANDOFF_MS)
         }
+    }
+
+    override fun detachSession() {
+        attachSession(null, null)
     }
 
     override fun startSession(
@@ -198,7 +208,7 @@ class VehicleAgentAssistantBackend(
 
     override fun onThumbsFeedback(positive: Boolean) = Unit
 
-    fun requestListen() {
+    override fun requestListen() {
         if (!_sessionActive.value) {
             _sessionActive.value = true
         }

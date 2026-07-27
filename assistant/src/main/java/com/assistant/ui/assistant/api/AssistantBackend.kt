@@ -27,6 +27,21 @@ interface AssistantBackend {
     fun onSpeechInput(input: AssistantSpeechInput)
 
     fun onThumbsFeedback(positive: Boolean)
+
+    /**
+     * Optional mic / session controller — production backends implement this so
+     * VoiceInteractionSession does not cast to a concrete type.
+     */
+    fun asMicController(): AssistantMicController? = this as? AssistantMicController
+}
+
+/**
+ * Host-side mic control for the voice session (attach ViewModel, request listen).
+ */
+interface AssistantMicController {
+    fun attachSession(session: Any?, audio: Any? = null)
+    fun detachSession()
+    fun requestListen()
 }
 
 /**
