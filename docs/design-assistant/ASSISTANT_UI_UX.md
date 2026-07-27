@@ -188,6 +188,27 @@ Tokens: `on` | `off` | `1` | `0` | `show` | `hide` (default **on**; release APKs
 
 ---
 
+## ADB — Idle timeout (auto-close)
+
+Quiet-listening auto-close for the Compose overlay. Default: **5** seconds. `0` disables.
+
+```bash
+adb shell am broadcast -a com.tcs.vehicleassistant.action.SET_IDLE_TIMEOUT \
+  -n com.tcs.vehicleassistant/.assistant.AssistantIdleTimeoutReceiver \
+  --ei sec 5
+
+adb shell am broadcast -a com.tcs.vehicleassistant.action.GET_IDLE_TIMEOUT \
+  -n com.tcs.vehicleassistant/.assistant.AssistantIdleTimeoutReceiver
+adb logcat -d -s AssistantIdle:I | tail -n 3
+
+adb shell settings put global vehicle_assistant_idle_timeout_sec 5
+adb shell settings get global vehicle_assistant_idle_timeout_sec
+```
+
+Range: `0`–`600` seconds.
+
+---
+
 ## ADB — Launch surfaces
 
 ```bash
@@ -234,6 +255,15 @@ OEM C — temporary XML Polestar plate:
 
 ```bash
 adb shell settings put global vehicle_assistant_ui xml:polestar
+```
+
+Demo / clean chrome (hide debug strip, short idle close):
+
+```bash
+adb shell settings put global vehicle_assistant_ui compose
+adb shell settings put global design_assistant_face hybrid
+adb shell settings put global vehicle_assistant_debug_strip off
+adb shell settings put global vehicle_assistant_idle_timeout_sec 5
 ```
 
 After changing Global settings, summon the assistant again (or restart the app process) so the session reinflates.
