@@ -260,8 +260,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         onDismiss = { hide() },
                         modifier = Modifier.fillMaxSize(),
                         awaitHotword = false,
-                        // Compose owns STT → backend.onSpeechInput → agent handleQuery.
-                        enableLiveSpeech = true,
+                        // Agent owns STT via IAudioManager (same path as XML).
+                        enableLiveSpeech = false,
                         // Agent owns TTS via orchestrator audioManager.
                         enableTts = false,
                     )
@@ -511,8 +511,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         context.startService(stopListeningIntent)
 
         if (usingComposeUi) {
-            // Stop wake-word AudioRecord fully, then summon + open Compose STT.
-            val assist = (showFlags and SHOW_WITH_ASSIST) != 0
+            // Stop wake-word AudioRecord fully, then open agent STT.
             overlayView.post {
                 notifyImmersiveAssistantHotword()
                 (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
@@ -524,8 +523,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                     }
                 }
             }
-            if (assist) {
-                android.util.Log.d("AssistantSession", "SHOW_WITH_ASSIST — Compose STT will listen")
+            if ((showFlags and SHOW_WITH_ASSIST) != 0) {
+                android.util.Log.d("AssistantSession", "SHOW_WITH_ASSIST — agent STT will listen")
             }
             return
         }

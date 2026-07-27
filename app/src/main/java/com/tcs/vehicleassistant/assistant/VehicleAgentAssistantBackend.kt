@@ -47,13 +47,13 @@ class VehicleAgentAssistantBackend(
     private var uiCollectJob: Job? = null
     private var eventCollectJob: Job? = null
     private var listenJob: Job? = null
+    private var pendingFinalQuery: String? = null
 
     /**
      * Bind the live agent once [com.tcs.vehicleassistant.service.VehicleAgentService] connects.
      * Safe to call repeatedly; collectors are replaced.
      *
-     * Mic: Compose [assistantSpeechEvents] owns STT and forwards via [onSpeechInput].
-     * TTS / LLM: still go through [AssistantViewModel] + [IAudioManager].
+     * Mic / STT: owned by [IAudioManager] (same path as XML). Compose only renders events.
      */
     fun attachViewModel(vm: AssistantViewModel?, audio: IAudioManager? = null) {
         uiCollectJob?.cancel()
@@ -72,10 +72,7 @@ class VehicleAgentAssistantBackend(
         eventCollectJob = scope.launch {
             vm.events.collect { event ->
                 when (event) {
-                    is ViewModelEvent.StartListening -> {
-                        // Compose STT is already running; just reflect listening mood.
-                        emitMood(AssistantMoodId.Listening)
-                    }
+                    is ViewModelEvent.StartListening -> startMic(reason = "orchestrator")
                     is ViewModelEvent.SetInputText -> {
                         if (event.text.isNotBlank()) {
                             _events.emit(
@@ -88,6 +85,7 @@ class VehicleAgentAssistantBackend(
                         }
                     }
                     is ViewModelEvent.FinishSession -> {
+                        // Keep immersive stage up; return to listening instead of dismissing.
                         emitMood(AssistantMoodId.Listening)
                         _events.emit(
                             AssistantSessionEvent.Transcript(
@@ -95,12 +93,17 @@ class VehicleAgentAssistantBackend(
                                 speaker = AssistantSpeaker.System,
                             ),
                         )
+                        startMic(reason = "finish-retry")
                     }
                     else -> Unit
                 }
             }
         }
+
         flushPendingQuery()
+        if (_sessionActive.value) {
+            startMic(reason = "attach-while-active")
+        }
     }
 
     override fun startSession(
@@ -123,6 +126,11 @@ class VehicleAgentAssistantBackend(
                 ),
             )
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
+            // Wait for wake-word AudioRecord to release before binding SpeechRecognizer.
+            delay(700)
+            if (_sessionActive.value) {
+                startMic(reason = "startSession:$reason")
+            }
         }
     }
 
@@ -130,12 +138,13 @@ class VehicleAgentAssistantBackend(
         _sessionActive.value = false
         listenJob?.cancel()
         listenJob = null
-        // Do not destroy the agent SpeechRecognizer here — Compose owns STT.
-        runCatching { audioManager?.stopSpeaking() }
+        runCatching { audioManager?.stopListening() }
+        // Destroy is owned by AssistantSession.onHide so wake-word can reclaim cleanly.
     }
 
     override fun onSpeechInput(input: AssistantSpeechInput) {
-        val vm = viewModel
+        // Production mic is owned by [IAudioManager] via [AssistantViewModel].
+        // Compose live-STT is disabled for this backend; keep a fallback path.
         when (input) {
             is AssistantSpeechInput.Partial -> scope.launch {
                 _events.emit(
@@ -147,13 +156,21 @@ class VehicleAgentAssistantBackend(
                 emitMood(AssistantMoodId.Listening)
             }
             is AssistantSpeechInput.Final -> {
-                if (input.text.isNotBlank()) {
-                    if (vm != null) {
-                        vm.handleQuery(input.text)
-                    } else {
-                        Log.w(TAG, "Final speech dropped — agent ViewModel not bound yet: ${input.text}")
-                        pendingFinalQuery = input.text
-                    }
+                if (input.text.isBlank()) return
+                scope.launch {
+                    _events.emit(
+                        AssistantSessionEvent.Transcript(
+                            text = input.text,
+                            speaker = AssistantSpeaker.User,
+                        ),
+                    )
+                }
+                val vm = viewModel
+                if (vm != null) {
+                    vm.handleQuery(input.text)
+                } else {
+                    Log.w(TAG, "Final speech queued — agent ViewModel not bound yet: ${input.text}")
+                    pendingFinalQuery = input.text
                 }
             }
             is AssistantSpeechInput.Rms -> scope.launch {
@@ -166,38 +183,56 @@ class VehicleAgentAssistantBackend(
                 )
                 _events.emit(AssistantSessionEvent.MouthAmplitude((0.15f + n * 0.55f).coerceIn(0f, 1f)))
             }
-            AssistantSpeechInput.Hotword -> scope.launch {
-                emitMood(AssistantMoodId.Listening)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = "Listening…",
-                        speaker = AssistantSpeaker.System,
-                    ),
-                )
-            }
+            AssistantSpeechInput.Hotword -> startMic(reason = "hotword-input")
         }
     }
 
     override fun onThumbsFeedback(positive: Boolean) = Unit
 
-    /** Kept for session show hooks — mood only; Compose STT is already live. */
+    /** Explicit mic open used by [AssistantSession] on system-bar / assist flags. */
     fun requestListen() {
         scope.launch {
             if (!_sessionActive.value) {
                 _sessionActive.value = true
             }
-            emitMood(AssistantMoodId.Listening)
-            flushPendingQuery()
+            // Same wake-word release window as startSession.
+            delay(700)
+            if (_sessionActive.value) {
+                startMic(reason = "session-request")
+            }
         }
     }
-
-    private var pendingFinalQuery: String? = null
 
     private fun flushPendingQuery() {
         val q = pendingFinalQuery ?: return
         val vm = viewModel ?: return
         pendingFinalQuery = null
         vm.handleQuery(q)
+    }
+
+    private fun startMic(reason: String) {
+        val vm = viewModel
+        val audio = audioManager
+        if (vm == null || audio == null) {
+            Log.d(TAG, "startMic($reason) skipped — agent not bound yet")
+            return
+        }
+        if (vm.isProcessing()) {
+            Log.d(TAG, "startMic($reason) skipped — query in flight")
+            return
+        }
+        try {
+            audio.stopSpeaking()
+            audio.startListening()
+            scope.launch { emitMood(AssistantMoodId.Listening) }
+            Log.d(TAG, "startMic($reason) ok")
+        } catch (t: Throwable) {
+            Log.w(TAG, "startMic($reason) failed", t)
+            scope.launch {
+                emitMood(AssistantMoodId.Sad)
+                _events.emit(AssistantSessionEvent.Error("Microphone unavailable."))
+            }
+        }
     }
 
     private suspend fun mapUiState(state: AssistantUiState) {
@@ -227,7 +262,6 @@ class VehicleAgentAssistantBackend(
                         speaker = AssistantSpeaker.Assistant,
                     ),
                 )
-                // Soft lip-sync while tokens stream (real TTS amplitude arrives via engine).
                 _events.emit(AssistantSessionEvent.MouthAmplitude(0.35f))
             }
             is AssistantUiState.Speaking -> {
