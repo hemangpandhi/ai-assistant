@@ -32,6 +32,9 @@ sealed interface AssistantSessionEvent {
 
     /** Session finished — UI should dismiss immersive chrome. */
     data object SessionComplete : AssistantSessionEvent
+
+    /** Fatal / recoverable failure — shown in debug chrome and as transcript. */
+    data class Error(val message: String) : AssistantSessionEvent
 }
 
 /** Live mic / ASR stream from the device (or a remote STT adapter). */
