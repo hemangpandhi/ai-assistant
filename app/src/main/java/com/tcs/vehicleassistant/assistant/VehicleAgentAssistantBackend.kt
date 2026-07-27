@@ -34,7 +34,7 @@ import kotlinx.coroutines.launch
  * Compose collects [events] only. Mic / STT / TTS stay on the agent path (same as XML).
  */
 class VehicleAgentAssistantBackend(
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
+    private val scope: CoroutineScope = com.tcs.vehicleassistant.core.AgentRuntime.mainScope,
 ) : AssistantBackend, com.assistant.ui.assistant.api.AssistantMicController {
 
     private val _events = MutableSharedFlow<AssistantSessionEvent>(extraBufferCapacity = 64)
@@ -52,6 +52,11 @@ class VehicleAgentAssistantBackend(
     /** True after onReadyForSpeech until stop / result / error. */
     private var micArmed = false
     private var clientErrorRetries = 0
+
+    /** Throttle assistant transcript / mouth updates to ~30fps. */
+    private var lastStreamingUiMs = 0L
+    private var lastMouthEmitMs = 0L
+    private var lastEmittedTranscript: String? = null
 
     fun attachViewModel(vm: AssistantViewModel?, audio: IAudioManager? = null) {
         attachSession(vm, audio)
@@ -192,6 +197,9 @@ class VehicleAgentAssistantBackend(
                 }
             }
             is AssistantSpeechInput.Rms -> scope.launch {
+                val now = System.currentTimeMillis()
+                if (now - lastMouthEmitMs < UI_FRAME_MS) return@launch
+                lastMouthEmitMs = now
                 val n = input.normalized.coerceIn(0f, 1f)
                 _events.emit(
                     AssistantSessionEvent.Gaze(
@@ -318,18 +326,30 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Streaming -> {
                 micArmed = false
-                AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
-                emitMood(AssistantMoodId.Speaking)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = state.displayText,
-                        speaker = AssistantSpeaker.Assistant,
-                    ),
-                )
-                _events.emit(AssistantSessionEvent.MouthAmplitude(0.35f))
+                val now = System.currentTimeMillis()
+                val textChanged = state.displayText != lastEmittedTranscript
+                if (textChanged && now - lastStreamingUiMs >= UI_FRAME_MS) {
+                    lastStreamingUiMs = now
+                    lastEmittedTranscript = state.displayText
+                    AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
+                    emitMood(AssistantMoodId.Speaking)
+                    _events.emit(
+                        AssistantSessionEvent.Transcript(
+                            text = state.displayText,
+                            speaker = AssistantSpeaker.Assistant,
+                        ),
+                    )
+                }
+                if (now - lastMouthEmitMs >= UI_FRAME_MS) {
+                    lastMouthEmitMs = now
+                    // Light amplitude pulse — avoids constant recomposition storms.
+                    val pulse = 0.28f + ((now / 80L) % 3) * 0.08f
+                    _events.emit(AssistantSessionEvent.MouthAmplitude(pulse))
+                }
             }
             is AssistantUiState.Speaking -> {
                 micArmed = false
+                lastEmittedTranscript = state.finalMessage
                 AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
                 emitMood(AssistantMoodId.Speaking)
                 _events.emit(
@@ -338,7 +358,7 @@ class VehicleAgentAssistantBackend(
                         speaker = AssistantSpeaker.Assistant,
                     ),
                 )
-                _events.emit(AssistantSessionEvent.MouthAmplitude(0.55f))
+                _events.emit(AssistantSessionEvent.MouthAmplitude(0.5f))
             }
             is AssistantUiState.Error -> {
                 micArmed = false
@@ -371,5 +391,6 @@ class VehicleAgentAssistantBackend(
         private const val MIC_REARM_MS = 200L
         /** SpeechRecognizer ERROR_CLIENT rebuild delay. */
         private const val MIC_CLIENT_RETRY_MS = 400L
+        private const val UI_FRAME_MS = 32L
     }
 }

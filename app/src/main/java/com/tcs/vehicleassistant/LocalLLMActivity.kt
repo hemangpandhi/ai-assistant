@@ -1000,7 +1000,10 @@ class LocalLLMActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 1) {
             val cameraIndex = permissions.indexOf(android.Manifest.permission.CAMERA)
-            if (cameraIndex != -1 && grantResults.getOrNull(cameraIndex) == PackageManager.PERMISSION_GRANTED) {
+            if (cameraIndex != -1 &&
+                grantResults.getOrNull(cameraIndex) == PackageManager.PERMISSION_GRANTED &&
+                com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(this).proactiveVisionEnabled
+            ) {
                 com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
             }
             val audioIndex = permissions.indexOf(android.Manifest.permission.RECORD_AUDIO)

@@ -52,12 +52,18 @@ class AgentOrchestrator(
     private val _events = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<OrchestratorEvent> = _events.asSharedFlow()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    /** Off-Main agent work — never contend with Compose / STT. */
+    private val scope = com.tcs.vehicleassistant.core.AgentRuntime.scope
     private var isQueryProcessed = true
     private var timeoutJob: Job? = null
     private var pendingConfirmationTool: String? = null
     private val pendingIntentsToLaunch = mutableListOf<Intent>()
     private val lastResponseBuilder = StringBuilder()
+
+    /** Coalesce Streaming UI emits (~30fps) so Compose is not flooded per token. */
+    @Volatile private var pendingStreamDisplay: String? = null
+    @Volatile private var lastStreamEmitMs = 0L
+    private val streamEmitLock = Any()
 
     @Volatile var ttsSpokenLength = 0
         private set
@@ -68,6 +74,31 @@ class AgentOrchestrator(
     private var pendingPrewarmQuery: Pair<String, Int>? = null
     private var prewarmWaitJob: Job? = null
 
+    private fun emitStreamingUi(displayMsg: String, force: Boolean = false) {
+        synchronized(streamEmitLock) {
+            pendingStreamDisplay = displayMsg
+            val now = System.currentTimeMillis()
+            if (force || now - lastStreamEmitMs >= STREAM_UI_COALESCE_MS) {
+                lastStreamEmitMs = now
+                pendingStreamDisplay = null
+                _state.value = OrchestratorState.Streaming(displayMsg)
+            }
+        }
+    }
+
+    private fun flushPendingStreamingUi() {
+        synchronized(streamEmitLock) {
+            pendingStreamDisplay?.let {
+                pendingStreamDisplay = null
+                lastStreamEmitMs = System.currentTimeMillis()
+                _state.value = OrchestratorState.Streaming(it)
+            }
+        }
+    }
+
+    companion object {
+        private const val STREAM_UI_COALESCE_MS = 32L
+    }
     init {
         audioManager.setUtteranceListener(
             onStart = { utteranceId ->
@@ -230,8 +261,9 @@ class AgentOrchestrator(
 
     fun destroy() {
         timeoutJob?.cancel()
-        scope.cancel()
+        prewarmWaitJob?.cancel()
         EmergencyAlarmManager.stop()
+        // Shared AgentRuntime.scope is owned by VehicleAgentService — do not cancel it here.
     }
 
     private fun tryHandleDirectFollowUp(query: String): Boolean {
@@ -338,7 +370,7 @@ class AgentOrchestrator(
             }
 
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            val needsTelemetry = !isAgenticObservation && (interceptedQuery.length >= 25 || isFollowUp)
+            val needsTelemetry = !isAgenticObservation && (interceptedQuery.length >= 40 || isFollowUp)
             val dynamicState = if (needsTelemetry) {
                 SmartContextInjector.getInjectedContext(interceptedQuery, context)
             } else {
@@ -458,7 +490,7 @@ class AgentOrchestrator(
                     displayMsg = displayMsg.trim()
 
                     if (displayMsg.isNotEmpty()) {
-                        _state.value = OrchestratorState.Streaming(displayMsg)
+                        emitStreamingUi(displayMsg)
                     }
 
                     // Eager mid-stream tool execution as soon as </TOOL> closes.
@@ -497,6 +529,7 @@ class AgentOrchestrator(
                 
                 scope.launch {
                     timeoutJob?.cancel()
+                    flushPendingStreamingUi()
 
                     if (FollowUpRouter.responseRequestsAlarm(tempFinalMsg)) {
                         EmergencyAlarmManager.start(context)
@@ -710,7 +743,7 @@ class AgentOrchestrator(
             pendingConfirmationTool = toolCall
             return
         }
-        val job = CoroutineScope(Dispatchers.IO).async {
+        val job = com.tcs.vehicleassistant.core.AgentRuntime.ioScope.async {
             withTimeoutOrNull(10000L) {
                 executeToolCall(toolCall)
             } ?: "System Error: Tool execution timed out."

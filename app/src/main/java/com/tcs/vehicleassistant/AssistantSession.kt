@@ -670,7 +670,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             statusText?.text = ""
             return
         }
-        dotAnimatorJob = CoroutineScope(Dispatchers.Main).launch {
+        dotAnimatorJob = observerScope.launch {
             var dotCount = 0
             while (isActive) {
                 statusText?.text = "$baseText${".".repeat(dotCount)}"

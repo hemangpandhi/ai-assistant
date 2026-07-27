@@ -460,8 +460,10 @@ fun ImmersiveEyesFace(
         }
         val eyeRing = lerp(glyph, glowBase, glowAmount)
         val glow = faceGlow.value.coerceIn(0f, 1.2f)
-        val bobY = idleBob * faceR * 0.058f
-        val swayX = idleSway * faceR * 0.02f
+        // Listening: static pose + blink only — skip bob/sway to cut GPU while mic is open.
+        val motionScale = if (mood == AssistantMood.Listening) 0f else 1f
+        val bobY = idleBob * faceR * 0.058f * motionScale
+        val swayX = idleSway * faceR * 0.02f * motionScale
         val pulse = activityPulse.coerceIn(0f, 1f)
 
         // Soft pulsing halo behind the character — faint activity cue.

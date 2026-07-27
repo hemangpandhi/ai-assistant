@@ -117,6 +117,8 @@ class CockpitAwarenessActivity : AppCompatActivity() {
     }
 
     private fun launchService(url: String) {
+        // Explicit cockpit UI — enable vision for this session.
+        com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(this).proactiveVisionEnabled = true
         val intent = Intent(this, CockpitVisionService::class.java).apply {
             putExtra("CAMERA_URL", url)
         }
