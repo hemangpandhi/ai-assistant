@@ -4,9 +4,16 @@ data class ParsedToolCall(
     val fullTag: String,
     val toolName: String,
     val args: String
-)
+) {
+    /** Canonical tool call string used for execution / dedupe. */
+    val invocation: String get() = "$toolName($args)"
+}
 
 object ToolCallParser {
+
+    /** Complete tags only — safe for eager mid-stream execution. */
+    private val COMPLETE_TOOL_REGEX =
+        Regex("(?i)<TOOL>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*</TOOL>", RegexOption.DOT_MATCHES_ALL)
 
     /**
      * Extracts all valid tool calls from the LLM output.
@@ -14,6 +21,14 @@ object ToolCallParser {
      * Malformed or incomplete tags are ignored to prevent execution errors.
      */
     fun extractToolCalls(llmOutput: String): List<ParsedToolCall> {
+        return extractCompleteToolCalls(llmOutput)
+    }
+
+    /**
+     * Only tags with a closing `</TOOL>` — use during streaming so incomplete
+     * tags never execute early.
+     */
+    fun extractCompleteToolCalls(llmOutput: String): List<ParsedToolCall> {
         val calls = mutableListOf<ParsedToolCall>()
         
         // 1. XML Tag Format: <TOOL>toolName(args)</TOOL>
@@ -22,7 +37,7 @@ object ToolCallParser {
             val fullTag = match.value
             val toolName = match.groups[1]?.value?.trim() ?: continue
             val args = match.groups[2]?.value?.trim() ?: ""
-            calls.add(ParsedToolCall(fullTag, toolName, args))
+            calls.add(ParsedToolCall(match.value, toolName, args))
         }
 
         // 2. Native JSON Format: <tool_call>{"name": "toolName", "arguments": {...}}</tool_call>
@@ -75,7 +90,7 @@ object ToolCallParser {
                 cleaned = cleaned.substring(0, finalLastTagIndex)
             }
         }
-        
+
         return cleaned.trim()
     }
 }

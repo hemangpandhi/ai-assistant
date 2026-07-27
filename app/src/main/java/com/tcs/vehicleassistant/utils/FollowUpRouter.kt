@@ -4,6 +4,7 @@ import com.tcs.vehicleassistant.MemoryManager
 
 /**
  * Resolves short follow-up utterances into direct tool calls using the last assistant turn.
+ * Also covers high-frequency HVAC / media phrases for a zero-LLM fast path.
  */
 object FollowUpRouter {
 
@@ -43,6 +44,8 @@ object FollowUpRouter {
         val q = query.lowercase().trim()
         val last = lastAssistantMessage.lowercase()
 
+        resolveDirectCommand(q)?.let { return it }
+
         if (MemoryManager.isAffirmative(query)) {
             when {
                 last.contains("seat heater") -> return "setSeatHeater(2)"
@@ -73,6 +76,73 @@ object FollowUpRouter {
 
         if (isDrowsyDriverQuery(q)) {
             return "handleDrowsyDriving()"
+        }
+
+        return null
+    }
+
+    /**
+     * Zero-LLM path for common cabin / media commands.
+     */
+    fun resolveDirectCommand(queryLower: String): String? {
+        val q = queryLower.lowercase().trim()
+
+        if (q.matches(Regex(""".*(turn|switch)\s+(on\s+)?(the\s+)?ac\b.*""")) ||
+            q.matches(Regex(""".*(turn|switch)\s+(on\s+)?(the\s+)?air\s*condition.*""")) ||
+            q.contains("enable ac") || q.contains("ac on")
+        ) {
+            return "turnOnAC()"
+        }
+
+        if (q.matches(Regex(""".*(turn|switch)\s+off\s+(the\s+)?ac\b.*""")) ||
+            q.contains("ac off") || q.contains("disable ac")
+        ) {
+            return "turnOffAC()"
+        }
+
+        if (q.contains("increase temperature") || q.contains("turn up the heat") ||
+            q.contains("make it warmer") || q.contains("raise the temperature")
+        ) {
+            return "increaseTemperature(2)"
+        }
+
+        if (q.contains("decrease temperature") || q.contains("turn down the heat") ||
+            q.contains("make it cooler") || q.contains("lower the temperature")
+        ) {
+            return "decreaseTemperature(2)"
+        }
+
+        Regex("""\b(set|change)\s+(the\s+)?(temp|temperature)\s+(to\s+)?(\d{2})\b""")
+            .find(q)?.groupValues?.getOrNull(5)?.let { deg ->
+                return "setTemperature($deg)"
+            }
+
+        if (q.contains("play music") || q.contains("resume music") || q == "play") {
+            return "playMusic(music)"
+        }
+
+        if (q.contains("pause music") || q.contains("stop music") || q == "pause") {
+            return "pauseMusic()"
+        }
+
+        if (q.contains("next song") || q.contains("skip track") || q.contains("skip song")) {
+            return "nextTrack()"
+        }
+
+        if (q.contains("previous song") || q.contains("last song")) {
+            return "prevTrack()"
+        }
+
+        if (q.contains("open the windows") || q.contains("roll down the windows") ||
+            q.contains("open windows")
+        ) {
+            return "openWindowsSlightly()"
+        }
+
+        if (q.contains("close the windows") || q.contains("roll up the windows") ||
+            q.contains("close windows")
+        ) {
+            return "closeAllWindows()"
         }
 
         return null
