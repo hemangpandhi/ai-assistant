@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.assistant.ui.assistant.api.AssistantDebugLog
+import com.assistant.ui.assistant.api.AssistantRuntime
 import com.tcs.vehicleassistant.WakeWordService
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.service.VehicleAgentService
@@ -101,7 +102,11 @@ object MicCaptureCoordinator {
             val audio = koin.get<IAudioManager>()
             // Force ViewModel init so RecognitionListener callbacks are wired
             // before the first partial/final arrives.
-            koin.get<AssistantViewModel>()
+            val vm = koin.get<AssistantViewModel>()
+            // Attach backend collectors BEFORE startListening so liveTranscript is observed.
+            com.assistant.ui.assistant.api.AssistantRuntime.backend
+                ?.asMicController()
+                ?.attachSession(vm, audio)
             audio.ensureWarmRecognizer()
             audio.requestAssistantDuck()
             if (audio.isActivelyListening()) {

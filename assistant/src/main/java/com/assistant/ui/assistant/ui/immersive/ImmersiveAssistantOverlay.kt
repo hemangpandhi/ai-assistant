@@ -421,6 +421,13 @@ fun ImmersiveAssistantOverlay(
         }
     }
 
+    // User speech must be visible even mid-enter animation.
+    LaunchedEffect(transcript, speaker) {
+        if (speaker == DialogueSpeaker.User && transcript.isNotBlank()) {
+            transcriptAlpha.snapTo(1f)
+        }
+    }
+
     val brandGlow = rememberAssistantBrandGlow(mood, brandAccent).copy(alpha = 0.65f)
     val reveal = overlayReveal.value.coerceIn(0f, 1f)
     val glowReveal = when (summonOrigin) {
