@@ -174,16 +174,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     override fun onCreateContentView(): View {
-        LocalLLMActivity.loadRuntimePrefs(context.applicationContext)
-        VehicleManager.initialize(context.applicationContext)
-        VehicleCabinContextStore.publishFromVehicleManager()
+        // Paint the Compose stage first — every millisecond before setContentView
+        // is cold-start latency the driver feels after install.
         AssistantUiProfile.install(context)
-
-        val intent = Intent(context, VehicleAgentService::class.java)
-        context.startForegroundService(intent)
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-
         inflateContentForProfile()
+
+        // Heavy car / agent / prefs work runs after the first frame.
+        overlayView.post {
+            warmSessionDependencies()
+        }
         return overlayView
     }
 

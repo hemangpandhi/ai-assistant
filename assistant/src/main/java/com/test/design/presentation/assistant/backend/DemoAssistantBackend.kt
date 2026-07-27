@@ -128,9 +128,21 @@ class DemoAssistantBackend(
     }
 
     private suspend fun runDemoSession(cabin: AssistantCabinContext) {
+        // Immediate stage content so the face isn't blank while the script spins up.
+        emitAll(
+            AssistantSessionEvent.MoodChanged(AssistantMoodId.Listening),
+            AssistantSessionEvent.Transcript("Hi — how can I help?", AssistantSpeaker.System),
+            AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f),
+            AssistantSessionEvent.ContextGlyph(null),
+            AssistantSessionEvent.ThumbsVisible(false),
+        )
+
         val sessionScript = buildCabinBeats(cabin) + script
         val handOff = shouldHandOffToCluster(cabin.drivingUx)
         val tts = if (sessionConfig.enableTts) speakingTts else silentTts
+
+        // Brief beat so the greeting is readable, then continue the demo script.
+        delay(900)
 
         for (beat in sessionScript) {
             if (!_sessionActive.value) break
