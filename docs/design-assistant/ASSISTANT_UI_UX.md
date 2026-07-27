@@ -167,6 +167,27 @@ Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `
 
 ---
 
+## ADB — Debug strip (Compose immersive)
+
+On debuggable builds the overlay shows model/backend tags + a live log strip. Toggle without reinstalling:
+
+```bash
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_DEBUG_STRIP \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.api.AssistantDebugStripReceiver \
+  --es visible off
+
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_DEBUG_STRIP \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.api.AssistantDebugStripReceiver
+adb logcat -d -s AssistantDebugStrip:I | tail -n 3
+
+adb shell settings put global vehicle_assistant_debug_strip off
+adb shell settings get global vehicle_assistant_debug_strip
+```
+
+Tokens: `on` | `off` | `1` | `0` | `show` | `hide` (default **on**; release APKs never show the strip).
+
+---
+
 ## ADB — Launch surfaces
 
 ```bash

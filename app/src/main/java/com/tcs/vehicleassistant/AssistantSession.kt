@@ -42,8 +42,11 @@ import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
+import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
-import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantHotword
+import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
+import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
+import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
@@ -146,6 +149,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var currentDisplayLength = 0
     private val typingSpeedMs: Long = 15L
     private var unloadJob: Job? = null
+    /** Countdown that closes the overlay after quiet listening. */
+    private var idleJob: Job? = null
+    /** Collects uiState / events to arm or pause [idleJob]. */
+    private var idleWatchJob: Job? = null
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -202,11 +209,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     private fun dismissForExternalUi(reason: String) {
-        if (!sessionUiVisible) return
-        AssistantDebugLog.d("Session", "dismiss overlay ($reason)")
+        AssistantDebugLog.d("Session", "dismiss overlay ($reason) visible=$sessionUiVisible")
+        val wasVisible = sessionUiVisible
         sessionUiVisible = false
-        runCatching { hide() }
-        // Some AAOS builds keep the session window until finish().
+        if (wasVisible) {
+            runCatching { hide() }
+        }
+        // Some AAOS builds keep the session window until finish() — always tear it down
+        // even if hide() already cleared sessionUiVisible (Compose LaunchIntent race).
         observerScope.launch {
             delay(50)
             runCatching { finish() }
@@ -224,10 +234,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 viewModel,
                 audioManager,
             )
+            // Duck as soon as the agent audio manager is ready (may have missed onShow).
+            if (sessionUiVisible) {
+                audioManager?.requestAssistantDuck()
+            }
             if (usingComposeUi) {
                 startObservingComposeAgentEvents()
             } else {
                 startObservingViewModel()
+            }
+            if (sessionUiVisible) {
+                startIdleWatch()
             }
         }
 
@@ -244,6 +261,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         super.onHide()
         AssistantDebugLog.d("Session", "onHide")
         sessionUiVisible = false
+        cancelIdleWatch()
         baselineResumedActivity = null
         baselineTopPackage = null
         unregisterDismissWatchers()
@@ -253,6 +271,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
         audioManager?.destroySpeechRecognizer()
+        // Restore music volume immediately when the overlay goes away.
+        audioManager?.abandonAssistantDuck()
+        abandonFallbackDuck()
 
         observerScope.launch {
             // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
@@ -273,21 +294,38 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     override fun onCreateContentView(): View {
         // Paint the Compose stage first — every millisecond before setContentView
         // is cold-start latency the driver feels after install.
+        AssistantUiLatency.markContentViewStart()
         AssistantUiProfile.install(context)
         inflateContentForProfile()
+        AssistantUiLatency.mark("setContentView done")
 
-        // Bind the agent immediately so startMic isn't racing a deferred post{}.
+        // Bind agent + warm deps after the first pre-draw so TTS/Car init cannot
+        // contend with the Compose first frame (target < 100ms TTFF).
+        if (::overlayView.isInitialized) {
+            val vto = overlayView.viewTreeObserver
+            vto.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    overlayView.viewTreeObserver.removeOnPreDrawListener(this)
+                    AssistantUiLatency.mark("first pre-draw")
+                    bindAgentService()
+                    warmSessionDependencies()
+                    return true
+                }
+            })
+        } else {
+            bindAgentService()
+            warmSessionDependencies()
+        }
+        return overlayView
+    }
+
+    private fun bindAgentService() {
+        if (isBound) return
         val intent = Intent(context, VehicleAgentService::class.java)
         runCatching {
             context.startForegroundService(intent)
             context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
-
-        // Heavy car / prefs / LLM work runs after the first frame.
-        overlayView.post {
-            warmSessionDependencies()
-        }
-        return overlayView
     }
 
     private fun warmSessionDependencies() {
@@ -303,14 +341,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 runCatching { VehicleCabinContextStore.publishFromVehicleManager() }
             }
         }
-        // Re-bind if the early bind in onCreateContentView failed.
-        if (!isBound) {
-            val intent = Intent(context, VehicleAgentService::class.java)
-            runCatching {
-                context.startForegroundService(intent)
-                context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-            }
-        }
+        // Re-bind if the early bind failed or first pre-draw never ran.
+        bindAgentService()
     }
 
     private fun inflateContentForProfile() {
@@ -336,7 +368,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            // Soft scrim so the window paints before Compose finishes (matches AssistantTokens.Scrim).
+            setBackgroundColor(0x52101014.toInt())
         }
 
         // VoiceInteractionSession is not a LifecycleOwner; provide a host that
@@ -349,13 +382,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         host.setViewTreeViewModelStoreOwner(sessionHost)
 
         val composeView = ComposeView(context).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            // Keep composition across brief detach (session hide/show) when possible.
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed,
+            )
             setContent {
                 AssistantTheme(darkTheme = true) {
                     VirtualAssistantOverlay(
                         onDismiss = { hide() },
                         modifier = Modifier.fillMaxSize(),
                         awaitHotword = false,
+                        // Wait for onShow → notifyImmersiveAssistantSummon(origin).
+                        autoPresent = false,
                         // Agent owns STT via IAudioManager (same path as XML).
                         enableLiveSpeech = false,
                         // Agent owns TTS via orchestrator audioManager.
@@ -443,6 +481,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         btnSend?.setOnClickListener {
             val query = etInput?.text?.toString().orEmpty()
             if (query.isNotBlank()) {
+                noteUserActivity()
                 audioManager?.stopSpeaking()
                 resetDisplayState()
                 viewModel?.handleQuery(query)
@@ -455,6 +494,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 android.util.Log.w("AssistantSession", "Ignoring mic trigger because query is still being processed.")
                 return@setOnClickListener
             }
+            noteUserActivity()
             LatencyLogger.reset()
             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
             audioManager?.stopSpeaking()
@@ -471,7 +511,136 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnMic?.isEnabled = true
         }
 
+        etInput?.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                if (!s.isNullOrEmpty()) noteUserActivity()
+            }
+            override fun afterTextChanged(s: android.text.Editable?) {}
+        })
+
         setContentView(overlayView)
+    }
+
+    /**
+     * Quiet-listening auto-close: after [AssistantIdleTimeout] seconds with no speech /
+     * LLM / text activity, dismiss the overlay and finish the session.
+     *
+     * Busy states (thinking / streaming / speaking) and model warm-up pause the timer.
+     */
+    private fun startIdleWatch() {
+        AssistantIdleTimeout.install(context)
+        idleWatchJob?.cancel()
+        idleWatchJob = observerScope.launch {
+            val vm = viewModel
+            if (vm != null) {
+                launch {
+                    vm.uiState.collect { state -> onUiStateForIdle(state) }
+                }
+                launch {
+                    vm.events.collect { event ->
+                        when (event) {
+                            is ViewModelEvent.SetInputText -> {
+                                if (event.text.isNotBlank()) noteUserActivity()
+                            }
+                            is ViewModelEvent.StartListening -> armIdleTimer("start-listening")
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+            // Begin counting even before the ViewModel binds (first open).
+            armIdleTimer("watch-start")
+        }
+    }
+
+    private fun cancelIdleWatch() {
+        idleJob?.cancel()
+        idleJob = null
+        idleWatchJob?.cancel()
+        idleWatchJob = null
+    }
+
+    private fun onUiStateForIdle(state: AssistantUiState) {
+        when (state) {
+            is AssistantUiState.Thinking,
+            is AssistantUiState.Streaming,
+            is AssistantUiState.Speaking,
+            -> pauseIdleTimer()
+            is AssistantUiState.Idle,
+            is AssistantUiState.Listening,
+            is AssistantUiState.Error,
+            -> {
+                if (isModelWarmingUp()) {
+                    pauseIdleTimer()
+                } else {
+                    armIdleTimer("ui:${state::class.simpleName}")
+                }
+            }
+        }
+    }
+
+    private fun isModelWarmingUp(): Boolean {
+        if (LocalLLMActivity.isCloudModelActive) return false
+        return LLMManager.isInitializing || LLMManager.isPrewarming || !LLMManager.isReady()
+    }
+
+    /** Reset the idle countdown after real user / pipeline activity. */
+    private fun noteUserActivity() {
+        if (!sessionUiVisible) return
+        if (viewModel?.isProcessing() == true) {
+            pauseIdleTimer()
+            return
+        }
+        armIdleTimer("user-activity")
+    }
+
+    private fun pauseIdleTimer() {
+        idleJob?.cancel()
+        idleJob = null
+    }
+
+    private fun armIdleTimer(reason: String) {
+        idleJob?.cancel()
+        if (!sessionUiVisible) return
+        val timeoutMs = AssistantIdleTimeout.currentMs()
+        if (timeoutMs <= 0L) {
+            AssistantDebugLog.d("Session", "idle timer disabled ($reason)")
+            idleJob = null
+            return
+        }
+        idleJob = observerScope.launch {
+            AssistantDebugLog.d("Session", "idle arm ${timeoutMs}ms ($reason)")
+            delay(timeoutMs)
+            if (!isActive || !sessionUiVisible) return@launch
+            // Still busy? Skip close (e.g. race with Thinking).
+            val busy = when (viewModel?.uiState?.value) {
+                is AssistantUiState.Thinking,
+                is AssistantUiState.Streaming,
+                is AssistantUiState.Speaking,
+                -> true
+                else -> viewModel?.isProcessing() == true
+            }
+            if (busy || isModelWarmingUp()) {
+                AssistantDebugLog.d("Session", "idle fire skipped — busy")
+                return@launch
+            }
+            dismissForIdleTimeout()
+        }
+    }
+
+    private fun dismissForIdleTimeout() {
+        AssistantDebugLog.d("Session", "idle-timeout — closing overlay + assistant")
+        if (usingComposeUi) {
+            // Play Compose exit animation (AssistantTokens.ExitMs ≈ 280), then tear down.
+            notifyImmersiveAssistantDismiss()
+            observerScope.launch {
+                delay(320L)
+                dismissForExternalUi("idle-timeout")
+            }
+        } else {
+            dismissForExternalUi("idle-timeout")
+        }
     }
 
     private fun startObservingComposeAgentEvents() {
@@ -484,14 +653,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         try {
                             event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.applicationContext.startActivity(event.intent)
-                            
-                            // Optionally hide the assistant UI so the newly launched app is visible
-                            this@AssistantSession.hide()
                         } catch (e: Exception) {
                             android.util.Log.e("AssistantSession", "startActivity failed for intent: ${event.intent}", e)
                         }
-                        // Voice session windows stay on top of newly launched apps unless
-                        // we explicitly tear the session down.
+                        // Match XML path: dismissForExternalUi owns hide()+finish().
+                        // Calling hide() first cleared sessionUiVisible and skipped finish().
                         dismissForExternalUi("compose-launch-intent")
                     }
                     is ViewModelEvent.ShowToast ->
@@ -581,12 +747,28 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     override fun onShow(args: Bundle?, showFlags: Int) {
+        // Assist / system-bar icon while already open → toggle closed (with Compose exit anim).
+        if (sessionUiVisible) {
+            AssistantDebugLog.d("Session", "onShow while visible — toggle dismiss")
+            super.onShow(args, showFlags)
+            if (usingComposeUi) {
+                notifyImmersiveAssistantDismiss()
+            } else {
+                runCatching { hide() }
+            }
+            return
+        }
+
         super.onShow(args, showFlags)
         AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
         sessionUiVisible = true
         baselineResumedActivity = null
         baselineTopPackage = null
         registerDismissWatchers()
+        startIdleWatch()
+
+        // Duck music immediately — do not wait for STT (~1.4s) or service bind.
+        audioManager?.requestAssistantDuck() ?: requestFallbackDuck()
 
         window?.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -614,10 +796,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
         if (usingComposeUi) {
             // Stop wake-word AudioRecord fully, then open agent STT.
+            val origin = ImmersiveSummonOrigin.fromBundleToken(
+                args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
+            )
+            // post + delayed retry: composition may register the summon bridge a frame late.
             overlayView.post {
-                notifyImmersiveAssistantHotword()
+                notifyImmersiveAssistantSummon(origin)
                 AssistantRuntime.backend?.asMicController()?.requestListen()
             }
+            overlayView.postDelayed(
+                { notifyImmersiveAssistantSummon(origin) },
+                80L,
+            )
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
                     if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
@@ -642,6 +832,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnOpenApp?.visibility = View.GONE
             inputControls?.visibility = View.GONE
             btnMic?.isEnabled = false
+            pauseIdleTimer()
 
             observerScope.launch {
                 if (!LLMManager.isReady() && !LLMManager.isInitializing && !LLMManager.isPrewarming) {
@@ -659,6 +850,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 inputControls?.visibility = View.VISIBLE
                 btnSend?.isEnabled = true
                 btnMic?.isEnabled = true
+                armIdleTimer("model-ready")
                 if (showFlags and SHOW_WITH_ASSIST != 0) {
                     delay(500) // Wait for WakeWordService to release the mic
                     btnMic?.performClick()
@@ -671,6 +863,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             inputControls?.visibility = View.VISIBLE
             btnSend?.isEnabled = true
             btnMic?.isEnabled = true
+            armIdleTimer("xml-ready")
 
             if (showFlags and SHOW_WITH_ASSIST != 0) {
                 observerScope.launch {
@@ -866,8 +1059,62 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         return spannable
     }
 
+    /**
+     * Fallback duck when [audioManager] is not bound yet (first frames of onShow).
+     * Matches [com.tcs.vehicleassistant.hardware.AndroidAudioManager] policy.
+     */
+    private var fallbackDuckRequest: android.media.AudioFocusRequest? = null
+    private val fallbackDuckListener =
+        android.media.AudioManager.OnAudioFocusChangeListener { /* session-owned */ }
+
+    private fun requestFallbackDuck() {
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val attrs = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                val req = android.media.AudioFocusRequest.Builder(
+                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                )
+                    .setAudioAttributes(attrs)
+                    .setOnAudioFocusChangeListener(fallbackDuckListener)
+                    .setWillPauseWhenDucked(false)
+                    .build()
+                fallbackDuckRequest = req
+                am.requestAudioFocus(req)
+            } else {
+                @Suppress("DEPRECATION")
+                am.requestAudioFocus(
+                    fallbackDuckListener,
+                    android.media.AudioManager.STREAM_MUSIC,
+                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                )
+            }
+            AssistantDebugLog.d("Session", "fallback duck requested")
+        } catch (t: Throwable) {
+            AssistantDebugLog.w("Session", "fallback duck failed: ${t.message}")
+        }
+    }
+
+    private fun abandonFallbackDuck() {
+        try {
+            val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                fallbackDuckRequest?.let { am.abandonAudioFocusRequest(it) }
+                fallbackDuckRequest = null
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(fallbackDuckListener)
+            }
+        } catch (_: Throwable) {
+        }
+    }
+
     override fun onDestroy() {
         sessionUiVisible = false
+        cancelIdleWatch()
         unregisterDismissWatchers()
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()

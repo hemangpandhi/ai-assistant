@@ -684,7 +684,9 @@ class AgentOrchestrator(
     private suspend fun executeToolCall(toolCall: String): String? {
         val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
         return toolManager.executeToolCall(context.applicationContext, toolCall) { intent ->
-            pendingIntentToLaunch = intent
+            // Launch immediately so the overlay can dismiss without waiting for TTS.
+            pendingIntentToLaunch = null
+            _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
         }
     }
 }

@@ -297,8 +297,9 @@ class WakeWordService : Service() {
 
         if (isMatch) {
             Log.d(TAG, "Wake word detected: $wakeWord")
-            AssistantVoiceInteractionService.triggerSession(this@WakeWordService)
+            AssistantVoiceInteractionService.triggerSession(this@WakeWordService, fromHotword = true)
 
+            // Stop listening. The AssistantSession will explicitly send ACTION_RESTART_LISTENING when it hides.
             isRecording = false
             try {
                 customAudioRecord?.stop()

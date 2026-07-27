@@ -2,6 +2,10 @@ package com.tcs.vehicleassistant.hardware
 
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
+import android.media.AudioManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -39,6 +43,12 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private enum class SttPhase { Idle, Starting, Listening }
     @Volatile private var sttPhase: SttPhase = SttPhase.Idle
 
+    @Volatile private var holdingDuck = false
+    private var duckFocusRequest: AudioFocusRequest? = null
+    private val duckFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        AssistantDebugLog.d("Audio", "duck focus change=$change holding=$holdingDuck")
+    }
+
     override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
         tts = TextToSpeech(appContext) { status ->
             if (status == TextToSpeech.SUCCESS) {
@@ -53,6 +63,16 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             }
                         }
                     }
+                } catch (_: Exception) {
+                }
+                // Match Compose TTS: USAGE_MEDIA is audible on AAOS; USAGE_ASSISTANT often is not.
+                try {
+                    tts?.setAudioAttributes(
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build(),
+                    )
                 } catch (_: Exception) {
                 }
 
@@ -119,6 +139,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             destroySpeechRecognizer()
         }
         ensureRecognizer()
+        // Keep media ducked while the recognizer arms (avoids a full pause gap).
+        requestAssistantDuck()
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -158,12 +180,12 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
-                unmuteMusic()
+                restoreAssistantMedia()
                 AssistantDebugLog.d("STT", "speech end")
                 onSttEndOfSpeech?.invoke()
             }
             override fun onError(error: Int) {
-                unmuteMusic()
+                restoreAssistantMedia()
                 sttPhase = SttPhase.Idle
                 val label = sttErrorLabel(error)
                 AssistantDebugLog.e("STT", "onError=$error ($label)")
@@ -226,11 +248,78 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
-    private fun unmuteMusic() {
+    override fun requestAssistantDuck() {
+        val run = Runnable { requestAssistantDuckLocked() }
+        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+    }
+
+    override fun abandonAssistantDuck() {
+        val run = Runnable { abandonAssistantDuckLocked() }
+        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+    }
+
+    private fun requestAssistantDuckLocked() {
         try {
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            am.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
+            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            holdingDuck = true
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val attrs = AudioAttributes.Builder()
+                    // Navigation guidance ducks media on AAOS without fully pausing it.
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                    .setAudioAttributes(attrs)
+                    .setOnAudioFocusChangeListener(duckFocusListener, mainHandler)
+                    .setWillPauseWhenDucked(false)
+                    .setAcceptsDelayedFocusGain(true)
+                    .build()
+                duckFocusRequest = req
+                val result = am.requestAudioFocus(req)
+                AssistantDebugLog.d("Audio", "requestDuck result=$result")
+            } else {
+                @Suppress("DEPRECATION")
+                val result = am.requestAudioFocus(
+                    duckFocusListener,
+                    AudioManager.STREAM_MUSIC,
+                    AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                )
+                AssistantDebugLog.d("Audio", "requestDuck(legacy) result=$result")
+            }
+        } catch (t: Throwable) {
+            AssistantDebugLog.w("Audio", "requestDuck failed: ${t.message}")
+        }
+    }
+
+    private fun abandonAssistantDuckLocked() {
+        holdingDuck = false
+        try {
+            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                duckFocusRequest?.let { am.abandonAudioFocusRequest(it) }
+                duckFocusRequest = null
+            } else {
+                @Suppress("DEPRECATION")
+                am.abandonAudioFocus(duckFocusListener)
+            }
+            AssistantDebugLog.d("Audio", "abandonDuck")
+        } catch (t: Throwable) {
+            AssistantDebugLog.w("Audio", "abandonDuck failed: ${t.message}")
+        }
+    }
+
+    /**
+     * SpeechRecognizer often mutes/pauses music. Unmute the stream, then re-assert
+     * duck focus so media stays soft for the rest of the assistant session.
+     */
+    private fun restoreAssistantMedia() {
+        try {
+            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
         } catch (_: Exception) {
+        }
+        if (holdingDuck) {
+            requestAssistantDuckLocked()
         }
     }
 
@@ -286,6 +375,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             android.util.Log.w("AndroidAudioManager", "TTS shutdown failed", t)
         }
         tts = null
+        abandonAssistantDuckLocked()
         destroySpeechRecognizer()
     }
 

@@ -2,9 +2,13 @@ package com.assistant.ui.assistant.audio
 
 import android.content.Context
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioTrack
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -22,8 +26,9 @@ import kotlin.concurrent.thread
 /**
  * Soft haptics + sonification for assistant presence (slide up / slide down).
  *
- * Entry uses a **soft bell**; exit uses a quiet settle tone. Both play via
- * [AudioTrack] with [AudioAttributes.USAGE_ASSISTANCE_SONIFICATION].
+ * Entry uses a short rising melodic motif; exit uses a quiet settle tone.
+ * Both play via [AudioTrack] with [AudioAttributes.USAGE_MEDIA] so AAOS car
+ * audio actually routes the chime (USAGE_ASSISTANCE_SONIFICATION is often silent).
  */
 class AssistantWakeFeedback(
     private val context: Context,
@@ -70,28 +75,66 @@ class AssistantWakeFeedback(
     private fun playChime(entry: Boolean) {
         thread(name = "assistant-chime", isDaemon = true) {
             var track: AudioTrack? = null
+            var focusRequest: AudioFocusRequest? = null
+            val am = try {
+                context.applicationContext.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            } catch (_: Exception) {
+                null
+            }
+            val focusListener = AudioManager.OnAudioFocusChangeListener { }
             try {
+                // Brief duck so the chime is heard over media (session also ducks for longer).
+                if (am != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    val focusAttrs = AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                    val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+                        .setAudioAttributes(focusAttrs)
+                        .setOnAudioFocusChangeListener(focusListener, Handler(Looper.getMainLooper()))
+                        .setWillPauseWhenDucked(false)
+                        .build()
+                    focusRequest = req
+                    am.requestAudioFocus(req)
+                } else if (am != null) {
+                    @Suppress("DEPRECATION")
+                    am.requestAudioFocus(
+                        focusListener,
+                        AudioManager.STREAM_MUSIC,
+                        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
+                    )
+                }
+
                 val sampleRate = 44_100
                 val durationMs: Int
                 val n: Int
                 val pcm: ShortArray
                 if (entry) {
-                    // Soft desk-bell: gentle attack, few partials, quiet warm ring.
-                    durationMs = 900
+                    // Rising C–E–G major arpeggio — melodic welcome, not a flat single strike.
+                    durationMs = 820
                     n = sampleRate * durationMs / 1_000
                     pcm = ShortArray(n)
-                    val master = 0.11
+                    val master = 0.16
+                    val notesHz = doubleArrayOf(523.25, 659.25, 783.99) // C5–E5–G5
+                    val strikesAt = doubleArrayOf(0.00, 0.13, 0.26)
+                    val noteGains = doubleArrayOf(1.00, 0.92, 0.84)
                     val partials = arrayOf(
-                        // amp, ratio, decay — fundamental-led, highs heavily damped
-                        doubleArrayOf(1.00, 1.00, 2.8),
-                        doubleArrayOf(0.35, 2.00, 5.5),
-                        doubleArrayOf(0.12, 3.01, 8.0),
-                        doubleArrayOf(0.05, 4.20, 11.0),
+                        // amp, ratio, decay — kalimba-like, fundamental-led
+                        doubleArrayOf(1.00, 1.00, 2.6),
+                        doubleArrayOf(0.30, 2.00, 4.8),
+                        doubleArrayOf(0.10, 3.01, 7.5),
                     )
-                    val fundamentalHz = 523.25 // C5 — softer than bright G5
                     for (i in 0 until n) {
                         val t = i.toDouble() / sampleRate
-                        val sample = softBellTone(t, fundamentalHz, partials)
+                        var sample = 0.0
+                        for (ni in notesHz.indices) {
+                            sample += softTone(
+                                t = t,
+                                strikeAt = strikesAt[ni],
+                                fundamentalHz = notesHz[ni],
+                                partials = partials,
+                            ) * noteGains[ni]
+                        }
                         pcm[i] = (sample * master * Short.MAX_VALUE)
                             .toInt()
                             .coerceIn(Short.MIN_VALUE.toInt(), Short.MAX_VALUE.toInt())
@@ -101,7 +144,7 @@ class AssistantWakeFeedback(
                     durationMs = 520
                     n = sampleRate * durationMs / 1_000
                     pcm = ShortArray(n)
-                    val master = 0.10
+                    val master = 0.12
                     val notesHz = doubleArrayOf(392.00, 293.66)
                     val strikesAt = doubleArrayOf(0.00, 0.18)
                     val noteGains = doubleArrayOf(1.00, 0.75)
@@ -127,8 +170,9 @@ class AssistantWakeFeedback(
                     }
                 }
 
+                // USAGE_MEDIA matches Compose TTS — audible on AAOS volume groups.
                 val attrs = AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                     .build()
                 val format = AudioFormat.Builder()
@@ -142,7 +186,7 @@ class AssistantWakeFeedback(
                     .setTransferMode(AudioTrack.MODE_STATIC)
                     .setBufferSizeInBytes(n * 2)
                     .build()
-                track.setVolume(if (entry) 0.38f else 0.32f)
+                track.setVolume(if (entry) 0.55f else 0.42f)
                 track.write(pcm, 0, n)
                 track.play()
                 Thread.sleep((durationMs + 60).toLong())
@@ -156,30 +200,21 @@ class AssistantWakeFeedback(
                     track?.release()
                 } catch (_: Exception) {
                 }
+                // Release only this chime's brief focus; the session keeps its own duck.
+                try {
+                    if (am != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                        focusRequest?.let { am.abandonAudioFocusRequest(it) }
+                    } else if (am != null) {
+                        @Suppress("DEPRECATION")
+                        am.abandonAudioFocus(focusListener)
+                    }
+                } catch (_: Exception) {
+                }
             }
         }
     }
 
-    /** Soft bell: rounded attack, warm fundamental, muted overtones. */
-    private fun softBellTone(
-        t: Double,
-        fundamentalHz: Double,
-        partials: Array<DoubleArray>,
-    ): Double {
-        if (t < 0.0) return 0.0
-        // ~18 ms soft attack — no metallic clang.
-        val attack = if (t < 0.018) t / 0.018 else 1.0
-        var sum = 0.0
-        for (p in partials) {
-            val amp = p[0]
-            val ratio = p[1]
-            val decay = p[2]
-            val env = attack * exp(-decay * t)
-            sum += amp * env * sin(2.0 * PI * fundamentalHz * ratio * t)
-        }
-        return sum
-    }
-
+    /** Soft struck tone: gentle attack, warm harmonic ring (melodic earcons). */
     private fun softTone(
         t: Double,
         strikeAt: Double,
@@ -188,7 +223,8 @@ class AssistantWakeFeedback(
     ): Double {
         val age = t - strikeAt
         if (age < 0.0) return 0.0
-        val attack = if (age < 0.014) age / 0.014 else 1.0
+        // ~12 ms soft attack — rounded pluck, not a clang.
+        val attack = if (age < 0.012) age / 0.012 else 1.0
         var sum = 0.0
         for (p in partials) {
             val amp = p[0]
