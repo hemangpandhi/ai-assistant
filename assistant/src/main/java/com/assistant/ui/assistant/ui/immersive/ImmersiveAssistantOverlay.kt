@@ -369,6 +369,12 @@ fun ImmersiveAssistantOverlay(
                 transcriptAlpha.snapTo(0f)
                 overlayReveal.snapTo(0f)
                 faceAlpha.snapTo(1f)
+                // Start chime on first frame — do not wait for enter anim (was ~420–560ms late
+                // and competed with STT / media duck on USAGE_MEDIA).
+                launch {
+                    withFrameNanos { }
+                    wake.play()
+                }
                 when (origin) {
                     ImmersiveSummonOrigin.Icon -> {
                         // Emerge from assist-icon / bottom-end — whole stage scales up.
@@ -416,11 +422,6 @@ fun ImmersiveAssistantOverlay(
                             if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
                         }
                     }
-                }
-                // Chime / haptic after first paint so AudioTrack init never blocks TTFF.
-                launch {
-                    withFrameNanos { }
-                    wake.play()
                 }
                 delay(100)
                 transcriptAlpha.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
