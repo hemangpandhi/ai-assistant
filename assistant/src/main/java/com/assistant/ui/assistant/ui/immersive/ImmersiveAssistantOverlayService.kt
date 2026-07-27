@@ -85,7 +85,7 @@ class ImmersiveAssistantOverlayService : LifecycleService(),
             }
             ACTION_SUMMON -> {
                 summonEpoch++
-                notifyImmersiveAssistantHotword()
+                notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Icon)
             }
             else -> {
                 if (overlayView == null && Settings.canDrawOverlays(this)) {
@@ -93,7 +93,7 @@ class ImmersiveAssistantOverlayService : LifecycleService(),
                 }
                 if (summonEpoch == 0) {
                     summonEpoch = 1
-                    notifyImmersiveAssistantHotword()
+                    notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Icon)
                 }
             }
         }

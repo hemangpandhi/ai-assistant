@@ -44,7 +44,8 @@ import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
 import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
-import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantHotword
+import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
+import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
 import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
