@@ -31,10 +31,10 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.test.design.assistant.api.AssistantRuntime
-import com.test.design.presentation.assistant.AssistantTheme
-import com.test.design.presentation.assistant.VirtualAssistantOverlay
-import com.test.design.presentation.assistant.notifyImmersiveAssistantDismiss
-import com.test.design.presentation.assistant.notifyImmersiveAssistantHotword
+import com.test.design.assistant.ui.theme.AssistantTheme
+import com.test.design.assistant.entry.VirtualAssistantOverlay
+import com.test.design.assistant.ui.immersive.notifyImmersiveAssistantDismiss
+import com.test.design.assistant.ui.immersive.notifyImmersiveAssistantHotword
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.VehicleAgentAssistantBackend
@@ -53,6 +53,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.test.design.assistant.api.AssistantBackend
 
 /**
  * Lifecycle / SavedState / ViewModel host for Compose content inside a
