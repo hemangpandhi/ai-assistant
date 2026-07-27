@@ -11,6 +11,7 @@ import com.tcs.vehicleassistant.llm.ILLMProvider
 import com.tcs.vehicleassistant.utils.FollowUpRouter
 import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
 import com.tcs.vehicleassistant.utils.ToolCallParser
+import com.tcs.vehicleassistant.utils.MoodTagParser
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,10 @@ sealed class OrchestratorEvent {
     data class LaunchIntent(val intent: Intent) : OrchestratorEvent()
     object StartListening : OrchestratorEvent()
     object FinishSession : OrchestratorEvent()
+    /** Optional LLM / heuristic emotion — UI merges with harness pipeline mood. */
+    data class AffectiveMood(
+        val mood: com.assistant.ui.assistant.api.AssistantMoodId,
+    ) : OrchestratorEvent()
 }
 
 class AgentOrchestrator(
@@ -287,6 +292,9 @@ class AgentOrchestrator(
             }
 
             val feedback = executeToolCall(toolCall) ?: "Action completed."
+            MoodTagParser.heuristicForTool(toolCall, query)?.let { mood ->
+                _events.tryEmit(OrchestratorEvent.AffectiveMood(mood))
+            }
             val finalMsg = when {
                 toolCall.startsWith("handleDrowsyDriving") ->
                     "Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert."
@@ -484,6 +492,7 @@ class AgentOrchestrator(
                     }
 
                     var displayMsg = ToolCallParser.stripToolTags(currentText)
+                    displayMsg = MoodTagParser.stripMoodTags(displayMsg)
                     displayMsg = displayMsg.replace(Regex("\\biI\\b"), "I")
                     displayMsg = displayMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
                     displayMsg = displayMsg.replace(Regex("^i\\s+"), "")
@@ -492,6 +501,10 @@ class AgentOrchestrator(
 
                     if (displayMsg.isNotEmpty()) {
                         emitStreamingUi(displayMsg)
+                    }
+
+                    MoodTagParser.extractAffectiveMood(currentText)?.let { mood ->
+                        _events.tryEmit(OrchestratorEvent.AffectiveMood(mood))
                     }
 
                     // Eager mid-stream tool execution as soon as </TOOL> closes.
