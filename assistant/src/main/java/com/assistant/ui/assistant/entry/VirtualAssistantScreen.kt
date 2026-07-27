@@ -68,6 +68,11 @@ fun VirtualAssistantOverlay(
     initialMood: AssistantMood = AssistantMood.Idle,
     /** When true, starts listening / waiting for hotword instead of showing immediately. */
     awaitHotword: Boolean = true,
+    /**
+     * When true (and not waiting on hotword), auto-summon once as an icon-style emerge.
+     * VoiceInteractionSession passes false and summons from [onShow] with an explicit origin.
+     */
+    autoPresent: Boolean = !awaitHotword,
     onRequestHotwordListen: (() -> Unit)? = null,
     enableLiveSpeech: Boolean = true,
     enableTts: Boolean = true,
@@ -79,6 +84,7 @@ fun VirtualAssistantOverlay(
         modifier = modifier,
         initialMood = initialMood,
         awaitHotword = awaitHotword,
+        autoPresent = autoPresent,
         onRequestHotwordListen = onRequestHotwordListen,
         enableLiveSpeech = enableLiveSpeech,
         enableTts = enableTts,

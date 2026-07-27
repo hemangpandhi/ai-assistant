@@ -44,7 +44,8 @@ import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
 import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
-import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantHotword
+import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
+import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
 import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
@@ -391,6 +392,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         onDismiss = { hide() },
                         modifier = Modifier.fillMaxSize(),
                         awaitHotword = false,
+                        // Wait for onShow → notifyImmersiveAssistantSummon(origin).
+                        autoPresent = false,
                         // Agent owns STT via IAudioManager (same path as XML).
                         enableLiveSpeech = false,
                         // Agent owns TTS via orchestrator audioManager.
@@ -793,8 +796,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
         if (usingComposeUi) {
             // Stop wake-word AudioRecord fully, then open agent STT.
+            val origin = ImmersiveSummonOrigin.fromBundleToken(
+                args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
+            )
             overlayView.post {
-                notifyImmersiveAssistantHotword()
+                notifyImmersiveAssistantSummon(origin)
                 (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
             }
             observerScope.launch(Dispatchers.IO) {
