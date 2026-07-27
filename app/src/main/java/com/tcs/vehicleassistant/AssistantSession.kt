@@ -33,6 +33,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.test.design.assistant.api.AssistantRuntime
 import com.test.design.presentation.assistant.AssistantTheme
 import com.test.design.presentation.assistant.VirtualAssistantOverlay
+import com.test.design.presentation.assistant.notifyImmersiveAssistantHotword
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.VehicleAgentAssistantBackend
@@ -459,7 +460,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         context.startService(stopListeningIntent)
 
         if (usingComposeUi) {
-            // Compose overlay owns session UX via AssistantBackend (Demo by default).
+            // VoiceInteractionSession is reused across system-bar launches. After a
+            // prior SessionComplete the Compose tree can sit at visible=false
+            // (empty dim overlay). Always re-summon so the face appears immediately.
+            overlayView.post {
+                notifyImmersiveAssistantHotword()
+            }
             return
         }
 
