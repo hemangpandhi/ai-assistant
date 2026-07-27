@@ -1,6 +1,5 @@
 package com.tcs.vehicleassistant.assistant
 
-import android.util.Log
 import com.assistant.ui.assistant.api.AssistantBackend
 import com.assistant.ui.assistant.api.AssistantCabinContext
 import com.assistant.ui.assistant.api.AssistantDebugLog
@@ -16,9 +15,7 @@ import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
 import com.tcs.vehicleassistant.hardware.IAudioManager
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -28,16 +25,25 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Production [AssistantBackend] bridge to [AssistantViewModel] / [IAudioManager].
  *
  * Compose collects [events] only. Mic / STT / TTS stay on the agent path (same as XML).
+ *
+ * Scope is resolved on each use — never cache [AgentRuntime.mainScope].
+ * [com.tcs.vehicleassistant.service.VehicleAgentService] calls [AgentRuntime.resetForService]
+ * on create, which cancels the previous scope; a captured reference would leave mic-arm
+ * coroutines dead (no startListening / no live transcript).
  */
 class VehicleAgentAssistantBackend(
-    private val scope: CoroutineScope = com.tcs.vehicleassistant.core.AgentRuntime.mainScope,
+    private val scopeProvider: () -> CoroutineScope = {
+        com.tcs.vehicleassistant.core.AgentRuntime.mainScope
+    },
 ) : AssistantBackend, com.assistant.ui.assistant.api.AssistantMicController {
+
+    private val scope: CoroutineScope
+        get() = scopeProvider()
 
     private val _events = MutableSharedFlow<AssistantSessionEvent>(extraBufferCapacity = 64)
     override val events: Flow<AssistantSessionEvent> = _events.asSharedFlow()
@@ -145,13 +151,18 @@ class VehicleAgentAssistantBackend(
         }
 
         flushPendingQuery()
+        // Always (re)arm when a session is live but the ear is not open. Do not trust
+        // listenJob?.isActive alone — after AgentRuntime.resetForService that job may
+        // belong to a cancelled scope and never complete.
         if (_sessionActive.value &&
-            listenJob?.isActive != true &&
             !micArmed &&
+            audioManager?.isActivelyListening() != true &&
             !com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)
         ) {
             scheduleStartMic(reason = "attach-while-active", delayMs = 0L)
-        } else if (com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)) {
+        } else if (com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager) ||
+            audioManager?.isActivelyListening() == true
+        ) {
             micArmed = true
         }
     }

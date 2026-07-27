@@ -57,8 +57,12 @@ class AgentOrchestrator(
     private val _events = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<OrchestratorEvent> = _events.asSharedFlow()
 
-    /** Off-Main agent work — never contend with Compose / STT. */
-    private val scope = com.tcs.vehicleassistant.core.AgentRuntime.scope
+    /**
+     * Off-Main agent work — never contend with Compose / STT.
+     * Resolve live each time: [AgentRuntime.resetForService] replaces the underlying job.
+     */
+    private val scope: CoroutineScope
+        get() = com.tcs.vehicleassistant.core.AgentRuntime.scope
     private var isQueryProcessed = true
     private var timeoutJob: Job? = null
     private var pendingConfirmationTool: String? = null
