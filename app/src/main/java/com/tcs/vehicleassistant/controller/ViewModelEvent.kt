@@ -25,6 +25,11 @@ sealed class ViewModelEvent {
     /** Enable/disable input controls. */
     data class SetInputEnabled(val enabled: Boolean) : ViewModelEvent()
     
-    /** Sets the text in the input box. */
+    /** Sets the text in the input box / live transcript. */
     data class SetInputText(val text: String) : ViewModelEvent()
+
+    /** LLM or heuristic affective face mood (happy/sad/…). */
+    data class AffectiveMood(
+        val mood: com.assistant.ui.assistant.api.AssistantMoodId,
+    ) : ViewModelEvent()
 }

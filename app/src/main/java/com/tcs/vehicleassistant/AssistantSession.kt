@@ -64,7 +64,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeoutOrNull
 import com.assistant.ui.assistant.api.AssistantBackend
 
 /**
@@ -785,6 +784,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         btnMic?.isEnabled = event.enabled
                     }
                     is ViewModelEvent.SetInputText -> etInput?.setText(event.text)
+                    is ViewModelEvent.AffectiveMood -> Unit // Compose path owns face mood
                 }
             }
         }

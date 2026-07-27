@@ -12,6 +12,9 @@ UI polish (glow, TTS quality, rich context) stays off the critical path.
 - Queue queries while model prewarms
 - Stream UI coalesce (~32ms); idle auto-close gated on first Listening
 - Live user transcript via `StateFlow` (partials must not be clobbered by “Listening…”)
+- **Face moods (two-layer):** harness pipeline (`Idle/Listening/Thinking/Speaking/…`) + optional
+  LLM/heuristic affective (`Happy/Sad/Excited/…`) via `<MOOD>…</MOOD>`;
+  `FaceMoodResolver` precedence — see `FaceMoodResolver` / `MoodTagParser`
 
 ---
 
