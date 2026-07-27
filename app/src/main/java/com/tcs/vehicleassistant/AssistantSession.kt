@@ -42,6 +42,7 @@ import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
+import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantHotword
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
@@ -273,21 +274,38 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     override fun onCreateContentView(): View {
         // Paint the Compose stage first — every millisecond before setContentView
         // is cold-start latency the driver feels after install.
+        AssistantUiLatency.markContentViewStart()
         AssistantUiProfile.install(context)
         inflateContentForProfile()
+        AssistantUiLatency.mark("setContentView done")
 
-        // Bind the agent immediately so startMic isn't racing a deferred post{}.
+        // Bind agent + warm deps after the first pre-draw so TTS/Car init cannot
+        // contend with the Compose first frame (target < 100ms TTFF).
+        if (::overlayView.isInitialized) {
+            val vto = overlayView.viewTreeObserver
+            vto.addOnPreDrawListener(object : ViewTreeObserver.OnPreDrawListener {
+                override fun onPreDraw(): Boolean {
+                    overlayView.viewTreeObserver.removeOnPreDrawListener(this)
+                    AssistantUiLatency.mark("first pre-draw")
+                    bindAgentService()
+                    warmSessionDependencies()
+                    return true
+                }
+            })
+        } else {
+            bindAgentService()
+            warmSessionDependencies()
+        }
+        return overlayView
+    }
+
+    private fun bindAgentService() {
+        if (isBound) return
         val intent = Intent(context, VehicleAgentService::class.java)
         runCatching {
             context.startForegroundService(intent)
             context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
         }
-
-        // Heavy car / prefs / LLM work runs after the first frame.
-        overlayView.post {
-            warmSessionDependencies()
-        }
-        return overlayView
     }
 
     private fun warmSessionDependencies() {
@@ -303,14 +321,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 runCatching { VehicleCabinContextStore.publishFromVehicleManager() }
             }
         }
-        // Re-bind if the early bind in onCreateContentView failed.
-        if (!isBound) {
-            val intent = Intent(context, VehicleAgentService::class.java)
-            runCatching {
-                context.startForegroundService(intent)
-                context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-            }
-        }
+        // Re-bind if the early bind failed or first pre-draw never ran.
+        bindAgentService()
     }
 
     private fun inflateContentForProfile() {
@@ -336,7 +348,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
-            setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            // Opaque-enough scrim so the window paints before Compose finishes.
+            setBackgroundColor(0xB8101014.toInt())
         }
 
         // VoiceInteractionSession is not a LifecycleOwner; provide a host that
@@ -349,7 +362,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         host.setViewTreeViewModelStoreOwner(sessionHost)
 
         val composeView = ComposeView(context).apply {
-            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
+            // Keep composition across brief detach (session hide/show) when possible.
+            setViewCompositionStrategy(
+                ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed,
+            )
             setContent {
                 AssistantTheme(darkTheme = true) {
                     VirtualAssistantOverlay(

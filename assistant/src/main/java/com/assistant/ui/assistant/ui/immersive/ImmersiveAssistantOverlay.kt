@@ -29,6 +29,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +37,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
@@ -73,6 +75,7 @@ import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.AssistantPresentation
 import com.assistant.ui.assistant.audio.AssistantSpeechEvent
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
+import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
 import com.assistant.ui.assistant.dialogue.DialogueBeat
 import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
@@ -298,52 +301,85 @@ fun ImmersiveAssistantOverlay(
         glyphGazeActive = false
     }
 
-    val backdropAlpha = remember { Animatable(0f) }
-    val faceRise = remember { Animatable(1f) } // 1 = below screen, 0 = settled
-    val faceScale = remember { Animatable(0.88f) }
-    val faceAlpha = remember { Animatable(0f) }
+    val backdropAlpha = remember { Animatable(if (!awaitHotword) 1f else 0f) }
+    val faceRise = remember { Animatable(if (!awaitHotword) 0.12f else 1f) } // 1 = below screen, 0 = settled
+    val faceScale = remember { Animatable(if (!awaitHotword) 0.96f else 0.88f) }
+    val faceAlpha = remember { Animatable(if (!awaitHotword) 1f else 0f) }
     val transcriptAlpha = remember { Animatable(0f) }
     // Avoid calling onDismiss on first composition when awaitHotword keeps us hidden.
-    var hasPresented by remember { mutableStateOf(false) }
-    var immersiveEnteredSession by remember { mutableIntStateOf(-1) }
+    var hasPresented by remember { mutableStateOf(!awaitHotword) }
+    var immersiveEnteredSession by remember { mutableIntStateOf(if (!awaitHotword) 0 else -1) }
+    // Two-phase paint: first frame = lite scrim + face (no Offscreen / idle loops).
+    // Rich effects (glow, blur blooms, infinite motion) enable after first vsync.
+    var richEffects by remember { mutableStateOf(false) }
+
+    LaunchedEffect(visible, session) {
+        if (!visible) {
+            richEffects = false
+            return@LaunchedEffect
+        }
+        // Wait one frame so the lite stage can draw before we add GPU-heavy layers.
+        withFrameNanos { }
+        AssistantUiLatency.mark("first compose frame")
+        richEffects = true
+        AssistantUiLatency.mark("rich effects enabled")
+    }
 
     // Enter: dim stage + face rise. Exit: face slides down → dim hides.
-    // Dock / system-bar (!awaitHotword) brings the face up with the scrim so the
-    // assistant never looks like an empty overlay waiting for a tap.
+    // Dock / system-bar (!awaitHotword) snaps presence onto the first frame so
+    // time-to-visible stays under the 100ms target (no empty alpha=0 wait).
     LaunchedEffect(visible, session) {
         if (visible) {
             hasPresented = true
             if (immersiveEnteredSession != session) {
                 immersiveEnteredSession = session
-                faceRise.snapTo(1f)
-                faceScale.snapTo(0.86f)
-                faceAlpha.snapTo(0f)
                 transcriptAlpha.snapTo(0f)
-                backdropAlpha.snapTo(0f)
-
-                // Dock / system-bar: quick visible slide-up (not a snap) so presence reads
-                // immediately without the empty-overlay wait of the hotword path.
-                launch {
-                    backdropAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
-                }
-                launch { wake.play() }
-                launch {
-                    faceAlpha.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
-                }
-                launch {
-                    faceScale.animateTo(
-                        1f,
-                        spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                if (!awaitHotword) {
+                    // Already snapped for first paint — finish the last ~12% rise.
+                    if (backdropAlpha.value < 0.99f) backdropAlpha.snapTo(1f)
+                    if (faceAlpha.value < 0.99f) faceAlpha.snapTo(1f)
+                    launch {
+                        faceScale.animateTo(
+                            1f,
+                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                        )
+                    }
+                    faceRise.animateTo(
+                        0f,
+                        spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+                    )
+                } else {
+                    faceRise.snapTo(1f)
+                    faceScale.snapTo(0.86f)
+                    faceAlpha.snapTo(0f)
+                    backdropAlpha.snapTo(0f)
+                    launch {
+                        backdropAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
+                    }
+                    launch {
+                        faceAlpha.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+                    }
+                    launch {
+                        faceScale.animateTo(
+                            1f,
+                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                        )
+                    }
+                    faceRise.animateTo(
+                        0f,
+                        spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
                     )
                 }
-                faceRise.animateTo(
-                    0f,
-                    spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
-                )
+                // Chime / haptic after first paint so AudioTrack init never blocks TTFF.
+                launch {
+                    withFrameNanos { }
+                    wake.play()
+                }
                 delay(40)
                 transcriptAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
             }
         } else if (hasPresented) {
+            richEffects = false
             wake.playDismiss() // soft chime as the face starts sliding down
             transcriptAlpha.animateTo(0f, tween(160))
             launch {
@@ -394,8 +430,10 @@ fun ImmersiveAssistantOverlay(
                         },
                     ),
             ) {
-                ImmersiveBackdrop()
-                ImmersiveBorderGlow(glowColor = brandGlow)
+                ImmersiveBackdrop(rich = richEffects)
+                if (richEffects) {
+                    ImmersiveBorderGlow(glowColor = brandGlow)
+                }
             }
 
             if (!visible) {
@@ -428,40 +466,44 @@ fun ImmersiveAssistantOverlay(
                     gazeY
                 }
 
-            ImmersiveAssistantBottomChrome(
-                mood = mood,
-                faceKind = faceKind,
-                transcript = transcript,
-                speaker = speaker,
-                gazeX = effectiveGazeX,
-                gazeY = effectiveGazeY,
-                mouthAmplitude = mouthAmplitude,
-                brandGlow = brandGlow,
-                highContrast = highContrast,
-                gesture = gesture,
-                contextGlyph = contextGlyph,
-                showFace = faceKind != AssistantFaceKind.None,
-                faceRise = faceRise.value,
-                faceScale = faceScale.value,
-                faceAlpha = faceAlpha.value,
-                transcriptAlpha = transcriptAlpha.value,
-                faceSizeScale = 1.32f, // 1.10 baseline × 1.20
-                modifier = Modifier.clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { /* consume — keep session alive */ },
-                ),
-            )
+            CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
+                ImmersiveAssistantBottomChrome(
+                    mood = mood,
+                    faceKind = faceKind,
+                    transcript = transcript,
+                    speaker = speaker,
+                    gazeX = effectiveGazeX,
+                    gazeY = effectiveGazeY,
+                    mouthAmplitude = mouthAmplitude,
+                    brandGlow = brandGlow,
+                    highContrast = highContrast,
+                    gesture = gesture,
+                    contextGlyph = contextGlyph,
+                    showFace = faceKind != AssistantFaceKind.None,
+                    faceRise = faceRise.value,
+                    faceScale = faceScale.value,
+                    faceAlpha = faceAlpha.value,
+                    transcriptAlpha = transcriptAlpha.value,
+                    faceSizeScale = 1.32f, // 1.10 baseline × 1.20
+                    modifier = Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { /* consume — keep session alive */ },
+                    ),
+                )
+            }
 
-            ImmersiveAssistantDebugStrip(
-                debugInfo = host.debugInfo(),
-                errorMessage = lastError,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing)
-                    .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
-            )
+            if (richEffects) {
+                ImmersiveAssistantDebugStrip(
+                    debugInfo = host.debugInfo(),
+                    errorMessage = lastError,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.safeDrawing)
+                        .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
+                )
+            }
         }
     }
 }
@@ -526,16 +568,38 @@ private fun ImmersiveAssistantDebugStrip(
 /**
  * Full-stage dim for the immersive assistant, with a stronger bottom/center pool
  * behind the face so chrome stays readable over maps / launcher.
+ *
+ * @param rich when false, skips Offscreen compositing / DstIn masks so the first
+ * frame is a single scrim + cheap gradient (target &lt; 100ms TTFF).
  */
 @Composable
-fun ImmersiveBackdrop(modifier: Modifier = Modifier) {
+fun ImmersiveBackdrop(
+    modifier: Modifier = Modifier,
+    rich: Boolean = true,
+) {
     Box(modifier = modifier.fillMaxSize()) {
-        // Full-screen base dim — darker than the previous soft center-band only.
+        // Full-screen base dim — always present for instant first paint.
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(AssistantTokens.Scrim),
         )
+        if (!rich) {
+            // Single-pass vertical darken — no Offscreen layer, no blend mask.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0.0f to Color(0x4010141C),
+                                0.55f to Color(0x990E1218),
+                                1.0f to Color(0xE6050608),
+                            ),
+                        ),
+                    ),
+            )
+        } else {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -587,6 +651,7 @@ fun ImmersiveBackdrop(modifier: Modifier = Modifier) {
                 ),
                 blendMode = BlendMode.DstIn,
             )
+        }
         }
     }
 }

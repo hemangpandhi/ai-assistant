@@ -47,6 +47,7 @@ import kotlin.math.sin
 import kotlin.random.Random
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
+import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
 import com.assistant.ui.assistant.ui.theme.auraAlphaForContrast
 import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
 
@@ -236,6 +237,7 @@ fun ImmersiveEyesFace(
     eyeGlow: Color? = null,
 ) {
     val target = mood.toImmersiveEyePose()
+    val enableIdleMotion = LocalAssistantIdleMotion.current
     // Fixed SemiCircle shell — matte black face fill.
     val shellMorph = remember {
         ExpressiveShellMorphState(
@@ -334,56 +336,71 @@ fun ImmersiveEyesFace(
         }
     }
 
-    val infinite = rememberInfiniteTransition(label = "immersive_eyes")
-    val life by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = (2f * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(3600, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "life",
-    )
-    val breath by infinite.animateFloat(
-        initialValue = 0.985f,
-        targetValue = 1.02f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2800, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "breath",
-    )
-    // Gentle idle float — slow vertical bob + tiny lateral sway.
-    val idleBob by infinite.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(3400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "idle_bob",
-    )
-    val idleSway by infinite.animateFloat(
-        initialValue = -1f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(4600, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "idle_sway",
-    )
-    // Soft activity halo — gentle pulse suggests the persona is live.
-    val activityPulse by infinite.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(2400, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "activity_pulse",
-    )
+    val life: Float
+    val breath: Float
+    val idleBob: Float
+    val idleSway: Float
+    val activityPulse: Float
+    if (enableIdleMotion) {
+        val infinite = rememberInfiniteTransition(label = "immersive_eyes")
+        life = infinite.animateFloat(
+            initialValue = 0f,
+            targetValue = (2f * PI).toFloat(),
+            animationSpec = infiniteRepeatable(
+                animation = tween(3600, easing = LinearEasing),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "life",
+        ).value
+        breath = infinite.animateFloat(
+            initialValue = 0.985f,
+            targetValue = 1.02f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2800, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "breath",
+        ).value
+        // Gentle idle float — slow vertical bob + tiny lateral sway.
+        idleBob = infinite.animateFloat(
+            initialValue = -1f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(3400, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "idle_bob",
+        ).value
+        idleSway = infinite.animateFloat(
+            initialValue = -1f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(4600, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "idle_sway",
+        ).value
+        // Soft activity halo — gentle pulse suggests the persona is live.
+        activityPulse = infinite.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(2400, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "activity_pulse",
+        ).value
+    } else {
+        // Static listening pose for first-frame paint (no infinite invalidation).
+        life = 0f
+        breath = 1f
+        idleBob = 0f
+        idleSway = 0f
+        activityPulse = 0.45f
+    }
 
-    LaunchedEffect(mood) {
+    LaunchedEffect(mood, enableIdleMotion) {
+        if (!enableIdleMotion) return@LaunchedEffect
         val speed = target.blinkSpeed.coerceIn(0.25f, 1.6f)
         while (isActive) {
             val base = when (mood) {
@@ -411,7 +428,8 @@ fun ImmersiveEyesFace(
         }
     }
 
-    LaunchedEffect(mood, externalGaze) {
+    LaunchedEffect(mood, externalGaze, enableIdleMotion) {
+        if (!enableIdleMotion) return@LaunchedEffect
         if (externalGaze) return@LaunchedEffect
         if (mood != AssistantMood.Reading &&
             mood != AssistantMood.Searching &&
@@ -594,8 +612,10 @@ fun ImmersiveEyesFace(
 
                 // Keep capsule eyes for all moods (clamp out of arc/dash branches).
                 val capsuleStyle = eyeStyle.value.coerceIn(-0.2f, 0.25f)
-                drawNomiGlyphEye(left, barW, barH, capsuleStyle, eyeRing, glowStrength = glowAmount)
-                drawNomiGlyphEye(right, barW, barH, capsuleStyle, eyeRing, glowStrength = glowAmount)
+                // Skip BlurMaskFilter blooms on the first frame — they dominate GPU cost.
+                val bloom = if (enableIdleMotion) glowAmount else 0f
+                drawNomiGlyphEye(left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
+                drawNomiGlyphEye(right, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
 
                 val speaking = mouthAmplitude != null ||
                     mood == AssistantMood.Speaking ||
