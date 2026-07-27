@@ -33,6 +33,7 @@ import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.test.design.assistant.api.AssistantRuntime
 import com.test.design.presentation.assistant.AssistantTheme
 import com.test.design.presentation.assistant.VirtualAssistantOverlay
+import com.test.design.presentation.assistant.notifyImmersiveAssistantDismiss
 import com.test.design.presentation.assistant.notifyImmersiveAssistantHotword
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
@@ -164,9 +165,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
 
-        val restartIntent = Intent(context, WakeWordService::class.java)
-        restartIntent.action = "ACTION_RESTART_LISTENING"
-        context.startService(restartIntent)
+        observerScope.launch {
+            // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
+            delay(450)
+            val restartIntent = Intent(context, WakeWordService::class.java)
+            restartIntent.action = "ACTION_RESTART_LISTENING"
+            context.startService(restartIntent)
+        }
 
         unloadJob?.cancel()
         
