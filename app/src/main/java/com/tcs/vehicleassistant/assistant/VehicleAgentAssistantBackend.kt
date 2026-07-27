@@ -3,6 +3,7 @@ package com.tcs.vehicleassistant.assistant
 import android.util.Log
 import com.assistant.ui.assistant.api.AssistantBackend
 import com.assistant.ui.assistant.api.AssistantCabinContext
+import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantMoodId
 import com.assistant.ui.assistant.api.AssistantSessionConfig
 import com.assistant.ui.assistant.api.AssistantSessionEvent
@@ -48,8 +49,9 @@ class VehicleAgentAssistantBackend(
     private var eventCollectJob: Job? = null
     private var listenJob: Job? = null
     private var pendingFinalQuery: String? = null
-    /** True after a successful startListening until stop / result / error. */
+    /** True after onReadyForSpeech until stop / result / error. */
     private var micArmed = false
+    private var clientErrorRetries = 0
 
     fun attachViewModel(vm: AssistantViewModel?, audio: IAudioManager? = null) {
         uiCollectJob?.cancel()
@@ -60,19 +62,26 @@ class VehicleAgentAssistantBackend(
         } else if (vm == null) {
             audioManager = null
         }
-        if (vm == null) return
+        if (vm == null) {
+            AssistantDebugLog.d(TAG, "detach ViewModel")
+            return
+        }
 
+        AssistantDebugLog.d(TAG, "attach ViewModel + audio")
         uiCollectJob = scope.launch {
             vm.uiState.collect { state -> mapUiState(state) }
         }
         eventCollectJob = scope.launch {
             vm.events.collect { event ->
                 when (event) {
-                    is ViewModelEvent.StartListening ->
-                        scheduleStartMic(reason = "orchestrator", delayMs = 300L, force = true)
+                    is ViewModelEvent.StartListening -> {
+                        AssistantDebugLog.d(TAG, "event StartListening")
+                        scheduleStartMic(reason = "orchestrator", delayMs = 350L, force = true)
+                    }
                     is ViewModelEvent.SetInputText -> {
                         if (event.text.isNotBlank()) {
                             micArmed = false
+                            AssistantDebugLog.d(TAG, "user: ${event.text.take(48)}")
                             _events.emit(
                                 AssistantSessionEvent.Transcript(
                                     text = event.text,
@@ -84,6 +93,7 @@ class VehicleAgentAssistantBackend(
                     }
                     is ViewModelEvent.FinishSession -> {
                         micArmed = false
+                        AssistantDebugLog.d(TAG, "event FinishSession → re-arm mic")
                         emitMood(AssistantMoodId.Listening)
                         _events.emit(
                             AssistantSessionEvent.Transcript(
@@ -91,7 +101,7 @@ class VehicleAgentAssistantBackend(
                                 speaker = AssistantSpeaker.System,
                             ),
                         )
-                        scheduleStartMic(reason = "finish-retry", delayMs = 400L, force = true)
+                        scheduleStartMic(reason = "finish-retry", delayMs = 500L, force = true)
                     }
                     else -> Unit
                 }
@@ -99,10 +109,8 @@ class VehicleAgentAssistantBackend(
         }
 
         flushPendingQuery()
-        // Only arm mic if nothing is already scheduled/listening — startSession owns the
-        // wake-word release delay; a second startListening mid-listen causes BUSY/CLIENT errors.
         if (_sessionActive.value && listenJob?.isActive != true && !micArmed) {
-            scheduleStartMic(reason = "attach-while-active", delayMs = 500L)
+            scheduleStartMic(reason = "attach-while-active", delayMs = 600L)
         }
     }
 
@@ -113,6 +121,9 @@ class VehicleAgentAssistantBackend(
     ) {
         _sessionActive.value = true
         micArmed = false
+        clientErrorRetries = 0
+        AssistantDebugLog.clear()
+        AssistantDebugLog.d(TAG, "startSession reason=$reason")
         viewModel?.resetUiState()
         scope.launch {
             emitMood(AssistantMoodId.Listening)
@@ -127,11 +138,11 @@ class VehicleAgentAssistantBackend(
             )
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
-        // One coalesced mic start after wake-word AudioRecord release.
         scheduleStartMic(reason = "startSession:$reason", delayMs = 900L, force = true)
     }
 
     override fun stopSession() {
+        AssistantDebugLog.d(TAG, "stopSession")
         _sessionActive.value = false
         listenJob?.cancel()
         listenJob = null
@@ -165,7 +176,7 @@ class VehicleAgentAssistantBackend(
                 if (vm != null) {
                     vm.handleQuery(input.text)
                 } else {
-                    Log.w(TAG, "Final speech queued — agent ViewModel not bound yet: ${input.text}")
+                    AssistantDebugLog.w(TAG, "Final queued — VM unbound: ${input.text}")
                     pendingFinalQuery = input.text
                 }
             }
@@ -190,11 +201,11 @@ class VehicleAgentAssistantBackend(
         if (!_sessionActive.value) {
             _sessionActive.value = true
         }
-        // Coalesce with startSession — do not stack a second startListening.
         if (listenJob?.isActive == true || micArmed) {
-            Log.d(TAG, "requestListen skipped — mic already scheduled/armed")
+            AssistantDebugLog.d(TAG, "requestListen skipped (scheduled/armed)")
             return
         }
+        AssistantDebugLog.d(TAG, "requestListen")
         scheduleStartMic(reason = "session-request", delayMs = 900L, force = true)
     }
 
@@ -205,17 +216,17 @@ class VehicleAgentAssistantBackend(
     ) {
         listenJob?.cancel()
         listenJob = scope.launch {
+            AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms")
             if (delayMs > 0) delay(delayMs)
             if (!isActive || !_sessionActive.value) return@launch
-            // Retry a few times if the agent service is still binding.
             repeat(8) { attempt ->
                 if (!_sessionActive.value) return@launch
                 if (startMic(reason = "$reason#$attempt", force = force || attempt == 0)) {
                     return@launch
                 }
-                delay(250)
+                delay(300)
             }
-            Log.w(TAG, "scheduleStartMic($reason) gave up — agent not bound")
+            AssistantDebugLog.w(TAG, "mic schedule gave up — agent unbound")
             _events.emit(AssistantSessionEvent.Error("Microphone not ready. Try again."))
         }
     }
@@ -227,42 +238,31 @@ class VehicleAgentAssistantBackend(
         vm.handleQuery(q)
     }
 
-    /** @return true if listening started (or already armed). */
+    /** @return true if startListening was issued (or already armed). */
     private fun startMic(reason: String, force: Boolean = false): Boolean {
         val vm = viewModel
         val audio = audioManager
         if (vm == null || audio == null) {
-            Log.d(TAG, "startMic($reason) skipped — agent not bound yet")
+            AssistantDebugLog.d(TAG, "startMic($reason) wait — unbound")
             return false
         }
         if (vm.isProcessing()) {
-            Log.d(TAG, "startMic($reason) skipped — query in flight")
+            AssistantDebugLog.d(TAG, "startMic($reason) skip — processing")
             return true
         }
         if (micArmed && !force) {
-            Log.d(TAG, "startMic($reason) skipped — already armed")
+            AssistantDebugLog.d(TAG, "startMic($reason) skip — armed")
             return true
         }
         return try {
-            // Clean slate avoids ERROR_RECOGNIZER_BUSY / CLIENT from stacked starts.
+            // Match XML: stop then start. Destroying immediately before start causes ERROR_CLIENT.
             runCatching { audio.stopListening() }
-            runCatching { audio.destroySpeechRecognizer() }
             audio.startListening()
-            micArmed = true
-            scope.launch {
-                emitMood(AssistantMoodId.Listening)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = "Listening…",
-                        speaker = AssistantSpeaker.System,
-                    ),
-                )
-            }
-            Log.d(TAG, "startMic($reason) ok")
+            AssistantDebugLog.d(TAG, "startMic($reason) startListening() ok")
             true
         } catch (t: Throwable) {
             micArmed = false
-            Log.w(TAG, "startMic($reason) failed", t)
+            AssistantDebugLog.e(TAG, "startMic($reason) failed: ${t.message}")
             scope.launch {
                 emitMood(AssistantMoodId.Sad)
                 _events.emit(AssistantSessionEvent.Error("Microphone unavailable."))
@@ -279,11 +279,20 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Listening -> {
                 micArmed = true
+                clientErrorRetries = 0
+                AssistantDebugLog.d(TAG, "ui Listening (ready)")
                 emitMood(AssistantMoodId.Listening)
+                _events.emit(
+                    AssistantSessionEvent.Transcript(
+                        text = "Listening…",
+                        speaker = AssistantSpeaker.System,
+                    ),
+                )
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
             is AssistantUiState.Thinking -> {
                 micArmed = false
+                AssistantDebugLog.d(TAG, "ui Thinking")
                 emitMood(AssistantMoodId.Thinking)
                 _events.emit(
                     AssistantSessionEvent.Transcript(
@@ -294,6 +303,7 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Streaming -> {
                 micArmed = false
+                AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
                 emitMood(AssistantMoodId.Speaking)
                 _events.emit(
                     AssistantSessionEvent.Transcript(
@@ -305,6 +315,7 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Speaking -> {
                 micArmed = false
+                AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
                 emitMood(AssistantMoodId.Speaking)
                 _events.emit(
                     AssistantSessionEvent.Transcript(
@@ -316,9 +327,20 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Error -> {
                 micArmed = false
+                AssistantDebugLog.e(TAG, "ui Error: ${state.errorMessage}")
                 emitMood(AssistantMoodId.Sad)
                 _events.emit(AssistantSessionEvent.Error(state.errorMessage))
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
+
+                // CLIENT/BUSY: rebuild recognizer once instead of looping FinishSession.
+                val msg = state.errorMessage.lowercase()
+                val isClient = msg.contains("client") || msg.contains("busy")
+                if (isClient && clientErrorRetries < 2 && _sessionActive.value) {
+                    clientErrorRetries += 1
+                    AssistantDebugLog.w(TAG, "CLIENT/BUSY retry #$clientErrorRetries")
+                    runCatching { audioManager?.destroySpeechRecognizer() }
+                    scheduleStartMic(reason = "client-retry", delayMs = 600L, force = true)
+                }
             }
         }
     }
