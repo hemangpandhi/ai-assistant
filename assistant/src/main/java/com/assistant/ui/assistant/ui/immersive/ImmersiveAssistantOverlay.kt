@@ -139,16 +139,13 @@ fun ImmersiveAssistantOverlay(
 
     fun summon() {
         if (visible) {
-            // Already on stage — refresh listening UX without recreating the
-            // SpeechRecognizer binder (cancel/destroy thrash → DeadObjectException).
+            // Already on stage — refresh listening mood only.
+            // Do not wipe transcript: onShow re-summons and would erase user/assistant text
+            // (and the greeting emitted by startSession).
             mood = AssistantMood.Listening
-            transcript = ""
-            speaker = DialogueSpeaker.System
             gesture = FaceGesture.None
             mouthAmplitude = null
             showThumbs = false
-            contextGlyph = null
-            glyphGazeActive = false
             lastError = null
             gazeX = -0.42f
             gazeY = 0.05f
