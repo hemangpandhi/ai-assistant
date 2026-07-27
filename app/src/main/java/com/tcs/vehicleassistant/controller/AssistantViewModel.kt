@@ -120,17 +120,18 @@ class AssistantViewModel(
     }
 
     private fun mapSpeechError(errorCode: Int): String {
+        val label = com.tcs.vehicleassistant.hardware.AndroidAudioManager.sttErrorLabel(errorCode)
         return when (errorCode) {
-            android.speech.SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
-            android.speech.SpeechRecognizer.ERROR_CLIENT -> "Client side error"
-            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
-            android.speech.SpeechRecognizer.ERROR_NETWORK -> "Network error"
-            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
-            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "No recognition result matched"
-            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RecognitionService busy"
-            android.speech.SpeechRecognizer.ERROR_SERVER -> "Error from server"
-            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
-            else -> "Unknown recognition error"
+            android.speech.SpeechRecognizer.ERROR_AUDIO -> "Audio recording error ($errorCode)"
+            android.speech.SpeechRecognizer.ERROR_CLIENT -> "Client side error ($errorCode/$label)"
+            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions ($errorCode)"
+            android.speech.SpeechRecognizer.ERROR_NETWORK -> "Network error ($errorCode)"
+            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout ($errorCode)"
+            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "No recognition result matched ($errorCode)"
+            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RecognitionService busy ($errorCode)"
+            android.speech.SpeechRecognizer.ERROR_SERVER -> "Error from server ($errorCode)"
+            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input ($errorCode)"
+            else -> "Unknown recognition error ($errorCode/$label)"
         }
     }
 }

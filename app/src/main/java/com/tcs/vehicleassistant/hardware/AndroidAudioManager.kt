@@ -16,8 +16,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private var onTtsDone: ((String) -> Unit)? = null
     private var onTtsError: ((String) -> Unit)? = null
     private var onTtsRangeStart: ((String, Int, Int, Int) -> Unit)? = null
-    
-    // STT callbacks (full lifecycle)
+
     private var onSttReadyForSpeech: (() -> Unit)? = null
     private var onSttBeginningOfSpeech: (() -> Unit)? = null
     private var onSttEndOfSpeech: (() -> Unit)? = null
@@ -465,7 +464,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         onStart: (String) -> Unit,
         onDone: (String) -> Unit,
         onError: (String) -> Unit,
-        onRangeStart: (String, Int, Int, Int) -> Unit
+        onRangeStart: (String, Int, Int, Int) -> Unit,
     ) {
         this.onTtsStart = onStart
         this.onTtsDone = onDone
@@ -480,7 +479,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         onResult: (String) -> Unit,
         onEmptyResult: () -> Unit,
         onError: (Int) -> Unit,
-        onPartial: (String) -> Unit
+        onPartial: (String) -> Unit,
     ) {
         this.onSttReadyForSpeech = onReadyForSpeech
         this.onSttBeginningOfSpeech = onBeginningOfSpeech
@@ -489,5 +488,20 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         this.onSttEmptyResult = onEmptyResult
         this.onSttError = onError
         this.onSttPartial = onPartial
+    }
+
+    companion object {
+        fun sttErrorLabel(error: Int): String = when (error) {
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
+            SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
+            SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
+            SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
+            SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
+            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
+            SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
+            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
+            else -> "ERROR_UNKNOWN"
+        }
     }
 }

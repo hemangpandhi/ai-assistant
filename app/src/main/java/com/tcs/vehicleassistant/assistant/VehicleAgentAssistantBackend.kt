@@ -138,7 +138,7 @@ class VehicleAgentAssistantBackend(
             )
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
-        scheduleStartMic(reason = "startSession:$reason", delayMs = 900L, force = true)
+        scheduleStartMic(reason = "startSession:$reason", delayMs = 1_400L, force = true)
     }
 
     override fun stopSession() {
@@ -206,7 +206,7 @@ class VehicleAgentAssistantBackend(
             return
         }
         AssistantDebugLog.d(TAG, "requestListen")
-        scheduleStartMic(reason = "session-request", delayMs = 900L, force = true)
+        scheduleStartMic(reason = "session-request", delayMs = 1_400L, force = true)
     }
 
     private fun scheduleStartMic(
@@ -255,10 +255,14 @@ class VehicleAgentAssistantBackend(
             return true
         }
         return try {
-            // Match XML: stop then start. Destroying immediately before start causes ERROR_CLIENT.
-            runCatching { audio.stopListening() }
-            audio.startListening()
-            AssistantDebugLog.d(TAG, "startMic($reason) startListening() ok")
+            // Do NOT stopListening() then startListening() on the same instance —
+            // that is the usual ERROR_CLIENT (5) trigger. Fresh start only.
+            if (force && reason.contains("client-retry")) {
+                audio.restartListening(delayedMs = 700L)
+            } else {
+                audio.startListening()
+            }
+            AssistantDebugLog.d(TAG, "startMic($reason) issued")
             true
         } catch (t: Throwable) {
             micArmed = false
@@ -332,14 +336,13 @@ class VehicleAgentAssistantBackend(
                 _events.emit(AssistantSessionEvent.Error(state.errorMessage))
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
 
-                // CLIENT/BUSY: rebuild recognizer once instead of looping FinishSession.
+                // CLIENT/BUSY: rebuild recognizer with delay (ERROR_CLIENT=5).
                 val msg = state.errorMessage.lowercase()
-                val isClient = msg.contains("client") || msg.contains("busy")
+                val isClient = msg.contains("client") || msg.contains("busy") || msg.contains("(5)")
                 if (isClient && clientErrorRetries < 2 && _sessionActive.value) {
                     clientErrorRetries += 1
-                    AssistantDebugLog.w(TAG, "CLIENT/BUSY retry #$clientErrorRetries")
-                    runCatching { audioManager?.destroySpeechRecognizer() }
-                    scheduleStartMic(reason = "client-retry", delayMs = 600L, force = true)
+                    AssistantDebugLog.w(TAG, "ERROR_CLIENT retry #$clientErrorRetries")
+                    scheduleStartMic(reason = "client-retry", delayMs = 200L, force = true)
                 }
             }
         }
