@@ -188,7 +188,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         AssistantUiProfile.install(context)
         inflateContentForProfile()
 
-        // Heavy car / agent / prefs work runs after the first frame.
+        // Bind the agent immediately so startMic isn't racing a deferred post{}.
+        val intent = Intent(context, VehicleAgentService::class.java)
+        runCatching {
+            context.startForegroundService(intent)
+            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        }
+
+        // Heavy car / prefs / LLM work runs after the first frame.
         overlayView.post {
             warmSessionDependencies()
         }
@@ -199,7 +206,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         observerScope.launch(Dispatchers.IO) {
             runCatching { LocalLLMActivity.loadRuntimePrefs(context.applicationContext) }
             runCatching { VehicleManager.initialize(context.applicationContext) }
-            // Kick LLM early so the first spoken query isn't blocked on cold load.
             runCatching {
                 if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
                     LLMManager.autoInitialize(context.applicationContext)
@@ -209,11 +215,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 runCatching { VehicleCabinContextStore.publishFromVehicleManager() }
             }
         }
-        // Always bind the agent — Compose immersive drives mic/TTS/LLM through it.
-        val intent = Intent(context, VehicleAgentService::class.java)
-        runCatching {
-            context.startForegroundService(intent)
-            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+        // Re-bind if the early bind in onCreateContentView failed.
+        if (!isBound) {
+            val intent = Intent(context, VehicleAgentService::class.java)
+            runCatching {
+                context.startForegroundService(intent)
+                context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+            }
         }
     }
 

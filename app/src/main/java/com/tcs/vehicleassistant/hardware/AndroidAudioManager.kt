@@ -70,6 +70,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     override fun startListening() {
+        // Always (re)create on the calling thread after a clean destroy so stacked
+        // startListening calls from session show hooks don't leave a busy recognizer.
         if (speechRecognizer == null) {
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context)
             speechRecognizer?.setRecognitionListener(object : RecognitionListener {
@@ -82,21 +84,18 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 override fun onRmsChanged(rmsdB: Float) {}
                 override fun onBufferReceived(buffer: ByteArray?) {}
                 override fun onEndOfSpeech() {
-                    // Unmute audio stream in case it was muted during recording
                     try {
                         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                         audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
                     } catch (_: Exception) {}
-                    
                     onSttEndOfSpeech?.invoke()
                 }
                 override fun onError(error: Int) {
-                    // Unmute audio stream in case an error occurred before ready
                     try {
                         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                         audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.ADJUST_UNMUTE, 0)
                     } catch (_: Exception) {}
-                    
+                    android.util.Log.w("AndroidAudioManager", "SpeechRecognizer onError=$error")
                     onSttError?.invoke(error)
                 }
                 override fun onResults(results: Bundle?) {
@@ -116,16 +115,21 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 override fun onEvent(eventType: Int, params: Bundle?) {}
             })
         }
-        
+
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
             putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 500L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 300L)
-            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 200L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 1500L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 1000L)
+            putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 400L)
             putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
         }
-        speechRecognizer?.startListening(intent)
+        try {
+            speechRecognizer?.startListening(intent)
+        } catch (t: Throwable) {
+            android.util.Log.w("AndroidAudioManager", "startListening failed", t)
+            throw t
+        }
     }
 
     override fun stopListening() {
