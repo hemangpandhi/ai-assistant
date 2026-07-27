@@ -25,7 +25,8 @@ import com.assistant.ui.assistant.face.AssistantFaceReceiver
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.ui.immersive.ImmersiveAssistantOverlayService
 import com.assistant.ui.assistant.audio.hotwordDetections
-import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantHotword
+import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
+import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
 
 /**
  * Standalone assistant entry — separate from in-app home chrome.
@@ -80,7 +81,7 @@ class VirtualAssistantActivity : ComponentActivity() {
                 LaunchedEffect(micGranted) {
                     if (!micGranted) return@LaunchedEffect
                     hotwordDetections(this@VirtualAssistantActivity).collectLatest {
-                        notifyImmersiveAssistantHotword()
+                        notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Hotword)
                     }
                 }
                 VirtualAssistantOverlay(
@@ -89,7 +90,9 @@ class VirtualAssistantActivity : ComponentActivity() {
                     awaitHotword = false,
                 )
                 LaunchedEffect(summonEpoch) {
-                    if (summonEpoch > 0) notifyImmersiveAssistantHotword()
+                    if (summonEpoch > 0) {
+                        notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Icon)
+                    }
                 }
             }
         }

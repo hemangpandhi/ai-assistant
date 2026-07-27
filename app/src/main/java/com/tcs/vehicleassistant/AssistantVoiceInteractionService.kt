@@ -15,10 +15,20 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
     companion object {
         var instance: AssistantVoiceInteractionService? = null
         
-        fun triggerSession(context: Context? = null) {
-            android.util.Log.d("WakeWord", "triggerSession called. instance is $instance")
+        fun triggerSession(context: Context? = null, fromHotword: Boolean = false) {
+            android.util.Log.d("WakeWord", "triggerSession called. instance is $instance hotword=$fromHotword")
             if (instance != null) {
-                instance?.showSession(Bundle(), VoiceInteractionSession.SHOW_WITH_ASSIST)
+                val args = Bundle().apply {
+                    putString(
+                        com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin.BUNDLE_KEY,
+                        if (fromHotword) {
+                            com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin.TOKEN_HOTWORD
+                        } else {
+                            com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin.TOKEN_ICON
+                        },
+                    )
+                }
+                instance?.showSession(args, VoiceInteractionSession.SHOW_WITH_ASSIST)
             } else if (context != null) {
                 android.util.Log.w("WakeWord", "VoiceInteractionService unbound! Launching fallback Activity.")
                 val intent = Intent(context, LocalLLMActivity::class.java)
@@ -32,7 +42,7 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == "com.tcs.vehicleassistant.WAKE_WORD_DETECTED") {
-                triggerSession(context)
+                triggerSession(context, fromHotword = true)
             }
         }
     }

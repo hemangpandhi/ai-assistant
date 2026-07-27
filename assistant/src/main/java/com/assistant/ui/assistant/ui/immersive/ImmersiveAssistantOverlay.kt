@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
@@ -65,7 +66,6 @@ import android.graphics.Matrix
 import android.graphics.PorterDuff
 import android.graphics.Shader
 import android.graphics.SweepGradient
-import kotlin.math.hypot
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.assistant.ui.assistant.api.AssistantDebugInfo
 import com.assistant.ui.assistant.api.AssistantDebugLog
@@ -118,6 +118,11 @@ fun ImmersiveAssistantOverlay(
     modifier: Modifier = Modifier,
     initialMood: AssistantMood = AssistantMood.Idle,
     awaitHotword: Boolean = true,
+    /**
+     * When true (and [awaitHotword] is false), present once on first frame as an
+     * icon-style emerge. Voice sessions pass false and wait for [notifyImmersiveAssistantSummon].
+     */
+    autoPresent: Boolean = !awaitHotword,
     onRequestHotwordListen: (() -> Unit)? = null,
     @Suppress("UNUSED_PARAMETER")
     script: List<DialogueBeat> = ImmersiveDialogueScript,
@@ -168,7 +173,8 @@ fun ImmersiveAssistantOverlay(
     val glyphGazeActive = stage.glyphGazeActive
     val lastError = stage.lastError
 
-    fun summon() {
+    fun summon(origin: ImmersiveSummonOrigin) {
+        summonOrigin = origin
         if (visible) {
             // Already on stage — refresh listening mood only; keep transcript.
             stageStore.update {
@@ -190,6 +196,14 @@ fun ImmersiveAssistantOverlay(
         }
     }
 
+    LaunchedEffect(autoPresent) {
+        if (autoPresent) {
+            // Give the summon bridge a beat to install, then present if still idle.
+            delay(1)
+            if (!visible) summon(ImmersiveSummonOrigin.Icon)
+        }
+    }
+
     LaunchedEffect(presentation, visible) {
         if (visible) {
             onPresentationChanged(presentation)
@@ -197,7 +211,7 @@ fun ImmersiveAssistantOverlay(
     }
 
     ImmersiveHotwordBridge(
-        onSummon = { summon() },
+        onSummon = { origin -> summon(origin) },
         onDismiss = {
             if (visible) stageStore.dispatch(StageIntent.Dismiss)
         },
@@ -224,7 +238,7 @@ fun ImmersiveAssistantOverlay(
             if (!visible) return@collectLatest
             when (event) {
                 AssistantSpeechEvent.Hotword -> {
-                    if (!visible) summon()
+                    if (!visible) summon(ImmersiveSummonOrigin.Hotword)
                 }
                 is AssistantSpeechEvent.Partial ->
                     backend.onSpeechInput(AssistantSpeechInput.Partial(event.text))
@@ -291,16 +305,16 @@ fun ImmersiveAssistantOverlay(
         stageStore.update { it.copy(glyphGazeActive = false) }
     }
 
-    val backdropAlpha = remember { Animatable(if (!awaitHotword) 1f else 0f) }
-    // Dock soft-enters: glow expands from the hardkey/bottom first, then face fades up.
-    val faceRise = remember { Animatable(if (!awaitHotword) 0.32f else 1f) } // 1 = below screen, 0 = settled
-    val faceScale = remember { Animatable(if (!awaitHotword) 0.92f else 0.88f) }
-    val faceAlpha = remember { Animatable(0f) }
+    val backdropAlpha = remember { Animatable(0f) }
+    val faceRise = remember { Animatable(0.28f) } // 1 = below screen, 0 = settled
+    val faceScale = remember { Animatable(0.94f) }
+    val faceAlpha = remember { Animatable(1f) }
     val transcriptAlpha = remember { Animatable(0f) }
-    val glowReveal = remember { Animatable(0f) }
+    /** 0 = hidden, 1 = fully presented (drives icon emerge / hotword wipe). */
+    val overlayReveal = remember { Animatable(0f) }
     // Avoid calling onDismiss on first composition when awaitHotword keeps us hidden.
-    var hasPresented by remember { mutableStateOf(!awaitHotword) }
-    var immersiveEnteredSession by remember { mutableIntStateOf(if (!awaitHotword) 0 else -1) }
+    var hasPresented by remember { mutableStateOf(false) }
+    var immersiveEnteredSession by remember { mutableIntStateOf(-1) }
     // Two-phase paint: first frame = lite scrim (no Offscreen / idle loops).
     // Rich effects (glow bloom GPU, blur blooms, infinite motion) enable after first vsync.
     var richEffects by remember { mutableStateOf(false) }
@@ -317,126 +331,104 @@ fun ImmersiveAssistantOverlay(
         AssistantUiLatency.mark("rich effects enabled")
     }
 
-    // Enter: glow expands from bottom/hardkey → face fades & rises. Exit reverses.
-    // Dock / system-bar (!awaitHotword) keeps backdrop on first frame for TTFF,
-    // but face + glow animate so presence does not pop fully formed.
-    LaunchedEffect(visible, session) {
+    // Enter by summon origin; exit reverses the same reveal.
+    LaunchedEffect(visible, session, summonOrigin) {
         if (visible) {
             hasPresented = true
             if (immersiveEnteredSession != session) {
                 immersiveEnteredSession = session
                 transcriptAlpha.snapTo(0f)
-                glowReveal.snapTo(0f)
-                if (!awaitHotword) {
-                    if (backdropAlpha.value < 0.99f) backdropAlpha.snapTo(1f)
-                    faceAlpha.snapTo(0f)
-                    faceRise.snapTo(0.32f)
-                    faceScale.snapTo(0.92f)
-                    // Glow leads — expands from bottom-center like a hardkey summon.
-                    launch {
-                        glowReveal.animateTo(
-                            1f,
-                            tween(420, easing = FastOutSlowInEasing),
+                overlayReveal.snapTo(0f)
+                faceAlpha.snapTo(1f)
+                when (summonOrigin) {
+                    ImmersiveSummonOrigin.Icon -> {
+                        // Emerge from assist-icon / bottom-end — whole stage scales up.
+                        backdropAlpha.snapTo(0f)
+                        faceRise.snapTo(0.18f)
+                        faceScale.snapTo(1f)
+                        launch {
+                            backdropAlpha.animateTo(1f, tween(280, easing = FastOutSlowInEasing))
+                        }
+                        launch {
+                            overlayReveal.animateTo(
+                                1f,
+                                tween(420, easing = FastOutSlowInEasing),
+                            )
+                        }
+                        faceRise.animateTo(
+                            0f,
+                            spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
                         )
                     }
-                    launch {
-                        delay(100)
-                        faceAlpha.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
-                    }
-                    launch {
-                        delay(80)
-                        faceScale.animateTo(
+                    ImmersiveSummonOrigin.Hotword -> {
+                        // Bottom → top wipe; border completes as the wipe reaches the top.
+                        backdropAlpha.snapTo(1f)
+                        faceRise.snapTo(0.35f)
+                        faceScale.snapTo(0.96f)
+                        launch {
+                            faceScale.animateTo(
+                                1f,
+                                spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                            )
+                        }
+                        launch {
+                            faceRise.animateTo(
+                                0f,
+                                spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+                            )
+                        }
+                        overlayReveal.animateTo(
                             1f,
-                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                            tween(560, easing = FastOutSlowInEasing),
                         )
                     }
-                    delay(80)
-                    faceRise.animateTo(
-                        0f,
-                        spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
-                    )
-                } else {
-                    faceRise.snapTo(1f)
-                    faceScale.snapTo(0.86f)
-                    faceAlpha.snapTo(0f)
-                    backdropAlpha.snapTo(0f)
-                    glowReveal.snapTo(0f)
-                    launch {
-                        backdropAlpha.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
-                    }
-                    launch {
-                        glowReveal.animateTo(
-                            1f,
-                            tween(480, easing = FastOutSlowInEasing),
-                        )
-                    }
-                    launch {
-                        delay(120)
-                        faceAlpha.animateTo(1f, tween(300, easing = FastOutSlowInEasing))
-                    }
-                    launch {
-                        delay(100)
-                        faceScale.animateTo(
-                            1f,
-                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
-                        )
-                    }
-                    delay(100)
-                    faceRise.animateTo(
-                        0f,
-                        spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
-                    )
                 }
                 // Chime / haptic after first paint so AudioTrack init never blocks TTFF.
                 launch {
                     withFrameNanos { }
                     wake.play()
                 }
-                delay(120)
+                delay(100)
                 transcriptAlpha.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
             }
         } else if (hasPresented) {
             richEffects = false
-            wake.playDismiss() // soft chime as the face starts sliding down
-            transcriptAlpha.animateTo(0f, tween(160))
+            wake.playDismiss()
+            transcriptAlpha.animateTo(0f, tween(140))
             launch {
-                faceAlpha.animateTo(0f, tween(320, easing = FastOutSlowInEasing))
+                faceRise.animateTo(0.35f, tween(300, easing = FastOutSlowInEasing))
             }
-            launch {
-                glowReveal.animateTo(0f, tween(300, easing = FastOutSlowInEasing))
-            }
-            faceRise.animateTo(
-                1f,
-                tween(380, easing = FastOutSlowInEasing),
-            )
-            delay(40)
-            backdropAlpha.animateTo(0f, tween(320, easing = FastOutSlowInEasing))
-            faceRise.snapTo(1f)
-            faceScale.snapTo(0.88f)
-            faceAlpha.snapTo(0f)
+            overlayReveal.animateTo(0f, tween(340, easing = FastOutSlowInEasing))
+            backdropAlpha.animateTo(0f, tween(280, easing = FastOutSlowInEasing))
+            faceRise.snapTo(0.28f)
+            faceScale.snapTo(0.94f)
+            faceAlpha.snapTo(1f)
             transcriptAlpha.snapTo(0f)
-            glowReveal.snapTo(0f)
+            overlayReveal.snapTo(0f)
             immersiveEnteredSession = -1
             onPresentationChanged(AssistantPresentation.Compact)
-            // Collapse host (clears Modifier.blur) after face + blur exit.
             onDismiss()
         }
     }
 
     val brandGlow = rememberAssistantBrandGlow(mood, brandAccent).copy(alpha = 0.65f)
+    val reveal = overlayReveal.value.coerceIn(0f, 1f)
+    val glowReveal = when (summonOrigin) {
+        // Border blooms as the icon expand finishes.
+        ImmersiveSummonOrigin.Icon -> ((reveal - 0.45f) / 0.55f).coerceIn(0f, 1f)
+        // Full rim under the wipe — bottom edge appears first, top completes last.
+        ImmersiveSummonOrigin.Hotword -> if (reveal > 0.02f) 1f else 0f
+    }
     val showOverlay = visible ||
         backdropAlpha.value > 0.02f ||
-        faceAlpha.value > 0.02f ||
-        glowReveal.value > 0.02f
+        reveal > 0.02f
     val debugStripVisible by AssistantDebugStripConfig.visible.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier.fillMaxSize(),
     ) {
         if (showOverlay) {
-            // Blur / dark stage — independent of face chrome.
-            // Tap empty backdrop to dismiss; face/transcript consume their own input
-            // so a tap on the assistant no longer kills the session mid-listen.
+            // One transform for the whole stage: icon emerge OR hotword bottom→top wipe.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -453,43 +445,31 @@ fun ImmersiveAssistantOverlay(
                         },
                     ),
             ) {
-                ImmersiveBackdrop(rich = richEffects)
-                if (glowReveal.value > 0.01f) {
-                    ImmersiveBorderGlow(
-                        glowColor = brandGlow,
-                        revealProgress = glowReveal.value,
-                    )
-                }
-            }
-
-            if (!visible) {
-                // Awaiting hotword — tap anywhere to summon.
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {
-                                onRequestHotwordListen?.invoke()
-                                summon()
+                        .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) }
+                        .then(
+                            if (visible) {
+                                Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { visible = false },
+                                )
+                            } else {
+                                Modifier
                             },
                         ),
-                )
-            }
-
-            val glyphGaze = contextGlyphGaze()
-            val effectiveGazeX =
-                if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
-                    glyphGaze.first
-                } else {
-                    gazeX
-                }
-            val effectiveGazeY =
-                if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
-                    glyphGaze.second
-                } else {
-                    gazeY
+                ) {
+                    ImmersiveBackdrop(rich = richEffects)
+                    if (glowReveal > 0.01f) {
+                        ImmersiveBorderGlow(
+                            glowColor = brandGlow,
+                            // Hotword: full rim under the vertical wipe (bottom appears first).
+                            // Icon: fade rim in as the scale-up finishes.
+                            revealProgress = glowReveal,
+                        )
+                    }
                 }
 
             CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
@@ -519,17 +499,56 @@ fun ImmersiveAssistantOverlay(
                 )
             }
 
-            if (richEffects && debugStripVisible) {
-                ImmersiveAssistantDebugStrip(
-                    debugInfo = host.debugInfo(),
-                    errorMessage = lastError,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .windowInsetsPadding(WindowInsets.safeDrawing)
-                        .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
-                )
+                CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
+                    ImmersiveAssistantBottomChrome(
+                        mood = mood,
+                        faceKind = faceKind,
+                        transcript = transcript,
+                        speaker = speaker,
+                        gazeX = effectiveGazeX,
+                        gazeY = effectiveGazeY,
+                        mouthAmplitude = mouthAmplitude,
+                        brandGlow = brandGlow,
+                        highContrast = highContrast,
+                        gesture = gesture,
+                        contextGlyph = contextGlyph,
+                        showFace = faceKind != AssistantFaceKind.None,
+                        faceRise = faceRise.value,
+                        faceScale = faceScale.value,
+                        faceAlpha = faceAlpha.value,
+                        transcriptAlpha = transcriptAlpha.value,
+                        faceSizeScale = 1.32f, // 1.10 baseline × 1.20
+                    )
+                }
+
+                if (richEffects && debugStripVisible) {
+                    ImmersiveAssistantDebugStrip(
+                        debugInfo = host.debugInfo(),
+                        errorMessage = lastError,
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .windowInsetsPadding(WindowInsets.safeDrawing)
+                            .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
+                    )
+                }
             }
+        }
+
+        if (!visible && awaitHotword) {
+            // Awaiting hotword — tap anywhere to summon.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {
+                            onRequestHotwordListen?.invoke()
+                            summon(ImmersiveSummonOrigin.Icon)
+                        },
+                    ),
+            )
         }
     }
 }
@@ -686,8 +705,7 @@ fun ImmersiveBackdrop(
  * Soft cockpit-edge glow: cool teal → ice-blue → steel spectrum bloom that
  * eases inward to full transparency. Colors drift slowly when idle motion is on.
  *
- * [revealProgress] 0→1 expands the rim from the bottom-center (hardkey origin)
- * outward to fill the frame — summon expand, not an instant full border.
+ * [revealProgress] fades the rim in/out (parent owns icon emerge / hotword wipe).
  *
  * [windowInsets] inset the glow from system bars (e.g. bottom nav) so the rim
  * stays visible; pass [WindowInsets] with zeros for true edge-to-edge.
@@ -758,12 +776,7 @@ fun ImmersiveBorderGlow(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(windowInsets)
-            .graphicsLayer {
-                // Offscreen layer required for DstIn reveal mask while expanding.
-                if (progress < 0.999f) {
-                    compositingStrategy = CompositingStrategy.Offscreen
-                }
-            },
+            .graphicsLayer { alpha = progress },
     ) {
         val w = size.width
         val h = size.height
@@ -807,27 +820,6 @@ fun ImmersiveBorderGlow(
         drawEdge(0f, 0f, thickness, h, 0f, 0f, thickness, 0f)
         // Right — fades leftward (inward).
         drawEdge(w - thickness, 0f, w, h, w, 0f, w - thickness, 0f)
-
-        // Expand from bottom-center (system-bar / hardkey origin) to fill the frame.
-        if (progress < 0.999f) {
-            val origin = Offset(cx, h)
-            val maxRadius = hypot(cx.toDouble(), h.toDouble()).toFloat() * 1.12f
-            val radius = (maxRadius * progress).coerceAtLeast(1f)
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colorStops = arrayOf(
-                        0.00f to Color.White,
-                        0.78f to Color.White,
-                        1.00f to Color.Transparent,
-                    ),
-                    center = origin,
-                    radius = radius,
-                ),
-                radius = radius,
-                center = origin,
-                blendMode = BlendMode.DstIn,
-            )
-        }
     }
 }
 
@@ -863,12 +855,59 @@ fun ImmersiveTranscript(
     }
 }
 
-private val immersiveSummonHandlers = mutableListOf<() -> Unit>()
+private val immersiveSummonHandlers = mutableListOf<(ImmersiveSummonOrigin) -> Unit>()
 private val immersiveDismissHandlers = mutableListOf<() -> Unit>()
+
+/**
+ * Whole-stage enter transform:
+ * - [ImmersiveSummonOrigin.Icon] — scale up from the assist-icon corner (bottom-end).
+ * - [ImmersiveSummonOrigin.Hotword] — bottom→top wipe until the border is complete.
+ */
+private fun immersiveSummonGraphics(
+    origin: ImmersiveSummonOrigin,
+    reveal: Float,
+): Modifier {
+    val t = reveal.coerceIn(0f, 1f)
+    return when (origin) {
+        ImmersiveSummonOrigin.Icon -> Modifier.graphicsLayer {
+            val eased = FastOutSlowInEasing.transform(t)
+            transformOrigin = TransformOrigin(0.92f, 1f) // system-bar assist icon / bottom-end
+            val scale = 0.10f + 0.90f * eased
+            scaleX = scale
+            scaleY = scale
+            alpha = eased
+            translationX = (1f - eased) * 28f
+            translationY = (1f - eased) * 64f
+        }
+        ImmersiveSummonOrigin.Hotword -> Modifier
+            .graphicsLayer {
+                compositingStrategy = CompositingStrategy.Offscreen
+                alpha = (0.35f + 0.65f * t).coerceIn(0f, 1f)
+                translationY = (1f - t) * size.height * 0.06f
+            }
+            .drawWithContent {
+                drawContent()
+                // Opaque from the rising front down to the bottom → bottom-to-top unveil.
+                val front = (1f - t).coerceIn(0f, 1f)
+                val soft = 0.08f
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0f to Color.Transparent,
+                            (front - soft).coerceAtLeast(0f) to Color.Transparent,
+                            front to Color.White,
+                            1f to Color.White,
+                        ),
+                    ),
+                    blendMode = BlendMode.DstIn,
+                )
+            }
+    }
+}
 
 @Composable
 private fun ImmersiveHotwordBridge(
-    onSummon: () -> Unit,
+    onSummon: (ImmersiveSummonOrigin) -> Unit,
     onDismiss: () -> Unit = {},
 ) {
     // SharedFlow bus (preferred) + legacy handler list for any external registrants.
@@ -888,7 +927,10 @@ private fun ImmersiveHotwordBridge(
     }
 }
 
-/** Called when hotword is detected; also notifies the legacy NOMI overlay handlers. */
+/**
+ * Summon the immersive overlay. Prefer [notifyImmersiveAssistantSummon] with an explicit origin.
+ * Defaults to hotword (bottom→top) for backward-compatible wake-word callers.
+ */
 fun notifyImmersiveAssistantHotword() {
     ImmersiveStageBus.notifySummon()
     immersiveSummonHandlers.toList().forEach { it.invoke() }

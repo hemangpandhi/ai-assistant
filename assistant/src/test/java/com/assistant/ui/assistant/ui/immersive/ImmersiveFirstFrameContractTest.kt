@@ -24,20 +24,33 @@ class ImmersiveFirstFrameContractTest {
     }
 
     @Test
-    fun dockPathKeepsBackdropButSoftEntersFaceAndGlow() {
-        // awaitHotword=false (system-bar / session): backdrop snaps for TTFF;
-        // face + glowReveal start hidden and animate in (glow from bottom first).
-        val dock = initialDockPresence(awaitHotword = false)
-        assertTrue(dock.backdropAlpha >= 0.99f)
-        assertTrue(dock.faceAlpha <= 0.01f)
-        assertTrue(dock.faceRise in 0.25f..0.4f)
-        assertEquals(0f, dock.glowReveal, 0.001f)
+    fun overlayStartsHiddenUntilSummon() {
+        // Session / overlay inflate hidden; onShow / autoPresent drives summon + reveal.
+        val idle = initialDockPresence(awaitHotword = false)
+        assertTrue(idle.backdropAlpha <= 0.01f)
+        assertTrue(idle.overlayReveal <= 0.01f)
+        assertFalse(idle.visible)
 
-        val hotword = initialDockPresence(awaitHotword = true)
-        assertTrue(hotword.backdropAlpha <= 0.01f)
-        assertTrue(hotword.faceAlpha <= 0.01f)
-        assertTrue(hotword.faceRise >= 0.99f)
-        assertEquals(0f, hotword.glowReveal, 0.001f)
+        val hotwordWait = initialDockPresence(awaitHotword = true)
+        assertTrue(hotwordWait.backdropAlpha <= 0.01f)
+        assertTrue(hotwordWait.overlayReveal <= 0.01f)
+        assertFalse(hotwordWait.visible)
+    }
+
+    @Test
+    fun summonOriginTokens() {
+        assertEquals(
+            ImmersiveSummonOrigin.Hotword,
+            ImmersiveSummonOrigin.fromBundleToken("hotword"),
+        )
+        assertEquals(
+            ImmersiveSummonOrigin.Icon,
+            ImmersiveSummonOrigin.fromBundleToken("icon"),
+        )
+        assertEquals(
+            ImmersiveSummonOrigin.Icon,
+            ImmersiveSummonOrigin.fromBundleToken(null),
+        )
     }
 }
 
@@ -48,16 +61,11 @@ internal fun shouldUseOffscreenBackdrop(rich: Boolean): Boolean = rich
 internal fun shouldEnableIdleMotion(richEffects: Boolean): Boolean = richEffects
 
 internal data class DockPresence(
+    val visible: Boolean,
     val backdropAlpha: Float,
-    val faceAlpha: Float,
-    val faceRise: Float,
-    val glowReveal: Float = 0f,
+    val overlayReveal: Float,
 )
 
-/** Mirrors ImmersiveAssistantOverlay Animatable initial values for dock vs hotword. */
+/** Mirrors ImmersiveAssistantOverlay Animatable / visibility initial values. */
 internal fun initialDockPresence(awaitHotword: Boolean): DockPresence =
-    if (!awaitHotword) {
-        DockPresence(backdropAlpha = 1f, faceAlpha = 0f, faceRise = 0.32f, glowReveal = 0f)
-    } else {
-        DockPresence(backdropAlpha = 0f, faceAlpha = 0f, faceRise = 1f, glowReveal = 0f)
-    }
+    DockPresence(visible = false, backdropAlpha = 0f, overlayReveal = 0f)
