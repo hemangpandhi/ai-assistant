@@ -1,44 +1,37 @@
 package com.tcs.vehicleassistant.controller
 
 import android.content.Context
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
+import com.tcs.vehicleassistant.hardware.IAudioManager
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import com.tcs.vehicleassistant.repository.OrchestratorEvent
 import com.tcs.vehicleassistant.repository.OrchestratorState
-import com.tcs.vehicleassistant.hardware.IAudioManager
-import kotlinx.coroutines.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.koin.java.KoinJavaComponent.getKoin
+import kotlinx.coroutines.launch
 
 /**
- * ViewModel that owns the UI state for the Assistant.
- *
- * Responsibilities:
- *  - Receive UI intents (Speech Recognition, Text input)
- *  - Delegate queries to AgentOrchestrator
- *  - Map OrchestratorState to AssistantUiState
- *
- * The View (AssistantSession) observes [uiState] and [events] and renders accordingly.
+ * androidx [ViewModel] hosting presentation MVI intents over the shared agent pipeline.
  */
 class AssistantViewModel(
     private val context: Context,
-    private val audioManager: IAudioManager
-) {
-    private val orchestrator = AgentOrchestrator(context, audioManager)
+    private val audioManager: IAudioManager,
+    private val orchestrator: AgentOrchestrator,
+) : ViewModel() {
+    private val processQuery = ProcessQueryUseCase(orchestrator)
 
-    // ── Public observable state ──────────────────────────────────────────────
     private val _uiState = MutableStateFlow<AssistantUiState>(AssistantUiState.Idle)
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
 
     private val _events = MutableSharedFlow<ViewModelEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<ViewModelEvent> = _events.asSharedFlow()
-
-    // ── Internal state ──────────────────────────────────────────────────────
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     init {
         audioManager.setRecognitionListener(
@@ -52,21 +45,18 @@ class AssistantViewModel(
             onResult = { spokenText ->
                 audioManager.stopSpeaking()
                 _events.tryEmit(ViewModelEvent.SetInputText(spokenText))
-                handleQuery(spokenText)
+                dispatch(AssistantUiIntent.SubmitQuery(spokenText))
             },
             onEmptyResult = {
                 _uiState.value = AssistantUiState.Error("I didn't hear anything.")
-                // Do not dismiss automatically so user can try again
             },
             onError = { errorCode ->
                 val errorMsg = mapSpeechError(errorCode)
                 _uiState.value = AssistantUiState.Error(errorMsg)
-                // CLIENT / BUSY: backend rebuilds the recognizer. Avoid FinishSession
-                // loops that keep the UI stuck on "Listening…".
                 val recoverable = errorCode == android.speech.SpeechRecognizer.ERROR_CLIENT ||
                     errorCode == android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY
                 if (!recoverable) {
-                    scope.launch {
+                    viewModelScope.launch {
                         delay(2000)
                         _events.tryEmit(ViewModelEvent.FinishSession)
                     }
@@ -77,8 +67,7 @@ class AssistantViewModel(
             }
         )
 
-        // Map Orchestrator State to UI State
-        scope.launch {
+        viewModelScope.launch {
             orchestrator.state.collect { state ->
                 _uiState.value = when (state) {
                     is OrchestratorState.Idle -> AssistantUiState.Idle
@@ -90,8 +79,7 @@ class AssistantViewModel(
             }
         }
 
-        // Map Orchestrator Events to UI Events
-        scope.launch {
+        viewModelScope.launch {
             orchestrator.events.collect { event ->
                 when (event) {
                     is OrchestratorEvent.ShowToast -> _events.tryEmit(ViewModelEvent.ShowToast(event.message))
@@ -104,7 +92,12 @@ class AssistantViewModel(
         }
     }
 
-    // ── Public API ──────────────────────────────────────────────────────────
+    fun dispatch(intent: AssistantUiIntent) {
+        when (intent) {
+            is AssistantUiIntent.SubmitQuery -> processQuery(intent.query, intent.retryCount)
+            AssistantUiIntent.Reset -> orchestrator.resetState()
+        }
+    }
 
     fun isProcessing(): Boolean = orchestrator.isProcessing()
 
@@ -115,16 +108,19 @@ class AssistantViewModel(
         get() = orchestrator.ttsSpokenLength
 
     fun handleQuery(query: String, retryCount: Int = 0) {
-        orchestrator.handleQuery(query, retryCount)
+        dispatch(AssistantUiIntent.SubmitQuery(query, retryCount))
     }
 
     fun resetUiState() {
-        orchestrator.resetState()
+        dispatch(AssistantUiIntent.Reset)
     }
 
     fun destroy() {
-        scope.cancel()
-        orchestrator.destroy()
+        // viewModelScope cancelled by [onCleared]; shared orchestrator lives with the service.
+    }
+
+    override fun onCleared() {
+        super.onCleared()
     }
 
     private fun mapSpeechError(errorCode: Int): String {
@@ -142,4 +138,9 @@ class AssistantViewModel(
             else -> "Unknown recognition error ($errorCode/$label)"
         }
     }
+}
+
+sealed interface AssistantUiIntent {
+    data class SubmitQuery(val query: String, val retryCount: Int = 0) : AssistantUiIntent
+    data object Reset : AssistantUiIntent
 }

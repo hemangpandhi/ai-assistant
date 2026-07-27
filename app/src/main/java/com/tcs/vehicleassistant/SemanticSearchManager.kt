@@ -29,9 +29,8 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
             embedder = TextEmbedder.createFromOptions(context, options)
             */
             isInitialized = true
-            Log.i(TAG, "SemanticSearchManager initialized (Fallback mode).")
-            
-            // Wait for ToolManager to be initialized to build cache, but we'll build it lazily or explicitly
+            // MediaPipe TextEmbedder disabled (JNI clash). Keyword routing is the production path.
+            Log.i(TAG, "SemanticSearchManager initialized (keyword-only / no embedder).")
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to initialize SemanticSearchManager", e)
         }

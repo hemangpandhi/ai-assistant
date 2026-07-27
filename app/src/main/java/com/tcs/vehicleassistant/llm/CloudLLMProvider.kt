@@ -1,18 +1,17 @@
 package com.tcs.vehicleassistant.llm
 
 import android.content.Context
-import com.tcs.vehicleassistant.LocalLLMActivity
-import com.tcs.vehicleassistant.GeminiManager
 import com.tcs.vehicleassistant.AnthropicManager
+import com.tcs.vehicleassistant.GeminiManager
 import com.tcs.vehicleassistant.LLMManager
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
 
-class CloudLLMProvider : ILLMProvider {
+class CloudLLMProvider(
+    private val featureFlags: AssistantFeatureFlags,
+) : ILLMProvider {
     private var isInitialized = false
-    
+
     override suspend fun initialize(context: Context, force: Boolean) {
-        // Cloud providers don't need heavy loading, just flag as ready
         isInitialized = true
     }
 
@@ -25,8 +24,6 @@ class CloudLLMProvider : ILLMProvider {
         onError: (Exception) -> Unit
     ) {
         val sysPrompt = LLMManager.getSystemPrompt(context, userQuery)
-        val fullPrompt = "$sysPrompt\n\n$prompt"
-
         val responseBuilder = StringBuilder()
         val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {
             override fun onMessage(chunkText: String) {
@@ -40,15 +37,12 @@ class CloudLLMProvider : ILLMProvider {
                 onError(Exception(throwable))
             }
         }
-        
-        // Let's hook into the existing Cloud managers
+
         try {
-            if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
-                // For now, Cloud managers don't perfectly stream to a callback without changes, 
-                // but we can pass the logic down. Let's assume we call their async methods.
-                // In a perfect world, GeminiManager/AnthropicManager would take onToken and onDone directly.
-                // We will simulate it by delegating.
-                // Streaming delegated to GeminiManager / AnthropicManager
+            val modelName = featureFlags.cloudModelName.ifBlank {
+                com.tcs.vehicleassistant.LocalLLMActivity.currentCloudModelName
+            }
+            if (modelName.contains("Gemini")) {
                 GeminiManager.sendMessageAsync(sysPrompt, prompt, callback)
             } else {
                 AnthropicManager.sendMessageAsync(sysPrompt, prompt, callback)
@@ -62,9 +56,7 @@ class CloudLLMProvider : ILLMProvider {
         isInitialized = false
     }
 
-    override fun resetConversation() {
-        // Cloud conversational state is usually handled per-request via history array
-    }
+    override fun resetConversation() = Unit
 
     override fun isReady(): Boolean = isInitialized
 }

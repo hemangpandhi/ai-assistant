@@ -46,7 +46,6 @@ import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantHotword
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
-import com.tcs.vehicleassistant.assistant.VehicleAgentAssistantBackend
 import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
@@ -221,7 +220,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             isBound = true
             viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
-            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
+            AssistantRuntime.backend?.asMicController()?.attachSession(
                 viewModel,
                 audioManager,
             )
@@ -233,7 +232,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
-            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(null)
+            AssistantRuntime.backend?.asMicController()?.detachSession()
             isBound = false
             agentService = null
             viewModel = null
@@ -250,7 +249,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         unregisterDismissWatchers()
         // Drop STT before wake-word reclaims the mic.
         notifyImmersiveAssistantDismiss()
-        (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.stopSession()
+        AssistantRuntime.backend?.stopSession()
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
         audioManager?.destroySpeechRecognizer()
@@ -616,7 +615,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             // Stop wake-word AudioRecord fully, then open agent STT.
             overlayView.post {
                 notifyImmersiveAssistantHotword()
-                (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
+                AssistantRuntime.backend?.asMicController()?.requestListen()
             }
             observerScope.launch(Dispatchers.IO) {
                 runCatching {

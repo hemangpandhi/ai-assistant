@@ -37,8 +37,15 @@ sealed class OrchestratorEvent {
 
 class AgentOrchestrator(
     private val context: Context,
-    private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager
+    private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager,
+    private val memory: com.tcs.vehicleassistant.data.memory.ConversationMemory =
+        com.tcs.vehicleassistant.data.memory.MemoryManagerStore(),
+    private val featureFlags: com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags =
+        com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(context),
 ) {
+    private val speechPresenter = com.tcs.vehicleassistant.domain.SpeechPresenter(audioManager)
+    private val followUpUseCase = com.tcs.vehicleassistant.domain.FollowUpUseCase()
+
     private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
     val state: StateFlow<OrchestratorState> = _state.asStateFlow()
 
@@ -114,7 +121,7 @@ class AgentOrchestrator(
             return
         }
 
-        if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
+        if (!featureFlags.isCloudActive && !LLMManager.isReady()) {
             _state.value = OrchestratorState.Thinking
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
             scope.launch {
@@ -139,6 +146,7 @@ class AgentOrchestrator(
         ttsSpokenLength = 0
         lastTtsUpdateTime = 0L
         isQueryProcessed = false
+        speechPresenter.reset()
 
         _state.value = OrchestratorState.Thinking
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
@@ -212,18 +220,19 @@ class AgentOrchestrator(
 
     private fun tryHandleDirectFollowUp(query: String): Boolean {
         if (pendingConfirmationTool != null) return false
-        val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false
+        val toolCall = followUpUseCase.resolve(query, LLMManager.lastAiResponse) ?: return false
 
         lastResponseBuilder.clear()
         ttsSpokenLength = 0
         lastTtsUpdateTime = 0L
         isQueryProcessed = false
+        speechPresenter.reset()
         _state.value = OrchestratorState.Thinking
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
 
         scope.launch {
-            MemoryManager.captureLongTermFacts(context, query)
-            MemoryManager.addTurn("User", query)
+            memory.captureLongTermFacts(context, query)
+            memory.addTurn("User", query)
 
             if (toolCall.startsWith("handleDrowsyDriving") || FollowUpRouter.isDrowsyDriverQuery(query)) {
                 EmergencyAlarmManager.start(context)
@@ -238,7 +247,7 @@ class AgentOrchestrator(
                 else -> feedback
             }
 
-            MemoryManager.addTurn("Assistant", finalMsg)
+            memory.addTurn("Assistant", finalMsg)
             LLMManager.lastAiResponse = finalMsg
             _state.value = OrchestratorState.Speaking(finalMsg)
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
@@ -302,15 +311,15 @@ class AgentOrchestrator(
         val finalPrompt: String = withContext(Dispatchers.IO) {
             val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
             val maxHistoryChars = toolManager.slidingWindowMaxChars
-            val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)
+            val isFollowUp = memory.isFollowUpQuery(interceptedQuery)
             val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
-            val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
+            val priorHistory = memory.getSlidingWindowContext(historyCap)
 
             if (isAgenticObservation) {
-                MemoryManager.addTurn("System", interceptedQuery)
+                memory.addTurn("System", interceptedQuery)
             } else {
-                MemoryManager.captureLongTermFacts(context, interceptedQuery)
-                MemoryManager.addTurn("User", interceptedQuery)
+                memory.captureLongTermFacts(context, interceptedQuery)
+                memory.addTurn("User", interceptedQuery)
             }
 
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
@@ -341,7 +350,7 @@ class AgentOrchestrator(
                 ""
             }
 
-            if (LocalLLMActivity.isCloudModelActive) {
+            if (featureFlags.isCloudActive) {
                 "$sysPrompt\n\n[Conversation History]\n${if (priorHistory.isNotEmpty()) priorHistory else "(start)"}\n\n$vehicleState\n${if (currentToolsString.isNotBlank()) "\n[Available Tools]\n$currentToolsString\n" else ""}User: $interceptedQuery\nAssistant:"
             } else {
                 "$stateInject$toolsInject$interceptedQuery"
@@ -509,7 +518,7 @@ class AgentOrchestrator(
                     }
 
                     var finalMsg = lastResponseBuilder.toString()
-                    MemoryManager.addTurn("Assistant", finalMsg.trim())
+                    memory.addTurn("Assistant", finalMsg.trim())
 
                     finalMsg = ToolCallParser.stripToolTags(finalMsg)
                     finalMsg = finalMsg.replace(Regex("\\biI\\b"), "I")
@@ -579,7 +588,7 @@ class AgentOrchestrator(
                     if (retryCount < 1) {
                         _state.value = OrchestratorState.Error("Initializing model...")
                         try {
-                            if (LocalLLMActivity.isCloudModelActive) {
+                            if (featureFlags.isCloudActive) {
                                 val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("cloud"))
                                 cloudProvider.initialize(context, force = true)
                             } else {
@@ -606,7 +615,7 @@ class AgentOrchestrator(
 
         withContext(Dispatchers.IO) {
             try {
-                if (LocalLLMActivity.isCloudModelActive) {
+                if (featureFlags.isCloudActive) {
                     val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("cloud"))
                     cloudProvider.initialize(context, force = false)
                     cloudProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)
