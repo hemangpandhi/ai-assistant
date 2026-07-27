@@ -647,9 +647,8 @@ fun ImmersiveBackdrop(
 }
 
 /**
- * Alive multi-color perimeter glow: wide neon spectrum bloom at the screen edge
- * (indigo → blue → red → orange → gold → violet) that eases inward to full
- * transparency. Colors slowly drift around the frame when idle motion is on.
+ * Soft cockpit-edge glow: cool teal → ice-blue → steel spectrum bloom that
+ * eases inward to full transparency. Colors drift slowly when idle motion is on.
  *
  * [windowInsets] inset the glow from system bars (e.g. bottom nav) so the rim
  * stays visible; pass [WindowInsets] with zeros for true edge-to-edge.
@@ -657,7 +656,7 @@ fun ImmersiveBackdrop(
 @Composable
 fun ImmersiveBorderGlow(
     modifier: Modifier = Modifier,
-    glowColor: Color = Color(0xFF7B6CFF),
+    glowColor: Color = Color(0xFF8AB4F8),
     windowInsets: WindowInsets = WindowInsets.systemBars,
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
@@ -671,7 +670,7 @@ fun ImmersiveBorderGlow(
             sweepAngle.snapTo(0f)
             sweepAngle.animateTo(
                 targetValue = 360f,
-                animationSpec = tween(durationMillis = 14_000, easing = LinearEasing),
+                animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
             )
         }
     }
@@ -680,39 +679,38 @@ fun ImmersiveBorderGlow(
     val angle = sweepAngle.value
     val spectrum = remember(glowColor) {
         fun tint(c: Color): Color = Color(
-            red = c.red * 0.82f + glowColor.red * 0.18f,
-            green = c.green * 0.82f + glowColor.green * 0.18f,
-            blue = c.blue * 0.82f + glowColor.blue * 0.18f,
+            red = c.red * 0.72f + glowColor.red * 0.28f,
+            green = c.green * 0.72f + glowColor.green * 0.28f,
+            blue = c.blue * 0.72f + glowColor.blue * 0.28f,
             alpha = 1f,
         )
-        // Perimeter spectrum (clockwise from top after -90° base rotate).
+        // Cool HUD spectrum — teal / cyan / ice / steel (no Siri rainbow).
         intArrayOf(
-            tint(Color(0xFF3D2EFF)).toArgb(), // deep indigo
-            tint(Color(0xFF2F6BFF)).toArgb(), // saturated blue
-            tint(Color(0xFFFF2D55)).toArgb(), // vivid red
-            tint(Color(0xFFFF6A00)).toArgb(), // warm orange
-            tint(Color(0xFFFFC400)).toArgb(), // golden yellow
-            tint(Color(0xFFC026FF)).toArgb(), // violet
-            tint(Color(0xFF9B1AFF)).toArgb(), // magenta
-            tint(Color(0xFF5B2CFF)).toArgb(), // indigo-purple
-            tint(Color(0xFF3D2EFF)).toArgb(), // close the loop
+            tint(Color(0xFF0E6B78)).toArgb(), // deep teal
+            tint(Color(0xFF1AA8C4)).toArgb(), // cyan
+            tint(Color(0xFF6EC8FF)).toArgb(), // ice blue
+            tint(Color(0xFF8AB4F8)).toArgb(), // soft panel blue
+            tint(Color(0xFF4A90D9)).toArgb(), // steel blue
+            tint(Color(0xFF3DDBC8)).toArgb(), // aqua
+            tint(Color(0xFF2A7F9E)).toArgb(), // blue-teal
+            tint(Color(0xFF0E6B78)).toArgb(), // close the loop
         )
     }
     val colorStops = remember {
-        floatArrayOf(0.00f, 0.12f, 0.25f, 0.37f, 0.50f, 0.62f, 0.75f, 0.88f, 1.00f)
+        floatArrayOf(0.00f, 0.14f, 0.28f, 0.42f, 0.57f, 0.71f, 0.86f, 1.00f)
     }
     val fadeAlphas = remember {
         intArrayOf(
-            0xB8FFFFFF.toInt(),
-            0x7AFFFFFF.toInt(),
-            0x38FFFFFF.toInt(),
+            0x99FFFFFF.toInt(),
+            0x66FFFFFF.toInt(),
+            0x33FFFFFF.toInt(),
             0x14FFFFFF.toInt(),
             0x05FFFFFF.toInt(),
             0x00FFFFFF,
         )
     }
     val fadeStops = remember {
-        floatArrayOf(0.00f, 0.12f, 0.32f, 0.58f, 0.82f, 1.00f)
+        floatArrayOf(0.00f, 0.14f, 0.34f, 0.58f, 0.82f, 1.00f)
     }
 
     Canvas(
@@ -722,8 +720,8 @@ fun ImmersiveBorderGlow(
     ) {
         val w = size.width
         val h = size.height
-        // Extra-wide bloom: bright rim + deep soft wash into the stage.
-        val thickness = 72.dp.toPx()
+        // Moderate bloom — softer than the prior neon rim.
+        val thickness = 48.dp.toPx()
         val cx = w * 0.5f
         val cy = h * 0.5f
 
@@ -739,7 +737,7 @@ fun ImmersiveBorderGlow(
         ) {
             val sweep = SweepGradient(cx, cy, spectrum, colorStops)
             shaderMatrix.reset()
-            // Android sweep starts at 3 o'clock; -90° puts indigo at the top.
+            // Android sweep starts at 3 o'clock; -90° puts the first stop at the top.
             shaderMatrix.postRotate(angle - 90f, cx, cy)
             sweep.setLocalMatrix(shaderMatrix)
             val fade = LinearGradient(
