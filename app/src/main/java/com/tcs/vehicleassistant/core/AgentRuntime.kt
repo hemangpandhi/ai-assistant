@@ -16,6 +16,9 @@ import java.util.concurrent.atomic.AtomicReference
  * - [agentDispatcher]: single-thread for orchestrator / token parse (off Main)
  * - [ioScope]: disk / VHAL / model IO
  * - [mainScope]: UI-facing emits only
+ *
+ * Do **not** store [scope] / [ioScope] / [mainScope] in a field at construction time.
+ * [resetForService] / [shutdown] replace the root job; cached scopes stay cancelled forever.
  */
 object AgentRuntime {
     private val rootJob = AtomicReference(SupervisorJob())
