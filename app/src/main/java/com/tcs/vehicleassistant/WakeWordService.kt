@@ -170,7 +170,7 @@ class WakeWordService : Service() {
                 }
 
                 customAudioRecord?.startRecording()
-                isHoldingMic = true
+                beginMicHold()
                 val buffer = ShortArray(bufferSize)
 
                 var loopCount = 0
@@ -225,7 +225,7 @@ class WakeWordService : Service() {
                 } catch (_: Exception) {
                 }
                 customAudioRecord = null
-                isHoldingMic = false
+                signalMicReleased()
             }
         }
     }
@@ -293,7 +293,7 @@ class WakeWordService : Service() {
         } catch (_: Exception) {
         }
         customAudioRecord = null
-        isHoldingMic = false
+        signalMicReleased()
         customRecognizer?.close()
         super.onDestroy()
     }
@@ -340,7 +340,12 @@ class WakeWordService : Service() {
             } catch (_: Exception) {
             }
             customAudioRecord = null
-            isHoldingMic = false
+            signalMicReleased()
+            com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(
+                this@WakeWordService,
+                reason = "hotword",
+            )
+            AssistantVoiceInteractionService.triggerSession(this@WakeWordService, fromHotword = true)
         }
     }
 

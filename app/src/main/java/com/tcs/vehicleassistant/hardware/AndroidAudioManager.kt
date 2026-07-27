@@ -176,6 +176,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
+    override fun ensureWarmRecognizer() {
+        val run = Runnable { ensureRecognizer() }
+        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+    }
+
+    override fun isActivelyListening(): Boolean =
+        sttPhase == SttPhase.Starting || sttPhase == SttPhase.Listening
+
     override fun startListening() {
         if (isListening) return
         isListening = true

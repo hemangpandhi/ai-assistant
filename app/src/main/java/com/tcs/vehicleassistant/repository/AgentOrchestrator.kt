@@ -176,16 +176,17 @@ class AgentOrchestrator(
                     val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
                         .inject(org.koin.core.qualifier.named("edge"))
                     edgeProvider.initialize(context, force = false)
-                    handleQuery(query, retryCount)
+                    val queued = pendingPrewarmQuery
+                    pendingPrewarmQuery = null
+                    if (queued != null) {
+                        handleQuery(queued.first, queued.second)
+                    }
                 } catch (e: Exception) {
+                    pendingPrewarmQuery = null
                     _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                 }
             }
-            return
-        }
-
-        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
             return
         }
 
