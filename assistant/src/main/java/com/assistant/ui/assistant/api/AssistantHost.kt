@@ -13,6 +13,12 @@ interface AssistantHost {
 
     /** Optional high-contrast eyes for sunlight (settings). */
     fun highContrastEyes(): Boolean = false
+
+    /**
+     * Debug-only model / backend labels (mirrors XML Polestar tags).
+     * Return null to hide the Compose debug strip.
+     */
+    fun debugInfo(): AssistantDebugInfo? = null
 }
 
 /**

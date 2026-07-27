@@ -242,12 +242,7 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Error -> {
                 emitMood(AssistantMoodId.Sad)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = state.errorMessage,
-                        speaker = AssistantSpeaker.System,
-                    ),
-                )
+                _events.emit(AssistantSessionEvent.Error(state.errorMessage))
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
         }

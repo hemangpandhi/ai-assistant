@@ -232,23 +232,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
 
         val modelInfoTag: TextView? = overlayView.findViewById(R.id.modelInfoTag)
-        if (modelInfoTag != null) {
-            if (LocalLLMActivity.isCloudModelActive) {
-                modelInfoTag.text = "${LocalLLMActivity.currentCloudModelName} ☁️"
-            } else {
-                val modelName = java.io.File(LLMManager.currentModelPath).nameWithoutExtension
-                modelInfoTag.text = if (modelName.isNotEmpty()) modelName else "Gemma 4 E2B"
-            }
-        }
+        modelInfoTag?.text = com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.modelLabel()
 
         val activeBackendTag: TextView? = overlayView.findViewById(R.id.activeBackendTag)
-        if (activeBackendTag != null) {
-            if (LocalLLMActivity.isCloudModelActive) {
-                activeBackendTag.text = "Backend: Cloud"
-            } else {
-                activeBackendTag.text = "Backend: ${LLMManager.activeBackendString}"
-            }
-        }
+        activeBackendTag?.text = com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.backendLabel()
 
         responseText?.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
