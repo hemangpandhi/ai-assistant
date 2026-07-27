@@ -263,8 +263,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
 
         unloadJob?.cancel()
-        unloadJob = CoroutineScope(Dispatchers.Main).launch {
-            delay(600_000)
+        // Unload sooner under idle — keep warm only for recent interaction (~90s).
+        unloadJob = observerScope.launch {
+            delay(90_000)
             LLMManager.unload()
         }
     }
@@ -642,7 +643,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             inputControls?.visibility = View.GONE
             btnMic?.isEnabled = false
 
-            CoroutineScope(Dispatchers.Main).launch {
+            observerScope.launch {
                 if (!LLMManager.isReady() && !LLMManager.isInitializing && !LLMManager.isPrewarming) {
                     withContext(Dispatchers.IO) {
                         runCatching { LLMManager.autoInitialize(context.applicationContext) }
@@ -672,7 +673,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnMic?.isEnabled = true
 
             if (showFlags and SHOW_WITH_ASSIST != 0) {
-                CoroutineScope(Dispatchers.Main).launch {
+                observerScope.launch {
                     delay(500)
                     btnMic?.performClick()
                 }
@@ -689,7 +690,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     private fun startTypewriterIfNeeded() {
         if (typewriterJob == null || typewriterJob?.isActive != true) {
-            typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+            typewriterJob = observerScope.launch {
                 while (isActive && currentDisplayLength < targetDisplayMessage.length) {
                     val timeSinceTts = System.currentTimeMillis() - (viewModel?.lastTtsUpdateTime ?: 0L)
                     val isTtsActive = (viewModel?.lastTtsUpdateTime ?: 0L) > 0L && timeSinceTts < 2000
@@ -717,7 +718,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             statusText?.text = ""
             return
         }
-        dotAnimatorJob = CoroutineScope(Dispatchers.Main).launch {
+        dotAnimatorJob = observerScope.launch {
             var dotCount = 0
             while (isActive) {
                 statusText?.text = "$baseText${".".repeat(dotCount)}"

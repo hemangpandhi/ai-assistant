@@ -10,14 +10,20 @@ import android.os.IBinder
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
-import org.vosk.android.RecognitionListener
-import org.vosk.android.SpeechService
-import org.vosk.android.StorageService
+import kotlin.math.abs
 
+/**
+ * Always-on wake-word listener with duty-cycled Vosk processing when the cabin is quiet.
+ * Owns its own [serviceJob] — independent of [com.tcs.vehicleassistant.core.AgentRuntime].
+ */
 class WakeWordService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -26,14 +32,23 @@ class WakeWordService : Service() {
 
     companion object {
         var sharedModel: Model? = null
+        private const val TAG = "WakeWord"
+        /** PCM samples below this are treated as silence for duty-cycling. */
+        private const val SILENCE_THRESHOLD = 180
+        /** When silent, run recognizer on 1 of every N buffers. */
+        private const val SILENT_DUTY_SKIP = 4
     }
+
+    private val serviceJob = SupervisorJob()
+    private val mainScope = CoroutineScope(serviceJob + Dispatchers.Main.immediate)
+    private val ioScope = CoroutineScope(serviceJob + Dispatchers.IO)
 
     private var model: Model? = null
     private var wakeWord = "hey auto"
 
     override fun onCreate() {
         super.onCreate()
-        
+
         val channelId = "wake_word_channel"
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             val channel = NotificationChannel(channelId, "Wake Word Service", NotificationManager.IMPORTANCE_LOW)
@@ -45,7 +60,7 @@ class WakeWordService : Service() {
             .setContentText("Listening for wake word...")
             .setSmallIcon(R.drawable.ic_assistant_premium)
             .build()
-            
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } else {
@@ -54,39 +69,36 @@ class WakeWordService : Service() {
 
         updateWakeWord()
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        ioScope.launch {
             try {
                 val destDir = java.io.File(filesDir, "model")
                 if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {
                     copyAssetFolder(assets, "model", destDir.absolutePath)
                 }
                 val m = Model(destDir.absolutePath)
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                withContext(Dispatchers.Main) {
                     model = m
                     sharedModel = m
                     recognizerSetup()
                 }
             } catch (e: Exception) {
-                Log.e("WakeWord", "Failed to manually unpack/load model: ${e.message}", e)
+                Log.e(TAG, "Failed to manually unpack/load model: ${e.message}", e)
             }
         }
-        
-        // Background LLM prewarm — short delay so first UI paint wins, then model loads
-        // for the real agent query path (and Soniqo/Gemini Nano when available).
-        CoroutineScope(Dispatchers.Main).launch {
+
+        // Background LLM prewarm — short delay so first UI paint wins.
+        mainScope.launch {
             delay(2_000)
             LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
                 override fun onSuccess() {
                 }
                 override fun onError(e: Exception) {
-                    Log.e("WakeWord", "Background LLM Init Failed", e)
+                    Log.e(TAG, "Background LLM Init Failed", e)
                 }
             })
         }
-
-
     }
-    
+
     private fun updateWakeWord() {
         val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         wakeWord = prefs.getString("wake_word", "hey auto")?.lowercase() ?: "hey auto"
@@ -99,45 +111,69 @@ class WakeWordService : Service() {
     private fun recognizerSetup() {
         try {
             if (model == null) {
-                Log.w("WakeWord", "Skipping recognizerSetup because model is null. Waiting for unpack.")
+                Log.w(TAG, "Skipping recognizerSetup because model is null. Waiting for unpack.")
                 return
             }
             customRecognizer = Recognizer(model, 16000.0f)
             startCustomListening()
         } catch (e: Exception) {
-            Log.e("WakeWord", "Failed to init recognizer: ${e.message}")
+            Log.e(TAG, "Failed to init recognizer: ${e.message}")
         }
     }
-    private var listeningJob: kotlinx.coroutines.Job? = null
-    
+
+    private var listeningJob: Job? = null
+
     private fun startCustomListening() {
         if (isRecording) return
         isRecording = true
-        listeningJob = CoroutineScope(Dispatchers.IO).launch {
+        listeningJob = ioScope.launch {
             try {
-                val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
-                
-                // Use VOICE_RECOGNITION source to enable hardware Acoustic Echo Cancellation (AEC).
-                // This prevents the vehicle's own music/TTS from drowning out the user's voice.
-                customAudioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
-                
+                val bufferSize = android.media.AudioRecord.getMinBufferSize(
+                    16000,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT,
+                ) * 2
+
+                customAudioRecord = android.media.AudioRecord(
+                    android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    16000,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize,
+                )
+
                 if (customAudioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
-                    Log.e("WakeWord", "Failed to init MIC AudioRecord!")
+                    Log.e(TAG, "Failed to init MIC AudioRecord!")
                 }
-                
+
                 customAudioRecord?.startRecording()
                 val buffer = ShortArray(bufferSize)
-                
+
                 var loopCount = 0
+                var silentBuffers = 0
                 while (isRecording) {
                     val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readSize > 0) {
                         loopCount++
-                        if (loopCount % 20 == 0) {
-                            val maxAmplitude = buffer.maxOrNull() ?: 0
-                            Log.d("WakeWord", "Audio buffer max amplitude: $maxAmplitude")
+                        var maxAmplitude = 0
+                        for (i in 0 until readSize) {
+                            val a = abs(buffer[i].toInt())
+                            if (a > maxAmplitude) maxAmplitude = a
                         }
-                        
+                        if (loopCount % 20 == 0) {
+                            Log.d(TAG, "Audio buffer max amplitude: $maxAmplitude")
+                        }
+
+                        // Duty-cycle: when parked-quiet, skip most Vosk acceptWaveForm calls.
+                        if (maxAmplitude < SILENCE_THRESHOLD) {
+                            silentBuffers++
+                            if (silentBuffers % SILENT_DUTY_SKIP != 0) {
+                                continue
+                            }
+                        } else {
+                            silentBuffers = 0
+                        }
+
                         if (customRecognizer?.acceptWaveForm(buffer, readSize) == true) {
                             val result = customRecognizer?.result
                             if (result != null) checkWakeWord(result)
@@ -146,78 +182,69 @@ class WakeWordService : Service() {
                             if (partial != null) checkWakeWord(partial)
                         }
                     } else if (readSize < 0) {
-                        Log.e("WakeWord", "AudioRecord read error: $readSize")
-                        delay(1000) // Sleep and try to recover
+                        Log.e(TAG, "AudioRecord read error: $readSize")
+                        delay(1000)
                     }
                 }
             } catch (e: Exception) {
-                Log.e("WakeWord", "Custom listening loop error: ${e.message}")
+                Log.e(TAG, "Custom listening loop error: ${e.message}")
             } finally {
                 try {
                     customAudioRecord?.stop()
                     customAudioRecord?.release()
-                } catch (e: Exception) {}
+                } catch (_: Exception) {
+                }
                 customAudioRecord = null
             }
         }
     }
-    private var restartJob: kotlinx.coroutines.Job? = null
+
+    private var restartJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "ACTION_RESTART_LISTENING") {
             restartJob?.cancel()
-            restartJob = CoroutineScope(Dispatchers.Main).launch {
+            restartJob = mainScope.launch {
                 try {
-                    // Wait 50ms to ensure the Assistant's SpeechRecognizer has fully released the mic hardware
-                    // before the WakeWord engine grabs it again.
                     delay(50)
-                    
-                    // 1. Tell IO thread to stop
                     isRecording = false
-                    
-                    // 2. Unblock the IO thread's AudioRecord.read() by stopping the microphone
                     try {
                         customAudioRecord?.stop()
-                    } catch(e: Exception) {}
-                    
-                    // 3. WAIT for the IO thread to fully exit the acceptWaveForm loop!
+                    } catch (_: Exception) {
+                    }
                     listeningJob?.join()
-                    
-                    // 4. Safely close the C++ Recognizer now that no thread is using it
                     try {
                         customRecognizer?.close()
-                    } catch (e: Exception) {}
+                    } catch (_: Exception) {
+                    }
                     customRecognizer = null
-                    
                     recognizerSetup()
-                    Log.d("WakeWord", "Restarting listener loop after RESTART intent...")
+                    Log.d(TAG, "Restarting listener loop after RESTART intent...")
                     delay(50)
                     startCustomListening()
                 } catch (e: Exception) {
-                    Log.e("WakeWord", "Failed to restart: ${e.message}")
+                    Log.e(TAG, "Failed to restart: ${e.message}")
                 }
             }
         } else if (intent?.action == "ACTION_STOP_LISTENING") {
-            Log.d("WakeWord", "ACTION_STOP_LISTENING received. Stopping HOTWORD loop.")
+            Log.d(TAG, "ACTION_STOP_LISTENING received. Stopping HOTWORD loop.")
             restartJob?.cancel()
-            restartJob = CoroutineScope(Dispatchers.Main).launch {
+            restartJob = mainScope.launch {
                 try {
                     isRecording = false
                     try {
                         customAudioRecord?.stop()
                     } catch (_: Exception) {
                     }
-                    // Wait for the IO loop to exit before releasing — otherwise the
-                    // assistant SpeechRecognizer races for the mic and fails silently.
                     listeningJob?.join()
                     try {
                         customAudioRecord?.release()
                     } catch (_: Exception) {
                     }
                     customAudioRecord = null
-                    Log.d("WakeWord", "Hotword AudioRecord fully released")
+                    Log.d(TAG, "Hotword AudioRecord fully released")
                 } catch (e: Exception) {
-                    Log.e("WakeWord", "Failed to stop hotword cleanly: ${e.message}")
+                    Log.e(TAG, "Failed to stop hotword cleanly: ${e.message}")
                 }
             }
         }
@@ -226,56 +253,58 @@ class WakeWordService : Service() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         isRecording = false
+        serviceJob.cancel()
         try {
             customAudioRecord?.stop()
             customAudioRecord?.release()
-        } catch(e: Exception) {}
+        } catch (_: Exception) {
+        }
         customAudioRecord = null
         customRecognizer?.close()
+        super.onDestroy()
     }
 
     private fun checkWakeWord(hypothesis: String) {
         val lowerHypothesis = hypothesis.lowercase()
         if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
-            Log.d("WakeWord", "Vosk heard: $hypothesis")
+            Log.d(TAG, "Vosk heard: $hypothesis")
         }
-        val isMatch = lowerHypothesis.contains(wakeWord) || 
-                      lowerHypothesis.contains("hey nissan") ||
-                      lowerHypothesis.contains("nissan") ||
-                      lowerHypothesis.contains("hey nice") ||
-                      lowerHypothesis.contains("hey me") ||
-                      lowerHypothesis.contains("hey listen") ||
-                      lowerHypothesis.contains("hey lisa") ||
-                      lowerHypothesis.contains("hey mason") ||
-                      lowerHypothesis.contains("hey nathan") ||
-                      lowerHypothesis.contains("hey missing") ||
-                      lowerHypothesis.contains("hey auto") ||
-                      lowerHypothesis.contains("hey otto") || 
-                      lowerHypothesis.contains("hey out") || 
-                      lowerHypothesis.contains("hey miss") ||
-                      lowerHypothesis.contains("hey reason") ||
-                      lowerHypothesis.contains("hey recent") ||
-                      lowerHypothesis.contains("hey decent") ||
-                      lowerHypothesis.contains("hey sam") ||
-                      lowerHypothesis.contains("hey sun") ||
-                      lowerHypothesis.contains("hey son") ||
-                      lowerHypothesis.contains("hey i have a hot") ||
-                      lowerHypothesis.contains("haney") ||
-                      lowerHypothesis.contains("nisa") ||
-                      lowerHypothesis.contains("haney sir")
-        
+        val isMatch = lowerHypothesis.contains(wakeWord) ||
+            lowerHypothesis.contains("hey nissan") ||
+            lowerHypothesis.contains("nissan") ||
+            lowerHypothesis.contains("hey nice") ||
+            lowerHypothesis.contains("hey me") ||
+            lowerHypothesis.contains("hey listen") ||
+            lowerHypothesis.contains("hey lisa") ||
+            lowerHypothesis.contains("hey mason") ||
+            lowerHypothesis.contains("hey nathan") ||
+            lowerHypothesis.contains("hey missing") ||
+            lowerHypothesis.contains("hey auto") ||
+            lowerHypothesis.contains("hey otto") ||
+            lowerHypothesis.contains("hey out") ||
+            lowerHypothesis.contains("hey miss") ||
+            lowerHypothesis.contains("hey reason") ||
+            lowerHypothesis.contains("hey recent") ||
+            lowerHypothesis.contains("hey decent") ||
+            lowerHypothesis.contains("hey sam") ||
+            lowerHypothesis.contains("hey sun") ||
+            lowerHypothesis.contains("hey son") ||
+            lowerHypothesis.contains("hey i have a hot") ||
+            lowerHypothesis.contains("haney") ||
+            lowerHypothesis.contains("nisa") ||
+            lowerHypothesis.contains("haney sir")
+
         if (isMatch) {
-            Log.d("WakeWord", "Wake word detected: $wakeWord")
+            Log.d(TAG, "Wake word detected: $wakeWord")
             AssistantVoiceInteractionService.triggerSession(this@WakeWordService)
-            
-            // Stop listening. The AssistantSession will explicitly send ACTION_RESTART_LISTENING when it hides.
+
             isRecording = false
             try {
                 customAudioRecord?.stop()
                 customAudioRecord?.release()
-            } catch (e: Exception) {}
+            } catch (_: Exception) {
+            }
             customAudioRecord = null
         }
     }

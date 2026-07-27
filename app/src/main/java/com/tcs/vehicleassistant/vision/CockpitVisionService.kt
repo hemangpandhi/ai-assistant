@@ -91,6 +91,15 @@ class CockpitVisionService : Service() {
     }
 
     private fun startStream(url: String) {
+        val flags = com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(this)
+        if (!flags.proactiveVisionEnabled) {
+            android.util.Log.i(
+                "CockpitVisionService",
+                "Proactive vision disabled; skipping camera start",
+            )
+            return
+        }
+
         streamManager?.stop()
         com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = null
 

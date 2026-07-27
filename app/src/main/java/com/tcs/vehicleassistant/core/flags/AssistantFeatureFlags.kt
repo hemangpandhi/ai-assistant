@@ -28,6 +28,14 @@ class AssistantFeatureFlags(context: Context) {
         get() = prefs.getBoolean(KEY_SEMANTIC_TOOLS, false)
         set(value) = prefs.edit().putBoolean(KEY_SEMANTIC_TOOLS, value).apply()
 
+    /**
+     * Cabin camera / MediaPipe vision for proactive gestures & biometrics.
+     * Default off — vision is heavy on AAOS; enable only for cockpit awareness demos.
+     */
+    var proactiveVisionEnabled: Boolean
+        get() = prefs.getBoolean(KEY_PROACTIVE_VISION, false)
+        set(value) = prefs.edit().putBoolean(KEY_PROACTIVE_VISION, value).apply()
+
     var routingPolicy: InferenceRoutingPolicy
         get() = when {
             prefs.getBoolean(KEY_CLOUD_ACTIVE, false) -> InferenceRoutingPolicy.ForceCloud
@@ -76,5 +84,6 @@ class AssistantFeatureFlags(context: Context) {
         private const val KEY_SPECULATIVE = "speculative_decoding"
         private const val KEY_AGENTIC_LOOP = "agentic_loop_enabled"
         private const val KEY_SEMANTIC_TOOLS = "semantic_tools_enabled"
+        private const val KEY_PROACTIVE_VISION = "proactive_vision_enabled"
     }
 }
