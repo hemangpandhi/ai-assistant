@@ -71,8 +71,10 @@ class WakeWordService : Service() {
             }
         }
         
-        // Background Pre-warming of Gemini Nano
+        // Background LLM prewarm — delayed so first assistant UI launch after install
+        // isn't fighting model load / Vosk unpack for CPU and I/O.
         CoroutineScope(Dispatchers.Main).launch {
+            delay(8_000)
             LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
                 override fun onSuccess() {
                 }

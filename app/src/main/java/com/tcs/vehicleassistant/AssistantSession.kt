@@ -170,17 +170,35 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     override fun onCreateContentView(): View {
-        LocalLLMActivity.loadRuntimePrefs(context.applicationContext)
-        VehicleManager.initialize(context.applicationContext)
-        VehicleCabinContextStore.publishFromVehicleManager()
+        // Paint the Compose stage first — every millisecond before setContentView
+        // is cold-start latency the driver feels after install.
         AssistantUiProfile.install(context)
-
-        val intent = Intent(context, VehicleAgentService::class.java)
-        context.startForegroundService(intent)
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-
         inflateContentForProfile()
+
+        // Heavy car / agent / prefs work runs after the first frame.
+        overlayView.post {
+            warmSessionDependencies()
+        }
         return overlayView
+    }
+
+    private fun warmSessionDependencies() {
+        observerScope.launch(Dispatchers.IO) {
+            runCatching { LocalLLMActivity.loadRuntimePrefs(context.applicationContext) }
+            runCatching { VehicleManager.initialize(context.applicationContext) }
+            withContext(Dispatchers.Main) {
+                runCatching { VehicleCabinContextStore.publishFromVehicleManager() }
+            }
+        }
+        // Compose demo path does not need VehicleAgentService on the critical path.
+        // XML plates still bind the agent for mic / ViewModel.
+        if (!usingComposeUi) {
+            val intent = Intent(context, VehicleAgentService::class.java)
+            runCatching {
+                context.startForegroundService(intent)
+                context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+            }
+        }
     }
 
     private fun inflateContentForProfile() {
@@ -226,8 +244,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         onDismiss = { hide() },
                         modifier = Modifier.fillMaxSize(),
                         awaitHotword = false,
+                        // Defer continuous STT until after first paint (handled in overlay).
                         enableLiveSpeech = true,
-                        enableTts = true,
+                        // Silent lip-sync on first sessions — platform TTS init is a major
+                        // cold-start hitch after install; chime/haptics still play.
+                        enableTts = false,
                     )
                 }
             }
