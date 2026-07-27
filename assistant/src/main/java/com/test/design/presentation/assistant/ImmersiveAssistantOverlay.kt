@@ -289,34 +289,27 @@ fun ImmersiveAssistantOverlay(
                 transcriptAlpha.snapTo(0f)
                 backdropAlpha.snapTo(0f)
 
-                if (!awaitHotword) {
-                    // Snap face + stage on first frame for system-bar / dock — no long rise.
-                    backdropAlpha.snapTo(1f)
-                    faceRise.snapTo(0f)
-                    faceScale.snapTo(1f)
-                    faceAlpha.snapTo(1f)
-                    transcriptAlpha.snapTo(1f)
-                    launch { wake.play() }
-                } else {
-                    wake.play()
-                    backdropAlpha.animateTo(1f, tween(360, easing = FastOutSlowInEasing))
-                    delay(60)
-                    launch {
-                        faceAlpha.animateTo(1f, tween(380, easing = FastOutSlowInEasing))
-                    }
-                    launch {
-                        faceScale.animateTo(
-                            1f,
-                            spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMediumLow),
-                        )
-                    }
-                    faceRise.animateTo(
-                        0f,
-                        spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMediumLow),
-                    )
-                    delay(80)
-                    transcriptAlpha.animateTo(1f, tween(340, easing = FastOutSlowInEasing))
+                // Dock / system-bar: quick visible slide-up (not a snap) so presence reads
+                // immediately without the empty-overlay wait of the hotword path.
+                launch {
+                    backdropAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
                 }
+                launch { wake.play() }
+                launch {
+                    faceAlpha.animateTo(1f, tween(260, easing = FastOutSlowInEasing))
+                }
+                launch {
+                    faceScale.animateTo(
+                        1f,
+                        spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+                    )
+                }
+                faceRise.animateTo(
+                    0f,
+                    spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+                )
+                delay(40)
+                transcriptAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
             }
         } else if (hasPresented) {
             wake.playDismiss() // soft chime as the face starts sliding down
@@ -411,7 +404,7 @@ fun ImmersiveAssistantOverlay(
                 faceScale = faceScale.value,
                 faceAlpha = faceAlpha.value,
                 transcriptAlpha = transcriptAlpha.value,
-                faceSizeScale = 1.10f,
+                faceSizeScale = 1.32f, // 1.10 baseline × 1.20
             )
         }
     }
