@@ -485,11 +485,6 @@ fun ImmersiveAssistantOverlay(
                     faceAlpha = faceAlpha.value,
                     transcriptAlpha = transcriptAlpha.value,
                     faceSizeScale = 1.32f, // 1.10 baseline × 1.20
-                    modifier = Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { /* consume — keep session alive */ },
-                    ),
                 )
             }
 
@@ -566,8 +561,8 @@ private fun ImmersiveAssistantDebugStrip(
 }
 
 /**
- * Full-stage dim for the immersive assistant, with a stronger bottom/center pool
- * behind the face so chrome stays readable over maps / launcher.
+ * Full-stage dim for the immersive assistant: light empty areas, stronger
+ * bottom-center pool behind the face / transcript so chrome stays readable.
  *
  * @param rich when false, skips Offscreen compositing / DstIn masks so the first
  * frame is a single scrim + cheap gradient (target &lt; 100ms TTFF).
@@ -578,7 +573,7 @@ fun ImmersiveBackdrop(
     rich: Boolean = true,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        // Full-screen base dim — always present for instant first paint.
+        // Soft full-screen base — mostly transparent so maps / launcher show through.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -586,15 +581,16 @@ fun ImmersiveBackdrop(
         )
         if (!rich) {
             // Single-pass vertical darken — no Offscreen layer, no blend mask.
+            // Keep the lite path soft to match the transparent stage.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
-                                0.0f to Color(0x4010141C),
-                                0.55f to Color(0x990E1218),
-                                1.0f to Color(0xE6050608),
+                                0.0f to Color(0x1410141C),
+                                0.55f to Color(0x440E1218),
+                                1.0f to Color(0x99050608),
                             ),
                         ),
                     ),
@@ -607,11 +603,11 @@ fun ImmersiveBackdrop(
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to Color(0x6610141C),
-                            0.40f to Color(0x99101820),
-                            0.68f to Color(0xCC0E1218),
-                            0.86f to Color(0xE60A0C10),
-                            1.0f to Color(0xF2050608),
+                            0.0f to Color(0x1410141C),
+                            0.45f to Color(0x28101820),
+                            0.70f to Color(0x660E1218),
+                            0.86f to Color(0x990A0C10),
+                            1.0f to Color(0xCC050608),
                         ),
                     ),
                 )
@@ -625,7 +621,7 @@ fun ImmersiveBackdrop(
                     )
                 },
         )
-        // Darker bottom-center pool — confined to the center band.
+        // Readable pool behind face + transcript — confined to the center band.
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
@@ -636,9 +632,9 @@ fun ImmersiveBackdrop(
             drawRect(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to Color(0xE6000000),
-                        0.40f to Color(0x99000000),
-                        0.72f to Color(0x44000000),
+                        0.0f to Color(0xCC000000),
+                        0.38f to Color(0x88000000),
+                        0.70f to Color(0x33000000),
                         1.0f to Color.Transparent,
                     ),
                     center = Offset(w * 0.5f, h * 0.88f),
@@ -657,60 +653,84 @@ fun ImmersiveBackdrop(
 }
 
 /**
- * Subtle bluish bottom-border glow as a true 2D gradient:
- * horizontal soft center band (30–40–30), soft fade upward from the edge.
+ * Purple-blue perimeter glow: ~5dp thick at the screen edge, fading inward.
  */
 @Composable
 fun ImmersiveBorderGlow(
     modifier: Modifier = Modifier,
-    glowColor: Color = Color(0xFF8AB4F8),
+    glowColor: Color = Color(0xFF7B6CFF),
 ) {
-    Canvas(
-        modifier = modifier
-            .fillMaxSize()
-            // Offscreen layer so DstIn can mask the horizontal wash into a vertical fade.
-            .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
-    ) {
+    Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        val blue = glowColor
-        val bloomH = 64.dp.toPx()
-        val top = h - bloomH
-
-        // Horizontal wash: transparent gutters → center 40% glow.
-        drawRect(
-            brush = Brush.horizontalGradient(
-                colorStops = arrayOf(
-                    0.00f to Color.Transparent,
-                    0.22f to Color.Transparent,
-                    0.30f to blue.copy(alpha = 0.10f),
-                    0.36f to blue.copy(alpha = 0.28f),
-                    0.50f to blue.copy(alpha = 0.40f),
-                    0.64f to blue.copy(alpha = 0.28f),
-                    0.70f to blue.copy(alpha = 0.10f),
-                    0.78f to Color.Transparent,
-                    1.00f to Color.Transparent,
-                ),
-            ),
-            topLeft = Offset(0f, top),
-            size = Size(w, bloomH),
+        val thickness = 5.dp.toPx()
+        // Blend brand tint toward a purple-blue frame.
+        val purpleBlue = Color(0xFF7B6CFF)
+        val edge = Color(
+            red = (purpleBlue.red * 0.65f + glowColor.red * 0.35f),
+            green = (purpleBlue.green * 0.65f + glowColor.green * 0.35f),
+            blue = (purpleBlue.blue * 0.65f + glowColor.blue * 0.35f),
+            alpha = 1f,
         )
+        val edgeStrong = edge.copy(alpha = 0.90f)
+        val edgeMid = edge.copy(alpha = 0.45f)
+        val clear = Color.Transparent
 
-        // Vertical mask: invisible at the top of the bloom → strongest on the bottom edge.
+        // Top edge — strong at y=0, fades downward (inward).
         drawRect(
             brush = Brush.verticalGradient(
                 colorStops = arrayOf(
-                    0.00f to Color.Transparent,
-                    0.40f to Color.White.copy(alpha = 0.18f),
-                    0.72f to Color.White.copy(alpha = 0.55f),
-                    1.00f to Color.White,
+                    0.00f to edgeStrong,
+                    0.45f to edgeMid,
+                    1.00f to clear,
                 ),
-                startY = top,
+                startY = 0f,
+                endY = thickness,
+            ),
+            topLeft = Offset.Zero,
+            size = Size(w, thickness),
+        )
+        // Bottom edge — strong at bottom, fades upward (inward).
+        drawRect(
+            brush = Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.00f to clear,
+                    0.55f to edgeMid,
+                    1.00f to edgeStrong,
+                ),
+                startY = h - thickness,
                 endY = h,
             ),
-            topLeft = Offset(0f, top),
-            size = Size(w, bloomH),
-            blendMode = BlendMode.DstIn,
+            topLeft = Offset(0f, h - thickness),
+            size = Size(w, thickness),
+        )
+        // Left edge — strong at x=0, fades rightward (inward).
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colorStops = arrayOf(
+                    0.00f to edgeStrong,
+                    0.45f to edgeMid,
+                    1.00f to clear,
+                ),
+                startX = 0f,
+                endX = thickness,
+            ),
+            topLeft = Offset.Zero,
+            size = Size(thickness, h),
+        )
+        // Right edge — strong at right, fades leftward (inward).
+        drawRect(
+            brush = Brush.horizontalGradient(
+                colorStops = arrayOf(
+                    0.00f to clear,
+                    0.55f to edgeMid,
+                    1.00f to edgeStrong,
+                ),
+                startX = w - thickness,
+                endX = w,
+            ),
+            topLeft = Offset(w - thickness, 0f),
+            size = Size(thickness, h),
         )
     }
 }

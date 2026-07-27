@@ -32,6 +32,17 @@ interface IAudioManager {
      * Call this when the session hides to free the microphone.
      */
     fun destroySpeechRecognizer()
+
+    /**
+     * Duck media (music) for the assistant session — call as soon as the overlay shows.
+     * Uses [android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK].
+     */
+    fun requestAssistantDuck()
+
+    /**
+     * Release the assistant duck focus so media returns to full volume.
+     */
+    fun abandonAssistantDuck()
     
     /**
      * Queues a sentence to be spoken by the TTS engine.
