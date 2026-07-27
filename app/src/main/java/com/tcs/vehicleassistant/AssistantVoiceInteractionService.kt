@@ -17,6 +17,14 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
         
         fun triggerSession(context: Context? = null, fromHotword: Boolean = false) {
             android.util.Log.d("WakeWord", "triggerSession called. instance is $instance hotword=$fromHotword")
+            val ctx = context ?: instance
+            // Pre-arm command STT before the overlay appears (icon path; hotword already arms).
+            if (ctx != null && !fromHotword) {
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(ctx, reason = "assist-icon")
+            } else if (ctx != null && fromHotword) {
+                // Hotword path usually pre-armed in WakeWordService; ensure if race lost.
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(ctx, reason = "hotword-session")
+            }
             if (instance != null) {
                 val args = Bundle().apply {
                     putString(

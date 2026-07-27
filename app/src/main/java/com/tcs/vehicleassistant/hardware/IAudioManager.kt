@@ -10,6 +10,15 @@ interface IAudioManager {
      * Initializes the audio hardware.
      */
     fun initialize(onSuccess: () -> Unit, onError: () -> Unit)
+
+    /**
+     * Create the SpeechRecognizer if missing (no start).
+     * Warm at process/service start so the first session only needs [startListening].
+     */
+    fun ensureWarmRecognizer()
+
+    /** True while STT is Starting or Listening. */
+    fun isActivelyListening(): Boolean
     
     /**
      * Starts listening for voice input.
@@ -29,7 +38,7 @@ interface IAudioManager {
 
     /**
      * Destroys the speech recognizer and releases its resources.
-     * Call this when the session hides to free the microphone.
+     * Prefer [stopListening] between sessions to keep a warm recognizer.
      */
     fun destroySpeechRecognizer()
 
