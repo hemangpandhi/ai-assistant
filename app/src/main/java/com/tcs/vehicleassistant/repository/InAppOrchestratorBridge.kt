@@ -5,6 +5,13 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
+import com.tcs.vehicleassistant.ToolManager
+import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
+import com.tcs.vehicleassistant.data.memory.MemoryManagerStore
+import com.tcs.vehicleassistant.domain.ExecuteToolUseCase
+import com.tcs.vehicleassistant.domain.QueryPipeline
+import com.tcs.vehicleassistant.domain.SpeechPresenter
+import com.tcs.vehicleassistant.domain.ToolLoop
 import com.tcs.vehicleassistant.hardware.IAudioManager
 import com.tcs.vehicleassistant.utils.ToolCallParser
 import kotlinx.coroutines.CoroutineScope
@@ -13,6 +20,8 @@ import kotlinx.coroutines.flow.onEach
 
 /**
  * Runs [AgentOrchestrator] inside LocalLLMActivity with optional TTS and chat UI callbacks.
+ * Prefers the Koin-shared orchestrator when available; otherwise builds a bridge-scoped instance
+ * (in-app TTS uses a different [IAudioManager]).
  */
 class InAppOrchestratorBridge(
     context: Context,
@@ -22,7 +31,39 @@ class InAppOrchestratorBridge(
     var enableTts: Boolean = false
 
     private val bridgeAudio = BridgeAudioManager()
-    private val orchestrator = AgentOrchestrator(context.applicationContext, bridgeAudio)
+    private val appContext = context.applicationContext
+    private val orchestrator: AgentOrchestrator = run {
+        // Always use bridge audio for Activity TTS callbacks — construct with shared ports.
+        val koin = runCatching { org.koin.java.KoinJavaComponent.getKoin() }.getOrNull()
+        if (koin != null) {
+            AgentOrchestrator(
+                context = appContext,
+                audioManager = bridgeAudio,
+                memory = koin.get(),
+                featureFlags = koin.get(),
+                queryPipeline = QueryPipeline(
+                    toolManager = koin.get(),
+                    memory = koin.get(),
+                    featureFlags = koin.get(),
+                ),
+                toolLoop = ToolLoop(ExecuteToolUseCase(koin.get())),
+                speechPresenter = SpeechPresenter(bridgeAudio),
+            )
+        } else {
+            val memory = MemoryManagerStore()
+            val flags = AssistantFeatureFlags(appContext)
+            val tools = ToolManager()
+            AgentOrchestrator(
+                context = appContext,
+                audioManager = bridgeAudio,
+                memory = memory,
+                featureFlags = flags,
+                queryPipeline = QueryPipeline(tools, memory, flags),
+                toolLoop = ToolLoop(ExecuteToolUseCase(tools)),
+                speechPresenter = SpeechPresenter(bridgeAudio),
+            )
+        }
+    }
 
     var onStreaming: ((String) -> Unit)? = null
     var onSpeaking: ((String) -> Unit)? = null

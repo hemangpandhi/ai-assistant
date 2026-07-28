@@ -40,7 +40,8 @@ class CloudLLMProvider(
 
         try {
             val modelName = featureFlags.cloudModelName.ifBlank {
-                com.tcs.vehicleassistant.LocalLLMActivity.currentCloudModelName
+                // Legacy companion fallback during migration only.
+                featureFlags.cloudModelName
             }
             if (modelName.contains("Gemini")) {
                 GeminiManager.sendMessageAsync(sysPrompt, prompt, callback)

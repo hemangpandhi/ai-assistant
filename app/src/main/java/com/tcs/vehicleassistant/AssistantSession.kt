@@ -364,7 +364,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             runCatching { LocalLLMActivity.loadRuntimePrefs(context.applicationContext) }
             runCatching { VehicleManager.initialize(context.applicationContext) }
             runCatching {
-                if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
+                if (!LLMManager.isReady() && !isCloudRoutingActive()) {
                     LLMManager.autoInitialize(context.applicationContext)
                 }
             }
@@ -639,8 +639,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
     }
 
+    private fun isCloudRoutingActive(): Boolean {
+        return runCatching {
+            org.koin.java.KoinJavaComponent.getKoin()
+                .get<com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags>()
+                .isCloudActive
+        }.getOrElse { LocalLLMActivity.isCloudModelActive }
+    }
+
     private fun isModelWarmingUp(): Boolean {
-        if (LocalLLMActivity.isCloudModelActive) return false
+        if (isCloudRoutingActive()) return false
         return LLMManager.isInitializing || LLMManager.isPrewarming || !LLMManager.isReady()
     }
 
@@ -903,7 +911,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             }
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
-                    if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
+                    if (!LLMManager.isReady() && !isCloudRoutingActive()) {
                         LLMManager.autoInitialize(context.applicationContext)
                     }
                 }
@@ -945,7 +953,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 btnMic?.isEnabled = true
                 armIdleTimer("model-ready")
                 if (showFlags and SHOW_WITH_ASSIST != 0) {
-                    delay(500) // Wait for WakeWordService to release the mic
+                    delay(250) // Wait for WakeWordService to release the mic
                     btnMic?.performClick()
                 }
             }
@@ -960,7 +968,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
             if (showFlags and SHOW_WITH_ASSIST != 0) {
                 observerScope.launch {
-                    delay(500)
+                    delay(250)
                     btnMic?.performClick()
                 }
             }
