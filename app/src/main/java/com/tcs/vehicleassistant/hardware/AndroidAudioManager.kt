@@ -184,6 +184,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun isActivelyListening(): Boolean =
         sttPhase == SttPhase.Starting || sttPhase == SttPhase.Listening
 
+    override fun isReadyListening(): Boolean =
+        sttPhase == SttPhase.Listening
+
     @Volatile
     private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
 
@@ -505,6 +508,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     companion object {
+        private const val POST_STOP_SETTLE_MS = 180L
+        private const val READY_WATCHDOG_MS = 2000L
+
         fun sttErrorLabel(error: Int): String = when (error) {
             SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
             SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"

@@ -280,8 +280,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.stopSpeaking()
         viewModel?.resetState()
 
-        observerScope.launch {
-            // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
+        wakeRestartJob?.cancel()
+        wakeRestartJob = observerScope.launch {
+            // Let SpeechRecognizer cancel/settle before Vosk grabs AudioRecord.
             delay(450)
             val restartIntent = Intent(context, WakeWordService::class.java)
             restartIntent.action = "ACTION_RESTART_LISTENING"
@@ -478,8 +479,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                                 if (event.text.isNotBlank()) noteUserActivity()
                             }
                             is ViewModelEvent.StartListening -> {
-                                idleArmedAfterMicReady = true
-                                armIdleTimer("start-listening")
+                                // Request only — idle arms when uiState reaches Listening (ready).
                             }
                             else -> Unit
                         }
@@ -760,6 +760,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         super.onShow(args, showFlags)
         AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
         sessionUiVisible = true
+        // Cancel stale hide→wake restart so Vosk cannot reclaim the mic mid-STT.
+        wakeRestartJob?.cancel()
+        wakeRestartJob = null
         beginSummonProtection()
         baselineResumedActivity = null
         baselineTopPackage = null

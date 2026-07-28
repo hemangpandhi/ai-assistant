@@ -115,7 +115,8 @@ class VehicleAgentAssistantBackend(
                 when (event) {
                     is ViewModelEvent.StartListening -> {
                         AssistantDebugLog.d(TAG, "event StartListening")
-                        scheduleStartMic(reason = "orchestrator", delayMs = MIC_REARM_MS, force = true)
+                        // Soft re-arm — do not destroy a healthy recognizer (force only on ERROR_CLIENT).
+                        scheduleStartMic(reason = "orchestrator", delayMs = MIC_REARM_MS, force = false)
                     }
                     is ViewModelEvent.SetInputText -> {
                         // liveTranscript collector is primary; keep as fallback for late subscribers.
@@ -132,6 +133,7 @@ class VehicleAgentAssistantBackend(
                     }
                     is ViewModelEvent.FinishSession -> {
                         micArmed = false
+                        com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                         AssistantDebugLog.d(TAG, "event FinishSession → re-arm mic")
                         setPipelineMood(AssistantMoodId.Listening)
                         _events.emit(
@@ -140,7 +142,7 @@ class VehicleAgentAssistantBackend(
                                 speaker = AssistantSpeaker.System,
                             ),
                         )
-                        scheduleStartMic(reason = "finish-retry", delayMs = MIC_REARM_MS, force = true)
+                        scheduleStartMic(reason = "finish-retry", delayMs = MIC_REARM_MS, force = false)
                     }
                     is ViewModelEvent.AffectiveMood -> {
                         setAffectiveMood(event.mood)
@@ -156,13 +158,10 @@ class VehicleAgentAssistantBackend(
         // belong to a cancelled scope and never complete.
         if (_sessionActive.value &&
             !micArmed &&
-            audioManager?.isActivelyListening() != true &&
-            !com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)
+            audioManager?.isActivelyListening() != true
         ) {
             scheduleStartMic(reason = "attach-while-active", delayMs = 0L)
-        } else if (com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager) ||
-            audioManager?.isActivelyListening() == true
-        ) {
+        } else if (audioManager?.isReadyListening() == true) {
             micArmed = true
         }
     }
@@ -181,17 +180,20 @@ class VehicleAgentAssistantBackend(
         AssistantDebugLog.clear()
         AssistantDebugLog.d(TAG, "startSession reason=$reason")
 
-        val alreadyOpen = com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager) ||
-            audioManager?.isActivelyListening() == true ||
-            micArmed
+        val preArmInFlight =
+            com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)
+        val alreadyOpen = audioManager?.isReadyListening() == true ||
+            audioManager?.isActivelyListening() == true
 
-        if (!alreadyOpen) {
-            // Avoid wiping Listening UI / re-arming if STT was pre-armed before overlay.
+        if (alreadyOpen) {
+            micArmed = audioManager?.isReadyListening() == true
+            AssistantDebugLog.d(TAG, "startSession — ear already open, skip re-arm")
+        } else if (preArmInFlight) {
+            micArmed = false
+            AssistantDebugLog.d(TAG, "startSession — pre-arm in flight, wait")
+        } else {
             viewModel?.resetUiState()
             micArmed = false
-        } else {
-            micArmed = true
-            AssistantDebugLog.d(TAG, "startSession — ear already open, skip re-arm")
         }
 
         scope.launch {
@@ -217,8 +219,11 @@ class VehicleAgentAssistantBackend(
             }
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
-        if (!alreadyOpen) {
+        if (!alreadyOpen && !preArmInFlight) {
             scheduleStartMic(reason = "startSession:$reason", delayMs = 0L, force = false)
+        } else if (preArmInFlight) {
+            // Ensure we verify ready even if pre-arm's startListening races.
+            scheduleStartMic(reason = "startSession-await-prearm", delayMs = 80L, force = false)
         }
     }
 
@@ -293,13 +298,17 @@ class VehicleAgentAssistantBackend(
         if (!_sessionActive.value) {
             _sessionActive.value = true
         }
-        if (listenJob?.isActive == true || micArmed ||
-            com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager)
-        ) {
+        if (audioManager?.isReadyListening() == true) {
             micArmed = true
-            AssistantDebugLog.d(TAG, "requestListen skipped — already capturing")
+            AssistantDebugLog.d(TAG, "requestListen skipped — already ready")
             return
         }
+        if (listenJob?.isActive == true || audioManager?.isActivelyListening() == true) {
+            AssistantDebugLog.d(TAG, "requestListen skipped — start in flight")
+            return
+        }
+        // Stale coordinator/micArmed must not suppress a real re-arm.
+        micArmed = false
         AssistantDebugLog.d(TAG, "requestListen")
         scheduleStartMic(reason = "session-request", delayMs = 0L, force = false)
     }
@@ -311,23 +320,49 @@ class VehicleAgentAssistantBackend(
     ) {
         listenJob?.cancel()
         listenJob = scope.launch {
-            AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms")
+            AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms force=$force")
             if (delayMs > 0) delay(delayMs)
             if (!isActive || !_sessionActive.value) return@launch
             if (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
                 AssistantDebugLog.d(TAG, "mic schedule awaiting wake-word release")
-                com.tcs.vehicleassistant.WakeWordService.awaitMicReleased(800L)
-                delay(25)
+                val released = com.tcs.vehicleassistant.WakeWordService.awaitMicReleased(800L)
+                if (!released && com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
+                    AssistantDebugLog.w(TAG, "mic schedule — wake still holding, forcing stop wait")
+                    delay(120)
+                } else {
+                    delay(40)
+                }
             }
             if (!isActive || !_sessionActive.value) return@launch
             repeat(8) { attempt ->
                 if (!_sessionActive.value) return@launch
-                if (startMic(reason = "$reason#$attempt", force = force || attempt > 0)) {
-                    return@launch
+                val useForce = force || attempt > 0
+                if (!startMic(reason = "$reason#$attempt", force = useForce)) {
+                    delay(180)
+                    return@repeat
                 }
-                delay(150)
+                // Request issued — wait until Ready (or failure clears phase).
+                val deadline = System.currentTimeMillis() + READY_WAIT_MS
+                while (isActive && _sessionActive.value && System.currentTimeMillis() < deadline) {
+                    val audio = audioManager
+                    if (audio?.isReadyListening() == true) {
+                        micArmed = true
+                        clientErrorRetries = 0
+                        AssistantDebugLog.d(TAG, "mic ready after '$reason#$attempt'")
+                        return@launch
+                    }
+                    if (audio?.isActivelyListening() != true) {
+                        // Error/idle — retry with force recreate.
+                        break
+                    }
+                    delay(50)
+                }
+                micArmed = false
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
+                AssistantDebugLog.w(TAG, "mic not ready after '$reason#$attempt' — retry")
+                delay(200)
             }
-            AssistantDebugLog.w(TAG, "mic schedule gave up — agent unbound")
+            AssistantDebugLog.w(TAG, "mic schedule gave up — not ready")
             _events.emit(AssistantSessionEvent.Error("Microphone not ready. Try again."))
         }
     }
@@ -339,7 +374,7 @@ class VehicleAgentAssistantBackend(
         vm.handleQuery(q)
     }
 
-    /** @return true if startListening was issued (or already armed). */
+    /** @return true if startListening/restart was issued (or already ready). */
     private fun startMic(reason: String, force: Boolean = false): Boolean {
         val vm = viewModel
         val audio = audioManager
@@ -347,13 +382,13 @@ class VehicleAgentAssistantBackend(
             AssistantDebugLog.d(TAG, "startMic($reason) wait — unbound")
             return false
         }
-        if (vm.isProcessing()) {
-            // Barge-in lite: still arm STT while Understand/Act runs.
-            AssistantDebugLog.d(TAG, "startMic($reason) while processing — barge-in arm")
-        }
-        if ((micArmed || audio.isActivelyListening()) && !force) {
+        if (audio.isReadyListening()) {
             micArmed = true
-            AssistantDebugLog.d(TAG, "startMic($reason) skip — already listening")
+            AssistantDebugLog.d(TAG, "startMic($reason) skip — already ready")
+            return true
+        }
+        if (!force && audio.isActivelyListening()) {
+            AssistantDebugLog.d(TAG, "startMic($reason) skip — already starting")
             return true
         }
         return try {
@@ -369,6 +404,7 @@ class VehicleAgentAssistantBackend(
             true
         } catch (t: Throwable) {
             micArmed = false
+            com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
             AssistantDebugLog.e(TAG, "startMic($reason) failed: ${t.message}")
             scope.launch {
                 setPipelineMood(AssistantMoodId.Sad)
@@ -422,6 +458,8 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Streaming -> {
                 micArmed = false
+                // Avoid capturing TTS into STT (self-barge / ERROR_CLIENT).
+                runCatching { audioManager?.stopListening() }
                 val now = System.currentTimeMillis()
                 val textChanged = state.displayText != lastEmittedTranscript
                 if (textChanged && now - lastStreamingUiMs >= UI_FRAME_MS) {
@@ -445,6 +483,7 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Speaking -> {
                 micArmed = false
+                runCatching { audioManager?.stopListening() }
                 lastEmittedTranscript = state.finalMessage
                 AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
                 setPipelineMood(AssistantMoodId.Speaking)
@@ -458,6 +497,7 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Error -> {
                 micArmed = false
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                 AssistantDebugLog.e(TAG, "ui Error: ${state.errorMessage}")
                 setPipelineMood(AssistantMoodId.Sad)
                 _events.emit(AssistantSessionEvent.Error(state.errorMessage))
@@ -465,11 +505,12 @@ class VehicleAgentAssistantBackend(
 
                 // CLIENT/BUSY: rebuild recognizer with delay (ERROR_CLIENT=5).
                 val msg = state.errorMessage.lowercase()
-                val isClient = msg.contains("client") || msg.contains("busy") || msg.contains("(5)")
-                if (isClient && clientErrorRetries < 2 && _sessionActive.value) {
+                val isClient = msg.contains("client") || msg.contains("busy") ||
+                    msg.contains("(5)") || msg.contains("error_client")
+                if (isClient && clientErrorRetries < 3 && _sessionActive.value) {
                     clientErrorRetries += 1
                     AssistantDebugLog.w(TAG, "ERROR_CLIENT retry #$clientErrorRetries")
-                    scheduleStartMic(reason = "client-retry", delayMs = 200L, force = true)
+                    scheduleStartMic(reason = "client-retry", delayMs = 280L, force = true)
                 }
             }
         }
@@ -506,9 +547,11 @@ class VehicleAgentAssistantBackend(
         /** Legacy blind handoff when release was not awaited. */
         private const val MIC_HANDOFF_MS = 120L
         /** Re-arm after TTS / turn complete. */
-        private const val MIC_REARM_MS = 80L
+        private const val MIC_REARM_MS = 120L
         /** SpeechRecognizer ERROR_CLIENT rebuild delay. */
-        private const val MIC_CLIENT_RETRY_MS = 400L
+        private const val MIC_CLIENT_RETRY_MS = 450L
+        /** Wait for onReadyForSpeech after issuing startListening. */
+        private const val READY_WAIT_MS = 1800L
         private const val UI_FRAME_MS = 32L
     }
 }

@@ -19,6 +19,9 @@ interface IAudioManager {
 
     /** True while STT is Starting or Listening. */
     fun isActivelyListening(): Boolean
+
+    /** True only after [onReadyForSpeech] — not merely after startListening was issued. */
+    fun isReadyListening(): Boolean
     
     /**
      * Starts listening for voice input.
