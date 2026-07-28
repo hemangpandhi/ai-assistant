@@ -511,9 +511,11 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         private const val POST_STOP_SETTLE_MS = 220L
         private const val DESTROY_SETTLE_MS = 400L
         private const val BUSY_BACKOFF_MS = 900L
-        private const val CLIENT_BACKOFF_MS = 450L
+        private const val CLIENT_BACKOFF_MS = 550L
         private const val MIN_START_GAP_MS = 450L
         private const val READY_WATCHDOG_MS = 2500L
+        /** Window where ERROR_CLIENT from cancel/stop/destroy is ignored. */
+        private const val IGNORE_CLIENT_ERROR_MS = 600L
 
         fun sttErrorLabel(error: Int): String = when (error) {
             SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
