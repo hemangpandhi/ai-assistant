@@ -184,13 +184,16 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun isActivelyListening(): Boolean =
         sttPhase == SttPhase.Starting ||
             sttPhase == SttPhase.Listening ||
-            pendingRestart != null
+            startPending
 
     override fun isReadyListening(): Boolean =
         sttPhase == SttPhase.Listening
 
     @Volatile
     private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
+
+    /** True while a delayed startListening is queued on the main handler. */
+    @Volatile private var startPending: Boolean = false
 
     override fun startListening() {
         if (isListening) return
