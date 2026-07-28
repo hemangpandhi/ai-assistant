@@ -8,6 +8,12 @@ import com.tcs.vehicleassistant.data.memory.ConversationMemory
 import com.tcs.vehicleassistant.data.memory.MemoryManagerStore
 import com.tcs.vehicleassistant.data.vehicle.VehicleManagerGateway
 import com.tcs.vehicleassistant.data.vehicle.VhalGateway
+import com.tcs.vehicleassistant.domain.ExecuteToolUseCase
+import com.tcs.vehicleassistant.domain.FollowUpUseCase
+import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
+import com.tcs.vehicleassistant.domain.QueryPipeline
+import com.tcs.vehicleassistant.domain.SpeechPresenter
+import com.tcs.vehicleassistant.domain.ToolLoop
 import com.tcs.vehicleassistant.hardware.AndroidAudioManager
 import com.tcs.vehicleassistant.hardware.IAudioManager
 import com.tcs.vehicleassistant.llm.CloudLLMProvider
@@ -34,17 +40,22 @@ val appModule = module {
 
     // Voice path: one shared audio + orchestrator + view-model for the agent service.
     single<IAudioManager> { AndroidAudioManager(androidContext()) }
+    single { SpeechPresenter(get()) }
+    single { ExecuteToolUseCase(get()) }
+    single { ToolLoop(get()) }
+    single { QueryPipeline(get(), get(), get()) }
+    single { FollowUpUseCase() }
+    single { ProcessQueryUseCase(get()) }
     single {
         AgentOrchestrator(
             context = androidContext(),
             audioManager = get(),
             memory = get(),
             featureFlags = get(),
+            queryPipeline = get(),
+            toolLoop = get(),
+            speechPresenter = get(),
         )
     }
-    single { AssistantViewModel(androidContext(), get(), get()) }
-    single { com.tcs.vehicleassistant.domain.ProcessQueryUseCase(get()) }
-    single { com.tcs.vehicleassistant.domain.FollowUpUseCase() }
-    factory { com.tcs.vehicleassistant.domain.ExecuteToolUseCase(get()) }
-    factory { com.tcs.vehicleassistant.domain.SpeechPresenter(get()) }
+    single { AssistantViewModel(androidContext(), get(), get(), get()) }
 }

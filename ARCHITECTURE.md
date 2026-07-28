@@ -6,17 +6,26 @@ Aligned with Google [JetPacker](https://github.com/android/ai-samples/tree/main/
 
 ## Current + target shape
 
+Ports-and-adapters with a warm resident service. Legacy `LLMManager` / `VehicleManager` / `MemoryManager` objects remain as adapters under the ports until fully deleted.
+
 ```mermaid
 flowchart TB
   UI[Compose ImmersiveStage MVI]
   VM[AssistantViewModel androidx]
   UC[Domain UseCases]
-  Orch[AgentOrchestrator pipeline]
+  Orch[AgentOrchestrator]
+  QP[QueryPipeline]
+  TL[ToolLoop]
+  SP[SpeechPresenter]
   Ports[LlmEngine VhalGateway ConversationMemory FeatureFlags]
   Warm[VehicleAgentService]
 
   UI -->|Intent State Effect| VM
-  VM --> UC --> Orch --> Ports
+  VM --> UC --> Orch
+  Orch --> QP
+  Orch --> TL
+  Orch --> SP
+  Orch --> Ports
   Warm -->|owns warm engine + Koin singles| VM
 ```
 
@@ -26,9 +35,9 @@ flowchart TB
 |-------|----------------|
 | `:assistant-ui` Compose | Face/chrome renderer + `AssistantStageStore` MVI; `AssistantBackend` events only |
 | Presentation | `AssistantViewModel` + `AssistantUiIntent` over shared orchestrator |
-| Domain | `ProcessQueryUseCase`, `FollowUpUseCase`, `ExecuteToolUseCase`, `SpeechPresenter` |
+| Domain | `ProcessQueryUseCase`, `FollowUpUseCase`, `ExecuteToolUseCase`, `QueryPipeline`, `ToolLoop`, `SpeechPresenter` |
 | Data ports | `LlmEngine` / `LiteRtLlmEngine`, `VhalGateway`, `ConversationMemory`, `AssistantFeatureFlags` |
-| Service | `VehicleAgentService` — warm process, Koin-wired audio + VM + orchestrator |
+| Service | `VehicleAgentService` — warm process, Koin-wired audio + VM + orchestrator + `LlmEngine` unload |
 
 ### Presentation MVI (chosen)
 

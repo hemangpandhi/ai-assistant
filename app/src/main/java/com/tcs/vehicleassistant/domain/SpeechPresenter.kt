@@ -48,6 +48,7 @@ class SpeechPresenter(
 
     fun cleanDisplay(raw: String): String {
         var displayMsg = ToolCallParser.stripToolTags(raw)
+        displayMsg = com.tcs.vehicleassistant.utils.MoodTagParser.stripMoodTags(displayMsg)
         displayMsg = displayMsg.replace(Regex("\\biI\\b"), "I")
         displayMsg = displayMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
         displayMsg = displayMsg.replace(Regex("^i\\s+"), "")

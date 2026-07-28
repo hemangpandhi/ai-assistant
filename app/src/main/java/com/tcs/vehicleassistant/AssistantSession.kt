@@ -552,8 +552,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
     }
 
+    private fun isCloudRoutingActive(): Boolean {
+        return runCatching {
+            org.koin.java.KoinJavaComponent.getKoin()
+                .get<com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags>()
+                .isCloudActive
+        }.getOrElse { LocalLLMActivity.isCloudModelActive }
+    }
+
     private fun isModelWarmingUp(): Boolean {
-        if (LocalLLMActivity.isCloudModelActive) return false
+        if (isCloudRoutingActive()) return false
         return LLMManager.isInitializing || LLMManager.isPrewarming || !LLMManager.isReady()
     }
 

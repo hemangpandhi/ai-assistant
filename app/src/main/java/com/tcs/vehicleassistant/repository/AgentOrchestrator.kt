@@ -43,12 +43,12 @@ sealed class OrchestratorEvent {
 class AgentOrchestrator(
     private val context: Context,
     private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager,
-    private val memory: com.tcs.vehicleassistant.data.memory.ConversationMemory =
-        com.tcs.vehicleassistant.data.memory.MemoryManagerStore(),
-    private val featureFlags: com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags =
-        com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(context),
+    private val memory: com.tcs.vehicleassistant.data.memory.ConversationMemory,
+    private val featureFlags: com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags,
+    private val queryPipeline: com.tcs.vehicleassistant.domain.QueryPipeline,
+    private val toolLoop: com.tcs.vehicleassistant.domain.ToolLoop,
+    private val speechPresenter: com.tcs.vehicleassistant.domain.SpeechPresenter,
 ) {
-    private val speechPresenter = com.tcs.vehicleassistant.domain.SpeechPresenter(audioManager)
 
     private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
     val state: StateFlow<OrchestratorState> = _state.asStateFlow()
@@ -78,7 +78,9 @@ class AgentOrchestrator(
     @Volatile var lastTtsUpdateTime = 0L
         private set
 
-    private val currentPendingTools = mutableListOf<Deferred<String?>>()
+    private val currentPendingTools: MutableList<Deferred<String?>>
+        get() = toolLoop.pendingTools
+
     private var pendingPrewarmQuery: Pair<String, Int>? = null
     private var prewarmWaitJob: Job? = null
     /** Active understand/act job — cancelled on barge-in. */
@@ -86,9 +88,17 @@ class AgentOrchestrator(
     /** Invalidates late TTS onDone/onError after barge-in / new query / stopSpeaking. */
     @Volatile private var ttsTurnGeneration: Int = 0
 
-    private fun nextTtsFinalId(kind: String): String {
-        return "${kind}_$ttsTurnGeneration"
-    }
+    private var pendingConfirmationTool: String?
+        get() = toolLoop.pendingConfirmationTool
+        set(value) {
+            if (value == null) {
+                toolLoop.clearConfirmation()
+            } else {
+                toolLoop.gateConfirmation(value)
+            }
+        }
+
+    private fun nextTtsFinalId(kind: String): String = "${kind}_$ttsTurnGeneration"
 
     private fun matchTtsFinal(utteranceId: String): String? {
         val kind = when {
@@ -173,6 +183,7 @@ class AgentOrchestrator(
         prewarmWaitJob?.cancel()
         pendingPrewarmQuery = null
         currentPendingTools.clear()
+        toolLoop.clearPending()
         pendingConfirmationTool = null
         pendingIntentToLaunch = null
         com.tcs.vehicleassistant.domain.SpeculativeToolPrep.clear()
@@ -493,9 +504,8 @@ class AgentOrchestrator(
         val executedTools = mutableSetOf<String>()
         executedTools.addAll(previousExecutedTools)
         val toolFeedbacks = mutableListOf<String>()
-        currentPendingTools.clear()
-        val spokenTextLength = intArrayOf(0)
-        val parsedSpokenLength = intArrayOf(0)
+        toolLoop.clearPending()
+        speechPresenter.reset()
 
         val startTime = System.currentTimeMillis()
         var firstTokenTime = -1L
@@ -558,13 +568,7 @@ class AgentOrchestrator(
                         }
                     }
 
-                    var displayMsg = ToolCallParser.stripToolTags(currentText)
-                    displayMsg = MoodTagParser.stripMoodTags(displayMsg)
-                    displayMsg = displayMsg.replace(Regex("\\biI\\b"), "I")
-                    displayMsg = displayMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
-                    displayMsg = displayMsg.replace(Regex("^i\\s+"), "")
-                    displayMsg = displayMsg.replace(Regex("^i\\b"), "I")
-                    displayMsg = displayMsg.trim()
+                    val displayMsg = speechPresenter.cleanDisplay(currentText)
 
                     if (displayMsg.isNotEmpty()) {
                         emitStreamingUi(displayMsg)
@@ -577,27 +581,10 @@ class AgentOrchestrator(
                     // Eager mid-stream tool execution as soon as </TOOL> closes.
                     val completeTools = ToolCallParser.extractCompleteToolCalls(currentText)
                     for (parsed in completeTools) {
-                        val toolCall = parsed.invocation
-                        if (executedTools.add(toolCall)) {
-                            scheduleEagerTool(toolCall)
-                        }
+                        scheduleEagerTool(parsed.invocation, executedTools)
                     }
 
-                    val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
-                    var remainingText = displayMsg.substring(safeStartIndex)
-                    val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.,!?](?:\\s+|$))".toRegex()
-                    var match = sentenceRegex.find(remainingText)
-                    while (match != null) {
-                        val sentence = match.value
-                        spokenTextLength[0] += sentence.length
-                        val sentenceStartOffset = parsedSpokenLength[0]
-                        parsedSpokenLength[0] += sentence.length
-
-                        audioManager.speak(sentence, "SENTENCE_$sentenceStartOffset")
-
-                        remainingText = displayMsg.substring(spokenTextLength[0])
-                        match = sentenceRegex.find(remainingText)
-                    }
+                    speechPresenter.speakCompletedSentences(displayMsg)
                 }
             }
         }
@@ -691,8 +678,7 @@ class AgentOrchestrator(
                     }
 
                     if (currentPendingTools.isNotEmpty()) {
-                        val isAgenticLoopEnabled = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                            .getBoolean("agentic_loop_enabled", true)
+                        val isAgenticLoopEnabled = featureFlags.agenticLoopEnabled
 
                         val rawResponse = lastResponseBuilder.toString()
                         val responseWithoutTags = com.tcs.vehicleassistant.utils.ToolCallParser.stripToolTags(rawResponse)
@@ -714,7 +700,7 @@ class AgentOrchestrator(
                             val feedbackString = toolFeedbacks.joinToString("\n")
                             val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
 
-                            currentPendingTools.clear()
+                            toolLoop.clearPending()
                             lastResponseBuilder.clear()
                             processQuery(observation, retryCount, loopCount + 1, isAgenticObservation = true, previousExecutedTools = executedTools)
                             return@launch
@@ -817,20 +803,17 @@ class AgentOrchestrator(
         }
     }
 
-    private fun scheduleEagerTool(toolCall: String) {
-        val toolDef = org.koin.java.KoinJavaComponent.getKoin()
-            .get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(toolCall)
-        if (toolDef?.requiresConfirmation == true) {
-            pendingConfirmationTool = toolCall
-            return
-        }
-        val job = com.tcs.vehicleassistant.core.AgentRuntime.ioScope.async {
-            withTimeoutOrNull(10000L) {
-                executeToolCall(toolCall)
-            } ?: "System Error: Tool execution timed out."
-        }
-        currentPendingTools.add(job)
-        LatencyLogger.log("Orchestrator", "Eager tool scheduled: $toolCall")
+    private fun scheduleEagerTool(toolCall: String, executedTools: MutableSet<String>) {
+        toolLoop.scheduleIfNew(
+            scope = com.tcs.vehicleassistant.core.AgentRuntime.ioScope,
+            toolCall = toolCall,
+            executedTools = executedTools,
+            execute = { executeToolCall(it) },
+            onIntent = { intent ->
+                pendingIntentToLaunch = null
+                _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
+            },
+        )
     }
 
     private suspend fun executeToolCall(toolCall: String): String? {

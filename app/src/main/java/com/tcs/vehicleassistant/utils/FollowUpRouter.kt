@@ -1,12 +1,15 @@
 package com.tcs.vehicleassistant.utils
 
-import com.tcs.vehicleassistant.MemoryManager
+import com.tcs.vehicleassistant.data.memory.ConversationMemory
+import com.tcs.vehicleassistant.data.memory.MemoryManagerStore
 
 /**
  * Resolves short follow-up utterances into direct tool calls using the last assistant turn.
  * Also covers high-frequency HVAC / media phrases for a zero-LLM fast path.
  */
 object FollowUpRouter {
+
+    private val defaultMemory: ConversationMemory = MemoryManagerStore()
 
     fun extractNumberedOptions(assistantText: String): List<String> {
         val map = linkedMapOf<Int, String>()
@@ -40,13 +43,17 @@ object FollowUpRouter {
     /**
      * Returns a tool call to execute immediately, or null if the LLM should handle the turn.
      */
-    fun resolveDirectTool(query: String, lastAssistantMessage: String): String? {
+    fun resolveDirectTool(
+        query: String,
+        lastAssistantMessage: String,
+        memory: ConversationMemory = defaultMemory,
+    ): String? {
         val q = query.lowercase().trim()
         val last = lastAssistantMessage.lowercase()
 
         resolveDirectCommand(q)?.let { return it }
 
-        if (MemoryManager.isAffirmative(query)) {
+        if (memory.isAffirmative(query)) {
             when {
                 last.contains("seat heater") -> return "setSeatHeater(2)"
                 last.contains("gas station") || last.contains("charging station") ||
@@ -60,7 +67,7 @@ object FollowUpRouter {
             }
         }
 
-        if (MemoryManager.isFollowUpQuery(query)) {
+        if (memory.isFollowUpQuery(query)) {
             val options = extractNumberedOptions(lastAssistantMessage)
             if (options.isNotEmpty()) {
                 val pickIndex = resolveListPickIndex(query) ?: return null
