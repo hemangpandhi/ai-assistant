@@ -69,7 +69,9 @@ class AssistantViewModel(
                 _liveTranscript.value = ""
                 // Soft miss — keep session open and re-arm ear.
                 _uiState.value = AssistantUiState.Listening
-                _events.tryEmit(ViewModelEvent.StartListening)
+                if (!audioManager.isActivelyListening()) {
+                    _events.tryEmit(ViewModelEvent.StartListening)
+                }
             },
             onError = { errorCode ->
                 SpeculativeToolPrep.clear()
