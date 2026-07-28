@@ -19,11 +19,10 @@ import org.koin.java.KoinJavaComponent.getKoin
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Arms command STT as early as possible (hotword / assist icon), before the
- * immersive overlay finishes composing. Capture is independent of LLM warm-up.
+ * Prepares the mic handoff as early as possible (hotword / assist icon).
  *
- * Flow: stop Vosk → await mic release → ensure warm [SpeechRecognizer] →
- * [IAudioManager.startListening] → overlay attaches to an already-open ear.
+ * Does NOT call startListening — [VehicleAgentAssistantBackend] is the sole STT owner.
+ * Flow: stop Vosk → await release → warm SpeechRecognizer + attach listeners.
  */
 object MicCaptureCoordinator {
     private const val TAG = "MicCapture"
@@ -39,18 +38,13 @@ object MicCaptureCoordinator {
     @Volatile
     private var arming: Boolean = false
 
-    /**
-     * True while a pre-arm job is in flight, or STT is actually Starting/Listening.
-     * Never trusts a stale [isPreArmed] flag alone (that caused "already capturing" skips
-     * after ERROR_CLIENT left the recognizer Idle).
-     */
+    /** True while Vosk stop + recognizer warm-up is still running. */
+    fun isWarmingUp(): Boolean = arming
+
+    /** True while Vosk handoff / warm-up is in flight, or STT is Starting/Listening. */
     fun isCaptureLive(audio: IAudioManager?): Boolean {
         if (arming) return true
-        val live = audio?.isActivelyListening() == true
-        if (!live && isPreArmed) {
-            isPreArmed = false
-        }
-        return live
+        return audio?.isActivelyListening() == true || audio?.isReadyListening() == true
     }
 
     fun clearSessionArm() {
@@ -62,8 +56,8 @@ object MicCaptureCoordinator {
     }
 
     /**
-     * Call at the earliest summon signal (hotword match or assist icon), ideally
-     * before [android.service.voice.VoiceInteractionSession] shows.
+     * Call at the earliest summon signal (hotword match or assist icon).
+     * Only frees Vosk + warms STT — never starts recognition.
      */
     fun preArm(context: Context, reason: String) {
         val app = context.applicationContext
@@ -71,19 +65,11 @@ object MicCaptureCoordinator {
             AssistantDebugLog.d(TAG, "preArm skip — already arming ($reason)")
             return
         }
-        val audioHint = runCatching { getKoin().get<IAudioManager>() }.getOrNull()
-        if (audioHint?.isReadyListening() == true) {
-            isPreArmed = true
-            AssistantDebugLog.d(TAG, "preArm skip — already ready ($reason)")
-            return
-        }
-        // Stale optimistic arm from a failed start — clear and proceed.
         isPreArmed = false
         arming = true
         val token = armToken.incrementAndGet()
         AssistantDebugLog.d(TAG, "preArm begin ($reason) token=$token")
 
-        // Free the mic from wake-word ASAP.
         runCatching {
             val stop = Intent(app, WakeWordService::class.java).apply {
                 action = "ACTION_STOP_LISTENING"
@@ -91,7 +77,6 @@ object MicCaptureCoordinator {
             app.startService(stop)
         }
 
-        // Bring up agent service so Koin singles / ViewModel listeners exist.
         runCatching {
             val agent = Intent(app, VehicleAgentService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -109,22 +94,13 @@ object MicCaptureCoordinator {
                 val released = WakeWordService.awaitMicReleased(timeoutMs = 900L)
                 AssistantDebugLog.d(TAG, "wake mic released=$released holding=${WakeWordService.isHoldingMic}")
                 if (!released && WakeWordService.isHoldingMic) {
-                    AssistantDebugLog.w(TAG, "preArm abort — wake still holding mic")
-                    if (token == armToken.get()) {
-                        arming = false
-                        isPreArmed = false
-                    }
-                    return@launch
+                    AssistantDebugLog.w(TAG, "preArm — wake still holding, continue warm anyway")
                 }
-                // Brief settle after AudioRecord teardown.
-                delay(40L)
-                if (token != armToken.get()) {
-                    AssistantDebugLog.d(TAG, "preArm cancelled before openEar")
-                    return@launch
-                }
+                delay(60L)
+                if (token != armToken.get()) return@launch
                 withContext(Dispatchers.Main.immediate) {
                     if (token != armToken.get()) return@withContext
-                    openEar(reason, token)
+                    warmOnly(reason, token)
                 }
             } catch (t: Throwable) {
                 AssistantDebugLog.e(TAG, "preArm failed: ${t.message}")
@@ -136,44 +112,26 @@ object MicCaptureCoordinator {
         }
     }
 
-    private fun openEar(reason: String, token: Int) {
+    private fun warmOnly(reason: String, token: Int) {
         if (token != armToken.get()) return
         try {
             val koin = getKoin()
             val audio = koin.get<IAudioManager>()
-            // Force ViewModel init so RecognitionListener callbacks are wired
-            // before the first partial/final arrives.
             val vm = koin.get<AssistantViewModel>()
-            // Attach backend collectors BEFORE startListening so liveTranscript is observed.
             com.assistant.ui.assistant.api.AssistantRuntime.backend
                 ?.asMicController()
                 ?.attachSession(vm, audio)
             audio.ensureWarmRecognizer()
             audio.requestAssistantDuck()
-            if (audio.isReadyListening()) {
-                isPreArmed = true
-                arming = false
-                AssistantDebugLog.d(TAG, "ear already ready ($reason)")
-                return
-            }
-            if (audio.isActivelyListening()) {
-                // Starting — wait for ready via backend; mark arming done.
-                isPreArmed = true
-                arming = false
-                AssistantDebugLog.d(TAG, "ear already starting ($reason)")
-                return
-            }
-            audio.startListening()
-            // Optimistic until ready/error; [isCaptureLive] falls back to audio phase.
             isPreArmed = true
             arming = false
-            AssistantDebugLog.d(TAG, "ear open — startListening ($reason)")
+            AssistantDebugLog.d(TAG, "preArm warm done — backend owns startListening ($reason)")
         } catch (t: Throwable) {
             if (token == armToken.get()) {
                 arming = false
                 isPreArmed = false
             }
-            AssistantDebugLog.e(TAG, "openEar failed: ${t.message}")
+            AssistantDebugLog.e(TAG, "warmOnly failed: ${t.message}")
         }
     }
 }

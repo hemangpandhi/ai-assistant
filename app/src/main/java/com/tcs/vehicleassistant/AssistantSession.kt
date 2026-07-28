@@ -295,9 +295,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         // Drop STT before wake-word reclaims the mic — keep warm recognizer instance.
         notifyImmersiveAssistantDismiss()
         AssistantRuntime.backend?.stopSession()
-        audioManager?.stopListening()
         audioManager?.stopSpeaking()
-        // Do NOT destroySpeechRecognizer here — recreating it every session adds handoff latency.
+        // stopSession already stops STT — avoid a second cancel (ERROR_CLIENT spam).
         com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
         // Restore music volume immediately when the overlay goes away.
         audioManager?.abandonAssistantDuck()
@@ -530,7 +529,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnMic?.isEnabled = false
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
             try {
-                audioManager?.startListening()
+                // Prefer backend schedule so XML mic shares the single-owner arm path.
+                val mic = AssistantRuntime.backend?.asMicController()
+                if (mic != null) {
+                    mic.requestListen()
+                } else {
+                    audioManager?.startListening()
+                }
             } catch (e: Exception) {
                 LatencyLogger.log("AssistantSession", "Error starting speech recognizer: ${e.message}")
                 stopDotAnimation("Error starting microphone.")

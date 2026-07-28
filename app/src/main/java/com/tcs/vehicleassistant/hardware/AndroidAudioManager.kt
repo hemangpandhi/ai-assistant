@@ -132,7 +132,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun isActivelyListening(): Boolean =
         sttPhase == SttPhase.Starting ||
             sttPhase == SttPhase.Listening ||
-            pendingRestart != null
+            startPending
 
     override fun isReadyListening(): Boolean =
         sttPhase == SttPhase.Listening
@@ -140,9 +140,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     @Volatile
     private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
 
+    /** True while a delayed startListening is queued on the main handler. */
+    @Volatile private var startPending: Boolean = false
+
     override fun startListening() {
-        val run = Runnable { startListeningOnMain(forceRecreate = false) }
-        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            startListeningOnMain(forceRecreate = false)
+        } else {
+            // Mark in-flight immediately so callers do not stack a second start.
+            startPending = true
+            mainHandler.post { startListeningOnMain(forceRecreate = false) }
+        }
     }
 
     override fun setEndpointingProfile(profile: EndpointingProfile) {
@@ -166,19 +174,31 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             earliestStartUptimeMs = SystemClock.uptimeMillis() + settle
             AssistantDebugLog.d("STT", "restartListening delay=${settle}ms")
             // Already destroyed — do not force-recreate again (avoids destroy loop).
-            val restart = Runnable { startListeningOnMain(forceRecreate = false) }
-            pendingRestart = restart
-            mainHandler.postDelayed(restart, settle)
+            scheduleDeferredStart(settle, forceRecreate = false)
         }
         if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
     }
 
+    private fun scheduleDeferredStart(delayMs: Long, forceRecreate: Boolean) {
+        pendingRestart?.let { mainHandler.removeCallbacks(it) }
+        startPending = true
+        val restart = Runnable {
+            pendingRestart = null
+            // Keep startPending until startListeningOnMain sets Starting or clears it.
+            startListeningOnMain(forceRecreate = forceRecreate)
+        }
+        pendingRestart = restart
+        mainHandler.postDelayed(restart, delayMs)
+    }
+
     private fun startListeningOnMain(forceRecreate: Boolean) {
         if (!forceRecreate && sttPhase == SttPhase.Listening) {
+            startPending = false
             AssistantDebugLog.w("STT", "startListening ignored — already Listening")
             return
         }
         if (!forceRecreate && sttPhase == SttPhase.Starting) {
+            startPending = false
             AssistantDebugLog.w("STT", "startListening ignored — already Starting")
             return
         }
@@ -187,24 +207,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         if (!forceRecreate && now - lastStartAttemptUptimeMs < MIN_START_GAP_MS) {
             val wait = MIN_START_GAP_MS - (now - lastStartAttemptUptimeMs)
             AssistantDebugLog.d("STT", "startListening coalesced — retry in ${wait}ms")
-            val restart = Runnable { startListeningOnMain(forceRecreate = needsFreshRecognizer) }
-            pendingRestart?.let { mainHandler.removeCallbacks(it) }
-            pendingRestart = restart
-            mainHandler.postDelayed(restart, wait)
+            scheduleDeferredStart(wait, forceRecreate = needsFreshRecognizer)
             return
         }
         if (now < earliestStartUptimeMs) {
             val wait = earliestStartUptimeMs - now
             AssistantDebugLog.d("STT", "startListening delayed ${wait}ms (settle/backoff)")
-            val restart = Runnable {
-                startListeningOnMain(forceRecreate = forceRecreate || needsFreshRecognizer)
-            }
-            pendingRestart?.let { mainHandler.removeCallbacks(it) }
-            pendingRestart = restart
-            mainHandler.postDelayed(restart, wait)
+            scheduleDeferredStart(wait, forceRecreate = forceRecreate || needsFreshRecognizer)
             return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(appContext)) {
+            startPending = false
             AssistantDebugLog.e("STT", "Recognition not available on device")
             sttPhase = SttPhase.Idle
             onSttError?.invoke(SpeechRecognizer.ERROR_CLIENT)
@@ -218,11 +231,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             val settle = DESTROY_SETTLE_MS
             earliestStartUptimeMs = SystemClock.uptimeMillis() + settle
             lastStartAttemptUptimeMs = SystemClock.uptimeMillis()
-            val restart = Runnable { startListeningOnMain(forceRecreate = false) }
-            pendingRestart?.let { mainHandler.removeCallbacks(it) }
-            pendingRestart = restart
-            mainHandler.postDelayed(restart, settle)
             AssistantDebugLog.d("STT", "post-destroy settle ${settle}ms")
+            scheduleDeferredStart(settle, forceRecreate = false)
             return
         }
         ensureRecognizer()
@@ -254,12 +264,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         )
         try {
             lastStartAttemptUptimeMs = SystemClock.uptimeMillis()
+            startPending = false
             sttPhase = SttPhase.Starting
             AssistantDebugLog.d("STT", "startListening() phase=Starting")
             speechRecognizer?.startListening(intent)
             armReadyWatchdog()
         } catch (t: Throwable) {
             clearReadyWatchdog()
+            startPending = false
             sttPhase = SttPhase.Idle
             needsFreshRecognizer = true
             earliestStartUptimeMs = SystemClock.uptimeMillis() + BUSY_BACKOFF_MS
@@ -292,6 +304,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private fun cancelPendingWork() {
         pendingRestart?.let { mainHandler.removeCallbacks(it) }
         pendingRestart = null
+        startPending = false
         clearReadyWatchdog()
     }
 
@@ -356,18 +369,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 )
                 if (error == SpeechRecognizer.ERROR_CLIENT) {
                     consecutiveClientErrors++
-                    // Self-heal: recreate after repeated unexpected client errors.
-                    if (consecutiveClientErrors >= 2) {
-                        AssistantDebugLog.w(
-                            "STT",
-                            "ERROR_CLIENT x$consecutiveClientErrors — self restart",
-                        )
-                        consecutiveClientErrors = 0
-                        ignoreClientErrorsFor(CLIENT_BACKOFF_MS)
-                        restartListening(delayedMs = CLIENT_BACKOFF_MS)
-                        // Still notify once so backend can keep session alive, but
-                        // ViewModel should not flash a fatal error for this.
-                    }
+                    // Let backend own recovery — avoid a second competing restart here.
                 } else if (error != SpeechRecognizer.ERROR_NO_MATCH &&
                     error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT
                 ) {
