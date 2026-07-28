@@ -54,8 +54,11 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     /** Next startListening must create a fresh SpeechRecognizer (after cancel/stop). */
     @Volatile private var needsFreshRecognizer: Boolean = false
 
-    /** Earliest uptime when startListening may proceed after a soft stop. */
+    /** Earliest uptime when startListening may proceed after a soft stop / BUSY. */
     @Volatile private var earliestStartUptimeMs: Long = 0L
+
+    /** Debounce overlapping startListening from pre-arm + session + retry. */
+    @Volatile private var lastStartAttemptUptimeMs: Long = 0L
 
     @Volatile private var holdingDuck = false
     private var duckFocusRequest: AudioFocusRequest? = null
@@ -147,15 +150,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             destroySpeechRecognizerLocked()
             sttPhase = SttPhase.Idle
             needsFreshRecognizer = false
-            earliestStartUptimeMs = 0L
-            if (delayedMs <= 0L) {
-                startListeningOnMain(forceRecreate = true)
-            } else {
-                AssistantDebugLog.d("STT", "restartListening delay=${delayedMs}ms")
-                val restart = Runnable { startListeningOnMain(forceRecreate = true) }
-                pendingRestart = restart
-                mainHandler.postDelayed(restart, delayedMs)
-            }
+            // RecognitionService stays busy briefly after destroy — always settle.
+            val settle = delayedMs.coerceAtLeast(DESTROY_SETTLE_MS)
+            earliestStartUptimeMs = SystemClock.uptimeMillis() + settle
+            AssistantDebugLog.d("STT", "restartListening delay=${settle}ms")
+            // Already destroyed — do not force-recreate again (avoids destroy loop).
+            val restart = Runnable { startListeningOnMain(forceRecreate = false) }
+            pendingRestart = restart
+            mainHandler.postDelayed(restart, settle)
         }
         if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
     }
@@ -170,10 +172,22 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             return
         }
         val now = SystemClock.uptimeMillis()
-        if (!forceRecreate && now < earliestStartUptimeMs) {
-            val wait = earliestStartUptimeMs - now
-            AssistantDebugLog.d("STT", "startListening delayed ${wait}ms (post-stop settle)")
+        // Collapse bursty callers (pre-arm + requestListen + retry) into one start.
+        if (!forceRecreate && now - lastStartAttemptUptimeMs < MIN_START_GAP_MS) {
+            val wait = MIN_START_GAP_MS - (now - lastStartAttemptUptimeMs)
+            AssistantDebugLog.d("STT", "startListening coalesced — retry in ${wait}ms")
             val restart = Runnable { startListeningOnMain(forceRecreate = needsFreshRecognizer) }
+            pendingRestart?.let { mainHandler.removeCallbacks(it) }
+            pendingRestart = restart
+            mainHandler.postDelayed(restart, wait)
+            return
+        }
+        if (now < earliestStartUptimeMs) {
+            val wait = earliestStartUptimeMs - now
+            AssistantDebugLog.d("STT", "startListening delayed ${wait}ms (settle/backoff)")
+            val restart = Runnable {
+                startListeningOnMain(forceRecreate = forceRecreate || needsFreshRecognizer)
+            }
             pendingRestart?.let { mainHandler.removeCallbacks(it) }
             pendingRestart = restart
             mainHandler.postDelayed(restart, wait)
@@ -190,6 +204,15 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         if (forceRecreate || needsFreshRecognizer) {
             destroySpeechRecognizerLocked()
             needsFreshRecognizer = false
+            val settle = DESTROY_SETTLE_MS
+            earliestStartUptimeMs = SystemClock.uptimeMillis() + settle
+            lastStartAttemptUptimeMs = SystemClock.uptimeMillis()
+            val restart = Runnable { startListeningOnMain(forceRecreate = false) }
+            pendingRestart?.let { mainHandler.removeCallbacks(it) }
+            pendingRestart = restart
+            mainHandler.postDelayed(restart, settle)
+            AssistantDebugLog.d("STT", "post-destroy settle ${settle}ms")
+            return
         }
         ensureRecognizer()
         // Keep media ducked while the recognizer arms (avoids a full pause gap).
@@ -219,6 +242,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             "endpointing=${profile.name} silence=${profile.completeSilenceMs}ms",
         )
         try {
+            lastStartAttemptUptimeMs = SystemClock.uptimeMillis()
             sttPhase = SttPhase.Starting
             AssistantDebugLog.d("STT", "startListening() phase=Starting")
             speechRecognizer?.startListening(intent)
@@ -227,6 +251,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             clearReadyWatchdog()
             sttPhase = SttPhase.Idle
             needsFreshRecognizer = true
+            earliestStartUptimeMs = SystemClock.uptimeMillis() + BUSY_BACKOFF_MS
             AssistantDebugLog.e("STT", "startListening failed: ${t.message}")
             onSttError?.invoke(SpeechRecognizer.ERROR_CLIENT)
         }
@@ -293,8 +318,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 clearReadyWatchdog()
                 sttPhase = SttPhase.Idle
                 needsFreshRecognizer = true
+                val backoff = when (error) {
+                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> BUSY_BACKOFF_MS
+                    SpeechRecognizer.ERROR_CLIENT -> CLIENT_BACKOFF_MS
+                    else -> POST_STOP_SETTLE_MS
+                }
+                earliestStartUptimeMs = SystemClock.uptimeMillis() + backoff
                 val label = sttErrorLabel(error)
-                AssistantDebugLog.e("STT", "onError=$error ($label) epoch=$myEpoch")
+                AssistantDebugLog.e(
+                    "STT",
+                    "onError=$error ($label) epoch=$myEpoch backoff=${backoff}ms",
+                )
                 onSttError?.invoke(error)
             }
             override fun onResults(results: Bundle?) {
@@ -354,6 +388,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
         speechRecognizer = null
         sttPhase = SttPhase.Idle
+        // Service-side teardown lags destroy(); callers must honor earliestStartUptimeMs.
+        earliestStartUptimeMs = SystemClock.uptimeMillis() + DESTROY_SETTLE_MS
         try {
             recognizer.setRecognitionListener(null)
         } catch (_: Throwable) {
@@ -528,8 +564,12 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     companion object {
-        private const val POST_STOP_SETTLE_MS = 180L
-        private const val READY_WATCHDOG_MS = 2000L
+        private const val POST_STOP_SETTLE_MS = 220L
+        private const val DESTROY_SETTLE_MS = 400L
+        private const val BUSY_BACKOFF_MS = 900L
+        private const val CLIENT_BACKOFF_MS = 450L
+        private const val MIN_START_GAP_MS = 450L
+        private const val READY_WATCHDOG_MS = 2500L
 
         fun sttErrorLabel(error: Int): String = when (error) {
             SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"

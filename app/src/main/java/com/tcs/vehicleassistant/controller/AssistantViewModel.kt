@@ -71,7 +71,9 @@ class AssistantViewModel(
                 _liveTranscript.value = ""
                 // Soft miss — keep session open and re-arm ear.
                 _uiState.value = AssistantUiState.Listening
-                _events.tryEmit(ViewModelEvent.StartListening)
+                if (!audioManager.isActivelyListening()) {
+                    _events.tryEmit(ViewModelEvent.StartListening)
+                }
             },
             onError = { errorCode ->
                 SpeculativeToolPrep.clear()
@@ -87,7 +89,10 @@ class AssistantViewModel(
                         // No speech / no match — re-listen instead of closing the overlay.
                         _liveTranscript.value = ""
                         _uiState.value = AssistantUiState.Listening
-                        _events.tryEmit(ViewModelEvent.StartListening)
+                        // Avoid stacking StartListening while STT is already Starting/Listening.
+                        if (!audioManager.isActivelyListening()) {
+                            _events.tryEmit(ViewModelEvent.StartListening)
+                        }
                     }
                     recoverable -> {
                         val errorMsg = mapSpeechError(errorCode)
