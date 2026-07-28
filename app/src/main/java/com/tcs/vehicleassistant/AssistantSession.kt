@@ -299,6 +299,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
     }
 
+    /** Shared hide/destroy audio teardown — idempotent via backend.stopSession. */
+    private fun teardownAssistantAudio(reason: String) {
+        AssistantDebugLog.d("Session", "teardownAudio $reason")
+        notifyImmersiveAssistantDismiss()
+        AssistantRuntime.backend?.stopSession()
+        audioManager?.stopSpeaking()
+        com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
+        audioManager?.abandonAssistantDuck()
+        abandonFallbackDuck()
+    }
+
     override fun onCreateContentView(): View {
         // Paint the Compose stage first — every millisecond before setContentView
         // is cold-start latency the driver feels after install.
@@ -1125,6 +1136,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         unregisterDismissWatchers()
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
+        // Mirror onHide audio teardown so Vosk cannot race an open SpeechRecognizer.
+        teardownAssistantAudio(reason = "onDestroy")
         observerScope.cancel()
         composeHost?.destroy()
         composeHost = null

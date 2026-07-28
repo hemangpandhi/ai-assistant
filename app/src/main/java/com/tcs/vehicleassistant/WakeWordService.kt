@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 
 /**
@@ -170,7 +171,7 @@ class WakeWordService : Service() {
                 }
 
                 customAudioRecord?.startRecording()
-                beginMicHold()
+                val holdGen = beginMicHold()
                 val buffer = ShortArray(bufferSize)
 
                 var loopCount = 0
@@ -211,21 +212,19 @@ class WakeWordService : Service() {
                                 if (partial != null) checkWakeWord(partial)
                             }
                         }
-                    } else if (readSize < 0) {
-                        Log.e(TAG, "AudioRecord read error: $readSize")
-                        delay(1000)
                     }
+                } finally {
+                    try {
+                        customAudioRecord?.stop()
+                        customAudioRecord?.release()
+                    } catch (_: Exception) {
+                    }
+                    customAudioRecord = null
+                    signalMicReleased(holdGen)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Custom listening loop error: ${e.message}")
-            } finally {
-                try {
-                    customAudioRecord?.stop()
-                    customAudioRecord?.release()
-                } catch (_: Exception) {
-                }
-                customAudioRecord = null
-                signalMicReleased()
+                forceReleaseMic()
             }
         }
     }
@@ -293,7 +292,7 @@ class WakeWordService : Service() {
         } catch (_: Exception) {
         }
         customAudioRecord = null
-        signalMicReleased()
+        forceReleaseMic()
         customRecognizer?.close()
         super.onDestroy()
     }
@@ -340,7 +339,8 @@ class WakeWordService : Service() {
             } catch (_: Exception) {
             }
             customAudioRecord = null
-            signalMicReleased()
+            // Open the gate immediately for STT; loop finally will see a stale generation.
+            forceReleaseMic()
             com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(
                 this@WakeWordService,
                 reason = "hotword",
