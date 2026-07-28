@@ -60,6 +60,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     /** Debounce overlapping startListening from pre-arm + session + retry. */
     @Volatile private var lastStartAttemptUptimeMs: Long = 0L
 
+    /**
+     * cancel()/stopListening()/destroy commonly deliver ERROR_CLIENT — that is expected,
+     * not a driver-visible failure. Ignore callbacks until this uptime.
+     */
+    @Volatile private var ignoreClientErrorUntilUptimeMs: Long = 0L
+
+    @Volatile private var consecutiveClientErrors: Int = 0
+
     @Volatile private var holdingDuck = false
     private var duckFocusRequest: AudioFocusRequest? = null
     private val duckFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
@@ -147,6 +155,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun restartListening(delayedMs: Long) {
         val run = Runnable {
             cancelPendingWork()
+            ignoreClientErrorsFor(IGNORE_CLIENT_ERROR_MS)
             destroySpeechRecognizerLocked()
             sttPhase = SttPhase.Idle
             needsFreshRecognizer = false
@@ -295,6 +304,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             override fun onReadyForSpeech(params: Bundle?) {
                 if (!alive()) return
                 clearReadyWatchdog()
+                consecutiveClientErrors = 0
                 sttPhase = SttPhase.Listening
                 AssistantDebugLog.d("STT", "ready (phase=Listening) epoch=$myEpoch")
                 onSttReadyForSpeech?.invoke()
@@ -316,6 +326,19 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 if (!alive()) return
                 restoreAssistantMedia()
                 clearReadyWatchdog()
+                val now = SystemClock.uptimeMillis()
+                // Intentional cancel/stop/destroy → ERROR_CLIENT is normal; do not surface.
+                if (error == SpeechRecognizer.ERROR_CLIENT &&
+                    now < ignoreClientErrorUntilUptimeMs
+                ) {
+                    sttPhase = SttPhase.Idle
+                    needsFreshRecognizer = true
+                    AssistantDebugLog.d(
+                        "STT",
+                        "ERROR_CLIENT ignored (intentional stop/cancel) epoch=$myEpoch",
+                    )
+                    return
+                }
                 sttPhase = SttPhase.Idle
                 needsFreshRecognizer = true
                 val backoff = when (error) {
@@ -323,12 +346,31 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                     SpeechRecognizer.ERROR_CLIENT -> CLIENT_BACKOFF_MS
                     else -> POST_STOP_SETTLE_MS
                 }
-                earliestStartUptimeMs = SystemClock.uptimeMillis() + backoff
+                earliestStartUptimeMs = now + backoff
                 val label = sttErrorLabel(error)
                 AssistantDebugLog.e(
                     "STT",
                     "onError=$error ($label) epoch=$myEpoch backoff=${backoff}ms",
                 )
+                if (error == SpeechRecognizer.ERROR_CLIENT) {
+                    consecutiveClientErrors++
+                    // Self-heal: recreate after repeated unexpected client errors.
+                    if (consecutiveClientErrors >= 2) {
+                        AssistantDebugLog.w(
+                            "STT",
+                            "ERROR_CLIENT x$consecutiveClientErrors — self restart",
+                        )
+                        consecutiveClientErrors = 0
+                        ignoreClientErrorsFor(CLIENT_BACKOFF_MS)
+                        restartListening(delayedMs = CLIENT_BACKOFF_MS)
+                        // Still notify once so backend can keep session alive, but
+                        // ViewModel should not flash a fatal error for this.
+                    }
+                } else if (error != SpeechRecognizer.ERROR_NO_MATCH &&
+                    error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                ) {
+                    consecutiveClientErrors = 0
+                }
                 onSttError?.invoke(error)
             }
             override fun onResults(results: Bundle?) {
@@ -360,8 +402,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun stopListening() {
         val run = Runnable {
             cancelPendingWork()
+            ignoreClientErrorsFor(IGNORE_CLIENT_ERROR_MS)
             try {
-                // cancel() aborts immediately; stopListening() races with a quick restart.
+                // cancel() aborts immediately; it also often delivers ERROR_CLIENT.
                 speechRecognizer?.cancel()
             } catch (t: Throwable) {
                 AssistantDebugLog.w("STT", "cancel failed: ${t.message}")
@@ -379,8 +422,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
     }
 
+    private fun ignoreClientErrorsFor(ms: Long) {
+        ignoreClientErrorUntilUptimeMs =
+            maxOf(ignoreClientErrorUntilUptimeMs, SystemClock.uptimeMillis() + ms)
+    }
+
     private fun destroySpeechRecognizerLocked() {
         cancelPendingWork()
+        ignoreClientErrorsFor(IGNORE_CLIENT_ERROR_MS)
         recognizerEpoch++
         val recognizer = speechRecognizer ?: run {
             sttPhase = SttPhase.Idle
@@ -390,6 +439,11 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         sttPhase = SttPhase.Idle
         // Service-side teardown lags destroy(); callers must honor earliestStartUptimeMs.
         earliestStartUptimeMs = SystemClock.uptimeMillis() + DESTROY_SETTLE_MS
+        try {
+            // Prefer cancel before destroy so the service tears down cleanly.
+            recognizer.cancel()
+        } catch (_: Throwable) {
+        }
         try {
             recognizer.setRecognitionListener(null)
         } catch (_: Throwable) {
@@ -567,9 +621,11 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         private const val POST_STOP_SETTLE_MS = 220L
         private const val DESTROY_SETTLE_MS = 400L
         private const val BUSY_BACKOFF_MS = 900L
-        private const val CLIENT_BACKOFF_MS = 450L
+        private const val CLIENT_BACKOFF_MS = 550L
         private const val MIN_START_GAP_MS = 450L
         private const val READY_WATCHDOG_MS = 2500L
+        /** Window where ERROR_CLIENT from cancel/stop/destroy is ignored. */
+        private const val IGNORE_CLIENT_ERROR_MS = 600L
 
         fun sttErrorLabel(error: Int): String = when (error) {
             SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"

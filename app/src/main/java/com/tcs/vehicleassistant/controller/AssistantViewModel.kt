@@ -3,6 +3,7 @@ package com.tcs.vehicleassistant.controller
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
 import com.tcs.vehicleassistant.domain.SpeculativeToolPrep
 import com.tcs.vehicleassistant.hardware.EndpointingProfile
@@ -86,18 +87,28 @@ class AssistantViewModel(
                         errorCode == android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY
                 when {
                     softMiss -> {
-                        // No speech / no match — re-listen instead of closing the overlay.
                         _liveTranscript.value = ""
                         _uiState.value = AssistantUiState.Listening
-                        // Avoid stacking StartListening while STT is already Starting/Listening.
                         if (!audioManager.isActivelyListening()) {
                             _events.tryEmit(ViewModelEvent.StartListening)
                         }
                     }
                     recoverable -> {
-                        val errorMsg = mapSpeechError(errorCode)
-                        _uiState.value = AssistantUiState.Error(errorMsg)
-                        // Backend mapUiState(Error) schedules forced recreate.
+                        // Do not flash "Client side error (5)" — cancel/stop often emit this,
+                        // and unexpected ones self-heal via silent re-arm / recreate.
+                        AssistantDebugLog.w(
+                            "VM",
+                            "STT recoverable $errorCode — silent re-arm",
+                        )
+                        _liveTranscript.value = ""
+                        if (_uiState.value !is AssistantUiState.Speaking &&
+                            _uiState.value !is AssistantUiState.Streaming
+                        ) {
+                            _uiState.value = AssistantUiState.Listening
+                        }
+                        if (!audioManager.isActivelyListening()) {
+                            _events.tryEmit(ViewModelEvent.StartListening)
+                        }
                     }
                     else -> {
                         val errorMsg = mapSpeechError(errorCode)
