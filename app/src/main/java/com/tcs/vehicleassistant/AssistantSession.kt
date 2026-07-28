@@ -154,6 +154,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var idleJob: Job? = null
     /** Collects uiState / events to arm or pause [idleJob]. */
     private var idleWatchJob: Job? = null
+    /** Ignore flaky system dismiss signals for a short window after assist/hotword show. */
+    private var protectUntilElapsedMs: Long = 0L
+
+    private fun isSummonProtected(): Boolean =
+        android.os.SystemClock.elapsedRealtime() < protectUntilElapsedMs
+
+    private fun beginSummonProtection(ms: Long = 2_000L) {
+        protectUntilElapsedMs = android.os.SystemClock.elapsedRealtime() + ms
+    }
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -188,10 +197,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         if (!sessionUiVisible) return@OnWindowFocusChangeListener
         AssistantDebugLog.d("Session", "window focus=$hasFocus")
         if (!hasFocus) {
+            if (isSummonProtected()) {
+                AssistantDebugLog.d("Session", "focus-lost ignored (summon protect)")
+                return@OnWindowFocusChangeListener
+            }
             observerScope.launch {
                 delay(80)
                 if (sessionUiVisible && ::overlayView.isInitialized &&
-                    !overlayView.hasWindowFocus()
+                    !overlayView.hasWindowFocus() &&
+                    !isSummonProtected()
                 ) {
                     dismissForExternalUi("window-focus-lost")
                 }
@@ -204,6 +218,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             if (!sessionUiVisible) return
             val reason = intent?.getStringExtra("reason") ?: intent?.action ?: "unknown"
             AssistantDebugLog.d("Session", "CLOSE_SYSTEM_DIALOGS reason=$reason")
+            if (isSummonProtected()) {
+                AssistantDebugLog.d("Session", "close-system-dialogs ignored (summon protect)")
+                return
+            }
             // Home / recent / system bar often fires this when leaving the assistant.
             dismissForExternalUi("close-system-dialogs:$reason")
         }
@@ -549,8 +567,14 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                     }
                 }
             }
-            // Begin counting even before the ViewModel binds (first open).
-            armIdleTimer("watch-start")
+            // Begin counting only after the mic is actually listening (see onUiStateForIdle).
+            // Arming at show raced the 1.4s STT delay and closed the overlay mid-warmup.
+            if (viewModel?.uiState?.value is AssistantUiState.Listening) {
+                armIdleTimer("watch-start-listening")
+            } else {
+                pauseIdleTimer()
+                AssistantDebugLog.d("Session", "idle wait until Listening")
+            }
         }
     }
 
@@ -762,6 +786,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         super.onShow(args, showFlags)
         AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
         sessionUiVisible = true
+        beginSummonProtection()
         baselineResumedActivity = null
         baselineTopPackage = null
         registerDismissWatchers()
@@ -986,8 +1011,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         delay(120)
                         val confirmed = foregroundPackage()
                         if (confirmed == top && confirmed != baselineTopPackage && sessionUiVisible) {
-                            dismissForExternalUi("top-pkg $baselineTopPackage → $confirmed")
-                            break
+                            if (isSummonProtected()) {
+                                AssistantDebugLog.d(
+                                    "Session",
+                                    "topPkg change ignored (summon protect): $confirmed",
+                                )
+                            } else {
+                                dismissForExternalUi("top-pkg $baselineTopPackage → $confirmed")
+                                break
+                            }
                         }
                     }
                 }

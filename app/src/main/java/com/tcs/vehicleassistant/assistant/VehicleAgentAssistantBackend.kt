@@ -80,7 +80,8 @@ class VehicleAgentAssistantBackend(
                     }
                     is ViewModelEvent.SetInputText -> {
                         if (event.text.isNotBlank()) {
-                            micArmed = false
+                            // Do not clear micArmed here — partials arrive while STT is still live.
+                            // Clearing it caused attach/requestListen to fight the recognizer.
                             AssistantDebugLog.d(TAG, "user: ${event.text.take(48)}")
                             _events.emit(
                                 AssistantSessionEvent.Transcript(
@@ -255,14 +256,14 @@ class VehicleAgentAssistantBackend(
             return true
         }
         return try {
-            // Do NOT stopListening() then startListening() on the same instance —
-            // that is the usual ERROR_CLIENT (5) trigger. Fresh start only.
-            if (force && reason.contains("client-retry")) {
-                audio.restartListening(delayedMs = 700L)
+            // Forced starts must actually restart. A plain startListening() no-ops while
+            // Starting/Listening and returns "success", leaving the mic unarmed.
+            if (force) {
+                audio.restartListening(delayedMs = if (reason.contains("client-retry")) 700L else 200L)
             } else {
                 audio.startListening()
             }
-            AssistantDebugLog.d(TAG, "startMic($reason) issued")
+            AssistantDebugLog.d(TAG, "startMic($reason) issued force=$force")
             true
         } catch (t: Throwable) {
             micArmed = false

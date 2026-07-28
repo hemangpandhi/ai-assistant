@@ -92,24 +92,49 @@ class AgentOrchestrator(
     }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
-        if (LLMManager.isPrewarming) {
-            _events.tryEmit(OrchestratorEvent.ShowToast("Model is prewarming, please wait a moment..."))
-            _state.value = OrchestratorState.Idle
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-            return
-        }
-
-        if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
+        // Prewarming used to drop the query after STT already painted the transcript.
+        // Wait like the cold-start path so voice finals still reach the LLM.
+        if (LLMManager.isPrewarming ||
+            (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady())
+        ) {
             _state.value = OrchestratorState.Thinking
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+            if (retryCount == 0) {
+                _events.tryEmit(
+                    OrchestratorEvent.ShowToast("Model is warming up — one moment…"),
+                )
+            }
             scope.launch {
                 try {
-                    val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
-                        .inject(org.koin.core.qualifier.named("edge"))
-                    edgeProvider.initialize(context, force = false)
+                    if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
+                        val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
+                            .inject(org.koin.core.qualifier.named("edge"))
+                        edgeProvider.initialize(context, force = false)
+                    }
+                    // Poll briefly while prewarm / init finishes (voice often lands mid-warm).
+                    var waits = 0
+                    while (
+                        waits < 40 &&
+                        (LLMManager.isPrewarming ||
+                            (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()))
+                    ) {
+                        delay(250)
+                        waits++
+                    }
+                    if (LLMManager.isPrewarming ||
+                        (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady())
+                    ) {
+                        _state.value = OrchestratorState.Error(
+                            "Model not ready yet. Try again in a moment.",
+                        )
+                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                        return@launch
+                    }
                     handleQuery(query, retryCount)
                 } catch (e: Exception) {
-                    _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
+                    _state.value = OrchestratorState.Error(
+                        "Model not loaded. Open the app to load a model.",
+                    )
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                 }
             }
