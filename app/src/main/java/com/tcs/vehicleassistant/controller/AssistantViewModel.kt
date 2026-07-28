@@ -67,19 +67,40 @@ class AssistantViewModel(
             },
             onEmptyResult = {
                 SpeculativeToolPrep.clear()
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                 _liveTranscript.value = ""
-                _uiState.value = AssistantUiState.Error("I didn't hear anything.")
+                // Soft miss — keep session open and re-arm ear.
+                _uiState.value = AssistantUiState.Listening
+                _events.tryEmit(ViewModelEvent.StartListening)
             },
             onError = { errorCode ->
                 SpeculativeToolPrep.clear()
-                val errorMsg = mapSpeechError(errorCode)
-                _uiState.value = AssistantUiState.Error(errorMsg)
-                val recoverable = errorCode == android.speech.SpeechRecognizer.ERROR_CLIENT ||
-                    errorCode == android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY
-                if (!recoverable) {
-                    viewModelScope.launch {
-                        delay(2000)
-                        _events.tryEmit(ViewModelEvent.FinishSession)
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
+                val softMiss =
+                    errorCode == android.speech.SpeechRecognizer.ERROR_NO_MATCH ||
+                        errorCode == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT
+                val recoverable =
+                    errorCode == android.speech.SpeechRecognizer.ERROR_CLIENT ||
+                        errorCode == android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY
+                when {
+                    softMiss -> {
+                        // No speech / no match — re-listen instead of closing the overlay.
+                        _liveTranscript.value = ""
+                        _uiState.value = AssistantUiState.Listening
+                        _events.tryEmit(ViewModelEvent.StartListening)
+                    }
+                    recoverable -> {
+                        val errorMsg = mapSpeechError(errorCode)
+                        _uiState.value = AssistantUiState.Error(errorMsg)
+                        // Backend mapUiState(Error) schedules forced recreate.
+                    }
+                    else -> {
+                        val errorMsg = mapSpeechError(errorCode)
+                        _uiState.value = AssistantUiState.Error(errorMsg)
+                        viewModelScope.launch {
+                            delay(2000)
+                            _events.tryEmit(ViewModelEvent.FinishSession)
+                        }
                     }
                 }
             },

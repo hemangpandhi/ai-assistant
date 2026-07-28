@@ -9,6 +9,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -22,6 +23,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingRestart: Runnable? = null
+    private var readyWatchdog: Runnable? = null
 
     private var tts: TextToSpeech? = null
     private var speechRecognizer: SpeechRecognizer? = null
@@ -39,9 +41,21 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private var onSttError: ((Int) -> Unit)? = null
     private var onSttPartial: ((String) -> Unit)? = null
 
-    /** Idle → Starting (startListening issued) → Listening (ready) → Idle. */
+    /**
+     * Idle → Starting (startListening issued) → Listening (ready) → Idle.
+     * Soft-stop uses cancel + recreate on next start to avoid ERROR_CLIENT races.
+     */
     private enum class SttPhase { Idle, Starting, Listening }
     @Volatile private var sttPhase: SttPhase = SttPhase.Idle
+
+    /** Ignore late callbacks from a destroyed recognizer. */
+    private var recognizerEpoch: Int = 0
+
+    /** Next startListening must create a fresh SpeechRecognizer (after cancel/stop). */
+    @Volatile private var needsFreshRecognizer: Boolean = false
+
+    /** Earliest uptime when startListening may proceed after a soft stop. */
+    @Volatile private var earliestStartUptimeMs: Long = 0L
 
     @Volatile private var holdingDuck = false
     private var duckFocusRequest: AudioFocusRequest? = null
@@ -107,6 +121,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun isActivelyListening(): Boolean =
         sttPhase == SttPhase.Starting || sttPhase == SttPhase.Listening
 
+    override fun isReadyListening(): Boolean =
+        sttPhase == SttPhase.Listening
+
     @Volatile
     private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
 
@@ -126,8 +143,11 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
      */
     override fun restartListening(delayedMs: Long) {
         val run = Runnable {
+            cancelPendingWork()
             destroySpeechRecognizerLocked()
             sttPhase = SttPhase.Idle
+            needsFreshRecognizer = false
+            earliestStartUptimeMs = 0L
             if (delayedMs <= 0L) {
                 startListeningOnMain(forceRecreate = true)
             } else {
@@ -141,8 +161,22 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     private fun startListeningOnMain(forceRecreate: Boolean) {
-        if (!forceRecreate && (sttPhase == SttPhase.Starting || sttPhase == SttPhase.Listening)) {
-            AssistantDebugLog.w("STT", "startListening ignored — phase=$sttPhase")
+        if (!forceRecreate && sttPhase == SttPhase.Listening) {
+            AssistantDebugLog.w("STT", "startListening ignored — already Listening")
+            return
+        }
+        if (!forceRecreate && sttPhase == SttPhase.Starting) {
+            AssistantDebugLog.w("STT", "startListening ignored — already Starting")
+            return
+        }
+        val now = SystemClock.uptimeMillis()
+        if (!forceRecreate && now < earliestStartUptimeMs) {
+            val wait = earliestStartUptimeMs - now
+            AssistantDebugLog.d("STT", "startListening delayed ${wait}ms (post-stop settle)")
+            val restart = Runnable { startListeningOnMain(forceRecreate = needsFreshRecognizer) }
+            pendingRestart?.let { mainHandler.removeCallbacks(it) }
+            pendingRestart = restart
+            mainHandler.postDelayed(restart, wait)
             return
         }
         if (!SpeechRecognizer.isRecognitionAvailable(appContext)) {
@@ -152,8 +186,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             return
         }
 
-        if (forceRecreate) {
-            destroySpeechRecognizer()
+        // Soft-stop leaves the engine in a bad state for same-instance restart.
+        if (forceRecreate || needsFreshRecognizer) {
+            destroySpeechRecognizerLocked()
+            needsFreshRecognizer = false
         }
         ensureRecognizer()
         // Keep media ducked while the recognizer arms (avoids a full pause gap).
@@ -186,43 +222,86 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             sttPhase = SttPhase.Starting
             AssistantDebugLog.d("STT", "startListening() phase=Starting")
             speechRecognizer?.startListening(intent)
+            armReadyWatchdog()
         } catch (t: Throwable) {
+            clearReadyWatchdog()
             sttPhase = SttPhase.Idle
+            needsFreshRecognizer = true
             AssistantDebugLog.e("STT", "startListening failed: ${t.message}")
             onSttError?.invoke(SpeechRecognizer.ERROR_CLIENT)
         }
+    }
+
+    private fun armReadyWatchdog() {
+        clearReadyWatchdog()
+        val epochAtStart = recognizerEpoch
+        val watchdog = Runnable {
+            if (epochAtStart != recognizerEpoch) return@Runnable
+            if (sttPhase != SttPhase.Starting) return@Runnable
+            AssistantDebugLog.e("STT", "ready watchdog — stuck Starting epoch=$epochAtStart")
+            needsFreshRecognizer = true
+            sttPhase = SttPhase.Idle
+            destroySpeechRecognizerLocked()
+            onSttError?.invoke(SpeechRecognizer.ERROR_CLIENT)
+        }
+        readyWatchdog = watchdog
+        mainHandler.postDelayed(watchdog, READY_WATCHDOG_MS)
+    }
+
+    private fun clearReadyWatchdog() {
+        readyWatchdog?.let { mainHandler.removeCallbacks(it) }
+        readyWatchdog = null
+    }
+
+    private fun cancelPendingWork() {
+        pendingRestart?.let { mainHandler.removeCallbacks(it) }
+        pendingRestart = null
+        clearReadyWatchdog()
     }
 
     private fun ensureRecognizer() {
         if (speechRecognizer != null) return
         // applicationContext avoids Service/Activity teardown races (ERROR_CLIENT).
         speechRecognizer = SpeechRecognizer.createSpeechRecognizer(appContext)
+        val myEpoch = ++recognizerEpoch
         speechRecognizer?.setRecognitionListener(object : RecognitionListener {
+            private fun alive(): Boolean = speechRecognizer != null && myEpoch == recognizerEpoch
+
             override fun onReadyForSpeech(params: Bundle?) {
+                if (!alive()) return
+                clearReadyWatchdog()
                 sttPhase = SttPhase.Listening
-                AssistantDebugLog.d("STT", "ready (phase=Listening)")
+                AssistantDebugLog.d("STT", "ready (phase=Listening) epoch=$myEpoch")
                 onSttReadyForSpeech?.invoke()
             }
             override fun onBeginningOfSpeech() {
+                if (!alive()) return
                 AssistantDebugLog.d("STT", "speech begin")
                 onSttBeginningOfSpeech?.invoke()
             }
             override fun onRmsChanged(rmsdB: Float) {}
             override fun onBufferReceived(buffer: ByteArray?) {}
             override fun onEndOfSpeech() {
+                if (!alive()) return
                 restoreAssistantMedia()
                 AssistantDebugLog.d("STT", "speech end")
                 onSttEndOfSpeech?.invoke()
             }
             override fun onError(error: Int) {
+                if (!alive()) return
                 restoreAssistantMedia()
+                clearReadyWatchdog()
                 sttPhase = SttPhase.Idle
+                needsFreshRecognizer = true
                 val label = sttErrorLabel(error)
-                AssistantDebugLog.e("STT", "onError=$error ($label)")
+                AssistantDebugLog.e("STT", "onError=$error ($label) epoch=$myEpoch")
                 onSttError?.invoke(error)
             }
             override fun onResults(results: Bundle?) {
+                if (!alive()) return
+                clearReadyWatchdog()
                 sttPhase = SttPhase.Idle
+                needsFreshRecognizer = true
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
                     AssistantDebugLog.d("STT", "result=${matches[0].take(40)}")
@@ -233,6 +312,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 }
             }
             override fun onPartialResults(partialResults: Bundle?) {
+                if (!alive()) return
                 val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
                     onSttPartial?.invoke(matches[0])
@@ -240,18 +320,22 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             }
             override fun onEvent(eventType: Int, params: Bundle?) {}
         })
-        AssistantDebugLog.d("STT", "SpeechRecognizer created")
+        AssistantDebugLog.d("STT", "SpeechRecognizer created epoch=$myEpoch")
     }
 
     override fun stopListening() {
         val run = Runnable {
+            cancelPendingWork()
             try {
-                speechRecognizer?.stopListening()
+                // cancel() aborts immediately; stopListening() races with a quick restart.
+                speechRecognizer?.cancel()
             } catch (t: Throwable) {
-                AssistantDebugLog.w("STT", "stopListening failed: ${t.message}")
+                AssistantDebugLog.w("STT", "cancel failed: ${t.message}")
             }
-            // stopListening alone often leaves the engine in a bad state for a quick restart.
             sttPhase = SttPhase.Idle
+            needsFreshRecognizer = true
+            earliestStartUptimeMs = SystemClock.uptimeMillis() + POST_STOP_SETTLE_MS
+            AssistantDebugLog.d("STT", "stop/cancel — next start recreates recognizer")
         }
         if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
     }
@@ -262,14 +346,18 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     private fun destroySpeechRecognizerLocked() {
-        pendingRestart?.let { mainHandler.removeCallbacks(it) }
-        pendingRestart = null
+        cancelPendingWork()
+        recognizerEpoch++
         val recognizer = speechRecognizer ?: run {
             sttPhase = SttPhase.Idle
             return
         }
         speechRecognizer = null
         sttPhase = SttPhase.Idle
+        try {
+            recognizer.setRecognitionListener(null)
+        } catch (_: Throwable) {
+        }
         try {
             recognizer.destroy()
             AssistantDebugLog.d("STT", "recognizer destroyed")
@@ -440,6 +528,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     companion object {
+        private const val POST_STOP_SETTLE_MS = 180L
+        private const val READY_WATCHDOG_MS = 2000L
+
         fun sttErrorLabel(error: Int): String = when (error) {
             SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
             SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"

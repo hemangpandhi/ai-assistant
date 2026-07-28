@@ -160,6 +160,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var idleArmedAfterMicReady = false
     /** Opens agent STT after wake-word AudioRecord is released. */
     private var micHandoffJob: Job? = null
+    /** Delayed wake-word restart after hide — must cancel on re-show. */
+    private var wakeRestartJob: Job? = null
     /** Ignore flaky system dismiss signals for a short window after assist/hotword show. */
     private var protectUntilElapsedMs: Long = 0L
 
@@ -301,8 +303,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.abandonAssistantDuck()
         abandonFallbackDuck()
 
-        observerScope.launch {
-            // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
+        wakeRestartJob?.cancel()
+        wakeRestartJob = observerScope.launch {
+            // Let SpeechRecognizer cancel/settle before Vosk grabs AudioRecord.
             delay(450)
             val restartIntent = Intent(context, WakeWordService::class.java)
             restartIntent.action = "ACTION_RESTART_LISTENING"
@@ -572,8 +575,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                                 if (event.text.isNotBlank()) noteUserActivity()
                             }
                             is ViewModelEvent.StartListening -> {
-                                idleArmedAfterMicReady = true
-                                armIdleTimer("start-listening")
+                                // Request only — idle arms when uiState reaches Listening (ready).
                             }
                             else -> Unit
                         }
@@ -824,6 +826,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         super.onShow(args, showFlags)
         AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
         sessionUiVisible = true
+        // Cancel stale hide→wake restart so Vosk cannot reclaim the mic mid-STT.
+        wakeRestartJob?.cancel()
+        wakeRestartJob = null
         beginSummonProtection()
         baselineResumedActivity = null
         baselineTopPackage = null
