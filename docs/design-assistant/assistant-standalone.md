@@ -6,7 +6,7 @@ The immersive assistant is split so UI/session chrome never depends on IVI vehic
 
 | Module | Role |
 |--------|------|
-| `:assistant` | Contracts (`AssistantBackend`, `AssistantHost`, events/models), face UI, overlay, demo backend, STT/TTS. |
+| `:assistant-ui` | Contracts (`AssistantBackend`, `AssistantHost`, events/models), face UI, overlay, demo backend, STT/TTS. |
 | `:app` | Implements `AssistantHost` (`VehicleAssistantHost`), installs runtime in `VehicleApplication` via `AssistantRuntimeBootstrap`. |
 
 Full UI/UX + ADB guide: [ASSISTANT_UI_UX.md](./ASSISTANT_UI_UX.md).
@@ -16,7 +16,7 @@ Full UI/UX + ADB guide: [ASSISTANT_UI_UX.md](./ASSISTANT_UI_UX.md).
 Packages align with the Android `namespace` (`com.assistant.ui.assistant`); API types live under `…assistant.api`:
 
 ```text
-:assistant
+:assistant-ui
   api/         AssistantBackend, AssistantHost, AssistantRuntime + models/events
   audio/       STT, TTS, wake feedback
   backend/     DemoAssistantBackend + mood mapping
@@ -41,7 +41,7 @@ AssistantRuntimeBootstrap.install(app, useDemoBackend = true)
 
 ## Standalone APK path
 
-1. New application module depends on `:assistant`.
+1. New application module depends on `:assistant-ui`.
 2. Implement `AssistantHost` (cabin snapshot + optional cluster hand-off).
 3. Call `AssistantRuntime.install(host, backend)` in `Application.onCreate`.
 4. Launch `VirtualAssistantActivity` / `ImmersiveAssistantOverlayService` (move manifest entries from `:app` when ready).
@@ -49,6 +49,6 @@ AssistantRuntimeBootstrap.install(app, useDemoBackend = true)
 
 ## Keep decoupled
 
-- Do not import `VehicleViewModel`, `DrivingUxState`, or `DesignAppShell` from `:assistant`.
+- Do not import `VehicleViewModel`, `DrivingUxState`, or `DesignAppShell` from `:assistant-ui`.
 - Cabin facts cross the boundary only as `AssistantCabinContext` strings/numbers.
 - Theme via `AssistantTheme` inside the assistant module; host OEM theme is optional.

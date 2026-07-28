@@ -51,7 +51,7 @@ Wake word / Home button (VoiceInteractionService)
 
 ### Decoupling rules
 
-- Compose UI (`:assistant`) must **not** import `AgentOrchestrator`, `LLMManager`, `VehicleManager`, or ViewModels.
+- Compose UI (`:assistant-ui`) must **not** import `AgentOrchestrator`, `LLMManager`, `VehicleManager`, or ViewModels.
 - Cabin data crosses the boundary only as `AssistantCabinContext` (strings/numbers).
 - UI observes `AssistantBackend.events` and forwards mic via `onSpeechInput`.
 - Host app owns wiring in `AssistantRuntimeBootstrap` / `VehicleAssistantHost`.
@@ -60,7 +60,7 @@ Wake word / Home button (VoiceInteractionService)
 
 | Module | Role |
 |--------|------|
-| `:assistant` | Contracts (`AssistantBackend`, `AssistantHost`, events/models) + Compose faces, immersive overlay, gallery, demo backend |
+| `:assistant-ui` | Contracts (`AssistantBackend`, `AssistantHost`, events/models) + Compose faces, immersive overlay, gallery, demo backend |
 | `:app` | Host install, ADB receivers, VIS session dual renderer, agent services |
 
 ---
@@ -284,7 +284,7 @@ AssistantRuntimeBootstrap.install(this, useDemoBackend = true)
 | `VehicleAssistantHost` | same | `AssistantHost` cabin + cluster hand-off |
 | `AssistantUiProfile` | same | Compose vs XML profile |
 | `VehicleAgentAssistantBackend` | same | Production bridge skeleton to `AssistantViewModel` |
-| `DemoAssistantBackend` | `:assistant` | Current Compose event driver |
+| `DemoAssistantBackend` | `:assistant-ui` | Current Compose event driver |
 
 To switch Compose onto the real agent:
 
