@@ -24,8 +24,8 @@ class CloudLLMProvider : ILLMProvider {
         onDone: (String) -> Unit,
         onError: (Exception) -> Unit
     ) {
-        val sysPrompt = LLMManager.getSystemPrompt(context, userQuery)
-        val fullPrompt = "$sysPrompt\n\n$prompt"
+        // The system prompt is already injected into the `prompt` by AgentOrchestrator.
+        val fullPrompt = prompt
 
         val responseBuilder = StringBuilder()
         val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {
@@ -49,9 +49,9 @@ class CloudLLMProvider : ILLMProvider {
                 // In a perfect world, GeminiManager/AnthropicManager would take onToken and onDone directly.
                 // We will simulate it by delegating.
                 // Streaming delegated to GeminiManager / AnthropicManager
-                GeminiManager.sendMessageAsync(sysPrompt, prompt, callback)
+                GeminiManager.sendMessageAsync("", fullPrompt, callback)
             } else {
-                AnthropicManager.sendMessageAsync(sysPrompt, prompt, callback)
+                AnthropicManager.sendMessageAsync("", fullPrompt, callback)
             }
         } catch (e: Exception) {
             onError(e)

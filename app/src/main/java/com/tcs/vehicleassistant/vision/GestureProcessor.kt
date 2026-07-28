@@ -10,6 +10,7 @@ import com.google.mediapipe.tasks.vision.gesturerecognizer.GestureRecognizer
 import com.google.mediapipe.tasks.vision.gesturerecognizer.GestureRecognizerResult
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
 import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import kotlinx.coroutines.*
 
 data class GestureFeedback(
     val gestureName: String,
@@ -88,48 +89,58 @@ class GestureProcessor(context: Context, private val listener: (GestureFeedback)
     }
 
     private var lastInferenceTime = 0L
+    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default)
+    private var isProcessing = false
 
     fun processingFrame(bitmap: Bitmap) {
+        if (isProcessing) return
         val currentTime = System.currentTimeMillis()
         if (currentTime - lastInferenceTime < 100) return // Throttle to ~10 FPS
-        lastInferenceTime = currentTime
         
         if (gestureRecognizer == null) return
+        isProcessing = true
         
-        try {
-            val mpImage = BitmapImageBuilder(bitmap).build()
-            val result = gestureRecognizer?.recognize(mpImage)
-            
-            // Run Face Detection every 10 frames (Throttle)
-            frameCount++
-            if (frameCount % 10 == 0) {
-                 val faceResult = faceLandmarker?.detect(mpImage)
-                 lastFaceResult = faceResult
-                 analyzeMood(faceResult)
-            }
-            
-            // Calculate Luminance
-            var lumSum = 0L
-            val cx = bitmap.width / 2
-            val cy = bitmap.height / 2
-            var pixels = 0
-            if (cx > 10 && cy > 10) {
-                 for (x in -5 until 5) {
-                    for (y in -5 until 5) {
-                        val pixel = bitmap.getPixel(cx + x, cy + y)
-                        val r = (pixel shr 16) and 0xFF
-                        val g = (pixel shr 8) and 0xFF
-                        val b = pixel and 0xFF
-                        lumSum += (0.299 * r + 0.587 * g + 0.114 * b).toLong()
-                        pixels++
+        scope.launch {
+            try {
+                lastInferenceTime = System.currentTimeMillis()
+                val mpImage = BitmapImageBuilder(bitmap).build()
+                val result = gestureRecognizer?.recognize(mpImage)
+                
+                // Run Face Detection every 10 frames (Throttle)
+                frameCount++
+                if (frameCount % 10 == 0) {
+                     val faceResult = faceLandmarker?.detect(mpImage)
+                     lastFaceResult = faceResult
+                     analyzeMood(faceResult)
+                }
+                
+                // Calculate Luminance
+                var lumSum = 0L
+                val cx = bitmap.width / 2
+                val cy = bitmap.height / 2
+                var pixels = 0
+                if (cx > 10 && cy > 10) {
+                     for (x in -5 until 5) {
+                        for (y in -5 until 5) {
+                            val pixel = bitmap.getPixel(cx + x, cy + y)
+                            val r = (pixel shr 16) and 0xFF
+                            val g = (pixel shr 8) and 0xFF
+                            val b = pixel and 0xFF
+                            lumSum += (0.299 * r + 0.587 * g + 0.114 * b).toLong()
+                            pixels++
+                        }
                     }
                 }
+                val avgLum = if (pixels > 0) lumSum / pixels else 255
+                
+                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    processResult(result, avgLum.toInt())
+                }
+            } catch (e: Exception) {
+                Log.e("GestureProcessor", "Inference error: ${e.message}")
+            } finally {
+                isProcessing = false
             }
-            val avgLum = if (pixels > 0) lumSum / pixels else 255
-            
-            processResult(result, avgLum.toInt())
-        } catch (e: Exception) {
-            Log.e("GestureProcessor", "Inference error: ${e.message}")
         }
     }
     

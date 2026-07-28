@@ -22,6 +22,12 @@
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.APP_MUSIC" />
         </intent>
+        <intent>
+            <action android:name="android.intent.action.DIAL" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.SENDTO" />
+        </intent>
         
         <!-- Speech Recognition Service Visibility -->
         <intent>
@@ -49,6 +55,11 @@
     <uses-permission android:name="android.car.permission.CAR_ENERGY" />
     <uses-permission android:name="android.car.permission.CAR_POWERTRAIN" />
     <uses-permission android:name="android.car.permission.CAR_EXTERIOR_ENVIRONMENT" />
+    <uses-permission android:name="android.car.permission.CAR_INFO" />
+    <uses-permission android:name="android.car.permission.READ_INTERIOR_LIGHTS" />
+    <uses-permission android:name="android.car.permission.CONTROL_INTERIOR_LIGHTS" />
+    <uses-permission android:name="android.car.permission.READ_CAR_EXTERIOR_LIGHTS" />
+    <uses-permission android:name="android.car.permission.CONTROL_CAR_EXTERIOR_LIGHTS" />
     
     <!-- Permissions for Vosk Wake Word Background Service -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -61,10 +72,14 @@
     <application
         android:name=".VehicleApplication"
         android:allowBackup="true"
-        android:icon="@drawable/ic_mic_small"
+        android:icon="@drawable/ic_ai_assistant"
         android:label="VehicleEdgeAssistant"
         android:supportsRtl="true"
         android:usesCleartextTraffic="true"
+        android:largeHeap="true"
+        android:allowNativeHeapPointerTagging="false"
+        android:memtagMode="off"
+        android:extractNativeLibs="true"
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
         
         <!-- Grant access to vendor OpenCL libraries for LiteRT GPU Backend on Android 14+ -->
@@ -84,7 +99,7 @@
 
         <service android:name=".AssistantVoiceInteractionService"
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
-                 android:icon="@drawable/ic_mic_small"
+                 android:icon="@drawable/ic_ai_assistant"
                  android:exported="true">
             <meta-data android:name="android.voice_interaction"
                        android:resource="@xml/voice_interaction_service" />
@@ -102,6 +117,7 @@
                  android:exported="false" />
                  
         <service android:name=".WakeWordService"
+                 android:process=":wakeword"
                  android:foregroundServiceType="microphone"
                  android:exported="true" />
                  

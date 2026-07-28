@@ -43,6 +43,11 @@ interface IAudioManager {
     fun stopSpeaking()
     
     /**
+     * Suspends until the TTS queue is empty and playback is finished.
+     */
+    suspend fun waitUntilFinishedSpeaking()
+    
+    /**
      * Releases all hardware resources (TTS + SpeechRecognizer).
      */
     fun shutdown()

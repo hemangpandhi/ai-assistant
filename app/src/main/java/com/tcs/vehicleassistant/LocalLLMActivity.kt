@@ -111,7 +111,8 @@ class LocalLLMActivity : AppCompatActivity() {
     private val supportedModels = listOf(
         LlmModel("SmolLM 135M Instruct", "SmolLM-135M-Instruct.task", "https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task", "150MB", "Entry-Level"),
         LlmModel("TinyLlama-1.1B", "TinyLlama-1.1B-Chat-v1.0.task", "https://huggingface.co/litert-community/TinyLlama-1.1B-Chat-v1.0/resolve/main/TinyLlama-1.1B-Chat-v1.0_multi-prefill-seq_q8_ekv1280.task", "1.1GB", "Entry-Level"),
-        LlmModel("Qwen2.5 1.5B Instruct", "Qwen2.5-1.5B-Instruct.litertlm", "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "1.6GB", "Mid-Range"),
+        LlmModel("Qwen2.5 1.5B (Customized)", "model.litertlm", "", "1.7GB", "Mid-Range"),
+        LlmModel("Qwen2.5 1.5B Instruct", "Qwen2.5.litertlm", "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "1.6GB", "Mid-Range"),
         LlmModel("Gemma 2B INT4", "gemma-2b-it-gpu-int4.bin", "", "1.8GB", "Mid-Range"),
         LlmModel("Gemma 4-E2B IT (Generic)", "gemma-4-E2B-it.litertlm", "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm", "2.5GB", "Mid-Range"),
         LlmModel("Gemma 4-E2B IT (Qualcomm SA8255)", "gemma-4-E2B-it_qualcomm_qcs8275.litertlm", "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_qualcomm_qcs8275.litertlm", "2.5GB", "Premium Automotive"),
@@ -119,6 +120,7 @@ class LocalLLMActivity : AppCompatActivity() {
         LlmModel("Llama 3.2 3B Instruct", "Llama-3.2-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.2GB", "Premium"),
         LlmModel("Qwen2.5 3B Instruct", "Qwen2.5-3B-Instruct.litertlm", "https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm", "3.1GB", "Premium"),
         LlmModel("Gemma 4-E2B IT (Google Tensor G5)", "gemma-4-E2B-it_Google_Tensor_G5.litertlm", "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_Google_Tensor_G5.litertlm", "3.6GB", "Premium Pixel"),
+        LlmModel("Llama Handoff Minimal", "handoff_litert_runtime_minimal.litertlm", "", "3.6GB", "Premium"),
         LlmModel("Claude 3.5 Sonnet (Cloud)", "claude-3-5-sonnet", "api", "Cloud", "Premium"),
         LlmModel("Gemini 2.5 Flash (Cloud)", "gemini-2.5-flash", "api", "Cloud", "Premium")
     )
@@ -304,8 +306,11 @@ class LocalLLMActivity : AppCompatActivity() {
         if (intent.action == "com.tcs.vehicleassistant.RUN_TESTS" && !isTestRunning) {
             val internalFiles = applicationContext.filesDir.listFiles()?.toList() ?: emptyList()
             val externalFiles = applicationContext.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
-            val explicitGemma2 = java.io.File("/data/local/tmp/gemma-4-E2B-it.litertlm"); val tmpFiles = if (explicitGemma2.exists() && explicitGemma2.canRead()) listOf(explicitGemma2) else emptyList()
-            val allFiles = internalFiles + externalFiles + tmpFiles
+            val llmDir = java.io.File("/data/local/tmp/llm/")
+            val tmpDir = java.io.File("/data/local/tmp/")
+            val tmpFiles = llmDir.listFiles()?.toList() ?: emptyList()
+            val rootTmpFiles = tmpDir.listFiles()?.toList() ?: emptyList()
+            val allFiles = internalFiles + externalFiles + tmpFiles + rootTmpFiles
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             android.util.Log.i("AutomatedTest", "Found models: ${models.joinToString { it.absolutePath }}")
             
@@ -383,7 +388,6 @@ class LocalLLMActivity : AppCompatActivity() {
                     }
                     override fun onDone(utteranceId: String?) {
                         LatencyLogger.log("LocalLLMActivity", "TTS Synthesis Done for $utteranceId")
-                        utteranceId?.let { orchestratorBridge?.notifyUtteranceDone(it) }
                         if (utteranceId == "QUESTION" || utteranceId == "QUESTION_FINAL") {
                             runOnUiThread {
                                 voiceButton.performClick()
@@ -391,7 +395,6 @@ class LocalLLMActivity : AppCompatActivity() {
                         }
                     }
                     override fun onError(utteranceId: String?) {
-                        utteranceId?.let { orchestratorBridge?.notifyUtteranceError(it) }
                     }
                 })
                 initOrchestratorBridge()
@@ -411,7 +414,8 @@ class LocalLLMActivity : AppCompatActivity() {
         if (missingPerms.isNotEmpty()) {
             ActivityCompat.requestPermissions(this, missingPerms.toTypedArray(), 1)
         } else {
-            com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
+            // Disabled background camera start to prevent hardware conflict with AAOS CarBiometricService
+            android.util.Log.d("LocalLLMActivity", "Skipped CabinCameraManager auto-start to preserve system camera service stability.")
         }
 
         // Setup STT using AndroidAudioManager (Vosk)
@@ -502,7 +506,7 @@ class LocalLLMActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, R.layout.spinner_item, supportedModels.map { "[${it.automotiveContext}] ${it.name} (${it.size})" })
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
         modelSpinner.adapter = adapter
-        modelSpinner.setSelection(4) // Default to Gemma 4-E2B IT
+        modelSpinner.setSelection(3) // Default to Qwen 2.5 1.5B Instruct
         if (isCloudModelActive) {
             val cloudIndex = supportedModels.indexOfFirst { it.name == currentCloudModelName }
             if (cloudIndex >= 0) modelSpinner.setSelection(cloudIndex)
@@ -688,8 +692,10 @@ class LocalLLMActivity : AppCompatActivity() {
         val filter = IntentFilter("com.tcs.vehicleassistant.DIAGNOSTICS_DUMP")
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(diagnosticReceiver, filter, Context.RECEIVER_EXPORTED)
+            registerReceiver(testQueryReceiver, IntentFilter("com.tcs.vehicleassistant.TEST_QUERY"), Context.RECEIVER_EXPORTED)
         } else {
             registerReceiver(diagnosticReceiver, filter)
+            registerReceiver(testQueryReceiver, IntentFilter("com.tcs.vehicleassistant.TEST_QUERY"))
         }
     }
 
@@ -715,9 +721,12 @@ class LocalLLMActivity : AppCompatActivity() {
         val currentMechanicName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
         val currentMechanicNum = prefs.getString("mechanic_number", "555-0199") ?: "555-0199"
         val currentDiningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
+        val cloudFallbackEnabled = prefs.getBoolean("cloud_fallback_enabled", true)
 
         etKvCache.setText(currentKvCache.toString())
         val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)
+        val switchCloudFallback = dialogView.findViewById<android.widget.Switch>(R.id.switchCloudFallback)
+        switchCloudFallback.isChecked = cloudFallbackEnabled
         etAutoFlush.setText(currentAutoFlush.toString())
         
         val etLocationOverride = dialogView.findViewById<android.widget.EditText>(R.id.etLocationOverride)
@@ -849,6 +858,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     putString("dining_pref", etDiningPref.text.toString())
                     if (newKvCache != null) putInt("max_tokens", newKvCache)
                     if (newAutoFlush != null) putInt("auto_flush", newAutoFlush)
+                    putBoolean("cloud_fallback_enabled", switchCloudFallback.isChecked)
                     
                     // Save Voice Settings
                     putFloat("voice_rate", etSpeakingRate.text.toString().toFloatOrNull() ?: 1.0f)
@@ -904,7 +914,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
     private fun initOrchestratorBridge() {
         if (orchestratorBridge != null) return
-        orchestratorBridge = InAppOrchestratorBridge(this, { if (::tts.isInitialized) tts else null }, lifecycleScope).apply {
+        orchestratorBridge = InAppOrchestratorBridge(this, localAudioManager, lifecycleScope).apply {
             onThinking = {
                 runOnUiThread {
                     if (isGenerating) chatAdapter.replaceLastMessage("Thinking...")
@@ -987,6 +997,13 @@ class LocalLLMActivity : AppCompatActivity() {
             if (cameraIndex != -1 && grantResults.getOrNull(cameraIndex) == PackageManager.PERMISSION_GRANTED) {
                 com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
             }
+            val audioIndex = permissions.indexOf(android.Manifest.permission.RECORD_AUDIO)
+            if (audioIndex != -1 && grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED) {
+                // Restart WakeWordService to bind to the microphone now that permission is granted
+                val serviceIntent = Intent(this, WakeWordService::class.java)
+                serviceIntent.action = "ACTION_RESTART_LISTENING"
+                startForegroundService(serviceIntent)
+            }
         }
     }
 
@@ -1008,6 +1025,7 @@ class LocalLLMActivity : AppCompatActivity() {
         }
         super.onDestroy()
         try { unregisterReceiver(diagnosticReceiver) } catch (e: Exception) {}
+        try { unregisterReceiver(testQueryReceiver) } catch (e: Exception) {}
     }
 
     private fun checkModelExists() {
@@ -1032,16 +1050,19 @@ class LocalLLMActivity : AppCompatActivity() {
         
         val internalFiles = internalDir.listFiles()?.toList() ?: emptyList()
         val externalFiles = externalDir?.listFiles()?.toList() ?: emptyList()
-        val explicitGemma = java.io.File("/data/local/tmp/gemma-4-E2B-it.litertlm"); val tmpFiles = if (explicitGemma.exists() && explicitGemma.canRead()) listOf(explicitGemma) else emptyList()
-        val allFiles = internalFiles + externalFiles + tmpFiles
+        val llmDir = java.io.File("/data/local/tmp/llm/")
+        val tmpFiles = llmDir.listFiles()?.toList() ?: emptyList()
+        val rootTmpFiles = tmpDir.listFiles()?.toList() ?: emptyList()
+        val allFiles = internalFiles + externalFiles + tmpFiles + rootTmpFiles
         
         var modelFile = allFiles.firstOrNull { it.name == currentModel.filename }
         
         // Dynamic Fallback: If exact filename is not found, use any existing .bin, .task, or .litertlm file
         if (modelFile == null) {
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
+            modelFile = models.find { it.name.contains("handoff", ignoreCase = true) }
                 ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+                ?: models.find { it.name.contains("gemma", ignoreCase = true) }
                 ?: models.firstOrNull()
             if (modelFile != null) {
                 // Try to find a matching LlmModel for this file to update the UI
@@ -1407,6 +1428,16 @@ class LocalLLMActivity : AppCompatActivity() {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
                 val report = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().runSystemDiagnostics(this@LocalLLMActivity)
                 android.util.Log.i("AutomatedTest", "\n\n=================== DIAGNOSTIC DUMP ===================\n$report\n========================================================\n\n")
+            }
+        }
+    }
+
+    private val testQueryReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            val query = intent?.getStringExtra("query")
+            if (!query.isNullOrEmpty()) {
+                android.util.Log.i("AutomatedTest", "Received automated test query: $query")
+                generateText(query)
             }
         }
     }

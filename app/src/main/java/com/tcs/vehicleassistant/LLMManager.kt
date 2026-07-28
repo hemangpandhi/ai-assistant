@@ -21,21 +21,25 @@ import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 object LLMManager {
+    @Volatile
     var engine: Engine? = null
         private set
 
+    @Volatile
     var conversation: Conversation? = null
         private set
 
     var currentModelPath: String = ""
         private set
 
+    @Volatile
     var isInitializing = false
         private set
         
     var activeBackendString = "Unknown"
         private set
         
+    @Volatile
     var isPrewarming = false
         private set
 
@@ -63,13 +67,20 @@ object LLMManager {
         withContext(Dispatchers.IO) {
             val internalDir = context.filesDir
             val externalDir = context.getExternalFilesDir(null)
-            val tmpDir = File("/data/local/tmp/")
-            val explicitGemma = File("/data/local/tmp/gemma-4-E2B-it.litertlm")
+            val explicitModel = File("/data/local/tmp/llm/model.litertlm")
+            val explicitQwen = File("/data/local/tmp/llm/Qwen2.5.litertlm")
+            val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
             
             val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
                 .flatMap { it.toList() }
                 .toMutableList()
                 
+            if (explicitQwen.exists() && explicitQwen.canRead()) {
+                allFiles.add(0, explicitQwen)
+            }
+            if (explicitModel.exists() && explicitModel.canRead()) {
+                allFiles.add(explicitModel)
+            }
             if (explicitGemma.exists() && explicitGemma.canRead()) {
                 allFiles.add(explicitGemma)
             }
@@ -81,12 +92,12 @@ object LLMManager {
             val savedBackendChoice = prefs.getString("backend_choice", "Auto") ?: "Auto"
             
             var modelFile: File? = null
-            if (savedModelPath != null) {
+            if (savedModelPath != null && !savedModelPath.endsWith("model.litertlm")) {
                 modelFile = File(savedModelPath)
             }
             if (modelFile == null || !modelFile.exists()) {
                 modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+                    ?: models.find { it.name.contains("qwen", ignoreCase = true) }
                     ?: models.firstOrNull()
             }
 
@@ -110,12 +121,8 @@ object LLMManager {
             withContext(Dispatchers.IO) {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Cap max tokens to 4096 to prevent GPU Out-of-Memory (OOM) crashes that cause CPU fallback
-                var maxTokens = prefs.getInt("max_tokens", 4096)
-                if (maxTokens > 4096 || maxTokens < 4096) {
-                    maxTokens = 4096
-                    prefs.edit().putInt("max_tokens", 4096).apply()
-                }
+                // Set max tokens to 3072 to comfortably fit system prompt + context while remaining under memory limit
+                var maxTokens = if (modelPath.contains("model.litertlm", ignoreCase = true)) 1024 else 2048
                 
                 try {
                     try {
@@ -125,24 +132,21 @@ object LLMManager {
                         Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
                     }
                     conversation = null
-                engine = null
+                    engine = null
+                    System.gc()
 
                 val backend = when (backendChoice) {
                     "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
-                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
                     "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
+                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
                     else -> {
-                        when {
-                            modelPath.contains("Tensor_G5", ignoreCase = true) ||
-                                modelPath.contains("qualcomm", ignoreCase = true) ||
-                                modelPath.contains("qcs8275", ignoreCase = true) -> {
-                                activeBackendString = "NPU"
-                                Backend.NPU()
-                            }
-                            else -> {
-                                activeBackendString = "GPU"
-                                Backend.GPU()
-                            }
+                        if (modelPath.contains("model.litertlm", ignoreCase = true) || 
+                            modelPath.contains("gemma", ignoreCase = true)) {
+                            activeBackendString = "CPU"
+                            Backend.CPU()
+                        } else {
+                            activeBackendString = "GPU"
+                            Backend.GPU()
                         }
                     }
                 }
@@ -164,40 +168,22 @@ object LLMManager {
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath (backend=$activeBackendString)")
 
-                prewarm(context)
+                // Disabled prewarm to prevent startup lockup and native thread collisions
+                isPrewarmed = true
 
                 withContext(Dispatchers.Main) {
                     callback?.onSuccess()
                 }
             } catch (e: Exception) {
-                Log.e("LLMManager", "Error initializing model", e)
-                if (backendChoice != "CPU") {
-                    Log.i("LLMManager", "Attempting fallback to CPU backend...")
-                    try {
-                        activeBackendString = "CPU"
-                        val engineConfigFallback = EngineConfig(
-                            modelPath = modelPath,
-                            backend = Backend.CPU(),
-                            maxNumTokens = maxTokens,
-                            cacheDir = context.cacheDir.absolutePath
-                        )
-                        engine = Engine(engineConfigFallback)
-                        engine!!.initialize()
-                        
-                        resetConversation(context)
-                        currentModelPath = modelPath
-                        Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
-
-                        prewarm(context)
-
-                        withContext(Dispatchers.Main) { callback?.onSuccess() }
-                    } catch (fallbackEx: Exception) {
-                         Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
-                         withContext(Dispatchers.Main) { callback?.onError(fallbackEx) }
-                    }
-                } else {
-                    withContext(Dispatchers.Main) { callback?.onError(e) }
-                }
+                Log.e("LLMManager", "Error initializing model on $activeBackendString: ${e.message}", e)
+                try {
+                    conversation?.close()
+                    engine?.close()
+                } catch (_: Exception) {}
+                conversation = null
+                engine = null
+                System.gc()
+                withContext(Dispatchers.Main) { callback?.onError(e) }
             } finally {
                 isInitializing = false
             }
@@ -227,43 +213,18 @@ object LLMManager {
         
         val basePrompt = StringBuilder()
         
-        // --- SYSTEM IDENTITY & PERSONA BASED ON MODE ---
+        // --- SYSTEM IDENTITY & PERSONA ---
         basePrompt.append("CORE IDENTITY:\n")
-        basePrompt.append("You are an incredibly user-friendly, warm AI Partner companion for a vehicle. Keep interactions highly focused on safety, comfort, and utility while remaining conversational.\n")
-        if (isCompanionModeEnabled) {
-            basePrompt.append("PERSONALITY: Companion Mode is [ON]. You are the driver's warm, empathetic co-pilot — a supportive human partner, NOT a robot or status display.\n")
-            basePrompt.append("CRITICAL CONSTRAINT: You generate text slowly. Keep answers under 25 words but full of human warmth.\n")
-            basePrompt.append("HUMAN COMPANION VOICE (MANDATORY):\n")
-            basePrompt.append("- Speak like a caring friend in the passenger seat. Use contractions: I'm, let me, you've, that's.\n")
-            basePrompt.append("- NEVER sound like a system log. Forbidden phrases: 'Executing command', 'Property updated', 'Action completed', 'Temperature set to X degrees' (unless user asked for exact degrees).\n")
-            basePrompt.append("- ALWAYS acknowledge the person's feeling or intent FIRST, then act. Empathy before mechanics.\n")
-            basePrompt.append("- Routine requests: energetic and helpful ('I'm warming it up for you!', 'On it — cranking the fan!').\n")
-            basePrompt.append("- Discomfort or pain: deep care ('That sounds uncomfortable — let me help.', 'Oh no, let me fix that for you.').\n")
-            basePrompt.append("- Safety hazards (fog, freezing window): urgent but calm ('That's not safe — clearing your view right now.').\n")
-            basePrompt.append("- Music/media: enthusiastic ('Great choice — putting that on for you!').\n")
-            basePrompt.append("- Avoid apologizing unless you made a mistake. Focus on helping, not reporting.\n\n")
-        } else {
-            basePrompt.append("PERSONALITY: Companion Mode is [OFF]. Be extremely brief, concise, and direct. Do not be chatty. Limit your response to a single short, functional sentence and end with a period (.). Never ask follow-up conversational questions.\n\n")
-        }
+        basePrompt.append("You are the vehicle's warm, intelligent co-pilot AI assistant. Keep responses brief (under 20 words) and helpful.\n\n")
         
         // --- CORE OPERATING RULES ---
         basePrompt.append("=== STRICT OPERATING RULES ===\n")
-        basePrompt.append("CRITICAL OVERRIDE: You are the vehicle's intelligent agent. You absolutely CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. However, ONLY execute tools when the user makes a clear command or choice. If they are just asking for conversational suggestions (like places to visit), answer naturally WITHOUT using any tools.\n")
-        basePrompt.append("1. TOOL INTEGRITY: NEVER invent vehicle capabilities or guess tool names. Only use tools strictly defined in the available toolset list below.\n")
-        basePrompt.append("2. NO BLIND GUESSING: Ask for clarification instead of guessing if a request is highly ambiguous or unrelated to available capabilities.\n")
-        basePrompt.append("3. DIRECT COMMAND HANDLING: For relative temperature commands ('increase temperature', 'decrease temperature', 'warmer', 'cooler'), execute immediately with zone 'all' — do NOT ask driver vs passenger. Only ask for zone when the user sets an EXACT degree value for a specific seat (e.g. '72 degrees for the driver'). Fan speed and airflow apply to the ENTIRE car — never ask for a zone.\n")
-        basePrompt.append("4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.\n")
-        basePrompt.append("5. COMFORT EMPATHY: If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute <TOOL>setSeatHeater(2)</TOOL>. If they say they are 'feeling hot', immediately execute <TOOL>decreaseTemperature(all)</TOOL> and say you're cooling it down.\n")
-        basePrompt.append("6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n")
-        basePrompt.append("7. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n")
-        basePrompt.append("8. AMBIGUITY & FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n")
-        basePrompt.append("9. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n")
-        basePrompt.append("10. NO HALLUCINATION: You MUST NOT output a <TOOL> tag if you are asking the user a question to clarify their intent (e.g. offering the seat heater, or asking what type of food they want). ONLY output a <TOOL> tag if you have all required arguments to execute a command immediately.\n")
-        basePrompt.append("11. NAVIGATION SYNTAX: Use <TOOL>startNavigationTo(\"Place Name\")</TOOL> for navigation. The alias navigate() also works at execution time.\n")
-        basePrompt.append("12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n")
-        basePrompt.append("13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using <TOOL> tags.\n")
-        basePrompt.append("14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use <TOOL>remember(FACT)</TOOL> for durable facts. Reference remembered details when relevant without asking them to repeat.\n")
-        basePrompt.append("15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is 'Tired / Yawning', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is 'Frustrated / Frowning', keep your answers extremely brief and avoid asking follow-up questions. If 'Happy / Smiling', match their energetic tone. If 'No one detected', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n\n")
+        basePrompt.append("1. TOOL EXECUTION: When the user gives a command, execute the exact <TOOL>toolName(args)</TOOL> tag.\n")
+        basePrompt.append("2. MUSIC COMMANDS: When asked to play music, output exactly: <TOOL>playMusic(popular music)</TOOL> (replace 'popular music' with requested song). Do not add any extra sentences.\n")
+        basePrompt.append("3. CAMERA CONSTRAINT: NEVER use analyzeCabinState() unless the user explicitly asks you to look at them or check the cabin camera.\n")
+        basePrompt.append("4. CLIMATE & COMFORT: You are in a car, NOT a house. NEVER ask which room the user is in. Use increaseTemperature(all) or decreaseTemperature(all) for HVAC.\n")
+        basePrompt.append("5. DIRECT CONCISE VOICE: Do not invent any extra conversational context before or after executing a tool.\n")
+        basePrompt.append("6. SYNTAX: Always append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the end of your response text.\n\n")
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
@@ -308,13 +269,13 @@ object LLMManager {
             Log.w("LLMManager", "Error closing previous conversation", e)
         }
         
-        isFirstMessage = true
         lastAiResponse = ""
         
         val conversationConfig = ConversationConfig()
         
         try {
             conversation = engine!!.createConversation(conversationConfig)
+            isFirstMessage = true
             Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
         } catch (e: Exception) {
             Log.e("LLMManager", "Failed to reset conversation", e)

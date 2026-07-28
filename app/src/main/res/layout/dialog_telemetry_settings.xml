@@ -34,6 +34,14 @@
         android:layout_marginTop="16dp"
         android:layout_marginBottom="8dp"/>
 
+    <Switch
+        android:id="@+id/switchCloudFallback"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Enable Cloud Fallback"
+        android:textColor="#DDDDDD"
+        android:layout_marginBottom="16dp"/>
+
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Max KV Cache Tokens (Requires Reload)" android:textColor="#DDDDDD" />
     <EditText android:id="@+id/etKvCache" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="number" />
 

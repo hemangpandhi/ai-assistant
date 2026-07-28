@@ -96,9 +96,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         context.startService(restartIntent)
 
         unloadJob?.cancel()
-        unloadJob = CoroutineScope(Dispatchers.Main).launch {
-            delay(600_000) // Increased to 10 minutes to reduce TTFT initialization latency
-            LLMManager.unload()
+        
+        // Smart Memory Management: Only unload the heavy LLM from RAM if the car is parked.
+        // If the car is driving (or in any other gear), we keep it loaded so it's instantly available.
+        val isTablet = context.resources.configuration.smallestScreenWidthDp >= 600 || android.os.Build.DEVICE.contains("tangorpro", ignoreCase = true)
+        if (!isTablet && VehicleManager.getGearSelection() == "Park") {
+             LLMManager.unload()
         }
     }
 
@@ -118,7 +121,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     private fun inflateAndBindLayout() {
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val layoutStyle = prefs.getInt("ui_layout_pref", 0)
+        var layoutStyle = prefs.getInt("ui_layout_pref", -1)
+        if (layoutStyle == -1) {
+            val isTablet = context.resources.configuration.smallestScreenWidthDp >= 600 || android.os.Build.DEVICE.contains("tangorpro", ignoreCase = true)
+            layoutStyle = if (isTablet) 1 else 0
+            prefs.edit().putInt("ui_layout_pref", layoutStyle).apply()
+        }
         currentLayoutStyle = layoutStyle
 
         val layoutRes = when (layoutStyle) {
@@ -252,12 +260,22 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         statusText.visibility = View.VISIBLE
                         startDotAnimation("")
                         voiceAnimation.state = VoiceAnimationView.State.LISTENING
+                        if (state.partialText.isNotEmpty()) {
+                            responseText.text = "\"${state.partialText}\""
+                            responseText.gravity = android.view.Gravity.CENTER
+                        } else {
+                            responseText.text = ""
+                        }
                     }
                     is AssistantUiState.Thinking -> {
                         resetDisplayState()
                         statusText.visibility = View.VISIBLE
                         startDotAnimation("")
                         voiceAnimation.state = VoiceAnimationView.State.THINKING
+                        if (!state.userQuery.isNullOrBlank()) {
+                            responseText.text = "\"${state.userQuery}\""
+                            responseText.gravity = android.view.Gravity.CENTER
+                        }
                     }
                     is AssistantUiState.Streaming -> {
                         if (statusText.visibility == View.VISIBLE) {
@@ -356,10 +374,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnMic.isEnabled = false
 
             CoroutineScope(Dispatchers.Main).launch {
+                // Ensure initialization is started if not already
+                LLMManager.autoInitialize(context.applicationContext)
+                
                 // Wait until LLMManager is fully ready and not prewarming
                 withContext(Dispatchers.IO) {
+                    var waitCount = 0
                     while (!LLMManager.isReady() || LLMManager.isInitializing || LLMManager.isPrewarming) {
+                        if (waitCount % 2 == 0) {
+                            android.util.Log.d("AssistantSession", "Waiting for LLM. isReady=${LLMManager.isReady()}, isInit=${LLMManager.isInitializing}, isPrewarm=${LLMManager.isPrewarming}, engineNull=${!LLMManager.isReady()}")
+                        }
                         delay(500)
+                        waitCount++
                     }
                 }
                 statusText.text = "Hi, how can I help you?"
@@ -407,16 +433,32 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     private fun startTypewriterIfNeeded() {
+        // If the target message doesn't start with what we've currently typed, reset the length to 0 to restart the typewriter smoothly.
+        if (targetDisplayMessage.isNotEmpty() && currentDisplayLength > 0 && !targetDisplayMessage.startsWith(responseText.text.toString())) {
+            typewriterJob?.cancel()
+            currentDisplayLength = 0
+            responseText.text = ""
+        }
+
         if (typewriterJob == null || typewriterJob?.isActive != true) {
             typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+                val startTime = System.currentTimeMillis()
+                
                 while (isActive && currentDisplayLength < targetDisplayMessage.length) {
                     val timeSinceTts = System.currentTimeMillis() - (viewModel?.lastTtsUpdateTime ?: 0L)
                     val isTtsActive = (viewModel?.lastTtsUpdateTime ?: 0L) > 0L && timeSinceTts < 2000
                     
                     // Cap the text display length so it doesn't vastly outpace the spoken TTS text.
-                    if (isTtsActive && currentDisplayLength > (viewModel?.ttsSpokenLength ?: 0) + 5) {
-                        delay(16) // 1 frame wait (vsync aligned)
-                        continue
+                    if (isTtsActive) {
+                        val reportedSpokenLength = viewModel?.ttsSpokenLength ?: 0
+                        // Fallback: estimate 20 chars per second if the TTS engine doesn't report range updates
+                        val simulatedSpokenLength = ((System.currentTimeMillis() - startTime) / 1000f * 20).toInt()
+                        val effectiveSpokenLength = Math.max(reportedSpokenLength, simulatedSpokenLength)
+                        
+                        if (currentDisplayLength > effectiveSpokenLength + 5) {
+                            delay(16) // 1 frame wait (vsync aligned)
+                            continue
+                        }
                     }
 
                     currentDisplayLength = Math.min(currentDisplayLength + 1, targetDisplayMessage.length)

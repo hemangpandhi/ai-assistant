@@ -31,10 +31,20 @@ object MemoryManager {
         return q in setOf("yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead", "please", "yup")
     }
 
-    fun isFollowUpQuery(query: String): Boolean {
+    fun isFollowUpQuery(query: String, previousResponse: String = ""): Boolean {
         val q = query.lowercase().trim()
         if (q.length > 60) return false
-        return followUpPatterns.any { Regex("\\b$it\\b", RegexOption.IGNORE_CASE).containsMatchIn(q) }
+        
+        if (previousResponse.trim().endsWith("?")) return true
+        
+        if (followUpPatterns.any { Regex("\\b$it\\b", RegexOption.IGNORE_CASE).containsMatchIn(q) }) {
+            return true
+        }
+        
+        val words = q.split(Regex("\\s+"))
+        if (words.size <= 3) return true
+        
+        return false
     }
 
     private val longTermCapturePatterns = listOf(

@@ -6,8 +6,8 @@ package com.tcs.vehicleassistant.controller
  */
 sealed class AssistantUiState {
     object Idle : AssistantUiState()
-    object Listening : AssistantUiState()
-    object Thinking : AssistantUiState()
+    data class Listening(val partialText: String = "") : AssistantUiState()
+    data class Thinking(val userQuery: String? = null) : AssistantUiState()
     
     /**
      * Represents the real-time streaming state where text chunks are arriving from the LLM.

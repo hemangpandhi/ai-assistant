@@ -72,12 +72,13 @@ object DemoSettingsPresets {
 
     fun ensureDefaults(context: Context) {
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        if (!prefs.getBoolean(PREF_INITIALIZED, false)) {
-            prefs.edit()
-                .putString(LocationManager.PREF_LOCATION_SOURCE, LocationManager.Source.DEVICE.prefValue)
-                .putBoolean(PREF_INITIALIZED, true)
-                .apply()
-            apply(context, TOKYO_OEM)
-        }
+        prefs.edit()
+            .putString(LocationManager.PREF_LOCATION_SOURCE, LocationManager.Source.DEVICE.prefValue)
+            .putBoolean("cloud_model_active", false)
+            .putBoolean("cloud_fallback_enabled", false)
+            .putString("selected_model", "/data/local/tmp/llm/model.litertlm")
+            .putBoolean(PREF_INITIALIZED, true)
+            .apply()
+        apply(context, TOKYO_OEM)
     }
 }

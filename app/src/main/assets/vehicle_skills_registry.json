@@ -90,7 +90,7 @@
         "countPassengers",
         "lookAtMe"
       ],
-      "instruction": "Use this tool to analyze the cabin using the camera. It returns the number of occupants and the driver's current mood or state (e.g. happy, tired, angry). Use this when the user asks how they look, if they seem tired, or asks how many people are in the car."
+      "instruction": "ONLY use this tool when the user EXPLICITLY asks you to look at them, check their mood, or check the camera. Do NOT use this tool for generic commands like playing music."
     },
     {
       "prompt_string": "<TOOL>setTemperature(VAL)</TOOL>",
@@ -121,10 +121,10 @@
       "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Do NOT use this tool for relative commands like 'increase temperature', 'decrease temperature', 'warmer', or 'cooler' unless a specific target number is provided. Use increaseTemperature or decreaseTemperature instead."
     },
     {
-      "prompt_string": "<TOOL>increaseTemperature(zone)</TOOL>",
+      "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
       "handler_key": "increaseTemperature",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Increases cabin temperature by 2 degrees. For commands like 'increase temperature' or 'warmer', execute immediately with zone 'all'. Only use 'driver' or 'passenger' if the user explicitly names a zone.",
+      "instruction": "Increases overall cabin temperature by 2 degrees. Use this for general commands like 'increase temperature' or 'warmer'.",
       "keywords": [
         "increase temperature",
         "warmer",
@@ -147,10 +147,10 @@
       ]
     },
     {
-      "prompt_string": "<TOOL>decreaseTemperature(zone)</TOOL>",
+      "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
       "handler_key": "decreaseTemperature",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "Decreases cabin temperature by 2 degrees. For commands like 'decrease temperature', 'cooler', or 'feeling hot', execute immediately with zone 'all'.",
+      "instruction": "Decreases overall cabin temperature by 2 degrees. Use this for general commands like 'decrease temperature', 'cooler', or 'feeling hot'.",
       "keywords": [
         "decrease temperature",
         "cooler",
@@ -741,7 +741,8 @@
         "can't see",
         "barely see the road",
         "fog",
-        "foggy"
+        "foggy",
+        "see the road"
       ],
       "offline_capable": true,
       "requires_vehicle_state": false
@@ -788,7 +789,8 @@
         "optimize charging",
         "charge faster",
         "charging rate",
-        "battery health"
+        "battery health",
+        "maximum life"
       ],
       "offline_capable": true,
       "success_message": "I've analyzed the battery and suggested an optimized charging rate.",
@@ -801,7 +803,8 @@
       "keywords": [
         "event reminder",
         "upcoming event",
-        "calendar reminder"
+        "calendar reminder",
+        "remind me"
       ],
       "offline_capable": false,
       "requires_agentic_loop": true,
@@ -830,7 +833,8 @@
         "umbrella",
         "going to rain",
         "rainy weather",
-        "take umbrella"
+        "take umbrella",
+        "rain"
       ],
       "offline_capable": false,
       "success_message": "I've checked the weather and will remind you to carry an umbrella if rain is expected.",
@@ -843,7 +847,8 @@
       "keywords": [
         "today's news",
         "news highlights",
-        "latest news"
+        "latest news",
+        "news"
       ],
       "offline_capable": false,
       "success_message": "Here are today's news highlights.",
@@ -874,7 +879,8 @@
         "distracted",
         "not paying attention",
         "eyes off road",
-        "stay focused"
+        "stay focused",
+        "checking my phone"
       ],
       "offline_capable": true,
       "success_message": "I'll monitor for distraction and alert you if needed.",
@@ -902,7 +908,9 @@
         "traffic congestion",
         "better route",
         "alternate route",
-        "traffic ahead"
+        "traffic ahead",
+        "faster way",
+        "traffic"
       ],
       "offline_capable": false,
       "requires_agentic_loop": true,
@@ -918,7 +926,8 @@
         "BGM",
         "make it quieter",
         "make it louder",
-        "music volume"
+        "music volume",
+        "adjust the audio"
       ],
       "offline_capable": true,
       "success_message": "I've adjusted the background music to match the cabin situation.",
@@ -932,7 +941,8 @@
         "is everything secured",
         "car secure",
         "doors and windows closed",
-        "before I leave"
+        "before I leave",
+        "doors locked"
       ],
       "offline_capable": true,
       "success_message": "I've checked whether the vehicle is secured.",
@@ -948,7 +958,8 @@
       "keywords": [
         "get the car ready",
         "office commute",
-        "morning commute"
+        "morning commute",
+        "heading to work"
       ],
       "offline_capable": true,
       "requires_agentic_loop": true,
@@ -964,7 +975,8 @@
       "keywords": [
         "long drive",
         "make the cabin comfortable",
-        "comfort for long trip"
+        "comfort for long trip",
+        "road trip"
       ],
       "offline_capable": true,
       "requires_vehicle_state": false
@@ -993,7 +1005,8 @@
       "keywords": [
         "about to park",
         "parking downtown",
-        "help me park"
+        "help me park",
+        "parking spot"
       ],
       "offline_capable": true,
       "success_message": "I've prepared parking assistance for you.",
@@ -1010,7 +1023,8 @@
         "maximum battery range",
         "save energy",
         "eco mode",
-        "energy saving"
+        "energy saving",
+        "stretch my battery"
       ],
       "offline_capable": true,
       "requires_vehicle_state": false
@@ -1038,7 +1052,8 @@
         "vehicle healthy",
         "ready for trip",
         "weekend trip",
-        "health check"
+        "health check",
+        "ready for our road trip"
       ],
       "offline_capable": true,
       "success_message": "I've checked the vehicle's readiness for your trip.",
@@ -1066,7 +1081,8 @@
         "important client meeting",
         "prepare for meeting",
         "focus mode",
-        "meeting assistant"
+        "meeting assistant",
+        "important meeting"
       ],
       "offline_capable": true,
       "requires_agentic_loop": true,
@@ -1115,7 +1131,8 @@
         "night driving is difficult",
         "too dark",
         "night mode",
-        "see better at night"
+        "see better at night",
+        "dark outside"
       ],
       "offline_capable": true,
       "requires_vehicle_state": false
@@ -1145,7 +1162,8 @@
         "why is my range low",
         "range dropped",
         "low range",
-        "battery drain"
+        "battery drain",
+        "range so low"
       ],
       "offline_capable": true,
       "success_message": "I've analyzed possible reasons for the lower range.",
@@ -1187,7 +1205,7 @@
       "requires_agentic_loop": false,
       "success_message": "Great choice \u2014 putting that on for you!",
       "requires_vehicle_state": false,
-      "instruction": "Plays music. You MUST replace 'SONG' with the EXACT FULL name of the artist, song, AND genre requested by the user. For example, if they say 'Play Hello by Adele', you must output <TOOL>playMusic(Hello by Adele)</TOOL>. Do not omit the artist name! If the user just says 'play music' without specifying what kind, output <TOOL>playMusic(music)</TOOL> so the system can ask them. When they reply with their preferred genre or song (e.g., 'bollywood'), immediately execute <TOOL>playMusic(bollywood)</TOOL> replacing 'bollywood' with whatever they asked for.",
+      "instruction": "Plays music. Output <TOOL>playMusic(SONG)</TOOL> replacing SONG with the requested music. If no song is specified, output <TOOL>playMusic(music)</TOOL>.",
       "aliases": [
         "play",
         "playAudio",
@@ -1203,7 +1221,8 @@
       "instruction": "CRITICAL: If the user asks to pause or halt the music/audio, you MUST execute this tool.",
       "keywords": [
         "pause music",
-        "halt music"
+        "halt music",
+        "pause"
       ],
       "offline_capable": true,
       "success_message": "I've paused the music.",
@@ -1219,7 +1238,8 @@
       "handler_type": "CUSTOM_KOTLIN",
       "instruction": "CRITICAL: If the user asks to stop the music/audio, you MUST execute this tool.",
       "keywords": [
-        "stop music"
+        "stop music",
+        "stop"
       ],
       "offline_capable": true,
       "success_message": "I've stopped the music.",
@@ -1256,7 +1276,8 @@
         "previous",
         "back track",
         "go back",
-        "rewind"
+        "rewind",
+        "back"
       ],
       "offline_capable": true,
       "success_message": "I've gone back to the previous track.",
@@ -1277,7 +1298,8 @@
         "lower volume",
         "softer",
         "set volume",
-        "change volume"
+        "change volume",
+        "volume"
       ],
       "aliases": [
         "setVolume",
@@ -1373,7 +1395,8 @@
         "gas",
         "fuel",
         "charging",
-        "find nearby"
+        "find nearby",
+        "coffee shop"
       ],
       "requires_vehicle_state": false
     },
@@ -1390,7 +1413,8 @@
         "search",
         "search for",
         "show on map",
-        "show me places on map"
+        "show me places on map",
+        "capital"
       ],
       "requires_vehicle_state": false,
       "context_dependencies": [
@@ -1410,7 +1434,8 @@
         "route to",
         "directions",
         "take me to",
-        "go to"
+        "go to",
+        "navigate"
       ],
       "requires_vehicle_state": true,
       "aliases": [
@@ -1432,6 +1457,14 @@
       "area_id": 0,
       "value_to_write": "true",
       "success_message": "I've popped the trunk.",
+      "constraints": [
+        {
+          "property_id": 289408000,
+          "operator": "!=",
+          "value": 4,
+          "error_msg": "Safety Warning: The vehicle must be in PARK to open the trunk."
+        }
+      ],
       "keywords": [
         "open",
         "trunk",
@@ -1452,7 +1485,8 @@
         "roll down window",
         "roll up window",
         "glass position",
-        "window position"
+        "window position",
+        "windows"
       ],
       "property_id": 322964416,
       "data_type": "INT",
@@ -1542,7 +1576,8 @@
       "handler_key": "bookRestaurant",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "bookrestaurant"
+        "bookrestaurant",
+        "table"
       ],
       "requires_vehicle_state": false
     },
@@ -1553,7 +1588,8 @@
       "handler_key": "queryMemory",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "querymemory"
+        "querymemory",
+        "remember earlier"
       ],
       "requires_vehicle_state": false
     },
@@ -1564,7 +1600,8 @@
       "handler_key": "openApp",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "openapp"
+        "openapp",
+        "open"
       ],
       "requires_vehicle_state": false
     },
@@ -1591,7 +1628,8 @@
         "what is the temperature",
         "car",
         "model",
-        "vehicle"
+        "vehicle",
+        "tire pressure"
       ]
     },
     {

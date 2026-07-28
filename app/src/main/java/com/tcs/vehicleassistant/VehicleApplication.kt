@@ -9,7 +9,7 @@ import org.koin.core.context.startKoin
 class VehicleApplication : Application() {
     override fun onCreate() {
         super.onCreate()
-        
+
         startKoin {
             androidLogger()
             androidContext(this@VehicleApplication)

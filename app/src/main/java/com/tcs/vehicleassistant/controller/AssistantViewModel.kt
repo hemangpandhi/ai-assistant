@@ -43,11 +43,11 @@ class AssistantViewModel(
     init {
         audioManager.setRecognitionListener(
             onReadyForSpeech = {
-                _uiState.value = AssistantUiState.Listening
+                _uiState.value = AssistantUiState.Listening()
             },
             onBeginningOfSpeech = { },
             onEndOfSpeech = {
-                _uiState.value = AssistantUiState.Thinking
+                _uiState.value = AssistantUiState.Thinking()
             },
             onResult = { spokenText ->
                 audioManager.stopSpeaking()
@@ -64,6 +64,7 @@ class AssistantViewModel(
                 // Do not dismiss automatically so user can try again
             },
             onPartial = { partialText ->
+                _uiState.value = AssistantUiState.Listening(partialText)
                 _events.tryEmit(ViewModelEvent.SetInputText(partialText))
             }
         )
@@ -73,7 +74,7 @@ class AssistantViewModel(
             orchestrator.state.collect { state ->
                 _uiState.value = when (state) {
                     is OrchestratorState.Idle -> AssistantUiState.Idle
-                    is OrchestratorState.Thinking -> AssistantUiState.Thinking
+                    is OrchestratorState.Thinking -> AssistantUiState.Thinking(state.query)
                     is OrchestratorState.Streaming -> AssistantUiState.Streaming(state.displayMsg)
                     is OrchestratorState.Speaking -> AssistantUiState.Speaking(state.finalMsg)
                     is OrchestratorState.Error -> AssistantUiState.Error(state.message)

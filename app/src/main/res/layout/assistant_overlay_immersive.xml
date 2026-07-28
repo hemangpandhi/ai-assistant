@@ -12,8 +12,7 @@
         android:layout_height="80dp"
         android:padding="16dp"
         android:background="@drawable/bg_premium_icon"
-        android:src="@drawable/ic_mic_small"
-        app:tint="#FFFFFF"
+        android:src="@drawable/ic_ai_assistant"
         android:layout_marginTop="80dp"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
@@ -76,7 +75,6 @@
         android:layout_marginBottom="80dp"
         android:background="@drawable/bg_mic_premium_circle"
         android:src="@drawable/ic_mic_custom"
-        app:tint="#A8C7FA"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />

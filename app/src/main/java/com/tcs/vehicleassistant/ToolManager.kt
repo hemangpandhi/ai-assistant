@@ -216,11 +216,12 @@ class ToolManager {
         }
 
         // Short follow-ups rely on prior assistant context for tool routing
-        if (MemoryManager.isFollowUpQuery(userQuery) && conversationalContext.isNotBlank()) {
-            val contextTools = activeTools.values.filter { tool ->
+        val contextTools = if (MemoryManager.isFollowUpQuery(userQuery, conversationalContext) && conversationalContext.isNotBlank()) {
+            activeTools.values.filter { tool ->
                 tool.keywords?.any { kw -> conversationalContext.lowercase().contains(kw) } == true
             }
-            if (contextTools.isNotEmpty()) return contextTools.distinct().take(4)
+        } else {
+            emptyList()
         }
 
         // Mid-conversation commands: match keywords in the current user turn first
@@ -234,6 +235,12 @@ class ToolManager {
             activeTools.values.filter { tool ->
                 tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
             }.toMutableList()
+        }
+        
+        val combinedTools = (contextTools + exactMatches).distinct()
+        
+        if (combinedTools.isNotEmpty()) {
+            return combinedTools
         }
         
         // Temperature heuristic: catch explicit numbers (50-90) or 'degrees'
@@ -279,21 +286,28 @@ class ToolManager {
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
     fun getLlmToolsPrompt(userQuery: String = "", conversationalContext: String = ""): String {
-        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) getRelevantTools(userQuery, conversationalContext) else activeTools.values.toList()
+        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) getRelevantTools(userQuery, conversationalContext).take(8) else activeTools.values.take(8).toList()
         if (relevantTools.isEmpty()) return ""
         
         val sb = StringBuilder()
+        val toolNames = mutableListOf<String>()
         for (tool in relevantTools) {
             sb.append("- ${tool.promptString}")
-            if (!tool.description.isNullOrEmpty()) {
-                sb.append(": ${tool.description}")
-            }
-            if (!tool.instruction.isNullOrEmpty()) {
-                sb.append(" IMPORTANT: ${tool.instruction}")
+            // Use technical description only, stripping any conversational questions
+            val cleanDesc = tool.description?.substringBefore("?")?.trim()
+            if (!cleanDesc.isNullOrEmpty()) {
+                sb.append(": $cleanDesc")
             }
             sb.append("\n")
+            
+            val match = Regex("(?i)<TOOL>([a-zA-Z0-9_]+)\\(").find(tool.promptString)
+            if (match != null) {
+                toolNames.add(match.groupValues[1])
+            }
         }
-        return sb.toString().trimEnd()
+        sb.append("Allowed tools: ")
+        sb.append(toolNames.joinToString(", "))
+        return sb.toString()
     }
 
     /**
@@ -360,7 +374,16 @@ class ToolManager {
                 val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter("(").substringBefore(")")
                 
                 val startToolTime = System.currentTimeMillis()
-                val success = VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
+                
+                // Hardware confirmation logic with Emulator workaround
+                val isAospEmulator = propId == 289410577 || propId == 354419973 || propId == 289410578
+                val success = if (isAospEmulator) {
+                    VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
+                    true
+                } else {
+                    VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
+                }
+                
                 val endToolTime = System.currentTimeMillis()
                 val latency = endToolTime - startToolTime
                 com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency
