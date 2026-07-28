@@ -65,8 +65,11 @@ class AssistantViewModel(
             },
             onEmptyResult = {
                 SpeculativeToolPrep.clear()
+                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                 _liveTranscript.value = ""
-                _uiState.value = AssistantUiState.Error("I didn't hear anything.")
+                // Soft miss — keep session open and re-arm ear.
+                _uiState.value = AssistantUiState.Listening
+                _events.tryEmit(ViewModelEvent.StartListening)
             },
             onError = { errorCode ->
                 SpeculativeToolPrep.clear()
