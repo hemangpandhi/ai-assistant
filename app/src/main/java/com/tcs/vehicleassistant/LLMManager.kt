@@ -121,8 +121,12 @@ object LLMManager {
             withContext(Dispatchers.IO) {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Set max tokens to 3072 to comfortably fit system prompt + context while remaining under memory limit
-                var maxTokens = if (modelPath.contains("model.litertlm", ignoreCase = true)) 1024 else 2048
+                // Cap max tokens to 4096 to prevent GPU Out-of-Memory (OOM) crashes that cause CPU fallback
+                var maxTokens = prefs.getInt("max_tokens", 4096)
+                if (maxTokens > 4096 || maxTokens < 4096) {
+                    maxTokens = 4096
+                    prefs.edit().putInt("max_tokens", 4096).apply()
+                }
                 
                 try {
                     try {
@@ -132,21 +136,24 @@ object LLMManager {
                         Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
                     }
                     conversation = null
-                    engine = null
-                    System.gc()
+                engine = null
 
                 val backend = when (backendChoice) {
                     "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
-                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
                     "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
+                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
                     else -> {
-                        if (modelPath.contains("model.litertlm", ignoreCase = true) || 
-                            modelPath.contains("gemma", ignoreCase = true)) {
-                            activeBackendString = "CPU"
-                            Backend.CPU()
-                        } else {
-                            activeBackendString = "GPU"
-                            Backend.GPU()
+                        when {
+                            modelPath.contains("Tensor_G5", ignoreCase = true) ||
+                                modelPath.contains("qualcomm", ignoreCase = true) ||
+                                modelPath.contains("qcs8275", ignoreCase = true) -> {
+                                activeBackendString = "NPU"
+                                Backend.NPU()
+                            }
+                            else -> {
+                                activeBackendString = "GPU"
+                                Backend.GPU()
+                            }
                         }
                     }
                 }
@@ -168,22 +175,40 @@ object LLMManager {
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath (backend=$activeBackendString)")
 
-                // Disabled prewarm to prevent startup lockup and native thread collisions
-                isPrewarmed = true
+                isPrewarmed = true // disabled prewarm
 
                 withContext(Dispatchers.Main) {
                     callback?.onSuccess()
                 }
             } catch (e: Exception) {
-                Log.e("LLMManager", "Error initializing model on $activeBackendString: ${e.message}", e)
-                try {
-                    conversation?.close()
-                    engine?.close()
-                } catch (_: Exception) {}
-                conversation = null
-                engine = null
-                System.gc()
-                withContext(Dispatchers.Main) { callback?.onError(e) }
+                Log.e("LLMManager", "Error initializing model", e)
+                if (backendChoice != "CPU") {
+                    Log.i("LLMManager", "Attempting fallback to CPU backend...")
+                    try {
+                        activeBackendString = "CPU"
+                        val engineConfigFallback = EngineConfig(
+                            modelPath = modelPath,
+                            backend = Backend.CPU(),
+                            maxNumTokens = maxTokens,
+                            cacheDir = context.cacheDir.absolutePath
+                        )
+                        engine = Engine(engineConfigFallback)
+                        engine!!.initialize()
+                        
+                        resetConversation(context)
+                        currentModelPath = modelPath
+                        Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
+
+                        isPrewarmed = true // disabled prewarm
+
+                        withContext(Dispatchers.Main) { callback?.onSuccess() }
+                    } catch (fallbackEx: Exception) {
+                         Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
+                         withContext(Dispatchers.Main) { callback?.onError(fallbackEx) }
+                    }
+                } else {
+                    withContext(Dispatchers.Main) { callback?.onError(e) }
+                }
             } finally {
                 isInitializing = false
             }
