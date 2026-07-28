@@ -3,10 +3,11 @@
 ## Cursor Cloud specific instructions
 
 This repo is a single Android Automotive OS (AAOS) app — `VehicleEdgeAssistant`
-(package `com.example.gemininano`), built with Gradle (Kotlin DSL). There is no
-backend/server to run; the "product" is an installable APK. See `README.md` and
-`ARCHITECTURE.md` for product/architecture details and `app/build.gradle.kts` for
-the module config.
+(package `com.tcs.vehicleassistant`), built with Gradle (Kotlin DSL). Modules:
+`:app` (agent / VHAL host) and `:assistant-ui` (Compose face/overlay contracts).
+There is no backend/server to run; the "product" is an installable APK. See
+`README.md` and `ARCHITECTURE.md` for product/architecture details and
+`app/build.gradle.kts` for the module config.
 
 ### Toolchain (non-obvious)
 - **Use JDK 17, not the VM default JDK 21.** AGP 8.2.2 / Gradle 8.4 require Java 17;
