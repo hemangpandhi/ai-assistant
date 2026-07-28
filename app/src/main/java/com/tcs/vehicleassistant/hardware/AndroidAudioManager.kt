@@ -182,7 +182,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     override fun isActivelyListening(): Boolean =
-        sttPhase == SttPhase.Starting || sttPhase == SttPhase.Listening
+        sttPhase == SttPhase.Starting ||
+            sttPhase == SttPhase.Listening ||
+            pendingRestart != null
 
     override fun isReadyListening(): Boolean =
         sttPhase == SttPhase.Listening

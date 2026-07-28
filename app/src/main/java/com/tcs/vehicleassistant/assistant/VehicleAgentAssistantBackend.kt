@@ -348,16 +348,27 @@ class VehicleAgentAssistantBackend(
                     AssistantDebugLog.d(TAG, "mic already ready ('$reason#$attempt')")
                     return@launch
                 }
-                // If Starting, wait — never destroy a live start (causes ERROR_RECOGNIZER_BUSY).
+                // If Starting or a delayed start is pending, wait — never destroy mid-flight.
                 if (!force && audio?.isActivelyListening() == true) {
-                    AssistantDebugLog.d(TAG, "mic await Starting ('$reason#$attempt')")
+                    AssistantDebugLog.d(TAG, "mic await in-flight ('$reason#$attempt')")
                 } else {
-                    // Retries after failure: force recreate only when Idle (never while Starting).
                     val recreate = force || (attempt > 0 && audio?.isActivelyListening() != true)
                     if (!startMic(reason = "$reason#$attempt", force = recreate)) {
                         delay(220)
                         return@repeat
                     }
+                }
+                // startListening may only *schedule* work (settle/coalesce). Give the
+                // handler time to move Idle → Starting before treating Idle as failure.
+                val armDeadline = System.currentTimeMillis() + PENDING_ARM_MS
+                while (isActive && _sessionActive.value && System.currentTimeMillis() < armDeadline) {
+                    if (audioManager?.isReadyListening() == true) {
+                        micArmed = true
+                        clientErrorRetries = 0
+                        return@launch
+                    }
+                    if (audioManager?.isActivelyListening() == true) break
+                    delay(40)
                 }
                 val deadline = System.currentTimeMillis() + READY_WAIT_MS
                 while (isActive && _sessionActive.value && System.currentTimeMillis() < deadline) {
@@ -369,12 +380,11 @@ class VehicleAgentAssistantBackend(
                         return@launch
                     }
                     if (a?.isActivelyListening() != true) {
-                        // Error/idle — break to retry.
+                        // Truly idle (no pending start) — retry.
                         break
                     }
                     delay(50)
                 }
-                // Still Starting after timeout? Give it one more grace window before recreate.
                 if (audioManager?.isActivelyListening() == true &&
                     audioManager?.isReadyListening() != true
                 ) {
@@ -386,14 +396,38 @@ class VehicleAgentAssistantBackend(
                         return@launch
                     }
                 }
+                // If a delayed start is still pending, keep waiting instead of giving up.
+                if (audioManager?.isActivelyListening() == true) {
+                    AssistantDebugLog.d(TAG, "mic still in-flight after grace — continue")
+                    delay(MIC_BUSY_RETRY_MS)
+                    if (audioManager?.isReadyListening() == true) {
+                        micArmed = true
+                        clientErrorRetries = 0
+                        return@launch
+                    }
+                }
                 micArmed = false
                 com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                 AssistantDebugLog.w(TAG, "mic not ready after '$reason#$attempt' — backoff")
-                // Longer backoff so RecognitionService can leave BUSY.
                 delay(if (attempt == 0) 350L else MIC_BUSY_RETRY_MS)
             }
-            AssistantDebugLog.w(TAG, "mic schedule gave up — not ready")
-            _events.emit(AssistantSessionEvent.Error("Microphone not ready. Try again."))
+            // Soft failure — keep the session open and show Listening, not a hard error.
+            // Hard "Microphone not ready" was firing when delayed STT starts outlived our wait.
+            AssistantDebugLog.w(TAG, "mic schedule exhausted — keep listening UI, one more soft arm")
+            micArmed = false
+            setPipelineMood(AssistantMoodId.Listening)
+            _events.emit(
+                AssistantSessionEvent.Transcript(
+                    text = "Listening…",
+                    speaker = AssistantSpeaker.System,
+                ),
+            )
+            if (_sessionActive.value && audioManager?.isReadyListening() != true) {
+                delay(MIC_BUSY_RETRY_MS)
+                if (_sessionActive.value && audioManager?.isReadyListening() != true) {
+                    startMic(reason = "$reason-final", force = true)
+                }
+            }
         }
     }
 
@@ -595,9 +629,11 @@ class VehicleAgentAssistantBackend(
         /** ERROR_RECOGNIZER_BUSY needs a longer cool-down. */
         private const val MIC_BUSY_RETRY_MS = 900L
         /** Wait for onReadyForSpeech after issuing startListening. */
-        private const val READY_WAIT_MS = 2000L
+        private const val READY_WAIT_MS = 2500L
         /** Extra wait before destroying a stuck Starting recognizer. */
-        private const val READY_GRACE_MS = 800L
+        private const val READY_GRACE_MS = 1000L
+        /** startListening often only schedules work — wait for Idle→Starting. */
+        private const val PENDING_ARM_MS = 700L
         private const val UI_FRAME_MS = 32L
     }
 }
