@@ -1,29 +1,28 @@
 # Android Automotive Local AI Assistant
 
-This project is a fully functional, system-level Android Digital Assistant demonstrating on-device Large Language Model (LLM) inference using Google's **MediaPipe Tasks GenAI** library. It is designed and tested within an AOSP (Android Automotive) environment on a Google Pixel Tablet.
+This project is a system-level Android Automotive (AAOS) digital assistant with **on-device LiteRT LLM inference**, VoiceInteraction overlay UI, and native VHAL tool control. It is designed for a warm resident agent process — not a cloud-only chatbot.
 
 ## Features
 
-- **System-Level Digital Assistant**: Registers as a native `VoiceInteractionService`. Set it as your default assistant to summon a modern, glassmorphism overlay popup from any app using the home button.
-- **Hybrid AI Engine**: Supports 100% on-device local models via Google's MediaPipe Tasks GenAI for zero-latency offline use, OR connects seamlessly to Cloud APIs like **Google Gemini 1.5 Flash** and **Anthropic Claude 3.5 Sonnet** using dynamic UI selection.
-- **Native VHAL Integration (Read/Write)**: The AI is directly wired into the `CarPropertyManager`. It reads live telemetry for prompt context, and can physically alter the vehicle's HVAC system in real-time.
-- **Advanced Architecture Updates (V2)**:
-  - 🛡️ **Native Security Guardrails**: High-risk vehicle commands (e.g., unlocking doors) are intercepted natively before execution, forcing the LLM to pause and await explicit user confirmation.
-  - 🧠 **On-Device Semantic Search (RAG)**: Replaces primitive keyword matching with a MediaPipe Universal Sentence Encoder (TFLite) to intelligently route complex intents to over 200+ vehicle properties using mathematical vector mapping.
-  - 💾 **Infinite Memory Management**: A sliding-window algorithm tracks conversation states across both Local and Cloud models, automatically truncating context to prevent catastrophic KV Cache overflows and conversational amnesia.
-  - ⚙️ **Automated Hardware Retries**: Features an Exponential Backoff engine ensuring that if the CAN bus or VHAL drops a command, the system automatically retries in the background transparently.
-  - 📱 **Visual Feedback Widgets**: Uses custom native Android UI overlays to confirm vehicle actions (like AC or Windows) instead of relying solely on LLM text responses.
-- **Strict Prompt Engineering**: The underlying model is strictly constrained to provide concise, direct answers with zero hallucination.
-- **Voice Interactions (STT & TTS)**: Fully integrated Speech-to-Text and Android Text-to-Speech (TTS). Talk to the Assistant naturally, and it will speak its precise confirmations aloud.
-- **Multiple Model Support**: Includes a dynamic fallback scanner to load any supported LiteRT model (SmolLM, Gemma, Qwen, Phi) placed in the external storage directory.
-U
+- **System-Level Digital Assistant**: Registers as a native `VoiceInteractionService`. Set it as your default assistant to summon the immersive Compose overlay (or legacy XML layouts) from any app.
+- **Hybrid AI Engine**: Prefer on-device LiteRT models (SmolLM, Gemma, Qwen, Phi, …) with optional cloud fallback (Gemini / Claude) via `AssistantFeatureFlags` routing.
+- **Native VHAL Integration (Read/Write)**: Wired into `CarPropertyManager` through a `VhalGateway` port — live telemetry for prompt context and real HVAC/media/window actuation.
+- **Architecture (V2)**:
+  - 🛡️ **Native Security Guardrails**: High-risk vehicle commands require explicit confirmation before execution.
+  - 🔑 **Keyword tool routing**: Skills registry matching (aliases + keywords). Semantic embedder RAG is **disabled** by default to avoid MediaPipe JNI clashes — miss returns empty, never dumps the full registry.
+  - 💾 **Sliding-window memory**: `ConversationMemory` port keeps edge/cloud context bounded.
+  - ⚙️ **Eager tools + sentence TTS**: Complete `</TOOL>` tags run mid-stream; TTS speaks at sentence boundaries for lower time-to-first-audio.
+  - 📱 **Visual Feedback**: Compose face/mood chrome plus optional native overlays for vehicle actions.
+- **Voice Interactions (STT & TTS)**: Vosk wake word → Android `SpeechRecognizer` command STT → Android TTS (single-owner mic arm path).
+- **Multiple Model Support**: Dynamic fallback scanner loads supported LiteRT models from external storage.
+
 ---
 
 ## Architecture
 
-This project is built on a highly modular architecture that seamlessly bridges offline speech recognition, local LLM inference, and native Android Automotive hardware APIs. 
+Layered agent: thin UI → ViewModel → domain UseCases / orchestrator pipeline → ports (LLM, VHAL, memory, audio) owned by `VehicleAgentService`.
 
-For a comprehensive component breakdown and block diagram, see the [Architecture Documentation](ARCHITECTURE.md).
+See [ARCHITECTURE.md](ARCHITECTURE.md) and [docs/architecture/decoupling_roadmap.md](docs/architecture/decoupling_roadmap.md).
 
 ```mermaid
 graph TD
@@ -33,13 +32,16 @@ graph TD
     Act --> Bridge[InAppOrchestratorBridge]
     VM --> Orch[AgentOrchestrator]
     Bridge --> Orch
+    Orch --> QP[QueryPipeline]
+    Orch --> TL[ToolLoop]
+    Orch --> SP[SpeechPresenter]
     Orch --> Edge[LlmEngine / ILLMProvider]
-    Orch --> TM[ToolManager]
+    TL --> TM[ToolManager]
     TM --> VHAL[VhalGateway]
     JSON[vehicle_skills_registry.json] -.-> TM
 ```
 
-For a detailed breakdown of the system architecture, including the **Eager Streaming Tool Execution** and **Sentence-Boundary Streaming TTS** pipelines, please read the full [Architecture Documentation](ARCHITECTURE.md).
+For **Eager Streaming Tool Execution** and **Sentence-Boundary Streaming TTS**, see the Architecture Documentation.
 
 ---
 

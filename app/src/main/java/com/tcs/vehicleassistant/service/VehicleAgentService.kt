@@ -14,6 +14,8 @@ import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.core.AgentRuntime
 import com.tcs.vehicleassistant.hardware.AndroidAudioManager
 import com.tcs.vehicleassistant.hardware.IAudioManager
+import com.tcs.vehicleassistant.llm.LlmEngine
+import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent.getKoin
 
 class VehicleAgentService : Service(), ComponentCallbacks2 {
@@ -22,6 +24,7 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
 
     lateinit var audioManager: AndroidAudioManager
     lateinit var viewModel: AssistantViewModel
+    private lateinit var llmEngine: LlmEngine
 
     inner class LocalBinder : Binder() {
         fun getService(): VehicleAgentService = this@VehicleAgentService
@@ -34,6 +37,7 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
 
         audioManager = getKoin().get<IAudioManager>() as AndroidAudioManager
         viewModel = getKoin().get()
+        llmEngine = getKoin().get()
 
         audioManager.initialize(
             onSuccess = {
@@ -91,7 +95,10 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
                 "VehicleAgentService",
                 "OS memory pressure (level $level). Unloading LLM.",
             )
-            com.tcs.vehicleassistant.LLMManager.unload()
+            AgentRuntime.scope.launch {
+                runCatching { llmEngine.unload() }
+                    .onFailure { com.tcs.vehicleassistant.LLMManager.unload() }
+            }
             AgentRuntime.cancelChildren()
         }
     }

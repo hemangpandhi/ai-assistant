@@ -4,14 +4,14 @@ Status of the VehicleEdgeAssistant migration toward ports-and-adapters + present
 
 ## Phase A — TTFR (done)
 
-- Mic handoff `1400ms → ~250ms`; re-arm ~200ms ([`VehicleAgentAssistantBackend`](../../app/src/main/java/com/tcs/vehicleassistant/assistant/VehicleAgentAssistantBackend.kt))
-- STT silence `1500/1000 → 800/600` ([`AndroidAudioManager`](../../app/src/main/java/com/tcs/vehicleassistant/hardware/AndroidAudioManager.kt))
-- Queue queries while `EngineStatus.Prewarming` instead of toast-reject
-- Eager mid-stream tool exec on complete `</TOOL>`
+- Mic handoff event-driven (wake release await + ≤250ms settle); re-arm ~200ms
+- Adaptive STT silence profiles (`EndpointingProfile`: ShortCommand 500/400, Default 800/600)
+- Queue queries while prewarming instead of toast-reject
+- Eager mid-stream tool exec on complete `</TOOL>` via [`ToolLoop`](../../app/src/main/java/com/tcs/vehicleassistant/domain/ToolLoop.kt)
 - Keyword-only tool injection; semantic miss → empty (no registry dump)
-- Expanded [`FollowUpRouter`](../../app/src/main/java/com/tcs/vehicleassistant/utils/FollowUpRouter.kt) HVAC/media shortcuts
+- Expanded [`FollowUpRouter`](../../app/src/main/java/com/tcs/vehicleassistant/utils/FollowUpRouter.kt) HVAC/media shortcuts (uses `ConversationMemory`)
 
-## Phase B — Ports + UI contract (done)
+## Phase B — Ports + pipeline split (done / evolving)
 
 ### Agent ports
 
@@ -20,39 +20,33 @@ Status of the VehicleEdgeAssistant migration toward ports-and-adapters + present
 | `LlmEngine` | `LiteRtLlmEngine` (+ existing `ILLMProvider` edge/cloud) |
 | `VhalGateway` | `VehicleManagerGateway` |
 | `ConversationMemory` | `MemoryManagerStore` |
-| `AssistantFeatureFlags` | SharedPreferences + sync with legacy Activity companions |
+| `AssistantFeatureFlags` | SharedPreferences (+ legacy companion sync during migration) |
 
-Koin singles: audio, orchestrator, `AssistantViewModel`. Service no longer `new`s them.
+### Pipeline split
 
-### Compose UI
+| Component | Role |
+|-----------|------|
+| `QueryPipeline` | Prompt budget / history / tools / telemetry |
+| `ToolLoop` + `ExecuteToolUseCase` | Eager schedule + confirmation gate |
+| `SpeechPresenter` | Sentence-boundary streaming TTS |
+| `AgentOrchestrator` | Coordinates stream + state; no longer owns TTS/tool policy inline |
 
-- `AssistantStageStore` MVI (`reduceStage`)
-- `AssistantMicController` on backend — Session uses `asMicController()` (no concrete cast)
-- `ImmersiveStageBus` SharedFlow for summon/dismiss (legacy handler lists retained as bridge)
+Koin singles: audio, orchestrator, `AssistantViewModel`, pipeline helpers.  
+`VehicleAgentService` unloads via `LlmEngine`. In-app bridge reuses shared ports with Activity TTS audio.
+
+### Remaining migration debt
+
+- `LLMManager` / `VehicleManager` / `MemoryManager` objects still exist as adapters under the ports
+- `LocalLLMActivity` still a large settings/debug host (not fully thinned)
+- Legacy companions synced from `AssistantFeatureFlags` until Settings UI is ported
 
 ## Phase C — Modern polish (done / ongoing)
 
 - `AssistantViewModel` extends `androidx.lifecycle.ViewModel` + `viewModelScope`
-- Domain UseCases: `ProcessQueryUseCase`, `FollowUpUseCase`, `ExecuteToolUseCase`, `SpeechPresenter`
-- Semantic RAG claim demoted to keyword-only in logs/docs
-- Optional later: Gradle `:assistant-api` split, AppFunctions, remove legacy singletons entirely
-
-## Port sketches
-
-```kotlin
-interface LlmEngine {
-  val status: StateFlow<EngineStatus>
-  suspend fun ensureReady(context: Context, force: Boolean = false)
-  fun generateStream(request: LlmRequest): Flow<TokenChunk>
-  suspend fun unload()
-}
-```
-
-```kotlin
-sealed interface StageIntent { /* Summon, Dismiss, BackendEvent, Thumbs */ }
-data class StageState(...)
-sealed interface StageEffect { /* RequestListen, ClusterHandOff, FinishSession, StopSession */ }
-```
+- Domain UseCases wired through Koin
+- Semantic RAG claim demoted to keyword-only in logs/docs/README
+- Unit tests: `ToolCallParser`, `FollowUpRouter`, eager stream contract (`EagerToolStreamTest`)
+- Optional later: Gradle `:assistant-api` split, AppFunctions, delete legacy singletons
 
 ## Non-goals
 

@@ -27,8 +27,8 @@ class AssistantViewModel(
     private val context: Context,
     private val audioManager: IAudioManager,
     private val orchestrator: AgentOrchestrator,
+    private val processQuery: ProcessQueryUseCase,
 ) : ViewModel() {
-    private val processQuery = ProcessQueryUseCase(orchestrator)
 
     private val _uiState = MutableStateFlow<AssistantUiState>(AssistantUiState.Idle)
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
