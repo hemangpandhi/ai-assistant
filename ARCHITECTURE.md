@@ -24,7 +24,7 @@ flowchart TB
 
 | Layer | Responsibility |
 |-------|----------------|
-| `:assistant` Compose | Face/chrome renderer + `AssistantStageStore` MVI; `AssistantBackend` events only |
+| `:assistant-ui` Compose | Face/chrome renderer + `AssistantStageStore` MVI; `AssistantBackend` events only |
 | Presentation | `AssistantViewModel` + `AssistantUiIntent` over shared orchestrator |
 | Domain | `ProcessQueryUseCase`, `FollowUpUseCase`, `ExecuteToolUseCase`, `SpeechPresenter` |
 | Data ports | `LlmEngine` / `LiteRtLlmEngine`, `VhalGateway`, `ConversationMemory`, `AssistantFeatureFlags` |
@@ -32,7 +32,7 @@ flowchart TB
 
 ### Presentation MVI (chosen)
 
-- **UI stage:** `Intent → reduce → StageState + StageEffect` in `:assistant` (`mvi/`)
+- **UI stage:** `Intent → reduce → StageState + StageEffect` in `:assistant-ui` (`mvi/`)
 - **Agent brain:** streaming **pipeline** (not Redux per token) — eager `</TOOL>` execution, sentence TTS
 
 ### JetPacker adopt / skip
@@ -54,7 +54,7 @@ flowchart TB
 - [`AgentOrchestrator.kt`](app/src/main/java/com/tcs/vehicleassistant/repository/AgentOrchestrator.kt) — agentic loop  
 - [`LiteRtLlmEngine.kt`](app/src/main/java/com/tcs/vehicleassistant/llm/LiteRtLlmEngine.kt) / [`EngineStatus.kt`](app/src/main/java/com/tcs/vehicleassistant/llm/EngineStatus.kt)  
 - [`AssistantFeatureFlags.kt`](app/src/main/java/com/tcs/vehicleassistant/core/flags/AssistantFeatureFlags.kt)  
-- [`AssistantStageStore.kt`](assistant/src/main/java/com/assistant/ui/assistant/mvi/AssistantStageStore.kt)  
+- [`AssistantStageStore.kt`](assistant-ui/src/main/java/com/assistant/ui/assistant/mvi/AssistantStageStore.kt)  
 - [`vehicle_skills_registry.json`](app/src/main/assets/vehicle_skills_registry.json) — zero-code tools  
 
 ## TTFR budgets (warm edge)
