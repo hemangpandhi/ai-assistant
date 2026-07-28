@@ -3,6 +3,7 @@ package com.tcs.vehicleassistant.controller
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
 import com.tcs.vehicleassistant.domain.SpeculativeToolPrep
 import com.tcs.vehicleassistant.hardware.EndpointingProfile
