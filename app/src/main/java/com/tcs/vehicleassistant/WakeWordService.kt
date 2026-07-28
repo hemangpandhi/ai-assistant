@@ -18,6 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 
 /**
@@ -46,18 +47,37 @@ class WakeWordService : Service() {
         var isHoldingMic: Boolean = false
             private set
 
+        /** Invalidates late release callbacks from a previous AudioRecord loop. */
+        private val micHoldGeneration = AtomicInteger(0)
+
         @Volatile
         private var releaseGate: kotlinx.coroutines.CompletableDeferred<Unit> =
             kotlinx.coroutines.CompletableDeferred<Unit>().also { it.complete(Unit) }
 
-        fun beginMicHold() {
+        /** @return hold generation that must be passed to [signalMicReleased]. */
+        fun beginMicHold(): Int {
+            val gen = micHoldGeneration.incrementAndGet()
             if (releaseGate.isCompleted) {
                 releaseGate = kotlinx.coroutines.CompletableDeferred()
             }
             isHoldingMic = true
+            return gen
         }
 
-        fun signalMicReleased() {
+        fun signalMicReleased(generation: Int) {
+            if (generation != micHoldGeneration.get()) {
+                Log.d(TAG, "ignore stale mic release gen=$generation current=${micHoldGeneration.get()}")
+                return
+            }
+            isHoldingMic = false
+            if (!releaseGate.isCompleted) {
+                releaseGate.complete(Unit)
+            }
+        }
+
+        /** Force-open the gate after an intentional stop (invalidates in-flight holds). */
+        fun forceReleaseMic() {
+            micHoldGeneration.incrementAndGet()
             isHoldingMic = false
             if (!releaseGate.isCompleted) {
                 releaseGate.complete(Unit)
@@ -181,56 +201,59 @@ class WakeWordService : Service() {
                 }
 
                 customAudioRecord?.startRecording()
-                beginMicHold()
+                val holdGen = beginMicHold()
                 val buffer = ShortArray(bufferSize)
 
                 var loopCount = 0
                 var silentBuffers = 0
-                while (isRecording) {
-                    val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
-                    if (readSize > 0) {
-                        loopCount++
-                        var maxAmplitude = 0
-                        for (i in 0 until readSize) {
-                            val a = abs(buffer[i].toInt())
-                            if (a > maxAmplitude) maxAmplitude = a
-                        }
-                        if (loopCount % 20 == 0) {
-                            Log.d(TAG, "Audio buffer max amplitude: $maxAmplitude")
-                        }
-
-                        // Duty-cycle: when parked-quiet, skip most Vosk acceptWaveForm calls.
-                        if (maxAmplitude < SILENCE_THRESHOLD) {
-                            silentBuffers++
-                            if (silentBuffers % SILENT_DUTY_SKIP != 0) {
-                                continue
+                try {
+                    while (isRecording) {
+                        val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
+                        if (readSize > 0) {
+                            loopCount++
+                            var maxAmplitude = 0
+                            for (i in 0 until readSize) {
+                                val a = abs(buffer[i].toInt())
+                                if (a > maxAmplitude) maxAmplitude = a
                             }
-                        } else {
-                            silentBuffers = 0
-                        }
+                            if (loopCount % 20 == 0) {
+                                Log.d(TAG, "Audio buffer max amplitude: $maxAmplitude")
+                            }
 
-                        if (customRecognizer?.acceptWaveForm(buffer, readSize) == true) {
-                            val result = customRecognizer?.result
-                            if (result != null) checkWakeWord(result)
-                        } else {
-                            val partial = customRecognizer?.partialResult
-                            if (partial != null) checkWakeWord(partial)
+                            // Duty-cycle: when parked-quiet, skip most Vosk acceptWaveForm calls.
+                            if (maxAmplitude < SILENCE_THRESHOLD) {
+                                silentBuffers++
+                                if (silentBuffers % SILENT_DUTY_SKIP != 0) {
+                                    continue
+                                }
+                            } else {
+                                silentBuffers = 0
+                            }
+
+                            if (customRecognizer?.acceptWaveForm(buffer, readSize) == true) {
+                                val result = customRecognizer?.result
+                                if (result != null) checkWakeWord(result)
+                            } else {
+                                val partial = customRecognizer?.partialResult
+                                if (partial != null) checkWakeWord(partial)
+                            }
+                        } else if (readSize < 0) {
+                            Log.e(TAG, "AudioRecord read error: $readSize")
+                            delay(1000)
                         }
-                    } else if (readSize < 0) {
-                        Log.e(TAG, "AudioRecord read error: $readSize")
-                        delay(1000)
                     }
+                } finally {
+                    try {
+                        customAudioRecord?.stop()
+                        customAudioRecord?.release()
+                    } catch (_: Exception) {
+                    }
+                    customAudioRecord = null
+                    signalMicReleased(holdGen)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Custom listening loop error: ${e.message}")
-            } finally {
-                try {
-                    customAudioRecord?.stop()
-                    customAudioRecord?.release()
-                } catch (_: Exception) {
-                }
-                customAudioRecord = null
-                signalMicReleased()
+                forceReleaseMic()
             }
         }
     }
@@ -278,10 +301,11 @@ class WakeWordService : Service() {
                     } catch (_: Exception) {
                     }
                     customAudioRecord = null
-                    signalMicReleased()
+                    // Join's finally may have released; force-open gate for any waiter.
+                    forceReleaseMic()
                     Log.d(TAG, "Hotword AudioRecord fully released")
                 } catch (e: Exception) {
-                    signalMicReleased()
+                    forceReleaseMic()
                     Log.e(TAG, "Failed to stop hotword cleanly: ${e.message}")
                 }
             }
@@ -299,7 +323,7 @@ class WakeWordService : Service() {
         } catch (_: Exception) {
         }
         customAudioRecord = null
-        signalMicReleased()
+        forceReleaseMic()
         customRecognizer?.close()
         super.onDestroy()
     }
@@ -344,7 +368,8 @@ class WakeWordService : Service() {
             } catch (_: Exception) {
             }
             customAudioRecord = null
-            signalMicReleased()
+            // Open the gate immediately for STT; loop finally will see a stale generation.
+            forceReleaseMic()
             com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(
                 this@WakeWordService,
                 reason = "hotword",

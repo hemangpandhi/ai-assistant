@@ -23,6 +23,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
     private var pendingRestart: Runnable? = null
+    private var pendingStartRunnable: Runnable? = null
     private var readyWatchdog: Runnable? = null
 
     private var tts: TextToSpeech? = null
@@ -149,7 +150,13 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         } else {
             // Mark in-flight immediately so callers do not stack a second start.
             startPending = true
-            mainHandler.post { startListeningOnMain(forceRecreate = false) }
+            pendingStartRunnable?.let { mainHandler.removeCallbacks(it) }
+            val run = Runnable {
+                pendingStartRunnable = null
+                startListeningOnMain(forceRecreate = false)
+            }
+            pendingStartRunnable = run
+            mainHandler.post(run)
         }
     }
 
@@ -220,7 +227,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             startPending = false
             AssistantDebugLog.e("STT", "Recognition not available on device")
             sttPhase = SttPhase.Idle
-            onSttError?.invoke(SpeechRecognizer.ERROR_CLIENT)
+            // Not ERROR_CLIENT — VM must not silent-retry forever.
+            onSttError?.invoke(SpeechRecognizer.ERROR_AUDIO)
             return
         }
 
@@ -304,6 +312,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private fun cancelPendingWork() {
         pendingRestart?.let { mainHandler.removeCallbacks(it) }
         pendingRestart = null
+        pendingStartRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingStartRunnable = null
         startPending = false
         clearReadyWatchdog()
     }
@@ -472,6 +482,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     private fun requestAssistantDuckLocked() {
         try {
+            if (holdingDuck) {
+                AssistantDebugLog.d("Audio", "requestDuck skip — already holding")
+                return
+            }
             val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             holdingDuck = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

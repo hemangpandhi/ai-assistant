@@ -83,6 +83,30 @@ class AgentOrchestrator(
     private var prewarmWaitJob: Job? = null
     /** Active understand/act job — cancelled on barge-in. */
     private var queryJob: Job? = null
+    /** Invalidates late TTS onDone/onError after barge-in / new query / stopSpeaking. */
+    @Volatile private var ttsTurnGeneration: Int = 0
+
+    private fun nextTtsFinalId(kind: String): String {
+        return "${kind}_$ttsTurnGeneration"
+    }
+
+    private fun matchTtsFinal(utteranceId: String): String? {
+        val kind = when {
+            utteranceId.startsWith("QUESTION_FINAL") -> "QUESTION_FINAL"
+            utteranceId.startsWith("STATEMENT_FINAL_TOOL") -> "STATEMENT_FINAL_TOOL"
+            utteranceId.startsWith("STATEMENT_FINAL") -> "STATEMENT_FINAL"
+            else -> return null
+        }
+        val gen = utteranceId.substringAfterLast('_').toIntOrNull()
+        if (gen != null && gen != ttsTurnGeneration) {
+            android.util.Log.d(
+                "AgentOrchestrator",
+                "ignore stale TTS final $utteranceId current=$ttsTurnGeneration",
+            )
+            return null
+        }
+        return kind
+    }
 
     private fun emitStreamingUi(displayMsg: String, force: Boolean = false) {
         synchronized(streamEmitLock) {
@@ -142,6 +166,7 @@ class AgentOrchestrator(
      * Capture stays armed; caller re-submits the new final when ready.
      */
     fun cancelInFlight() {
+        ttsTurnGeneration++
         queryJob?.cancel()
         queryJob = null
         timeoutJob?.cancel()
@@ -164,6 +189,7 @@ class AgentOrchestrator(
 
     fun handleQuery(query: String, retryCount: Int = 0) {
         // Supersede any prior turn (two-phase / barge-in).
+        ttsTurnGeneration++
         queryJob?.cancel()
         queryJob = null
 
@@ -249,8 +275,9 @@ class AgentOrchestrator(
     }
 
     private fun onTtsFinalUtteranceDone(utteranceId: String) {
+        val kind = matchTtsFinal(utteranceId) ?: return
         scope.launch {
-            when (utteranceId) {
+            when (kind) {
                 "QUESTION_FINAL" -> {
                     // TTS/listen overlap: arm ear almost immediately after silent tail.
                     delay(80)
@@ -276,8 +303,9 @@ class AgentOrchestrator(
     }
 
     private fun onTtsFinalUtteranceError(utteranceId: String) {
+        val kind = matchTtsFinal(utteranceId) ?: return
         scope.launch {
-            when (utteranceId) {
+            when (kind) {
                 "QUESTION_FINAL" -> {
                     delay(80)
                     _events.tryEmit(OrchestratorEvent.StartListening)
@@ -354,7 +382,11 @@ class AgentOrchestrator(
                 audioManager.speak(finalMsg, "SENTENCE_0")
                 val isQuestion = finalMsg.trim().endsWith("?") ||
                     finalMsg.contains("which one", ignoreCase = true)
-                val finalUtterance = if (isQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL"
+                val finalUtterance = if (isQuestion) {
+                    nextTtsFinalId("QUESTION_FINAL")
+                } else {
+                    nextTtsFinalId("STATEMENT_FINAL_TOOL")
+                }
                 audioManager.playSilentUtterance(10, finalUtterance)
             }
         }
@@ -678,9 +710,13 @@ class AgentOrchestrator(
                             parsedSpokenLength[0] += remainingSentence.length
                             audioManager.speak(remainingSentence, "SENTENCE_$sentenceStartOffset")
                         }
-                        val finalUtterance = if (isQuestion) "QUESTION_FINAL"
-                            else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
-                            else "STATEMENT_FINAL"
+                        val finalUtterance = if (isQuestion) {
+                            nextTtsFinalId("QUESTION_FINAL")
+                        } else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) {
+                            nextTtsFinalId("STATEMENT_FINAL_TOOL")
+                        } else {
+                            nextTtsFinalId("STATEMENT_FINAL")
+                        }
                         audioManager.playSilentUtterance(10, finalUtterance)
                     } else {
                         val isQ = isQuestion || finalMsg.contains("?") ||

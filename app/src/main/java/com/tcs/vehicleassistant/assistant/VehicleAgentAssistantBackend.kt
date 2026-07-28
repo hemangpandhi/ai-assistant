@@ -60,6 +60,11 @@ class VehicleAgentAssistantBackend(
     /** True after onReadyForSpeech until stop / result / error. */
     private var micArmed = false
     private var clientErrorRetries = 0
+    /** Bumps on start/stop session so stale listen jobs / TTS finals are ignored. */
+    private var micGeneration = 0
+    /** Edge-trigger STT soft-stop once per busy turn (Thinking/Streaming/Speaking). */
+    private var sttStoppedForBusyTurn = false
+    private var lastMappedUi: String = "Idle"
 
     /** Throttle assistant transcript / mouth updates to ~30fps. */
     private var lastStreamingUiMs = 0L
@@ -177,10 +182,12 @@ class VehicleAgentAssistantBackend(
         cabin: AssistantCabinContext,
         config: AssistantSessionConfig,
     ) {
+        micGeneration++
+        sttStoppedForBusyTurn = false
         _sessionActive.value = true
         clientErrorRetries = 0
         AssistantDebugLog.clear()
-        AssistantDebugLog.d(TAG, "startSession reason=$reason")
+        AssistantDebugLog.d(TAG, "startSession reason=$reason gen=$micGeneration")
 
         val alreadyReady = audioManager?.isReadyListening() == true
         if (alreadyReady) {
@@ -220,11 +227,17 @@ class VehicleAgentAssistantBackend(
     }
 
     override fun stopSession() {
-        AssistantDebugLog.d(TAG, "stopSession")
+        if (!_sessionActive.value && listenJob == null && !micArmed) {
+            AssistantDebugLog.d(TAG, "stopSession noop")
+            return
+        }
+        AssistantDebugLog.d(TAG, "stopSession gen=$micGeneration")
+        micGeneration++
         _sessionActive.value = false
         listenJob?.cancel()
         listenJob = null
         micArmed = false
+        sttStoppedForBusyTurn = false
         com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
         // Soft stop — keep warm SpeechRecognizer for the next summon.
         runCatching { audioManager?.stopListening() }
@@ -318,18 +331,52 @@ class VehicleAgentAssistantBackend(
             micArmed = true
             return
         }
+        val gen = micGeneration
         listenJob?.cancel()
         listenJob = scope.launch {
-            AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms force=$force")
+            AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms force=$force gen=$gen")
             if (delayMs > 0) delay(delayMs)
-            if (!isActive || !_sessionActive.value) return@launch
+            if (!isActive || !_sessionActive.value || gen != micGeneration) return@launch
 
+            // Wait for Vosk to actually release — never start STT while it holds AudioRecord.
             if (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
                 AssistantDebugLog.d(TAG, "await wake-word release")
-                com.tcs.vehicleassistant.WakeWordService.awaitMicReleased(900L)
+                var attempts = 0
+                while (
+                    isActive &&
+                    _sessionActive.value &&
+                    gen == micGeneration &&
+                    com.tcs.vehicleassistant.WakeWordService.isHoldingMic &&
+                    attempts < 6
+                ) {
+                    com.tcs.vehicleassistant.WakeWordService.awaitMicReleased(400L)
+                    if (!com.tcs.vehicleassistant.WakeWordService.isHoldingMic) break
+                    attempts++
+                    delay(100)
+                }
+                if (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
+                    AssistantDebugLog.w(TAG, "wake still holding — defer arm ($reason)")
+                    if (_sessionActive.value && gen == micGeneration) {
+                        // Soft UI; schedule a single delayed retry outside this job.
+                        setPipelineMood(AssistantMoodId.Listening)
+                        _events.emit(
+                            AssistantSessionEvent.Transcript(
+                                text = "Listening…",
+                                speaker = AssistantSpeaker.System,
+                            ),
+                        )
+                        listenJob = null
+                        scheduleStartMic(
+                            reason = "$reason-wake-retry",
+                            delayMs = 500L,
+                            force = false,
+                        )
+                    }
+                    return@launch
+                }
                 delay(80)
             }
-            if (!isActive || !_sessionActive.value) return@launch
+            if (!isActive || !_sessionActive.value || gen != micGeneration) return@launch
 
             // Let preArm finish attach + ensureWarmRecognizer before we startListening.
             if (com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isWarmingUp()) {
@@ -338,13 +385,14 @@ class VehicleAgentAssistantBackend(
                 while (
                     isActive &&
                     _sessionActive.value &&
+                    gen == micGeneration &&
                     com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isWarmingUp() &&
                     System.currentTimeMillis() < warmDeadline
                 ) {
                     delay(40)
                 }
             }
-            if (!isActive || !_sessionActive.value) return@launch
+            if (!isActive || !_sessionActive.value || gen != micGeneration) return@launch
 
             if (audioManager?.isReadyListening() == true) {
                 micArmed = true
@@ -361,7 +409,12 @@ class VehicleAgentAssistantBackend(
 
             // Wait for Ready — includes deferred settle/coalesce inside AudioManager.
             val deadline = System.currentTimeMillis() + READY_WAIT_MS
-            while (isActive && _sessionActive.value && System.currentTimeMillis() < deadline) {
+            while (
+                isActive &&
+                _sessionActive.value &&
+                gen == micGeneration &&
+                System.currentTimeMillis() < deadline
+            ) {
                 if (audioManager?.isReadyListening() == true) {
                     micArmed = true
                     clientErrorRetries = 0
@@ -372,14 +425,21 @@ class VehicleAgentAssistantBackend(
             }
 
             // Single recovery only.
-            if (!_sessionActive.value || audioManager?.isReadyListening() == true) {
+            if (!_sessionActive.value || gen != micGeneration ||
+                audioManager?.isReadyListening() == true
+            ) {
                 micArmed = audioManager?.isReadyListening() == true
                 return@launch
             }
             AssistantDebugLog.w(TAG, "mic not ready — one recreate ($reason)")
             startMic(reason = "$reason-recovery", force = true)
             val recoveryDeadline = System.currentTimeMillis() + READY_WAIT_MS
-            while (isActive && _sessionActive.value && System.currentTimeMillis() < recoveryDeadline) {
+            while (
+                isActive &&
+                _sessionActive.value &&
+                gen == micGeneration &&
+                System.currentTimeMillis() < recoveryDeadline
+            ) {
                 if (audioManager?.isReadyListening() == true) {
                     micArmed = true
                     clientErrorRetries = 0
@@ -389,8 +449,9 @@ class VehicleAgentAssistantBackend(
                 delay(50)
             }
 
-            // Soft keep-alive — never flash "Microphone not ready".
-            AssistantDebugLog.w(TAG, "mic arm incomplete — keep Listening UI")
+            if (!_sessionActive.value || gen != micGeneration) return@launch
+            // Soft keep-alive + one slow retry — never flash "Microphone not ready".
+            AssistantDebugLog.w(TAG, "mic arm incomplete — keep Listening UI + slow retry")
             setPipelineMood(AssistantMoodId.Listening)
             _events.emit(
                 AssistantSessionEvent.Transcript(
@@ -398,6 +459,15 @@ class VehicleAgentAssistantBackend(
                     speaker = AssistantSpeaker.System,
                 ),
             )
+            if (clientErrorRetries < 2) {
+                clientErrorRetries++
+                listenJob = null
+                scheduleStartMic(
+                    reason = "$reason-slow-retry",
+                    delayMs = 900L,
+                    force = true,
+                )
+            }
         }
     }
 
@@ -454,13 +524,28 @@ class VehicleAgentAssistantBackend(
     private suspend fun mapUiState(state: AssistantUiState) {
         when (state) {
             is AssistantUiState.Idle -> {
+                lastMappedUi = "Idle"
                 setPipelineMood(AssistantMoodId.Idle)
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
             is AssistantUiState.Listening -> {
-                micArmed = true
-                clientErrorRetries = 0
-                AssistantDebugLog.d(TAG, "ui Listening (ready)")
+                lastMappedUi = "Listening"
+                // Only treat as armed when STT is actually ready — VM may set Listening early.
+                if (audioManager?.isReadyListening() == true) {
+                    micArmed = true
+                    sttStoppedForBusyTurn = false
+                    clientErrorRetries = 0
+                    AssistantDebugLog.d(TAG, "ui Listening (ready)")
+                } else {
+                    micArmed = false
+                    AssistantDebugLog.d(TAG, "ui Listening (arming)")
+                    if (_sessionActive.value &&
+                        listenJob?.isActive != true &&
+                        audioManager?.isActivelyListening() != true
+                    ) {
+                        scheduleStartMic(reason = "ui-listening", delayMs = 0L, force = false)
+                    }
+                }
                 setPipelineMood(AssistantMoodId.Listening)
                 // Never clobber live user partials with the placeholder.
                 val live = viewModel?.liveTranscript?.value.orEmpty()
@@ -475,8 +560,19 @@ class VehicleAgentAssistantBackend(
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
             is AssistantUiState.Thinking -> {
-                // Keep STT closed during Think — re-arm only after TTS follow-up.
-                // Opportunistic barge-in re-arm fought Streaming/Speaking stops (BUSY/CLIENT).
+                // Close STT on entry — cancel any soft-miss re-arm racing into Think.
+                if (lastMappedUi != "Thinking") {
+                    micArmed = false
+                    listenJob?.cancel()
+                    listenJob = null
+                    if (audioManager?.isActivelyListening() == true ||
+                        audioManager?.isReadyListening() == true
+                    ) {
+                        runCatching { audioManager?.stopListening() }
+                    }
+                    sttStoppedForBusyTurn = true
+                }
+                lastMappedUi = "Thinking"
                 AssistantDebugLog.d(TAG, "ui Thinking")
                 setPipelineMood(AssistantMoodId.Thinking)
                 val live = viewModel?.liveTranscript?.value.orEmpty()
@@ -489,9 +585,13 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Streaming -> {
                 micArmed = false
-                listenJob?.cancel()
-                listenJob = null
-                runCatching { audioManager?.stopListening() }
+                if (!sttStoppedForBusyTurn) {
+                    listenJob?.cancel()
+                    listenJob = null
+                    runCatching { audioManager?.stopListening() }
+                    sttStoppedForBusyTurn = true
+                }
+                lastMappedUi = "Streaming"
                 val now = System.currentTimeMillis()
                 val textChanged = state.displayText != lastEmittedTranscript
                 if (textChanged && now - lastStreamingUiMs >= UI_FRAME_MS) {
@@ -514,9 +614,13 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Speaking -> {
                 micArmed = false
-                listenJob?.cancel()
-                listenJob = null
-                runCatching { audioManager?.stopListening() }
+                if (!sttStoppedForBusyTurn) {
+                    listenJob?.cancel()
+                    listenJob = null
+                    runCatching { audioManager?.stopListening() }
+                    sttStoppedForBusyTurn = true
+                }
+                lastMappedUi = "Speaking"
                 lastEmittedTranscript = state.finalMessage
                 AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
                 setPipelineMood(AssistantMoodId.Speaking)
@@ -529,6 +633,7 @@ class VehicleAgentAssistantBackend(
                 _events.emit(AssistantSessionEvent.MouthAmplitude(0.5f))
             }
             is AssistantUiState.Error -> {
+                lastMappedUi = "Error"
                 micArmed = false
                 com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                 AssistantDebugLog.e(TAG, "ui Error: ${state.errorMessage}")

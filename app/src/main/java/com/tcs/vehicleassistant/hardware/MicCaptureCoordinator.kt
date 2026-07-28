@@ -61,9 +61,9 @@ object MicCaptureCoordinator {
      */
     fun preArm(context: Context, reason: String) {
         val app = context.applicationContext
+        // Newer summon supersedes an in-flight warm (token bump cancels old job).
         if (arming) {
-            AssistantDebugLog.d(TAG, "preArm skip — already arming ($reason)")
-            return
+            AssistantDebugLog.d(TAG, "preArm supersede — was arming ($reason)")
         }
         isPreArmed = false
         arming = true

@@ -96,18 +96,21 @@ class AssistantViewModel(
                     recoverable -> {
                         // Do not flash "Client side error (5)" — cancel/stop often emit this,
                         // and unexpected ones self-heal via silent re-arm / recreate.
+                        // Never re-arm while Speaking/Streaming — that ERROR_CLIENT is intentional.
                         AssistantDebugLog.w(
                             "VM",
                             "STT recoverable $errorCode — silent re-arm",
                         )
                         _liveTranscript.value = ""
-                        if (_uiState.value !is AssistantUiState.Speaking &&
-                            _uiState.value !is AssistantUiState.Streaming
-                        ) {
+                        val busy =
+                            _uiState.value is AssistantUiState.Speaking ||
+                                _uiState.value is AssistantUiState.Streaming ||
+                                _uiState.value is AssistantUiState.Thinking
+                        if (!busy) {
                             _uiState.value = AssistantUiState.Listening
-                        }
-                        if (!audioManager.isActivelyListening()) {
-                            _events.tryEmit(ViewModelEvent.StartListening)
+                            if (!audioManager.isActivelyListening()) {
+                                _events.tryEmit(ViewModelEvent.StartListening)
+                            }
                         }
                     }
                     else -> {

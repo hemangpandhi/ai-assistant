@@ -292,15 +292,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         baselineResumedActivity = null
         baselineTopPackage = null
         unregisterDismissWatchers()
-        // Drop STT before wake-word reclaims the mic — keep warm recognizer instance.
-        notifyImmersiveAssistantDismiss()
-        AssistantRuntime.backend?.stopSession()
-        audioManager?.stopSpeaking()
-        // stopSession already stops STT — avoid a second cancel (ERROR_CLIENT spam).
-        com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
-        // Restore music volume immediately when the overlay goes away.
-        audioManager?.abandonAssistantDuck()
-        abandonFallbackDuck()
+        teardownAssistantAudio(reason = "onHide")
 
         wakeRestartJob?.cancel()
         wakeRestartJob = observerScope.launch {
@@ -317,6 +309,17 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             delay(90_000)
             LLMManager.unload()
         }
+    }
+
+    /** Shared hide/destroy audio teardown — idempotent via backend.stopSession. */
+    private fun teardownAssistantAudio(reason: String) {
+        AssistantDebugLog.d("Session", "teardownAudio $reason")
+        notifyImmersiveAssistantDismiss()
+        AssistantRuntime.backend?.stopSession()
+        audioManager?.stopSpeaking()
+        com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
+        audioManager?.abandonAssistantDuck()
+        abandonFallbackDuck()
     }
 
     override fun onCreateContentView(): View {
@@ -1215,6 +1218,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         unregisterDismissWatchers()
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
+        // Mirror onHide audio teardown so Vosk cannot race an open SpeechRecognizer.
+        teardownAssistantAudio(reason = "onDestroy")
         observerScope.cancel()
         composeHost?.destroy()
         composeHost = null
