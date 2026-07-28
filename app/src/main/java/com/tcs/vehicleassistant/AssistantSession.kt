@@ -429,7 +429,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnMic?.isEnabled = false
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
             try {
-                audioManager?.startListening()
+                // Prefer backend schedule so XML mic shares the single-owner arm path.
+                val mic = AssistantRuntime.backend?.asMicController()
+                if (mic != null) {
+                    mic.requestListen()
+                } else {
+                    audioManager?.startListening()
+                }
             } catch (e: Exception) {
                 LatencyLogger.log("AssistantSession", "Error starting speech recognizer: ${e.message}")
                 stopDotAnimation("Error starting microphone.")

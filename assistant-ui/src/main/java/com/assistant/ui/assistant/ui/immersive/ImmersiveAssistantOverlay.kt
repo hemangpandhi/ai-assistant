@@ -127,7 +127,10 @@ fun ImmersiveAssistantOverlay(
     onRequestHotwordListen: (() -> Unit)? = null,
     @Suppress("UNUSED_PARAMETER")
     script: List<DialogueBeat> = ImmersiveDialogueScript,
-    enableLiveSpeech: Boolean = true,
+    // Live Compose STT — OFF by default. Production VoiceInteractionSession sets this
+    // false and uses VehicleAgentAssistantBackend + IAudioManager as the sole owner.
+    // Enabling this starts a second SpeechRecognizer and causes ERROR_RECOGNIZER_BUSY.
+    enableLiveSpeech: Boolean = false,
     enableTts: Boolean = true,
     @Suppress("UNUSED_PARAMETER")
     onFeedback: (Boolean) -> Unit = {},
@@ -252,11 +255,16 @@ fun ImmersiveAssistantOverlay(
     }
 
     // Collect backend events, then start session (avoids dropping early emits).
+    // Do NOT stopSession on the initial hidden composition — that cancels pre-arm STT.
+    var hasPresentedSession by remember { mutableStateOf(false) }
     LaunchedEffect(visible, session) {
         if (!visible) {
-            backend.stopSession()
+            if (hasPresentedSession) {
+                backend.stopSession()
+            }
             return@LaunchedEffect
         }
+        hasPresentedSession = true
         launch {
             backend.events.collect { event ->
                 if (event is AssistantSessionEvent.SessionComplete && awaitHotword) {
