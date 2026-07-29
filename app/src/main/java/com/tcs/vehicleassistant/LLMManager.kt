@@ -75,11 +75,11 @@ object LLMManager {
                 .flatMap { it.toList() }
                 .toMutableList()
                 
-            if (explicitGemma.exists() && explicitGemma.canRead()) {
-                allFiles.add(0, explicitGemma)
-            }
             if (explicitModel.exists() && explicitModel.canRead()) {
-                allFiles.add(explicitModel)
+                allFiles.add(0, explicitModel)
+            }
+            if (explicitGemma.exists() && explicitGemma.canRead()) {
+                allFiles.add(explicitGemma)
             }
             if (explicitQwen.exists() && explicitQwen.canRead()) {
                 allFiles.add(explicitQwen)
@@ -89,9 +89,9 @@ object LLMManager {
             
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             var savedModelPath = prefs.getString("selected_model", null)
-            if (savedModelPath == null || savedModelPath.endsWith("model.litertlm") || savedModelPath.contains("Qwen")) {
-                savedModelPath = explicitGemma.absolutePath
-                prefs.edit().putString("selected_model", explicitGemma.absolutePath).apply()
+            if (savedModelPath == null || savedModelPath.contains("gemma-4-E2B") || savedModelPath.contains("Qwen")) {
+                savedModelPath = explicitModel.absolutePath
+                prefs.edit().putString("selected_model", explicitModel.absolutePath).apply()
             }
             
             // Force default backend to GPU
@@ -106,9 +106,8 @@ object LLMManager {
                 modelFile = File(savedModelPath)
             }
             if (modelFile == null || !modelFile.exists()) {
-                modelFile = models.find { it.name.contains("gemma-4-E2B", ignoreCase = true) }
+                modelFile = models.find { it.name == "model.litertlm" }
                     ?: models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.find { it.name == "model.litertlm" }
                     ?: models.firstOrNull()
             }
 
