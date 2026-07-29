@@ -37,7 +37,43 @@ object CabinCameraManager {
     private var cacheDir: java.io.File? = null
 
     fun startCamera(context: Context, lifecycleOwner: LifecycleOwner) {
-        Log.d(TAG, "Skipped CabinCameraManager background camera start to preserve AAOS system camera service stability.")
+        cacheDir = context.cacheDir
+        if (cameraExecutor == null || cameraExecutor!!.isShutdown) {
+            cameraExecutor = Executors.newSingleThreadExecutor()
+        }
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
+        cameraProviderFuture.addListener({
+            try {
+                val cameraProvider = cameraProviderFuture.get()
+                val imageAnalysis = ImageAnalysis.Builder()
+                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                    .build()
+
+                imageAnalysis.setAnalyzer(cameraExecutor!!) { imageProxy ->
+                    processImageProxy(imageProxy)
+                }
+
+                val cameraSelector = if (cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) {
+                    CameraSelector.DEFAULT_FRONT_CAMERA
+                } else if (cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) {
+                    CameraSelector.DEFAULT_BACK_CAMERA
+                } else {
+                    Log.w(TAG, "No camera found on device")
+                    return@addListener
+                }
+
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    lifecycleOwner,
+                    cameraSelector,
+                    imageAnalysis
+                )
+                Log.d(TAG, "Native camera bound successfully for Cabin Sense.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to bind native camera: ${e.message}", e)
+            }
+        }, ContextCompat.getMainExecutor(context))
     }
 
     private fun processImageProxy(imageProxy: ImageProxy) {

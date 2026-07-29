@@ -114,6 +114,10 @@ class AssistantViewModel(
         orchestrator.resetState()
     }
 
+    fun resetState() {
+        orchestrator.resetState()
+    }
+
     fun destroy() {
         scope.cancel()
         orchestrator.destroy()
