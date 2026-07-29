@@ -590,17 +590,6 @@
     </issue>
 
     <issue
-        id="SdCardPath"
-        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
-        errorLine1="                val externalSd = File(&quot;/sdcard/FaceProfiles.json&quot;)"
-        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/tcs/vehicleassistant/vision/FaceProfileManager.kt"
-            line="27"
-            column="40"/>
-    </issue>
-
-    <issue
         id="ProtectedPermissions"
         message="Permission is only granted to system apps"
         errorLine1="    &lt;uses-permission android:name=&quot;android.permission.SET_TIME&quot; />"

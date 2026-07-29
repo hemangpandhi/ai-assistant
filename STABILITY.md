@@ -159,11 +159,12 @@ rather than being spoken aloud as an assistant reply.
 These are real and deliberately out of scope for this pass; they need a decision rather than a
 refactor.
 
-- **Face embeddings are written to `/sdcard/FaceProfiles.json`.** `FaceProfileManager` uses shared
-  external storage so profiles survive across Android OS users, which means biometric templates sit
-  in world-readable storage. Fixing it properly means giving up the cross-user sharing or moving to
-  a platform-signed `ContentProvider` with an SELinux policy, so it was left as-is rather than
-  silently breaking the multi-user face feature.
+- **Face profiles are no longer shared across Android OS users.** `FaceProfileManager` used to mirror
+  embeddings to `/sdcard/FaceProfiles.json` so every OS user could read them. The app holds no
+  storage permission and scoped storage blocks that write, so the mirror never worked on the target
+  image; embeddings now live only in app-private device-protected storage. If cross-user face
+  matching is a product requirement, it needs a platform-signed `ContentProvider`, not a file in
+  world-readable storage.
 - **Reflection into `@hide` APIs.** `AAOSUserSwitchManager` reaches internal platform APIs by
   reflection. This works on the target image and can break on any OS update; it is baselined in
   Lint, not fixed.
