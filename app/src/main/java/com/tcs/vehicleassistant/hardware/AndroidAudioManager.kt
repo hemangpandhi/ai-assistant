@@ -9,9 +9,9 @@ import com.k2fsa.sherpa.onnx.*
 
 /**
  * Sherpa-ONNX offline STT (Whisper tiny.en) + Piper VITS TTS stack from [dev/refactor],
- * adapted to the extended [IAudioManager] surface used by MicCaptureCoordinator / backend.
+ * implementing [SessionAudioPort] for UI/UX mic handoff / ducking / endpointing.
  */
-class AndroidAudioManager(private val context: Context) : IAudioManager {
+class AndroidAudioManager(private val context: Context) : SessionAudioPort {
 
     private var offlineTts: OfflineTts? = null
     

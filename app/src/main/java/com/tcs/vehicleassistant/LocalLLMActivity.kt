@@ -109,7 +109,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
     
     private lateinit var tts: TextToSpeech
-    private lateinit var localAudioManager: com.tcs.vehicleassistant.hardware.IAudioManager
+    private lateinit var localAudioManager: com.tcs.vehicleassistant.hardware.SessionAudioPort
 
 
     data class LlmModel(val name: String, val filename: String, val url: String, val size: String, val automotiveContext: String)

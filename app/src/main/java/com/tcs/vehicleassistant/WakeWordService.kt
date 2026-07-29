@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 
 /**

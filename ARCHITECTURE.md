@@ -76,4 +76,7 @@ flowchart TB
 | First audible TTS | first sentence |
 | VHAL action | as soon as tool tag closes |
 
-See [docs/architecture/decoupling_roadmap.md](docs/architecture/decoupling_roadmap.md) and [docs/performance/automotive_latency_optimizations.md](docs/performance/automotive_latency_optimizations.md).
+See [docs/architecture/decoupling_roadmap.md](docs/architecture/decoupling_roadmap.md),
+[docs/architecture/refactor_extension_policy.md](docs/architecture/refactor_extension_policy.md)
+(extend-first vs editing `dev/refactor` files),
+and [docs/performance/automotive_latency_optimizations.md](docs/performance/automotive_latency_optimizations.md).

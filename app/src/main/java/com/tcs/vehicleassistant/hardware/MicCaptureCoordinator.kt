@@ -42,7 +42,7 @@ object MicCaptureCoordinator {
     fun isWarmingUp(): Boolean = arming
 
     /** True while Vosk handoff / warm-up is in flight, or STT is Starting/Listening. */
-    fun isCaptureLive(audio: IAudioManager?): Boolean {
+    fun isCaptureLive(audio: SessionAudioPort?): Boolean {
         if (arming) return true
         return audio?.isActivelyListening() == true || audio?.isReadyListening() == true
     }
@@ -116,7 +116,7 @@ object MicCaptureCoordinator {
         if (token != armToken.get()) return
         try {
             val koin = getKoin()
-            val audio = koin.get<IAudioManager>()
+            val audio = koin.get<SessionAudioPort>()
             val vm = koin.get<AssistantViewModel>()
             com.assistant.ui.assistant.api.AssistantRuntime.backend
                 ?.asMicController()
