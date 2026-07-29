@@ -1,17 +1,18 @@
 package com.tcs.vehicleassistant.llm
 
 import android.content.Context
-import com.tcs.vehicleassistant.AnthropicManager
+import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.GeminiManager
+import com.tcs.vehicleassistant.AnthropicManager
 import com.tcs.vehicleassistant.LLMManager
-import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
-class CloudLLMProvider(
-    private val featureFlags: AssistantFeatureFlags? = null,
-) : ILLMProvider {
+class CloudLLMProvider : ILLMProvider {
     private var isInitialized = false
-
+    
     override suspend fun initialize(context: Context, force: Boolean) {
+        // Cloud providers don't need heavy loading, just flag as ready
         isInitialized = true
     }
 
@@ -39,7 +40,8 @@ class CloudLLMProvider(
                 onError(Exception(throwable))
             }
         }
-
+        
+        // Let's hook into the existing Cloud managers
         try {
             if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
                 // For now, Cloud managers don't perfectly stream to a callback without changes, 
@@ -60,7 +62,9 @@ class CloudLLMProvider(
         isInitialized = false
     }
 
-    override fun resetConversation() = Unit
+    override fun resetConversation() {
+        // Cloud conversational state is usually handled per-request via history array
+    }
 
     override fun isReady(): Boolean = isInitialized
 }

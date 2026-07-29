@@ -48,49 +48,4 @@ class FollowUpRouterTest {
         val tool = FollowUpRouter.resolveDirectTool("yes", "Would you like me to turn on the seat heater?")
         assertEquals("setSeatHeater(2)", tool)
     }
-
-    @Test
-    fun resolveDirectCommand_acOn() {
-        assertEquals("turnOnAC()", DirectCabinCommandRouter.resolve("please turn on the ac"))
-    }
-
-    @Test
-    fun resolveDirectCommand_increaseTemp() {
-        assertEquals("increaseTemperature(2)", DirectCabinCommandRouter.resolve("make it warmer"))
-    }
-
-    @Test
-    fun resolveDirectCommand_setTemp() {
-        assertEquals("setTemperature(70)", DirectCabinCommandRouter.resolve("set temperature to 70"))
-    }
-
-    @Test
-    fun resolveDirectCommand_playMusic() {
-        assertEquals("playMusic(music)", DirectCabinCommandRouter.resolve("play music"))
-    }
-
-    @Test
-    fun resolveDirectCommand_imCold() {
-        assertEquals("increaseTemperature(2)", DirectCabinCommandRouter.resolve("i'm cold"))
-    }
-
-    @Test
-    fun resolveDirectCommand_fanUp() {
-        assertEquals("increaseFanSpeed()", DirectCabinCommandRouter.resolve("turn up the fan"))
-    }
-
-    @Test
-    fun resolveDirectCommand_defrost() {
-        assertEquals("turnOnDefroster()", DirectCabinCommandRouter.resolve("the windshield is foggy"))
-    }
-
-    @Test
-    fun resolveDirectCommand_skip() {
-        assertEquals("nextTrack()", DirectCabinCommandRouter.resolve("skip"))
-    }
-
-    @Test
-    fun resolveDirectCommand_seatHeater() {
-        assertEquals("setSeatHeater(2)", DirectCabinCommandRouter.resolve("turn on the seat heater"))
-    }
 }

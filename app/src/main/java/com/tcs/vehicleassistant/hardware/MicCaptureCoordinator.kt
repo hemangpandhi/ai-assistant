@@ -6,7 +6,7 @@ import android.os.Build
 import android.util.Log
 import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
-import com.tcs.vehicleassistant.service.VehicleAgentService
+import com.tcs.vehicleassistant.service.UiUxVehicleAgentService
 import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -78,14 +78,14 @@ object MicCaptureCoordinator {
         }
 
         runCatching {
-            val agent = Intent(app, VehicleAgentService::class.java)
+            val agent = Intent(app, UiUxVehicleAgentService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 app.startForegroundService(agent)
             } else {
                 app.startService(agent)
             }
         }.onFailure {
-            Log.w(TAG, "Could not start VehicleAgentService early", it)
+            Log.w(TAG, "Could not start UiUxVehicleAgentService early", it)
         }
 
         armJob?.cancel()

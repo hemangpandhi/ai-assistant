@@ -18,10 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
-import com.tcs.vehicleassistant.llm.EngineStatus
-import com.tcs.vehicleassistant.llm.EngineStatusStore
-import com.tcs.vehicleassistant.llm.LlmModelLocator
-import kotlinx.coroutines.flow.StateFlow
+import java.io.File
 
 object LLMManager {
     @Volatile
@@ -46,10 +43,6 @@ object LLMManager {
     var isPrewarming = false
         private set
 
-    private val statusStore = EngineStatusStore()
-    private val modelLocator = LlmModelLocator()
-    val engineStatus: StateFlow<EngineStatus> = statusStore.status
-
     var lastVehicleState = ""
 
     var isFirstMessage = true
@@ -59,18 +52,6 @@ object LLMManager {
 
     fun isReady(): Boolean = engine != null && conversation != null && !isInitializing
 
-    /** True when the engine is loaded and KV prewarm has finished (or not needed). */
-    fun isInferenceReady(): Boolean = isReady() && !isPrewarming && engineStatus.value is EngineStatus.Ready
-
-    private fun refreshEngineStatus() {
-        statusStore.update(
-            initializing = isInitializing,
-            prewarming = isPrewarming,
-            engineLoaded = engine != null,
-            conversationLoaded = conversation != null,
-            modelPath = currentModelPath,
-        )
-    }
     interface InitCallback {
         fun onSuccess()
         fun onError(e: Exception)
@@ -84,13 +65,43 @@ object LLMManager {
         appContext = context.applicationContext
 
         withContext(Dispatchers.IO) {
+            val internalDir = context.filesDir
+            val externalDir = context.getExternalFilesDir(null)
+            val explicitModel = File("/data/local/tmp/llm/model.litertlm")
+            val explicitQwen = File("/data/local/tmp/llm/Qwen2.5.litertlm")
+            val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
+            
+            val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
+                .flatMap { it.toList() }
+                .toMutableList()
+                
+            if (explicitQwen.exists() && explicitQwen.canRead()) {
+                allFiles.add(0, explicitQwen)
+            }
+            if (explicitModel.exists() && explicitModel.canRead()) {
+                allFiles.add(explicitModel)
+            }
+            if (explicitGemma.exists() && explicitGemma.canRead()) {
+                allFiles.add(explicitGemma)
+            }
+
+            val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
+            
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val savedModelPath = prefs.getString("selected_model", null)
             val savedBackendChoice = prefs.getString("backend_choice", "Auto") ?: "Auto"
-            // ui_ux extension seam — model discovery lives in LlmModelLocator
-            val modelFile = modelLocator.locate(context, savedModelPath)
+            
+            var modelFile: File? = null
+            if (savedModelPath != null && !savedModelPath.endsWith("model.litertlm")) {
+                modelFile = File(savedModelPath)
+            }
+            if (modelFile == null || !modelFile.exists()) {
+                modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
+                    ?: models.find { it.name.contains("qwen", ignoreCase = true) }
+                    ?: models.firstOrNull()
+            }
 
-            if (modelFile != null) {
+            if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
                 initialize(context, modelFile.absolutePath, force, if (backendChoice != "Auto") backendChoice else savedBackendChoice, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
@@ -109,7 +120,6 @@ object LLMManager {
     
             withContext(Dispatchers.IO) {
                 isInitializing = true
-                refreshEngineStatus()
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 // Set max tokens to 4096 to provide ample KV cache headroom for multi-turn conversations
                 var maxTokens = prefs.getInt("max_tokens", 4096)
@@ -211,7 +221,6 @@ object LLMManager {
                 }
             } finally {
                 isInitializing = false
-                refreshEngineStatus()
             }
             }
         }
@@ -343,7 +352,6 @@ object LLMManager {
         synchronized(this) {
             if (isPrewarming) return
             isPrewarming = true
-            refreshEngineStatus()
         }
         withContext(Dispatchers.IO) {
             try {
@@ -378,7 +386,6 @@ object LLMManager {
                 Log.e("LLMManager", "Prewarm failed", e)
             } finally {
                 isPrewarming = false
-                refreshEngineStatus()
             }
         }
     }
@@ -394,8 +401,6 @@ object LLMManager {
             engine = null
             isFirstMessage = true
             lastAiResponse = ""
-            isPrewarmed = false
-            refreshEngineStatus()
             System.gc()
             Log.i("LLMManager", "LLM Model unloaded from memory to save resources.")
         }

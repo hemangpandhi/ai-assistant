@@ -63,11 +63,6 @@ class LocalLLMActivity : AppCompatActivity() {
                 .putBoolean("cloud_model_active", active)
                 .putString("cloud_model_name", modelName)
                 .apply()
-            runCatching {
-                org.koin.java.KoinJavaComponent.getKoin()
-                    .get<com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags>()
-                    .setCloudMode(active, modelName)
-            }
         }
     }
 
@@ -999,10 +994,7 @@ class LocalLLMActivity : AppCompatActivity() {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == 1) {
             val cameraIndex = permissions.indexOf(android.Manifest.permission.CAMERA)
-            if (cameraIndex != -1 &&
-                grantResults.getOrNull(cameraIndex) == PackageManager.PERMISSION_GRANTED &&
-                com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(this).proactiveVisionEnabled
-            ) {
+            if (cameraIndex != -1 && grantResults.getOrNull(cameraIndex) == PackageManager.PERMISSION_GRANTED) {
                 com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
             }
             val audioIndex = permissions.indexOf(android.Manifest.permission.RECORD_AUDIO)

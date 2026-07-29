@@ -236,8 +236,9 @@ class ToolManager {
                 tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
             }.toMutableList()
         }
-
+        
         val combinedTools = (contextTools + exactMatches).distinct()
+        
         if (combinedTools.isNotEmpty()) {
             return combinedTools
         }
@@ -260,7 +261,9 @@ class ToolManager {
             return exactMatches.distinct()
         }
         
-        // Slow path: Semantic Search (remote: only userQuery; top 4 to avoid prompt bloat)
+        // Slow path: Semantic Search (2000ms+)
+        // ONLY use the userQuery for semantic search to avoid massive latency spikes from embedding history!
+        // Top 4 is enough. Injecting 8 tools causes the LLM's memory buffer to overflow!
         val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
         return semanticSearchManager.search(userQuery, 4)
     }

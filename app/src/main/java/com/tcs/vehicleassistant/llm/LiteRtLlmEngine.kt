@@ -15,23 +15,38 @@ import kotlinx.coroutines.isActive
  * exposing the [LlmEngine] port (replaces direct object access over time).
  */
 class LiteRtLlmEngine : LlmEngine {
+    private val statusStore = EngineStatusStore()
 
     override val status: StateFlow<EngineStatus>
-        get() = LLMManager.engineStatus
+        get() {
+            refreshStatus()
+            return statusStore.status
+        }
 
     override suspend fun ensureReady(context: Context, force: Boolean) {
-        if (!force && LLMManager.isInferenceReady()) return
-        LLMManager.autoInitialize(context.applicationContext, force = force)
-        // Wait briefly for prewarm if still running
-        var spins = 0
-        while (LLMManager.isPrewarming && spins < 600) {
-            kotlinx.coroutines.delay(50)
-            spins++
+        if (!force && LLMManager.isReady()) {
+            refreshStatus()
+            return
+        }
+        statusStore.set(EngineStatus.Loading)
+        try {
+            LLMManager.autoInitialize(context.applicationContext, force = force)
+            // Wait briefly for prewarm if still running.
+            var spins = 0
+            while (LLMManager.isPrewarming && spins < 600) {
+                statusStore.set(EngineStatus.Prewarming)
+                kotlinx.coroutines.delay(50)
+                spins++
+            }
+        } finally {
+            refreshStatus()
         }
     }
 
     override fun generateStream(request: LlmRequest): Flow<TokenChunk> = callbackFlow {
+        refreshStatus()
         while (LLMManager.isPrewarming && isActive) {
+            statusStore.set(EngineStatus.Prewarming)
             kotlinx.coroutines.delay(50)
         }
         val conversation = LLMManager.conversation
@@ -81,13 +96,28 @@ class LiteRtLlmEngine : LlmEngine {
 
     override suspend fun unload() {
         LLMManager.unload()
+        refreshStatus()
     }
 
     override fun resetConversation() {
         LLMManager.resetConversation()
+        refreshStatus()
     }
 
-    override fun isReady(): Boolean = LLMManager.isInferenceReady()
+    override fun isReady(): Boolean {
+        refreshStatus()
+        return LLMManager.isReady()
+    }
+
+    private fun refreshStatus() {
+        statusStore.update(
+            initializing = LLMManager.isInitializing,
+            prewarming = LLMManager.isPrewarming,
+            engineLoaded = LLMManager.engine != null,
+            conversationLoaded = LLMManager.conversation != null,
+            modelPath = LLMManager.currentModelPath,
+        )
+    }
 
     companion object {
         private const val TAG = "LiteRtLlmEngine"
