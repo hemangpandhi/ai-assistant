@@ -95,7 +95,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         if (sherpaRecognizer != null) return
         try {
             val whisperConfig = OfflineWhisperModelConfig(
-                encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
+                encoder = "sherpa-onnx-whisper/tiny.en-encoder.onnx",
                 decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
                 language = "en",
                 task = "transcribe",
@@ -226,8 +226,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                                 val floatArray = audioBuffer.toFloatArray()
                                 stream.acceptWaveform(floatArray, 16000)
                                 sherpaRecognizer?.decode(stream)
-                                val result = sherpaRecognizer?.getResult(stream)?.text ?: ""
+                                val rawResult = sherpaRecognizer?.getResult(stream)?.text ?: ""
                                 stream.release()
+                                val result = postProcessSttResult(rawResult)
+                                android.util.Log.d("AndroidAudioManager", "STT raw='$rawResult' corrected='$result'")
                                 
                                 withContext(Dispatchers.Main) {
                                     if (result.isNotBlank()) {
@@ -261,6 +263,33 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 acousticEchoCanceler = null
             }
         }
+    }
+
+    /**
+     * Post-process STT results to correct common Whisper misrecognitions.
+     * Whisper Tiny INT8 frequently confuses short command words in noisy car environments.
+     */
+    private fun postProcessSttResult(raw: String): String {
+        var text = raw.trim()
+        
+        // Common misrecognitions of "increase" → "in christan", "in the", "in crease", "in chris", etc.
+        text = text.replace(Regex("\\bin\\s*(the|christan|christian|chris|crease|creased|creas)\\b", RegexOption.IGNORE_CASE), "increase")
+        
+        // Common misrecognitions of "decrease" → "the crease", "de crease", "decrees", etc.
+        text = text.replace(Regex("\\b(the\\s*crease|de\\s*crease|decrees|decree)\\b", RegexOption.IGNORE_CASE), "decrease")
+        
+        // Common misrecognitions of "navigate" → "navi gate", "navvy gate", etc.
+        text = text.replace(Regex("\\b(navi\\s*gate|navvy\\s*gate|never\\s*gate)\\b", RegexOption.IGNORE_CASE), "navigate")
+        
+        // Common misrecognitions of "play music" → "play muse", "play mew sick", etc.
+        text = text.replace(Regex("\\bplay\\s*(muse|mew\\s*sick|mew\\s*sic)\\b", RegexOption.IGNORE_CASE), "play music")
+        
+        // Common misrecognitions of "volume" → "valet", "volley", etc.
+        text = text.replace(Regex("\\b(valet|volley)\\s*(up|down)\\b", RegexOption.IGNORE_CASE)) { mr ->
+            "volume ${mr.groupValues[2]}"
+        }
+
+        return text.trim()
     }
 
     override fun stopListening() {
