@@ -1,6 +1,23 @@
 # Vehicle Assistant Architecture
 
-This document outlines the architecture, components, and data flow of the **VehicleAssistant**. The application is designed to provide ultra-low latency, completely offline, LLM-powered voice assistance with deep, dynamic integration into the Android Automotive OS (AAOS) VHAL (Vehicle Hardware Abstraction Layer).
+This document outlines the complete architecture, components, technologies, and data flow of the **VehicleAssistant**. The application provides ultra-low latency, completely offline, LLM-powered voice assistance with deep, dynamic integration into Android Automotive OS (AAOS) VHAL (Vehicle Hardware Abstraction Layer).
+
+---
+
+## Technical Stack & AI Engines Overview
+
+| Technology Layer | Framework / Library | Primary Role | Implementation File |
+|---|---|---|---|
+| **Hotword Detection** | **Vosk Offline KWS** | Continuous offline acoustic wake word detection (`"Hey Assistant"` / configured setting) | [WakeWordService.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/WakeWordService.kt) |
+| **Speech-to-Text (STT)** | **Sherpa-ONNX + Silero Neural VAD** | Real-time offline voice activity detection and speech recognition | [AndroidAudioManager.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/hardware/AndroidAudioManager.kt) |
+| **On-Device LLM** | **Google LiteRT (Flatbuffers)** | Hardware-accelerated (GPU / NPU / CPU) model execution for Gemma 4 E2B | [LLMManager.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/LLMManager.kt) & [EdgeLLMProvider.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/llm/EdgeLLMProvider.kt) |
+| **Cloud Fallback LLM** | **Google Gemini / Anthropic APIs** | Cloud LLM provider fallback for complex multi-step queries | [CloudLLMProvider.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/llm/CloudLLMProvider.kt) |
+| **Vehicle HAL Integration** | **Android Automotive CarPropertyManager** | Direct AIDL/HIDL VHAL hardware read/write (HVAC, Windows, Seat Heaters) | [VehicleManager.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/VehicleManager.kt) & [HVACToolHandler.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/handlers/HVACToolHandler.kt) |
+| **Media Subsystem** | **MediaSessionManager + Hardware Keycodes** | Multi-layer media control (`KEYCODE_MEDIA_PAUSE`, `KEYCODE_MEDIA_STOP`) | [MediaToolHandler.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/handlers/MediaToolHandler.kt) |
+| **Architecture Pattern** | **Clean MVVM + Repository + Koin DI** | Strict separation of UI, business logic, background services, and dependencies | [AgentOrchestrator.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/repository/AgentOrchestrator.kt) & [AppModule.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/di/AppModule.kt) |
+| **Testing & Quality** | **5-Layer Automated Verification Suite** | Automated end-to-end JUnit verification of all system layers | [AutomatedArchitectureVerificationTest.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/test/java/com/tcs/vehicleassistant/AutomatedArchitectureVerificationTest.kt) |
+
+---
 
 ## Core Architecture Overview
 
@@ -40,8 +57,8 @@ block-beta
       
       block:L4["<span style='font-weight:bold; color:#FFFFFF;'>4. Data & Provider Layer</span>"]
         columns 4
-        EDGE["<span style='color:#FFFFFF'>⚡ EdgeLLMProvider</span>"]
-        CLOUD["<span style='color:#FFFFFF'>☁️ CloudLLMProvider</span>"]
+        EDGE["<span style='color:#FFFFFF'>⚡ EdgeLLMProvider<br/>(Google LiteRT)</span>"]
+        CLOUD["<span style='color:#FFFFFF'>☁️ CloudLLMProvider<br/>(Gemini/Anthropic)</span>"]
         TM["<span style='color:#FFFFFF'>🛠️ ToolManager (RAG)</span>"]
         MEM["<span style='color:#FFFFFF'>💾 Context Memory</span>"]
       end
@@ -53,7 +70,7 @@ block-beta
       AM["<span style='color:#FFFFFF'>📱 ActivityManager</span>"]
       MEDIA["<span style='color:#FFFFFF'>🎵 MediaController</span>"]
       TTS["<span style='color:#FFFFFF'>🔊 TextToSpeech</span>"]
-      STT["<span style='color:#FFFFFF'>🎤 SpeechRecognizer</span>"]
+      STT["<span style='color:#FFFFFF'>🎤 Sherpa-ONNX STT</span>"]
     end
     
     block:L6["<span style='font-weight:bold; color:#FFFFFF;'>6. Vehicle Hardware Layer</span>"]
@@ -108,9 +125,11 @@ block-beta
   class SLIDE slideBox
 ```
 
+---
+
 ## Detailed Data & Execution Flow (Architecture Topology)
 
-This diagram outlines the complete end-to-end data pipeline, demonstrating the updated MVVM architecture, the Service layer, and how the LLM orchestration interacts with the AOSP Car APIs.
+This diagram outlines the complete end-to-end data pipeline, demonstrating Sherpa-ONNX, Vosk KWS, LiteRT model execution, MVVM architecture, and VHAL API interaction.
 
 ```mermaid
 flowchart TD
@@ -122,11 +141,11 @@ flowchart TD
     classDef hardware fill:#F59E0B,stroke:#D97706,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
     classDef config fill:#64748B,stroke:#475569,stroke-width:2px,color:#FFFFFF,rx:8px,ry:8px,font-weight:bold;
 
-    subgraph Input ["1. User Input & AOSP Audio Framework"]
+    subgraph Input ["1. User Input & Audio Framework"]
         MIC([🎙️ Microphone])
         TXT([⌨️ Keyboard])
-        STT["🎤 android.speech.SpeechRecognizer<br/>(Cloud / On-Device)"]:::aospAPI
-        VOSK["🗣️ Vosk WakeWord<br/>(Offline Acoustic Model)"]:::sysApp
+        STT["🎤 Sherpa-ONNX STT + Silero VAD<br/>(AndroidAudioManager)"]:::aospAPI
+        VOSK["🗣️ Vosk KWS Engine<br/>(WakeWordService - Hey Assistant)"]:::sysApp
     end
 
     subgraph AppUI ["2. View Layer (Ephemeral UI)"]
@@ -142,18 +161,18 @@ flowchart TD
     subgraph Orchestration ["4. Repository & Orchestration (Background)"]
         ORCH{"🧠 AgentOrchestrator<br/>(Agentic Loop Repository)"}:::logic
         KOIN["💉 Koin DI<br/>(Dependency Injector)"]:::logic
-        TM["🛠️ ToolManager<br/>(Semantic Router & RAG)"]:::logic
+        TM["🛠️ ToolManager<br/>(Dynamic RAG & Core Tools)"]:::logic
         HANDLERS{"⚙️ ToolHandlers<br/>(HVAC, Media, Navigation, System)"}:::logic
-        MEM["🧠 MemoryManager<br/>(Short-Term Context Window)"]:::logic
+        MEM["🧠 MemoryManager<br/>(Thread-Safe Sliding Window)"]:::logic
         JSON[("📄 vehicle_skills_registry.json<br/>(Zero-Code Definitions)")]:::config
-        PREFS[("💾 SharedPreferences<br/>(Long-Term User Memory)")]:::config
+        PREFS[("💾 SharedPreferences<br/>(Persistent User Memory)")]:::config
     end
 
     subgraph Inference ["5. Providers & ML Execution"]
         ILLM["🔌 ILLMProvider<br/>(Abstraction Interface)"]:::logic
-        EDGE["⚡ EdgeLLMProvider<br/>(Google LiteRT NPU/GPU)"]:::ai
+        EDGE["⚡ EdgeLLMProvider<br/>(Google LiteRT GPU/NPU/CPU)"]:::ai
         CLOUD["☁️ CloudLLMProvider<br/>(Gemini/Anthropic API)"]:::ai
-        LOCAL[/"📱 Local LLMs<br/>(Gemma, Qwen)"/]:::ai
+        LOCAL[/"📱 Gemma 4 E2B Flatbuffer<br/>(On-Device Model)"/]:::ai
         CLOUD_SERVER[/"☁️ Server APIs"/]:::ai
     end
 
@@ -165,14 +184,14 @@ flowchart TD
         CAN["🚗 CAN Bus / Physical ECUs"]:::hardware
         SPK([🔈 Speakers])
         INTENTS["📱 Android Framework<br/>(ActivityManager, MediaController)"]:::aospAPI
-        MEDIA["🎵 Media & Browser Apps<br/>(ACTION_VIEW, KEYCODE_MEDIA_*)"]:::sysApp
+        MEDIA["🎵 Media Apps<br/>(KEYCODE_MEDIA_PAUSE / STOP)"]:::sysApp
         PHONE["📞 Telecom App<br/>(ACTION_DIAL)"]:::sysApp
     end
 
     %% Flow Mapping
     MIC -->|Audio Stream| STT
     MIC -->|Continuous Stream| VOSK
-    VOSK -->|"Hey Auto" Trigger| SESSION
+    VOSK -->|"Hey Assistant" / Configured Trigger| SESSION
     STT -->|Transcribed Text| SESSION
     TXT -->|Raw String| ACT
     
@@ -226,116 +245,47 @@ flowchart TD
     HANDLERS -.->|"Tool Feedback (Agentic Loop)"| ORCH
 ```
 
-## Step-by-Step Processing Sequence
+---
 
-When the user speaks to the Assistant, the system follows a Strict MVVM data flow, utilizing Koin for dependency resolution and recursive agentic execution.
+## Detailed Component Specifications
 
-```mermaid
-sequenceDiagram
-    autonumber
-    actor User as 👤 User
-    participant Session as 🎤 AssistantSession<br/>(Voice UI)
-    participant VM as 🚦 AssistantViewModel
-    participant SVC as ⚙️ VehicleAgentService
-    participant Koin as 💉 Koin DI
-    participant Orch as 🧠 AgentOrchestrator
-    participant Edge as ⚡ EdgeLLMProvider<br/>(ILLMProvider)
-    participant Cloud as ☁️ CloudLLMProvider<br/>(ILLMProvider)
-    participant Tool as 🛠️ ToolManager<br/>(CarPropertyManager)
+### 1. Offline Wake Word Detection: `WakeWordService.kt`
+- **Engine**: Offline Vosk Keyword Spotting (KWS).
+- **Grammar & Matching**: Strictly configured for `"hey assistant"` or the user's custom setting wake word. Standalone single-word grammars are eliminated to prevent false triggers from background room noise.
+- **Regex JSON Extraction**: Parses Vosk's JSON stream (`"(?:text|partial)"\s*:\s*"([^"]+)"`) to ensure clean text validation.
 
-    %% 1. Lifecycle and Binding
-    Note over Session, SVC: 1. Service Lifecycle
-    Session->>SVC: bindService()
-    SVC-->>Session: LocalBinder
-    Session->>VM: Observe StateFlow (uiState, events)
+### 2. Speech-to-Text & Mic Hardware Hand-off: `AndroidAudioManager.kt`
+- **Engine**: Sherpa-ONNX offline recognizer paired with Silero Neural VAD.
+- **Microphone Retry Loop**: Features an automated 5-attempt retry loop with 150ms backoff intervals to seamlessly acquire the physical `AudioRecord` microphone hardware during hand-off from `WakeWordService`.
+- **5-Second Silence Guard**: Enforces a 50-frame (5-second) maximum silence guard (`noSpeechFrames > 50`) to cleanly terminate recording and prevent UI lockup when the user is silent.
 
-    %% 2. User Input
-    Note over User, VM: 2. Voice Query
-    User->>Session: "Set temperature to 70 and play music"
-    Session->>VM: handleQuery()
-    VM->>Orch: processQuery(text)
+### 3. Google LiteRT Model Inference Engine: `LLMManager.kt` & `EdgeLLMProvider.kt`
+- **Model**: Google Gemma 4 E2B `.bin` flatbuffers executed locally.
+- **Hardware Acceleration**: Supports **GPU**, **NPU**, and **CPU** hardware delegates.
+- **Persistent Preferences**: Saves and strictly respects user-selected hardware backend choices in `SharedPreferences` without mutating preferences during runtime fallbacks.
+- **Multi-Turn Memory**: Preserves multi-turn conversation context across interactions without per-query resets, maximizing KV cache efficiency.
 
-    %% 3. Orchestrator Logic
-    Note over Orch, Cloud: 3. Dynamic Injection & LLM Inference
-    Orch->>Tool: getLlmToolsPrompt()
-    Tool-->>Orch: Returns available <TOOL> tags
-    
-    alt If isCloudModelActive == false
-        Orch->>Koin: inject(named("edge"))
-        Koin-->>Orch: Returns EdgeLLMProvider
-        Orch->>Edge: initialize(context)
-        Orch->>Edge: generateStream(prompt)
-        Edge-->>Orch: Emits stream (Tokens)
-    else If isCloudModelActive == true
-        Orch->>Koin: inject(named("cloud"))
-        Koin-->>Orch: Returns CloudLLMProvider
-        Orch->>Cloud: initialize(context)
-        Orch->>Cloud: generateStream(prompt)
-        Cloud-->>Orch: Emits stream (Tokens)
-    end
+### 4. Agentic Repository & Dynamic RAG: `AgentOrchestrator.kt` & `ToolManager.kt`
+- **Repository Pattern**: `AgentOrchestrator` acts as the single source of truth, isolating UI code from AI inference loops.
+- **Baseline Core Tools**: `ToolManager` automatically injects baseline vehicle control tools (`stopMusic`, `playMusic`, `increaseTemperature`, `decreaseTemperature`, `setSeatHeater`) into every prompt.
+- **In-Context Few-Shot Learning**: System prompt embeds explicit few-shot turns for zero-code tool generation across all languages and phrasings.
+- **Feedback Deduplication**: `AgentOrchestrator` applies `.distinct()` deduplication to tool feedback strings, preventing repeating responses.
 
-    %% 4. Tool Execution (Agentic Loop)
-    Note over Orch, Tool: 4. Recursive Agentic Tool Loop
-    Orch->>Orch: Detects XML <TOOL> tags
-    
-    opt If <TOOL>setTemperature(70)</TOOL> detected
-        Orch->>Tool: executeToolCall()
-        Tool->>Tool: Interacts with AOSP CarPropertyManager
-        Tool-->>Orch: "Temperature set to 70"
-    end
-    
-    opt If <TOOL>playMusic()</TOOL> detected
-        Orch->>Tool: executeToolCall()
-        Tool->>Tool: Injects KEYCODE_MEDIA_PLAY
-        Tool-->>Orch: "Music playing"
-    end
+### 5. Thread-Safe Context Memory: `MemoryManager.kt`
+- **Thread Safety**: Uses `java.util.Collections.synchronizedList(mutableListOf<Turn>())` to guarantee 100% thread safety across concurrent coroutine turns.
+- **Durable Memory**: Auto-captures user preferences (*"remember I prefer 72 degrees"*) into durable `SharedPreferences`.
 
-    %% 5. Agentic Recursion
-    opt If Tool feedback requires follow-up
-        Orch->>Orch: processQuery("System Observation: ...")
-        Note over Orch: Loops back to LLMProvider with Tool Feedback
-    end
+### 6. Non-Toggle Media Execution: `MediaToolHandler.kt`
+- **Permanent Control**: Dispatches non-toggle `KEYCODE_MEDIA_PAUSE` and `KEYCODE_MEDIA_STOP` keycodes without sending `KEYCODE_MEDIA_PLAY_PAUSE`, ensuring media stays permanently stopped without resuming.
 
-    %% 6. UI Update
-    Note over Orch, Session: 5. State Flow Updates
-    Orch->>VM: _state.value = Streaming(finalMsg)
-    VM->>Session: Emits new uiState
-    Session->>User: Displays text & Speaks via TTS
+### 7. Automated Verification Suite: `AutomatedArchitectureVerificationTest.kt`
+- **5-Layer JUnit Suite**: Automated tests verifying Wake Word Matching, Silence Timeout, Core Tool Injection, Non-Toggle Media Keycodes, and Feedback Deduplication (`./gradlew testDebugUnitTest`).
 
-    %% 7. Memory Protection
-    Note over SVC, Edge: 6. OS Memory Hook
-    System OS->>SVC: onTrimMemory(TRIM_MEMORY_BACKGROUND)
-    SVC->>Edge: unload()
-    Note right of Edge: Drops 2GB Model from RAM
-    Edge->>System OS: System.gc()
-```
-
-## Architectural Components Introduced in the Final Migration
-
-### 1. Repository Pattern: `AgentOrchestrator.kt`
-*   **Role**: The core "brain" of the application, completely separated from Android UI components.
-*   **Purpose**: Previously, the `AssistantViewModel` handled thousands of lines of prompt injection, stream chunk parsing, recursive tool execution, and state manipulation. Now, `AgentOrchestrator` acts as the definitive data repository.
-*   **Mechanism**: It exposes a Kotlin `StateFlow<OrchestratorState>` that the ViewModel trivially observes. It manages the complex recursive agentic loop (where tool outputs are fed back into the LLM up to 3 times) completely in the background.
-
-### 2. Abstraction: `ILLMProvider.kt` & Koin Injection
-*   **Role**: A unified interface decoupling the application logic from specific AI Inference Engines.
-*   **Implementations**: 
-    *   `EdgeLLMProvider.kt`: Wraps the Google LiteRT C++ bindings for the NPU/GPU execution of `.bin` flatbuffers.
-    *   `CloudLLMProvider.kt`: Wraps REST APIs (Gemini/Anthropic) for cloud fallback functionality.
-*   **Purpose**: Solves the "Singleton God Object" problem. `AgentOrchestrator` never directly instantiates an LLM. It relies on Koin (`AppModule`) to inject the appropriate `ILLMProvider` at runtime based on `LocalLLMActivity` configurations. This makes unit testing incredibly simple (we can now inject MockLLMProviders).
-
-### 3. Foreground Service & Memory Safety: `VehicleAgentService.kt`
-*   **Role**: A persistent Android Service that keeps the AI context alive outside of the UI lifecycle.
-*   **Mechanism**: The `AssistantSession` UI now binds directly to this service. If the user swipes away the Assistant bottom sheet, the service guarantees that long-running tasks (like the model downloading or background tool execution) continue without interruption.
-*   **`onTrimMemory` implementation**: The service implements `ComponentCallbacks2`. Android Automotive limits background apps severely. If the vehicle RAM fills up, the OS broadcasts `TRIM_MEMORY_BACKGROUND`. The service catches this and executes `EdgeLLMProvider.unload()`, freeing up the 2GB LLM cache.
-
-### 4. Thin UI Controller: `AssistantViewModel.kt`
-*   **Role**: A strict state emitter.
-*   **Purpose**: Stripped of all logic, it now solely converts `OrchestratorState` into `AssistantUiState` for the `VoiceInteractionSession` overlay to render.
+---
 
 ## Communication Medium Details
 
-*   **View ↔ ViewModel**: Kotlin `StateFlow` (`uiState`) for continuous state updates (Idle, Listening, Thinking, Streaming). Kotlin `SharedFlow` (`events`) for one-off events (Toasts, Intent launching).
-*   **ViewModel ↔ Service**: `LocalBinder`. The `VoiceInteractionSession` binds to the service via `bindService()` and directly accesses the ViewModel.
-*   **Orchestrator ↔ Providers**: Koin Dependency Injection. `AgentOrchestrator` uses `getKoin().inject(named("cloud"))` or `named("edge")` to dynamically retrieve the correct provider at runtime based on user settings.
-*   **Service ↔ Android OS**: Broadcast Intents for hardware button presses (PTT) and `ComponentCallbacks2` for system-level memory events.
+* **View ↔ ViewModel**: Kotlin `StateFlow` (`uiState`) for continuous state updates (Idle, Listening, Thinking, Streaming). Kotlin `SharedFlow` (`events`) for one-off events (Toasts, Intent launching).
+* **ViewModel ↔ Service**: `LocalBinder`. The `VoiceInteractionSession` binds to the service via `bindService()` and directly accesses the ViewModel.
+* **Orchestrator ↔ Providers**: Koin Dependency Injection. `AgentOrchestrator` uses `getKoin().inject(named("cloud"))` or `named("edge")` to dynamically retrieve the correct provider at runtime based on user settings.
+* **Service ↔ Android OS**: Broadcast Intents for hardware button presses (PTT) and `ComponentCallbacks2` for system-level memory events.
