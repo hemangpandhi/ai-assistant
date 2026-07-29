@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.asStateFlow
  * Reactive [EngineStatus] owner for the UI/UX engine adapter.
  */
 class EngineStatusStore {
-    private val _status = MutableStateFlow<EngineStatus>(EngineStatus.Cold)
+    private val _status = MutableStateFlow<EngineStatus>(
+        com.assistant.api.llm.EngineStatus.Cold,
+    )
     val status: StateFlow<EngineStatus> = _status.asStateFlow()
 
     fun set(status: EngineStatus) {
@@ -23,11 +25,11 @@ class EngineStatusStore {
         modelPath: String,
     ) {
         _status.value = when {
-            initializing -> EngineStatus.Loading
-            prewarming -> EngineStatus.Prewarming
-            engineLoaded && conversationLoaded -> EngineStatus.Ready
-            !engineLoaded && modelPath.isEmpty() -> EngineStatus.Cold
-            else -> EngineStatus.Unloaded
+            initializing -> com.assistant.api.llm.EngineStatus.Loading
+            prewarming -> com.assistant.api.llm.EngineStatus.Prewarming
+            engineLoaded && conversationLoaded -> com.assistant.api.llm.EngineStatus.Ready
+            !engineLoaded && modelPath.isEmpty() -> com.assistant.api.llm.EngineStatus.Cold
+            else -> com.assistant.api.llm.EngineStatus.Unloaded
         }
     }
 }

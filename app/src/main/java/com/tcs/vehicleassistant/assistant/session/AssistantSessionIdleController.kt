@@ -1,8 +1,8 @@
 package com.tcs.vehicleassistant.assistant.session
 
 import android.content.Context
+import com.assistant.api.llm.LlmSessionPort
 import com.assistant.ui.assistant.api.AssistantDebugLog
-import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.controller.AssistantUiState
@@ -27,6 +27,7 @@ internal class AssistantSessionIdleController(
     private val isBusy: () -> Boolean,
     private val currentUiState: () -> AssistantUiState?,
     private val viewModelProvider: () -> UiUxAssistantViewModel?,
+    private val llmSession: LlmSessionPort,
     private val onTimeout: () -> Unit,
 ) {
     private var idleJob: Job? = null
@@ -174,6 +175,6 @@ internal class AssistantSessionIdleController(
 
     private fun isModelWarmingUp(): Boolean {
         if (isCloudRoutingActive()) return false
-        return LLMManager.isInitializing || LLMManager.isPrewarming || !LLMManager.isReady()
+        return llmSession.isInitializing() || llmSession.isPrewarming() || !llmSession.isReady()
     }
 }

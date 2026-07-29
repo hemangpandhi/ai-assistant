@@ -1,6 +1,5 @@
 package com.tcs.vehicleassistant.domain
 
-import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.utils.DirectCabinCommandRouter
 import com.tcs.vehicleassistant.utils.FollowUpRouter
 
@@ -15,14 +14,14 @@ object SpeculativeToolPrep {
     @Volatile
     private var candidatePartial: String? = null
 
-    fun onPartial(partial: String) {
+    fun onPartial(partial: String, lastAiResponse: String) {
         val q = partial.trim()
         if (q.length < 4) {
             clear()
             return
         }
         val tool = DirectCabinCommandRouter.resolve(q)
-            ?: FollowUpRouter.resolveDirectTool(q, LLMManager.lastAiResponse)
+            ?: FollowUpRouter.resolveDirectTool(q, lastAiResponse)
         if (tool != null) {
             candidateTool = tool
             candidatePartial = q
@@ -34,9 +33,9 @@ object SpeculativeToolPrep {
      * the speculative candidate (or freshly resolves the same zero-LLM path).
      * Never executes on partial — call only from the final-commit path.
      */
-    fun resolveForFinal(finalQuery: String): String? {
+    fun resolveForFinal(finalQuery: String, lastAiResponse: String): String? {
         val fresh = DirectCabinCommandRouter.resolve(finalQuery)
-            ?: FollowUpRouter.resolveDirectTool(finalQuery, LLMManager.lastAiResponse)
+            ?: FollowUpRouter.resolveDirectTool(finalQuery, lastAiResponse)
         val speculative = candidateTool
         val partial = candidatePartial
         clear()

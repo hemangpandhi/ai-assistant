@@ -76,7 +76,7 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
 
     <application
-        android:name=".VehicleApplication"
+        android:name=".assistant.UiUxVehicleApplication"
         android:allowBackup="true"
         android:icon="@drawable/ic_mic_small"
         android:label="VehicleEdgeAssistant"
@@ -115,6 +115,11 @@
         </service>
         
         <service android:name=".AssistantSessionService"
+                 android:permission="android.permission.BIND_VOICE_INTERACTION"
+                 android:exported="true" />
+
+        <!-- ui_ux extension seam: Compose / profile-aware session factory -->
+        <service android:name=".assistant.UiUxAssistantSessionService"
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:exported="true" />
                  

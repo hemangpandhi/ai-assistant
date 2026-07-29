@@ -1,9 +1,12 @@
 package com.tcs.vehicleassistant.di
 
+import com.assistant.api.llm.LlmSessionPort
+import com.assistant.api.tools.ToolCatalog
 import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
 import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
 import com.tcs.vehicleassistant.data.memory.ConversationMemory
 import com.tcs.vehicleassistant.data.memory.MemoryManagerStore
+import com.tcs.vehicleassistant.data.tools.ToolManagerCatalog
 import com.tcs.vehicleassistant.data.vehicle.VehicleManagerGateway
 import com.tcs.vehicleassistant.data.vehicle.VhalGateway
 import com.tcs.vehicleassistant.domain.ExecuteToolUseCase
@@ -17,6 +20,7 @@ import com.tcs.vehicleassistant.hardware.SessionAndroidAudioManager
 import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import com.tcs.vehicleassistant.llm.LiteRtLlmEngine
 import com.tcs.vehicleassistant.llm.LlmEngine
+import com.tcs.vehicleassistant.llm.LlmManagerSessionAdapter
 import com.tcs.vehicleassistant.repository.UiUxAgentOrchestrator
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
@@ -32,6 +36,8 @@ val uiUxModule = module {
     single<VhalGateway> { VehicleManagerGateway() }
     single<ConversationMemory> { MemoryManagerStore() }
     single<LlmEngine> { LiteRtLlmEngine() }
+    single<LlmSessionPort> { LlmManagerSessionAdapter(get()) }
+    single<ToolCatalog> { ToolManagerCatalog(get()) }
 
     // Concrete audio impl registered as SessionAudioPort; also satisfies IAudioManager.
     single { SessionAndroidAudioManager(androidContext()) }
@@ -41,7 +47,7 @@ val uiUxModule = module {
     single { SpeechPresenter(get()) }
     single { ExecuteToolUseCase(get()) }
     single { ToolLoop(get()) }
-    single { QueryPipeline(get(), get(), get()) }
+    single { QueryPipeline(get(), get(), get(), get()) }
     single { FollowUpUseCase() }
     single { ProcessQueryUseCase(get()) }
     single {
@@ -53,7 +59,9 @@ val uiUxModule = module {
             queryPipeline = get(),
             toolLoop = get(),
             speechPresenter = get(),
+            llmSession = get(),
+            toolCatalog = get(),
         )
     }
-    single { UiUxAssistantViewModel(androidContext(), get(), get(), get()) }
+    single { UiUxAssistantViewModel(androidContext(), get(), get(), get(), get()) }
 }

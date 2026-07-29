@@ -14,7 +14,6 @@ class SpeculativeToolPrepTest {
     @Before
     fun setUp() {
         SpeculativeToolPrep.clear()
-        LLMManager.lastAiResponse = ""
     }
 
     @After
@@ -24,20 +23,20 @@ class SpeculativeToolPrepTest {
 
     @Test
     fun onPartial_resolvesAcCommand() {
-        SpeculativeToolPrep.onPartial("turn on the ac")
-        assertEquals("turnOnAC()", SpeculativeToolPrep.resolveForFinal("turn on the ac please"))
+        SpeculativeToolPrep.onPartial("turn on the ac", "")
+        assertEquals("turnOnAC()", SpeculativeToolPrep.resolveForFinal("turn on the ac please", ""))
     }
 
     @Test
     fun resolveForFinal_freshWinsWithoutPartial() {
-        assertEquals("turnOffAC()", SpeculativeToolPrep.resolveForFinal("turn off the ac"))
+        assertEquals("turnOffAC()", SpeculativeToolPrep.resolveForFinal("turn off the ac", ""))
     }
 
     @Test
     fun resolveForFinal_clearsCandidate() {
-        SpeculativeToolPrep.onPartial("turn on the ac")
-        SpeculativeToolPrep.resolveForFinal("turn on the ac")
-        assertNull(SpeculativeToolPrep.resolveForFinal("hello there friend"))
+        SpeculativeToolPrep.onPartial("turn on the ac", "")
+        SpeculativeToolPrep.resolveForFinal("turn on the ac", "")
+        assertNull(SpeculativeToolPrep.resolveForFinal("hello there friend", ""))
     }
 
     @Test
@@ -50,8 +49,8 @@ class SpeculativeToolPrepTest {
 
     @Test
     fun shortPartial_clearsCandidate() {
-        SpeculativeToolPrep.onPartial("turn on the ac")
-        SpeculativeToolPrep.onPartial("hi")
-        assertNull(SpeculativeToolPrep.resolveForFinal("hello friend how are you"))
+        SpeculativeToolPrep.onPartial("turn on the ac", "")
+        SpeculativeToolPrep.onPartial("hi", "")
+        assertNull(SpeculativeToolPrep.resolveForFinal("hello friend how are you", ""))
     }
 }

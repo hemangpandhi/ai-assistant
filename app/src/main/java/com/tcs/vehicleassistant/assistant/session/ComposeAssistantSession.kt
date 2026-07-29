@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import com.assistant.api.llm.LlmSessionPort
 import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantBackend
 import com.assistant.ui.assistant.api.AssistantRuntime
@@ -52,6 +53,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.koin.java.KoinJavaComponent.getKoin
 
 /**
  * System voice-interaction session.
@@ -95,6 +97,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private var wakeRestartJob: Job? = null
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val llmSession: LlmSessionPort by lazy { getKoin().get() }
     private val idleController = AssistantSessionIdleController(
         context = context,
         scope = observerScope,
@@ -102,6 +105,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         isBusy = { viewModel?.isProcessing() == true },
         currentUiState = { viewModel?.uiState?.value },
         viewModelProvider = { viewModel },
+        llmSession = llmSession,
         onTimeout = ::dismissForIdleTimeout,
     )
     private val dismissController = AssistantSessionDismissController(
@@ -187,7 +191,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         // Unload sooner under idle — keep warm only for recent interaction (~90s).
         unloadJob = observerScope.launch {
             delay(90_000)
-            LLMManager.unload()
+            llmSession.unload()
         }
     }
 
@@ -244,8 +248,8 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             runCatching { LocalLLMActivity.loadRuntimePrefs(context.applicationContext) }
             runCatching { VehicleManager.initialize(context.applicationContext) }
             runCatching {
-                if (!LLMManager.isReady() && !isCloudRoutingActive()) {
-                    LLMManager.autoInitialize(context.applicationContext)
+                if (!llmSession.isReady() && !isCloudRoutingActive()) {
+                    llmSession.ensureReady(context.applicationContext)
                 }
             }
             withContext(Dispatchers.Main) {
@@ -352,10 +356,12 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
 
         val modelInfoTag: TextView? = overlayView.findViewById(R.id.modelInfoTag)
-        modelInfoTag?.text = com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.modelLabel()
+        modelInfoTag?.text =
+            com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.modelLabel(llmSession)
 
         val activeBackendTag: TextView? = overlayView.findViewById(R.id.activeBackendTag)
-        activeBackendTag?.text = com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.backendLabel()
+        activeBackendTag?.text =
+            com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.backendLabel(llmSession)
 
         responseText?.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -647,8 +653,8 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             }
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
-                    if (!LLMManager.isReady() && !isCloudRoutingActive()) {
-                        LLMManager.autoInitialize(context.applicationContext)
+                    if (!llmSession.isReady() && !isCloudRoutingActive()) {
+                        llmSession.ensureReady(context.applicationContext)
                     }
                 }
             }
@@ -664,7 +670,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         etInput?.setText("")
         voiceAnimation?.state = VoiceAnimationView.State.IDLE
 
-        if (!LLMManager.isReady() || LLMManager.isInitializing || LLMManager.isPrewarming) {
+        if (!llmSession.isReady() || llmSession.isInitializing() || llmSession.isPrewarming()) {
             statusText?.text = "Initializing Model..."
             btnOpenApp?.visibility = View.GONE
             inputControls?.visibility = View.GONE
@@ -672,14 +678,20 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             idleController.pause()
 
             observerScope.launch {
-                if (!LLMManager.isReady() && !LLMManager.isInitializing && !LLMManager.isPrewarming) {
+                if (!llmSession.isReady() &&
+                    !llmSession.isInitializing() &&
+                    !llmSession.isPrewarming()
+                ) {
                     withContext(Dispatchers.IO) {
-                        runCatching { LLMManager.autoInitialize(context.applicationContext) }
+                        runCatching { llmSession.ensureReady(context.applicationContext) }
                     }
                 }
-                // Wait until LLMManager is fully ready and not prewarming.
+                // Wait until the local LLM is fully ready and not prewarming.
                 withContext(Dispatchers.IO) {
-                    while (!LLMManager.isReady() || LLMManager.isInitializing || LLMManager.isPrewarming) {
+                    while (!llmSession.isReady() ||
+                        llmSession.isInitializing() ||
+                        llmSession.isPrewarming()
+                    ) {
                         delay(500)
                     }
                 }
