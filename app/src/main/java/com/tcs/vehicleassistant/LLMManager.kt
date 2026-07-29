@@ -14,6 +14,7 @@ import com.tcs.vehicleassistant.core.DeviceCapabilities
 import com.tcs.vehicleassistant.core.KernelCacheManager
 import com.tcs.vehicleassistant.hardware.CabinCameraManager
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import java.io.File
@@ -84,6 +85,24 @@ object LLMManager {
     /** True while at least one inference is inside the native engine. */
     fun hasActiveInference(): Boolean = synchronized(inferenceLock) { activeInferences > 0 }
 
+    /**
+     * Waits until no inference is inside the native engine, or [timeoutMs] elapses.
+     * @return true when the engine is idle and safe to close/re-init.
+     */
+    suspend fun awaitInferenceDrain(
+        timeoutMs: Long = AssistantConfig.Llm.INFERENCE_DRAIN_TIMEOUT_MS,
+    ): Boolean {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (hasActiveInference()) {
+            if (System.currentTimeMillis() >= deadline) {
+                Log.w(TAG, "Inference drain timed out with activeInferences still > 0")
+                return false
+            }
+            delay(50)
+        }
+        return true
+    }
+
     suspend fun autoInitialize(
         context: Context,
         force: Boolean = false,
@@ -150,6 +169,16 @@ object LLMManager {
 
             try {
                 isInitializing = true
+
+                // Never tear down a live LiteRT stream. Timeout/error recovery used to force-close
+                // here and corrupt the GPU/OpenCL context mid-generation.
+                if (engine != null && !awaitInferenceDrain()) {
+                    val busy = Exception("Model is still generating — refusing forced re-init")
+                    Log.e(TAG, busy.message!!)
+                    withContext(Dispatchers.Main) { callback?.onError(busy) }
+                    return
+                }
+
                 val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
                 val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)
                     ?: AssistantConfig.Backend.AUTO
@@ -261,11 +290,14 @@ object LLMManager {
         engine = created
     }
 
-    /** Closes the engine and conversation. Caller must hold [initMutex]. */
+    /** Closes the engine and conversation. Caller must hold [initMutex] and have drained inferences. */
     private fun closeEngineLocked() {
         synchronized(inferenceLock) {
             if (activeInferences > 0) {
-                Log.w(TAG, "Closing engine while $activeInferences inference(s) are in flight")
+                // Should be unreachable after awaitInferenceDrain(); refuse rather than corrupt GPU state.
+                throw IllegalStateException(
+                    "Refusing to close LiteRT engine with $activeInferences active inference(s)"
+                )
             }
             try {
                 conversation?.close()
@@ -404,9 +436,19 @@ object LLMManager {
         return basePrompt.toString().trimIndent()
     }
 
-    fun resetConversation(context: Context? = null) {
+    /**
+     * Recycles the LiteRT conversation to bound KV-cache growth.
+     *
+     * @return false when an inference is still in flight — the caller should wait and retry rather
+     * than force-closing the conversation under a live stream.
+     */
+    fun resetConversation(context: Context? = null): Boolean {
         synchronized(inferenceLock) {
-            if (engine == null) return
+            if (engine == null) return true
+            if (activeInferences > 0) {
+                Log.w(TAG, "Skipping conversation reset: $activeInferences inference(s) still in flight")
+                return false
+            }
 
             try {
                 conversation?.close()
@@ -414,7 +456,6 @@ object LLMManager {
                 Log.w(TAG, "Error closing previous conversation", e)
             }
             conversation = null
-            activeInferences = 0
             lastAiResponse = ""
 
             try {
@@ -423,7 +464,9 @@ object LLMManager {
                 Log.d(TAG, "Conversation reset. isFirstMessage=true.")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to reset conversation", e)
+                return false
             }
+            return true
         }
     }
 

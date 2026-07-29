@@ -89,13 +89,15 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
             }
             "pauseMusic", "stopMusic" -> {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                
+                var reachedSession = false
+
                 // 1. Dispatch MediaSessionManager controller commands
                 try {
                     val controllers = mediaSessionManager.getActiveSessions(null)
+                    reachedSession = controllers.isNotEmpty()
                     for (controller in controllers) {
-                        try { controller.transportControls.pause() } catch (e: Exception) {}
-                        try { controller.transportControls.stop() } catch (e: Exception) {}
+                        try { controller.transportControls.pause() } catch (_: Exception) {}
+                        try { controller.transportControls.stop() } catch (_: Exception) {}
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to stop media via MediaSessionManager", e)
@@ -120,8 +122,14 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     val cmdIntent = Intent("com.android.music.musicservicecommand")
                     cmdIntent.putExtra("command", "pause")
                     context.sendBroadcast(cmdIntent)
-                } catch (e: Exception) {}
+                } catch (_: Exception) {}
 
+                if (!reachedSession) {
+                    return ToolExecutionResult(
+                        false,
+                        "I couldn't find an active media session to control. Is music playing?"
+                    )
+                }
                 val feedback = if (handlerKey == "stopMusic") "Music stopped." else "Music paused."
                 ToolExecutionResult(true, feedback)
             }
@@ -130,35 +138,46 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     val controllers = mediaSessionManager.getActiveSessions(null)
                     if (controllers.isNotEmpty()) {
                         controllers[0].transportControls.skipToNext()
+                        ToolExecutionResult(true, "Playing next track.")
                     } else {
-                        throw Exception("No active sessions found for nextTrack")
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT))
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT))
+                        ToolExecutionResult(
+                            true,
+                            "I sent a skip command, but no media session confirmed it."
+                        )
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to skip media next via MediaSessionManager, using fallback", e)
-                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                    audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT))
-                    audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT))
+                    Log.e(TAG, "Failed to skip media next", e)
+                    ToolExecutionResult(false, "I couldn't skip to the next track.")
                 }
-                ToolExecutionResult(true, "Playing next track.")
             }
             "prevTrack" -> {
                 try {
                     val controllers = mediaSessionManager.getActiveSessions(null)
                     if (controllers.isNotEmpty()) {
                         controllers[0].transportControls.skipToPrevious()
+                        ToolExecutionResult(true, "Playing the previous track.")
                     } else {
-                        throw Exception("No active sessions found for prevTrack")
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS))
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS))
+                        ToolExecutionResult(
+                            true,
+                            "I sent a previous-track command, but no media session confirmed it."
+                        )
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to skip media previous via MediaSessionManager, using fallback", e)
-                    val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                    audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS))
-                    audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS))
+                    Log.e(TAG, "Failed to skip media previous", e)
+                    ToolExecutionResult(false, "I couldn't go to the previous track.")
                 }
-                ToolExecutionResult(true, "Playing the previous track.")
             }
             "adjustBgmForSituation" -> {
-                ToolExecutionResult(true, "I've adjusted the background music to match the current driving situation.")
+                ToolExecutionResult(
+                    false,
+                    "Situational BGM adjustment isn't wired to a real playlist engine on this build."
+                )
             }
             "setVolumeLevel" -> {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager

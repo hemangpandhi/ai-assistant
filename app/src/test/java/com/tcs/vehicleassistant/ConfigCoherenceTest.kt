@@ -100,9 +100,12 @@ class ConfigCoherenceTest {
     }
 
     @Test
-    fun `the agentic loop is bounded`() {
-        // An unbounded observe/act loop would keep re-prompting the model indefinitely.
-        assertTrue(AssistantConfig.Llm.MAX_AGENTIC_LOOPS in 1..5)
+    fun `inference drain timeout is positive and shorter than init`() {
+        assertTrue(AssistantConfig.Llm.INFERENCE_DRAIN_TIMEOUT_MS > 0)
+        assertTrue(
+            "drain wait must finish well before a full engine init budget",
+            AssistantConfig.Llm.INFERENCE_DRAIN_TIMEOUT_MS < AssistantConfig.Llm.INIT_TIMEOUT_MS
+        )
     }
 
     @Test

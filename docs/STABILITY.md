@@ -192,6 +192,8 @@ refactor.
 | Assistant never becomes ready | `LLMManager` init logs; the backend fallback chain; `AssistantConfig.Session.LLM_READY_TIMEOUT_MS` |
 | Wake word works, speech is never transcribed | Microphone handoff; `AssistantConfig.WakeWordAction` aliases; `AudioRecord` acquisition retries |
 | Tool call hangs after barge-in | `AndroidAudioManager.waitUntilFinishedSpeaking`; speech-drain waiters must be released on `stopSpeaking` |
+| Timeout / force re-init crashes mid-stream | `LLMManager.awaitInferenceDrain` before `force` init; never close with active inferences |
+| Follow-ups forget prior turns after reset | Edge prompt must include `[Recent Conversation]` history block |
 | First response is very slow every launch | Kernel cache not persisting; check `KernelCacheManager` and the `no_backup` directory |
 | Model calls the wrong tool | `ToolRetriever` ranking and the `keywords`/`aliases` in `vehicle_skills_registry.json` |
 | Tool writes the wrong hardware property | `RegistryCoherenceTest`; confirm `GENERIC_VHAL_WRITE` `property_id` matches `properties[]` / AOSP |

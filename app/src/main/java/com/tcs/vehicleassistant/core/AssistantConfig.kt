@@ -70,6 +70,12 @@ object AssistantConfig {
 
         /** Conversation is recycled past this many turns to bound KV cache growth. */
         const val CONVERSATION_RESET_TURNS = 8
+
+        /**
+         * How long forced re-init / conversation reset will wait for an in-flight LiteRT stream to
+         * finish before refusing to tear down the native engine.
+         */
+        const val INFERENCE_DRAIN_TIMEOUT_MS = 15_000L
     }
 
     object Memory {

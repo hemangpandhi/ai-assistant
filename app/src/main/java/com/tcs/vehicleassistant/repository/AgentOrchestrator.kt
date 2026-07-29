@@ -349,6 +349,14 @@ class AgentOrchestrator(
             if (!isQueryProcessed && isCurrentTurn(turnId)) {
                 _state.value = OrchestratorState.Error("Timeout - Restarting Model...")
                 _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                // Drain the hung stream before tearing the engine down; force-close mid-generation
+                // corrupts the OpenCL/GPU context.
+                if (!LLMManager.awaitInferenceDrain()) {
+                    _state.value = OrchestratorState.Error("Model still busy after timeout.")
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    isQueryProcessed = true
+                    return@launch
+                }
                 LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
                         _state.value = OrchestratorState.Idle
@@ -442,11 +450,19 @@ class AgentOrchestrator(
 
                 if (LLMManager.isFirstMessage) {
                     LLMManager.isFirstMessage = false
-                    "$sysPrompt\n$stateInject\n$formattedQuery".trim()
+                    buildString {
+                        append(sysPrompt)
+                        if (historyBlock.isNotBlank()) append(historyBlock)
+                        if (stateInject.isNotBlank()) append('\n').append(stateInject)
+                        append('\n').append(formattedQuery)
+                    }.trim()
                 } else {
+                    // Re-inject tools + a bounded history slice. LiteRT KV cache alone is not enough
+                    // after conversation resets or long multi-turn chats.
                     buildString {
                         append(LLMManager.capabilityReminder())
                         append(toolsBlock)
+                        if (historyBlock.isNotBlank()) append(historyBlock)
                         if (stateInject.isNotBlank()) append(stateInject)
                         append(formattedQuery)
                     }.trim()
@@ -556,9 +572,9 @@ class AgentOrchestrator(
                     // Don't emit empty finalMsg to avoid clearing the UI
                     val displayFinalMsg = if (finalMsg.isBlank()) TAKING_ACTION_PLACEHOLDER else finalMsg
                     _state.value = OrchestratorState.Speaking(displayFinalMsg)
-                    
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                    isQueryProcessed = true
+
+                    // Keep input disabled until tools (and any agentic follow-up) finish. Marking the
+                    // turn complete here used to let a new query clear currentPendingTools mid-flight.
 
                     // Flush any remaining text to TTS FIRST before extracting tools
                     if (finalMsg.isNotBlank()) {
@@ -568,16 +584,10 @@ class AgentOrchestrator(
                             val sentenceStartOffset = stream.consumeSentence(remainingSentence.length)
                             audioManager.speak(remainingSentence, "SENTENCE_$sentenceStartOffset")
                         }
-                    } else {
-                        val isQ = isQuestion || finalMsg.contains("?") ||
-                            finalMsg.contains("would you like", ignoreCase = true) ||
-                            finalMsg.contains("could you", ignoreCase = true)
-                        if (isQ) {
-                            _events.tryEmit(OrchestratorEvent.StartListening)
-                        }
                     }
 
-                    // Now parse tools
+                    // Now parse tools — use a turn-local list so a newer turn cannot clear ours.
+                    val pendingTools = mutableListOf<Deferred<String?>>()
                     val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
@@ -586,22 +596,21 @@ class AgentOrchestrator(
                             if (toolDef?.requiresConfirmation == true) {
                                 pendingConfirmationTool = toolCall
                             } else {
-                                // Launched in the orchestrator's own scope so destroy() cancels
-                                // pending tool work instead of orphaning it in a detached scope.
                                 val job = scope.async(Dispatchers.IO) {
                                     audioManager.waitUntilFinishedSpeaking()
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
                                         executeToolCall(toolCall)
                                     } ?: "System Error: Tool execution timed out."
                                 }
+                                pendingTools.add(job)
                                 currentPendingTools.add(job)
                             }
                         }
                     }
 
-                    if (currentPendingTools.isNotEmpty()) {
+                    if (pendingTools.isNotEmpty()) {
                         // Do NOT emit Thinking here, as it clears the UI screen and causes flickering.
-                        val feedbacks = awaitAll(*currentPendingTools.toTypedArray()).filterNotNull()
+                        val feedbacks = awaitAll(*pendingTools.toTypedArray()).filterNotNull()
                         toolFeedbacks.addAll(feedbacks)
                     }
 
@@ -609,7 +618,7 @@ class AgentOrchestrator(
                         EmergencyAlarmManager.start(context)
                     }
 
-                    if (currentPendingTools.isNotEmpty()) {
+                    if (pendingTools.isNotEmpty()) {
                         val isAgenticLoopEnabled = context
                             .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
                             .getBoolean(AssistantConfig.Prefs.AGENTIC_LOOP, true)
@@ -635,7 +644,7 @@ class AgentOrchestrator(
                             val feedbackString = toolFeedbacks.joinToString("\n")
                             val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
 
-                            currentPendingTools.clear()
+                            currentPendingTools.removeAll(pendingTools.toSet())
                             stream.clear()
                             processQuery(
                                 observation,
@@ -675,9 +684,17 @@ class AgentOrchestrator(
                     _state.value = OrchestratorState.Speaking(finalDisplayMsg)
 
                     val finalUtterance = if (isQuestion) "QUESTION_FINAL"
-                        else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
+                        else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
                         else "STATEMENT_FINAL"
                     audioManager.playSilentUtterance(10, finalUtterance)
+
+                    // Only now is the turn finished — re-enable input for the next utterance.
+                    if (finalMsg.isBlank() && isQuestion) {
+                        _events.tryEmit(OrchestratorEvent.StartListening)
+                    }
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    isQueryProcessed = true
+                    currentPendingTools.removeAll(pendingTools.toSet())
                 }
             }
         }
@@ -690,6 +707,12 @@ class AgentOrchestrator(
                     if (retryCount < 1) {
                         _state.value = OrchestratorState.Error("Initializing model...")
                         try {
+                            if (!LLMManager.awaitInferenceDrain()) {
+                                _state.value = OrchestratorState.Error("Model still busy — try again.")
+                                _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                                isQueryProcessed = true
+                                return@launch
+                            }
                             if (LocalLLMActivity.isCloudModelActive) {
                                 val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("cloud"))
                                 cloudProvider.initialize(context, force = true)
@@ -738,8 +761,11 @@ class AgentOrchestrator(
                             LLMManager.currentModelPath.contains("handoff", ignoreCase = true)) &&
                         MemoryManager.turnCount() > AssistantConfig.Llm.CONVERSATION_RESET_TURNS
                     ) {
-                        LLMManager.resetConversation(context)
-                        MemoryManager.clearMemory()
+                        if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context)) {
+                            MemoryManager.clearMemory()
+                        } else {
+                            android.util.Log.w(TAG, "Deferred conversation reset; inference still active")
+                        }
                     }
 
                     edgeProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)

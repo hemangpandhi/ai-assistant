@@ -4,7 +4,6 @@ import android.content.Context
 import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.GeminiManager
 import com.tcs.vehicleassistant.AnthropicManager
-import com.tcs.vehicleassistant.LLMManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -24,12 +23,12 @@ class CloudLLMProvider : ILLMProvider {
         onDone: (String) -> Unit,
         onError: (Exception) -> Unit
     ) {
-        // The orchestrator assembles the operating rules, tool catalogue, and telemetry into
-        // [prompt]. That whole block has to arrive as the API's system instruction: passing it as
-        // the user message meant the cloud managers dropped it entirely (they build the request
-        // body from MemoryManager history plus the systemPrompt argument), so cloud mode ran with
-        // no tools and no safety rules.
-        val systemPrompt = LLMManager.getSystemPrompt(context, userQuery)
+        // Use the orchestrator-assembled [prompt] as the API system instruction. Recomputing
+        // LLMManager.getSystemPrompt here dropped telemetry injection, capability reminders, and
+        // agentic observation framing that only AgentOrchestrator builds.
+        val systemPrompt = prompt.ifBlank {
+            com.tcs.vehicleassistant.LLMManager.getSystemPrompt(context, userQuery)
+        }
 
         val responseBuilder = StringBuilder()
         val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {

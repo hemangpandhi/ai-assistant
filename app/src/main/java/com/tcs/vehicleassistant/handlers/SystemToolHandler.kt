@@ -43,19 +43,19 @@ class SystemToolHandler(
             }
             "getWeather" -> {
                 val city = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
-                val mockTemp = (15..30).random()
-                val conditions = listOf("sunny", "partly cloudy", "raining", "clear").random()
-                val weatherData = "The current weather in $city is $mockTemp degrees Celsius and $conditions."
-
+                // Do not invent temperatures. Open a search the driver can trust instead.
                 val intent = Intent(Intent.ACTION_WEB_SEARCH)
                 intent.putExtra(SearchManager.QUERY, "weather in $city")
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                try {
+                return try {
                     if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
+                    ToolExecutionResult(true, "I've opened the weather for $city.")
                 } catch (_: Exception) {
+                    ToolExecutionResult(
+                        false,
+                        "I don't have a live weather feed on this build, and couldn't open a search for $city."
+                    )
                 }
-
-                ToolExecutionResult(true, weatherData)
             }
             "openApp" -> {
                 val appName = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
