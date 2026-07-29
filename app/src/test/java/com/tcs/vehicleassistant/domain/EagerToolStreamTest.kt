@@ -49,19 +49,13 @@ class EagerToolStreamTest {
         // SpeechPresenter needs IAudioManager — exercise cleanDisplay via a no-op stub.
         val presenter = SpeechPresenter(object : com.tcs.vehicleassistant.hardware.IAudioManager {
             override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) = Unit
-            override fun ensureWarmRecognizer() = Unit
-            override fun isActivelyListening(): Boolean = false
-            override fun isReadyListening(): Boolean = false
             override fun startListening() = Unit
-            override fun setEndpointingProfile(profile: com.tcs.vehicleassistant.hardware.EndpointingProfile) = Unit
-            override fun restartListening(delayedMs: Long) = Unit
             override fun stopListening() = Unit
             override fun destroySpeechRecognizer() = Unit
-            override fun requestAssistantDuck() = Unit
-            override fun abandonAssistantDuck() = Unit
             override fun speak(text: String, utteranceId: String) = Unit
             override fun playSilentUtterance(durationMs: Long, utteranceId: String) = Unit
             override fun stopSpeaking() = Unit
+            override suspend fun waitUntilFinishedSpeaking() = Unit
             override fun shutdown() = Unit
             override fun setUtteranceListener(
                 onStart: (String) -> Unit,
