@@ -151,25 +151,8 @@ object LLMManager {
                 val backend = when (backendChoice) {
                     "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
                     "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
-                    "GPU" -> {
-                        if (modelPath.contains("gemma-4-E2B", ignoreCase = true)) {
-                            Log.i("LLMManager", "Gemma 2.58GB exceeds GPU VRAM allocation cap, routing safely to CPU backend.")
-                            activeBackendString = "CPU"
-                            Backend.CPU()
-                        } else {
-                            activeBackendString = "GPU"
-                            Backend.GPU()
-                        }
-                    }
-                    else -> {
-                        if (modelPath.contains("gemma-4-E2B", ignoreCase = true)) {
-                            activeBackendString = "CPU"
-                            Backend.CPU()
-                        } else {
-                            activeBackendString = "GPU"
-                            Backend.GPU()
-                        }
-                    }
+                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
+                    else -> { activeBackendString = "GPU"; Backend.GPU() }
                 }
 
                 Log.d("LLMManager", "Initializing LiteRT Engine from: $modelPath on backend: $activeBackendString")
