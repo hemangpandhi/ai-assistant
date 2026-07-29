@@ -7,20 +7,19 @@ import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.tool
-import com.google.ai.edge.litertlm.Contents
-import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.ExperimentalApi
 import com.google.ai.edge.litertlm.ExperimentalFlags
-import android.system.Os
-import kotlinx.coroutines.CoroutineScope
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.DeviceCapabilities
+import com.tcs.vehicleassistant.core.KernelCacheManager
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
 import java.io.File
 
 object LLMManager {
+    private const val TAG = "LLMManager"
+
     @Volatile
     var engine: Engine? = null
         private set
@@ -35,12 +34,13 @@ object LLMManager {
     @Volatile
     var isInitializing = false
         private set
-        
+
     var activeBackendString = "Unknown"
         private set
-        
+
+    /** True when the active backend differs from what the user asked for, after a fallback. */
     @Volatile
-    var isPrewarming = false
+    var didFallBackFromRequestedBackend = false
         private set
 
     var lastVehicleState = ""
@@ -48,7 +48,15 @@ object LLMManager {
     var isFirstMessage = true
     var lastAiResponse: String = ""
     var lastInjectedTools: String = ""
-    private var appContext: Context? = null
+
+    /**
+     * Held for the duration of an inference so [unload] and re-initialization cannot close the
+     * native engine from under an in-flight `sendMessageAsync` callback.
+     */
+    private val inferenceLock = Any()
+
+    /** Counts inferences currently inside the native engine, guarded by [inferenceLock]. */
+    private var activeInferences = 0
 
     fun isReady(): Boolean = engine != null && conversation != null && !isInitializing
 
@@ -57,20 +65,44 @@ object LLMManager {
         fun onError(e: Exception)
     }
 
-    suspend fun autoInitialize(context: Context, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
+    /**
+     * Marks an inference as entering the native engine and returns the conversation to use, or
+     * `null` when the engine is not usable. Callers must pair this with [endInference].
+     */
+    fun beginInference(): Conversation? = synchronized(inferenceLock) {
+        val active = conversation
+        if (active == null || engine == null || isInitializing) return@synchronized null
+        activeInferences++
+        active
+    }
+
+    fun endInference() = synchronized(inferenceLock) {
+        if (activeInferences > 0) activeInferences--
+    }
+
+    /** True while at least one inference is inside the native engine. */
+    fun hasActiveInference(): Boolean = synchronized(inferenceLock) { activeInferences > 0 }
+
+    suspend fun autoInitialize(
+        context: Context,
+        force: Boolean = false,
+        backendChoice: String = AssistantConfig.Backend.AUTO,
+        callback: InitCallback? = null
+    ) {
         if (!force && engine != null) {
             callback?.onSuccess()
             return
         }
-        appContext = context.applicationContext
 
         withContext(Dispatchers.IO) {
             val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
             val internalFiles = context.filesDir?.listFiles()?.toList() ?: emptyList()
             val externalFiles = context.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
             val tmpFiles = File("/data/local/tmp/llm/").listFiles()?.toList() ?: emptyList()
-            val allModelFiles = (internalFiles + externalFiles + tmpFiles).filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            
+            val allModelFiles = (internalFiles + externalFiles + tmpFiles).filter {
+                it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm")
+            }
+
             // Strictly lock exclusively to Gemma 4 E2B model
             val modelFile = if (explicitGemma.exists() && explicitGemma.canRead()) {
                 explicitGemma
@@ -78,114 +110,192 @@ object LLMManager {
                 allModelFiles.find { it.name.contains("gemma", ignoreCase = true) } ?: explicitGemma
             }
 
-            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
-            val targetBackend = if (backendChoice != "Auto") backendChoice else savedBackendChoice
-            prefs.edit().putString("selected_model", modelFile.absolutePath).apply()
+            val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+            val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)
+                ?: AssistantConfig.Backend.AUTO
+            val targetBackend = if (backendChoice != AssistantConfig.Backend.AUTO) backendChoice else savedBackendChoice
+            prefs.edit().putString(AssistantConfig.Prefs.SELECTED_MODEL, modelFile.absolutePath).apply()
 
             if (modelFile.exists() && modelFile.length() > 0) {
                 initialize(context, modelFile.absolutePath, force, targetBackend, callback)
             } else {
-                withContext(Dispatchers.Main) { callback?.onError(Exception("Gemma model not found at ${modelFile.absolutePath}")) }
+                withContext(Dispatchers.Main) {
+                    callback?.onError(Exception("Gemma model not found at ${modelFile.absolutePath}"))
+                }
             }
         }
     }
+
     private val initMutex = kotlinx.coroutines.sync.Mutex()
 
+    /**
+     * Brings up the LiteRT engine, walking [DeviceCapabilities.backendFallbackChain] so a GPU
+     * request on hardware without a working OpenCL driver degrades to CPU instead of leaving the
+     * assistant permanently unusable.
+     */
     @OptIn(ExperimentalApi::class)
-    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
+    suspend fun initialize(
+        context: Context,
+        modelPath: String,
+        force: Boolean = false,
+        backendChoice: String = AssistantConfig.Backend.AUTO,
+        callback: InitCallback? = null
+    ) {
         initMutex.withLock {
             if (!force && engine != null && currentModelPath == modelPath) {
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
                 return
             }
-    
+
             try {
                 isInitializing = true
-                val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                val savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
-                val requestedBackend = if (backendChoice != "Auto") backendChoice else savedBackendChoice
-                
-                var maxTokens = prefs.getInt("max_tokens", 2048)
-                if (maxTokens != 2048) {
-                    maxTokens = 2048
-                    prefs.edit().putInt("max_tokens", 2048).apply()
+                val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+                val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)
+                    ?: AssistantConfig.Backend.AUTO
+                val requestedBackend =
+                    if (backendChoice != AssistantConfig.Backend.AUTO) backendChoice else savedBackendChoice
+
+                // maxNumTokens is pinned: larger windows overflow the KV cache on this hardware.
+                val maxTokens = AssistantConfig.Llm.MAX_NUM_TOKENS
+                if (prefs.getInt(AssistantConfig.Prefs.MAX_TOKENS, maxTokens) != maxTokens) {
+                    prefs.edit().putInt(AssistantConfig.Prefs.MAX_TOKENS, maxTokens).apply()
                 }
-                
-                if (engine != null) {
+
+                closeEngineLocked()
+
+                Log.i(TAG, "Accelerator probe: ${DeviceCapabilities.describe(context)}")
+                val chain = DeviceCapabilities.backendFallbackChain(requestedBackend)
+                Log.i(TAG, "Backend chain for request '$requestedBackend': $chain")
+
+                var lastError: Exception? = null
+                var initializedBackend: String? = null
+
+                for (candidate in chain) {
                     try {
-                        conversation?.close()
-                        engine?.close()
+                        startEngine(context, modelPath, candidate, maxTokens)
+                        initializedBackend = candidate
+                        break
                     } catch (e: Exception) {
-                        Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
+                        lastError = e
+                        Log.e(TAG, "Backend '$candidate' failed to initialize; trying next in $chain", e)
+                        closeEngineLocked()
+                        // Kernels serialized by a half-initialized GPU context are not reusable.
+                        KernelCacheManager.invalidate(context)
                     }
-                    conversation = null
-                    engine = null
                 }
 
-                val backend = when (requestedBackend) {
-                    "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
-                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
-                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
-                    else -> { activeBackendString = "GPU"; Backend.GPU() }
+                if (initializedBackend == null) {
+                    throw lastError ?: Exception("No usable LiteRT backend on this device")
                 }
 
-                Log.d("LLMManager", "Initializing LiteRT Engine for Gemma 4 E2B from: $modelPath on backend: $activeBackendString (user preference=$requestedBackend)")
-                val engineConfig = EngineConfig(
-                    modelPath = modelPath,
-                    backend = backend,
-                    maxNumTokens = maxTokens,
-                    cacheDir = context.cacheDir.absolutePath
-                )
-
-                // Disable Multi-Token Prediction (MTP) / Speculative Decoding
-                ExperimentalFlags.enableSpeculativeDecoding = false
-
-                engine = Engine(engineConfig)
-                engine!!.initialize()
+                activeBackendString = initializedBackend
+                didFallBackFromRequestedBackend =
+                    requestedBackend != AssistantConfig.Backend.AUTO && requestedBackend != initializedBackend
 
                 resetConversation(context)
                 currentModelPath = modelPath
-                Log.d("LLMManager", "Gemma 4 E2B Initialized successfully from $modelPath (backend=$activeBackendString)")
-
                 isPrewarmed = false
 
+                Log.i(
+                    TAG,
+                    "Engine ready: model=$modelPath backend=$initializedBackend " +
+                        "requested=$requestedBackend kernelCacheWarm=${KernelCacheManager.isWarm(context)}"
+                )
+
                 withContext(Dispatchers.Main) {
-                    val p = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    // Always preserve the user's explicit requested backend choice in preferences
-                    p.edit().putString("selected_model", modelPath).putString("backend_choice", requestedBackend).apply()
+                    prefs.edit()
+                        .putString(AssistantConfig.Prefs.SELECTED_MODEL, modelPath)
+                        // Preserve the user's stated preference; record separately what actually ran.
+                        .putString(AssistantConfig.Prefs.BACKEND_CHOICE, requestedBackend)
+                        .putString(AssistantConfig.Prefs.RESOLVED_BACKEND, initializedBackend)
+                        .apply()
                     callback?.onSuccess()
                 }
-
-                Log.i("LLMManager", "Skipping background prewarm on CPU backend to prevent SIGSEGV thread lockup.")
             } catch (e: Exception) {
-                Log.e("LLMManager", "Error initializing Gemma 4 E2B model", e)
+                Log.e(TAG, "Error initializing Gemma 4 E2B model", e)
                 withContext(Dispatchers.Main) { callback?.onError(e) }
             } finally {
                 isInitializing = false
             }
         }
     }
+
+    /** Configures and initializes a LiteRT engine on a single [backendName]. Throws on failure. */
+    @OptIn(ExperimentalApi::class)
+    private fun startEngine(context: Context, modelPath: String, backendName: String, maxTokens: Int) {
+        val backend = when (backendName) {
+            AssistantConfig.Backend.NPU -> Backend.NPU()
+            AssistantConfig.Backend.CPU -> Backend.CPU(threadCount = DeviceCapabilities.cpuCoreCount())
+            else -> Backend.GPU()
+        }
+
+        // Persistent cache dir so compiled OpenCL kernels survive reboots and storage cleanups;
+        // Context.cacheDir is evictable, which forced a full kernel recompile on every cold start.
+        val cacheDir = KernelCacheManager.prepare(context, modelPath, backendName)
+
+        Log.d(TAG, "Starting LiteRT engine model=$modelPath backend=$backendName cacheDir=$cacheDir")
+
+        // Speculative decoding / multi-token prediction is unstable for this model+runtime pairing.
+        ExperimentalFlags.enableSpeculativeDecoding = false
+
+        val engineConfig = EngineConfig(
+            modelPath = modelPath,
+            backend = backend,
+            maxNumTokens = maxTokens,
+            cacheDir = cacheDir
+        )
+
+        val created = Engine(engineConfig)
+        try {
+            created.initialize()
+        } catch (e: Throwable) {
+            try {
+                created.close()
+            } catch (closeError: Exception) {
+                Log.w(TAG, "Failed to close engine after failed initialize", closeError)
+            }
+            throw if (e is Exception) e else Exception(e)
+        }
+        engine = created
+    }
+
+    /** Closes the engine and conversation. Caller must hold [initMutex]. */
+    private fun closeEngineLocked() {
+        synchronized(inferenceLock) {
+            if (activeInferences > 0) {
+                Log.w(TAG, "Closing engine while $activeInferences inference(s) are in flight")
+            }
+            try {
+                conversation?.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to close conversation", e)
+            }
+            try {
+                engine?.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to close engine", e)
+            }
+            conversation = null
+            engine = null
+            activeInferences = 0
+        }
+    }
     suspend fun getSystemPrompt(context: android.content.Context, query: String = ""): String {
-        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
-        val customPrompt = prefs.getString("system_prompt", null)
-        
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        val customPrompt = prefs.getString(AssistantConfig.Prefs.SYSTEM_PROMPT, null)
+
         if (!customPrompt.isNullOrEmpty()) {
             return customPrompt
         }
-        
+
         return getDefaultSystemPrompt(context, query)
     }
-    
-    suspend fun getDynamicContext(context: android.content.Context, prompt: String): String {
-        return ""
-    }
-    
+
     suspend fun getDefaultSystemPrompt(context: android.content.Context, query: String = ""): String {
-        val prefs = context.getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)
         val storedMemory = MemoryManager.getLongTermMemory(context)
         val userMemory = if (storedMemory.isNotEmpty()) storedMemory else "None"
-        val isCompanionModeEnabled = prefs.getBoolean("companion_mode_enabled", true)
+        val isCompanionModeEnabled = prefs.getBoolean(AssistantConfig.Prefs.COMPANION_MODE, true)
         
         val basePrompt = StringBuilder()
         
@@ -258,99 +368,59 @@ object LLMManager {
         return basePrompt.toString().trimIndent()
     }
 
-    fun getNavigationExamples(): String {
-        return """
-            [Sightseeing Selection - Clear]
-            User: "The Louvre."
-            Assistant: <TOOL>navigate(Louvre Museum)</TOOL> Setting destination to the Louvre Museum.
-
-            [Direct Navigation]
-            User: "Navigate to the Airport"
-            Assistant: <TOOL>navigate(The Airport)</TOOL>
-        """.trimIndent()
-    }
-
     fun resetConversation(context: Context? = null) {
-        if (engine == null) return
-        
-        try {
-            conversation?.close()
-        } catch (e: Exception) {
-            Log.w("LLMManager", "Error closing previous conversation", e)
-        }
-        
-        lastAiResponse = ""
-        
-        val conversationConfig = ConversationConfig()
-        
-        try {
-            conversation = engine!!.createConversation(conversationConfig)
-            isFirstMessage = true
-            Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
-        } catch (e: Exception) {
-            Log.e("LLMManager", "Failed to reset conversation", e)
+        synchronized(inferenceLock) {
+            if (engine == null) return
+
+            try {
+                conversation?.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error closing previous conversation", e)
+            }
+            conversation = null
+            activeInferences = 0
+            lastAiResponse = ""
+
+            try {
+                conversation = engine?.createConversation(ConversationConfig())
+                isFirstMessage = true
+                Log.d(TAG, "Conversation reset. isFirstMessage=true.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to reset conversation", e)
+            }
         }
     }
 
     var isPrewarmed = false
 
-    suspend fun prewarm(context: Context) {
-        if (engine == null || conversation == null || isPrewarmed) return
-        
-        synchronized(this) {
-            if (isPrewarming) return
-            isPrewarming = true
-        }
-        withContext(Dispatchers.IO) {
-            try {
-                Log.d("LLMManager", "Starting background pre-warm sequence...")
-                val prewarmQuery = try {
-                    org.koin.java.KoinJavaComponent.getKoin()
-                        .get<com.tcs.vehicleassistant.ToolManager>().prewarmQuery
-                } catch (_: Exception) {
-                    "control climate music volume track navigation windows sightseeing food charging"
-                }
-                val sysPrompt = getSystemPrompt(context, prewarmQuery)
-                val prewarmPrompt = "$sysPrompt\n\nUser: Hello! System initialized."
-                
-                val done = kotlinx.coroutines.CompletableDeferred<Unit>()
-                conversation?.sendMessageAsync(Contents.of(Content.Text(prewarmPrompt)), object : com.google.ai.edge.litertlm.MessageCallback {
-                    override fun onMessage(message: com.google.ai.edge.litertlm.Message) {}
-                    override fun onDone() {
-                        Log.d("LLMManager", "Prewarm onDone called")
-                        isPrewarmed = true
-                        isFirstMessage = false
-                        done.complete(Unit)
-                    }
-                    override fun onError(throwable: Throwable) {
-                        Log.e("LLMManager", "Prewarm onError: ${throwable.message}", throwable)
-                        done.complete(Unit)
-                    }
-                }, emptyMap())
-
-                done.await()
-                Log.d("LLMManager", "Prewarm complete. KV cache populated.")
-            } catch (e: Exception) {
-                Log.e("LLMManager", "Prewarm failed", e)
-            } finally {
-                isPrewarming = false
+    /**
+     * Releases the native engine to reclaim RAM.
+     *
+     * Refuses to close while an inference is still inside the engine — memory-pressure callbacks
+     * and session teardown could otherwise free native state that a streaming callback was about
+     * to touch, crashing the process.
+     */
+    fun unload(): Boolean {
+        synchronized(inferenceLock) {
+            if (activeInferences > 0) {
+                Log.i(TAG, "Skipping unload: $activeInferences inference(s) still in flight.")
+                return false
             }
-        }
-    }
-
-    fun unload() {
-        try {
-            conversation?.close()
-            engine?.close()
-        } catch (e: Exception) {
-            Log.w("LLMManager", "Failed to cleanly close inference instance during unload.", e)
-        } finally {
-            conversation = null
-            engine = null
-            isFirstMessage = true
-            lastAiResponse = ""
-            System.gc()
-            Log.i("LLMManager", "LLM Model unloaded from memory to save resources.")
+            try {
+                conversation?.close()
+                engine?.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to cleanly close inference instance during unload.", e)
+            } finally {
+                conversation = null
+                engine = null
+                isFirstMessage = true
+                isPrewarmed = false
+                lastAiResponse = ""
+                activeInferences = 0
+                Log.i(TAG, "LLM model unloaded from memory to save resources.")
+            }
+            return true
         }
     }
 }
