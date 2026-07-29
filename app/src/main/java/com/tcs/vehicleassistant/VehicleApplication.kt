@@ -19,7 +19,7 @@ class VehicleApplication : Application() {
         startKoin {
             androidLogger()
             androidContext(this@VehicleApplication)
-            // ui_ux extension seam — keep appModule close to refactor; additive bindings here
+            // ui_ux extension seam
             modules(appModule, uiUxModule)
         }
 

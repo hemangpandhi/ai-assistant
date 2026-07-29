@@ -680,7 +680,7 @@ object VehicleManager {
 
 
     fun setTemperature(temp: Float) {
-        com.tcs.vehicleassistant.core.AgentRuntime.ioScope.launch {
+        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             writeTemperatureToVhalVerified(temp)
         }
     }

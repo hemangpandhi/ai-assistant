@@ -7,7 +7,7 @@ import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
-import com.tcs.vehicleassistant.controller.ViewModelEvent
+import com.tcs.vehicleassistant.controller.UiUxViewModelEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -46,10 +46,10 @@ internal class AssistantSessionIdleController(
                 launch {
                     viewModel.events.collect { event ->
                         when (event) {
-                            is ViewModelEvent.SetInputText -> {
+                            is UiUxViewModelEvent.SetInputText -> {
                                 if (event.text.isNotBlank()) noteActivity()
                             }
-                            is ViewModelEvent.StartListening -> {
+                            is UiUxViewModelEvent.StartListening -> {
                                 // Request only — idle arms when uiState reaches Listening (ready).
                             }
                             else -> Unit

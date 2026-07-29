@@ -5,25 +5,14 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
-import com.tcs.vehicleassistant.ToolManager
-import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
-import com.tcs.vehicleassistant.data.memory.MemoryManagerStore
-import com.tcs.vehicleassistant.domain.ExecuteToolUseCase
-import com.tcs.vehicleassistant.domain.QueryPipeline
-import com.tcs.vehicleassistant.domain.SpeechPresenter
-import com.tcs.vehicleassistant.domain.ToolLoop
 import com.tcs.vehicleassistant.hardware.IAudioManager
-import com.tcs.vehicleassistant.repository.uiux.OrchestratorEvent
-import com.tcs.vehicleassistant.repository.uiux.OrchestratorState
 import com.tcs.vehicleassistant.utils.ToolCallParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
 /**
- * Runs [UiUxAgentOrchestrator] inside LocalLLMActivity with optional TTS and chat UI callbacks.
- * Prefers the Koin-shared orchestrator when available; otherwise builds a bridge-scoped instance
- * (in-app TTS uses a different [IAudioManager]).
+ * Runs [AgentOrchestrator] inside LocalLLMActivity with optional TTS and chat UI callbacks.
  */
 class InAppOrchestratorBridge(
     context: Context,

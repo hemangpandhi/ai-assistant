@@ -38,8 +38,8 @@ class UiUxAssistantViewModel(
     private val _liveTranscript = MutableStateFlow("")
     val liveTranscript: StateFlow<String> = _liveTranscript.asStateFlow()
 
-    private val _events = MutableSharedFlow<ViewModelEvent>(extraBufferCapacity = 32)
-    val events: SharedFlow<ViewModelEvent> = _events.asSharedFlow()
+    private val _events = MutableSharedFlow<UiUxViewModelEvent>(extraBufferCapacity = 32)
+    val events: SharedFlow<UiUxViewModelEvent> = _events.asSharedFlow()
 
     init {
         audioManager.setRecognitionListener(
@@ -63,7 +63,7 @@ class UiUxAssistantViewModel(
                 // Phase A: utterance text committed (transcript + input).
                 audioManager.stopSpeaking()
                 _liveTranscript.value = spokenText
-                _events.tryEmit(ViewModelEvent.SetInputText(spokenText))
+                _events.tryEmit(UiUxViewModelEvent.SetInputText(spokenText))
                 // Phase B: FollowUp / LLM on agent dispatcher — does not block re-listen.
                 dispatch(AssistantUiIntent.SubmitQuery(spokenText))
             },
@@ -74,7 +74,7 @@ class UiUxAssistantViewModel(
                 // Soft miss — keep session open and re-arm ear.
                 _uiState.value = AssistantUiState.Listening()
                 if (!audioManager.isActivelyListening()) {
-                    _events.tryEmit(ViewModelEvent.StartListening)
+                    _events.tryEmit(UiUxViewModelEvent.StartListening)
                 }
             },
             onError = { errorCode ->
@@ -87,7 +87,7 @@ class UiUxAssistantViewModel(
                         _liveTranscript.value = ""
                         _uiState.value = AssistantUiState.Listening()
                         if (!audioManager.isActivelyListening()) {
-                            _events.tryEmit(ViewModelEvent.StartListening)
+                            _events.tryEmit(UiUxViewModelEvent.StartListening)
                         }
                     }
                     recoverable -> {
@@ -106,7 +106,7 @@ class UiUxAssistantViewModel(
                         if (!busy) {
                             _uiState.value = AssistantUiState.Listening()
                             if (!audioManager.isActivelyListening()) {
-                                _events.tryEmit(ViewModelEvent.StartListening)
+                                _events.tryEmit(UiUxViewModelEvent.StartListening)
                             }
                         }
                     }
@@ -115,7 +115,7 @@ class UiUxAssistantViewModel(
                         _uiState.value = AssistantUiState.Error(errorMsg)
                         viewModelScope.launch {
                             delay(2000)
-                            _events.tryEmit(ViewModelEvent.FinishSession)
+                            _events.tryEmit(UiUxViewModelEvent.FinishSession)
                         }
                     }
                 }
@@ -125,7 +125,7 @@ class UiUxAssistantViewModel(
                     SpeculativeToolPrep.onPartial(partialText)
                     audioManager.setEndpointingProfile(EndpointingProfileSelector.forPartial(partialText))
                     _liveTranscript.value = partialText
-                    _events.tryEmit(ViewModelEvent.SetInputText(partialText))
+                    _events.tryEmit(UiUxViewModelEvent.SetInputText(partialText))
                 }
             }
         )
@@ -152,13 +152,13 @@ class UiUxAssistantViewModel(
         viewModelScope.launch {
             orchestrator.events.collect { event ->
                 when (event) {
-                    is OrchestratorEvent.ShowToast -> _events.tryEmit(ViewModelEvent.ShowToast(event.message))
-                    is OrchestratorEvent.SetInputEnabled -> _events.tryEmit(ViewModelEvent.SetInputEnabled(event.enabled))
-                    is OrchestratorEvent.LaunchIntent -> _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))
-                    is OrchestratorEvent.StartListening -> _events.tryEmit(ViewModelEvent.StartListening)
-                    is OrchestratorEvent.FinishSession -> _events.tryEmit(ViewModelEvent.FinishSession)
+                    is OrchestratorEvent.ShowToast -> _events.tryEmit(UiUxViewModelEvent.ShowToast(event.message))
+                    is OrchestratorEvent.SetInputEnabled -> _events.tryEmit(UiUxViewModelEvent.SetInputEnabled(event.enabled))
+                    is OrchestratorEvent.LaunchIntent -> _events.tryEmit(UiUxViewModelEvent.LaunchIntent(event.intent))
+                    is OrchestratorEvent.StartListening -> _events.tryEmit(UiUxViewModelEvent.StartListening)
+                    is OrchestratorEvent.FinishSession -> _events.tryEmit(UiUxViewModelEvent.FinishSession)
                     is OrchestratorEvent.AffectiveMood ->
-                        _events.tryEmit(ViewModelEvent.AffectiveMood(event.mood))
+                        _events.tryEmit(UiUxViewModelEvent.AffectiveMood(event.mood))
                 }
             }
         }

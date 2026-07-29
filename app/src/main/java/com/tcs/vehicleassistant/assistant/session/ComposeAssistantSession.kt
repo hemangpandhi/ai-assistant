@@ -38,10 +38,10 @@ import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
-import com.tcs.vehicleassistant.controller.ViewModelEvent
+import com.tcs.vehicleassistant.controller.UiUxViewModelEvent
 import com.tcs.vehicleassistant.hardware.AssistantAudioFocusDucker
 import com.tcs.vehicleassistant.hardware.SessionAudioPort
-import com.tcs.vehicleassistant.service.VehicleAgentService
+import com.tcs.vehicleassistant.service.UiUxVehicleAgentService
 import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -74,7 +74,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private var audioManager: SessionAudioPort? = null
     private var viewModel: UiUxAssistantViewModel? = null
-    private var agentService: VehicleAgentService? = null
+    private var agentService: UiUxVehicleAgentService? = null
     private var isBound = false
     private var usingComposeUi = true
     private var currentUiToken: String = ""
@@ -132,10 +132,10 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as VehicleAgentService.LocalBinder
+            val binder = service as UiUxVehicleAgentService.LocalBinder
             agentService = binder.getService()
             isBound = true
-            viewModel = agentService?.uiUxViewModel
+            viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
             AssistantRuntime.backend?.asMicController()?.attachSession(
                 viewModel,
@@ -232,7 +232,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private fun bindAgentService() {
         if (isBound) return
-        val intent = Intent(context, VehicleAgentService::class.java)
+        val intent = Intent(context, UiUxVehicleAgentService::class.java)
         runCatching {
             context.startForegroundService(intent)
             context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
@@ -467,7 +467,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         observerScope.launch {
             viewModel?.events?.collect { event ->
                 when (event) {
-                    is ViewModelEvent.LaunchIntent -> {
+                    is UiUxViewModelEvent.LaunchIntent -> {
                         try {
                             event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.applicationContext.startActivity(event.intent)
@@ -478,7 +478,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         // Calling hide() first cleared sessionUiVisible and skipped finish().
                         dismissForExternalUi("compose-launch-intent")
                     }
-                    is ViewModelEvent.ShowToast ->
+                    is UiUxViewModelEvent.ShowToast ->
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     else -> Unit
                 }
@@ -535,7 +535,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         observerScope.launch {
             viewModel?.events?.collect { event ->
                 when (event) {
-                    is ViewModelEvent.LaunchIntent -> {
+                    is UiUxViewModelEvent.LaunchIntent -> {
                         try {
                             event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             this@ComposeAssistantSession.startVoiceActivity(event.intent)
@@ -550,16 +550,16 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         }
                         dismissForExternalUi("xml-launch-intent")
                     }
-                    is ViewModelEvent.FinishSession -> finish()
-                    is ViewModelEvent.StartListening -> btnMic?.performClick()
-                    is ViewModelEvent.ShowToast ->
+                    is UiUxViewModelEvent.FinishSession -> finish()
+                    is UiUxViewModelEvent.StartListening -> btnMic?.performClick()
+                    is UiUxViewModelEvent.ShowToast ->
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
-                    is ViewModelEvent.SetInputEnabled -> {
+                    is UiUxViewModelEvent.SetInputEnabled -> {
                         btnSend?.isEnabled = event.enabled
                         btnMic?.isEnabled = event.enabled
                     }
-                    is ViewModelEvent.SetInputText -> etInput?.setText(event.text)
-                    is ViewModelEvent.AffectiveMood -> Unit // Compose path owns face mood
+                    is UiUxViewModelEvent.SetInputText -> etInput?.setText(event.text)
+                    is UiUxViewModelEvent.AffectiveMood -> Unit // Compose path owns face mood
                 }
             }
         }
