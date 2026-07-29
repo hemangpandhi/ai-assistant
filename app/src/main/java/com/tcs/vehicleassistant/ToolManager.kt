@@ -29,7 +29,6 @@ class ToolManager {
         private const val MAX_PROMPT_TOOLS = 8
     }
 
-    
     data class Constraint(
         val propertyId: Int,
         val operator: String,
@@ -65,6 +64,12 @@ class ToolManager {
     /** BM25 index over the tool catalogue, rebuilt whenever the registry is (re)loaded. */
     private var retrievalIndex: List<ToolRetriever.Document> = emptyList()
 
+    /**
+     * Whole-word matchers per tool, compiled once at load time. Building them per query meant
+     * compiling a regex for every keyword of every tool on every turn.
+     */
+    private var keywordMatchers: Map<String, List<Regex>> = emptyMap()
+
     var isInitialized = false
         private set
 
@@ -74,13 +79,11 @@ class ToolManager {
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
-            val inputStream = context.assets.open("vehicle_skills_registry.json")
-            val size = inputStream.available()
-            val buffer = ByteArray(size)
-            inputStream.read(buffer)
-            inputStream.close()
-            
-            val jsonStr = String(buffer, Charsets.UTF_8)
+            // readBytes() drains the stream; available() plus a single read() can silently truncate
+            // the registry, which parses as a JSONException rather than as a short read.
+            val jsonStr = context.assets.open("vehicle_skills_registry.json").use { input ->
+                input.readBytes().toString(Charsets.UTF_8)
+            }
             val jsonObject = JSONObject(jsonStr)
 
             if (jsonObject.has("config")) {
@@ -169,6 +172,7 @@ class ToolManager {
                 }
             }
             retrievalIndex = buildRetrievalIndex()
+            keywordMatchers = buildKeywordMatchers()
             isInitialized = true
             Log.i(TAG, "Registered ${activeTools.size} tools; BM25 index holds ${retrievalIndex.size} documents.")
         } catch (e: Exception) {
@@ -186,6 +190,11 @@ class ToolManager {
         )
     }
 
+    private fun buildKeywordMatchers(): Map<String, List<Regex>> = activeTools.mapValues { (_, tool) ->
+        // Aliases are already merged into keywords when the registry is parsed.
+        tool.keywords.orEmpty().map { Regex("""\b${Regex.escape(it)}\b""") }
+    }
+
     /**
      * Tool retrieval for prompt construction, in three tiers:
      *
@@ -194,53 +203,53 @@ class ToolManager {
      *    because the current turn carries no routable nouns of its own.
      * 3. BM25 ranking over the whole catalogue, used only when the first two tiers find nothing.
      *
-     * Core tools stay pinned so the model can always stop music or nudge the temperature, and an
-     * empty result is never returned for a non-blank query.
+     * Core tools are appended in every case so the model can always stop music or nudge the
+     * temperature, and the result is never empty for a non-blank query.
      */
     fun getRelevantTools(userQuery: String, conversationalContext: String = ""): List<ToolDefinition> {
         val combinedQuery = "$conversationalContext $userQuery".trim()
         if (combinedQuery.isBlank()) return activeTools.values.toList()
 
         val userTurn = userQuery.lowercase()
-
-        val userTurnMatches = matchByKeyword(userTurn)
-        val exactMatches = userTurnMatches.ifEmpty { matchByKeyword(combinedQuery.lowercase()) }.toMutableList()
+        val lexical = mutableListOf<ToolDefinition>()
 
         // Short follow-ups rely on the prior assistant context for tool routing.
-        val contextTools = if (conversationalContext.isNotBlank() &&
+        if (conversationalContext.isNotBlank() &&
             MemoryManager.isFollowUpQuery(userQuery, conversationalContext)
         ) {
-            matchByKeyword(conversationalContext.lowercase())
-        } else {
-            emptyList()
+            lexical += matchByKeyword(conversationalContext.lowercase())
         }
+
+        // Prefer keywords in the current turn; fall back to the turn plus its context.
+        lexical += matchByKeyword(userTurn).ifEmpty { matchByKeyword(combinedQuery.lowercase()) }
 
         // Bare numbers and "degrees" only make sense as a climate setpoint.
         if (TEMPERATURE_VALUE.containsMatchIn(userTurn) ||
             userTurn.contains("degrees") ||
             TEMPERATURE_FAHRENHEIT.containsMatchIn(userTurn)
         ) {
-            exactMatches += activeTools.values.filter {
+            lexical += activeTools.values.filter {
                 it.handlerKey?.contains("Temperature", ignoreCase = true) == true
             }
         }
 
-        val coreTools = activeTools.values.filter { it.handlerKey in CORE_HANDLER_KEYS }
-        val matched = (contextTools + exactMatches + coreTools).distinct()
-        if (matched.isNotEmpty()) return matched
+        // Nothing matched lexically: rank the catalogue instead. Ranking only the user turn keeps
+        // history from swamping the scores, and a small top-K keeps the prompt short enough for the
+        // edge model's context window. Note this runs before core tools are added, since those
+        // would otherwise make the retrieved set look non-empty for every query.
+        val retrieved = lexical.ifEmpty {
+            ToolRetriever.rank(userQuery, retrievalIndex, BM25_TOP_K).mapNotNull { activeTools[it.id] }
+        }
 
-        // Nothing matched lexically: fall back to BM25 over the catalogue. Ranking only the user
-        // turn keeps history from swamping the scores, and a small top-K keeps the prompt short
-        // enough for the edge model's context window.
-        val ranked = ToolRetriever.rank(userQuery, retrievalIndex, BM25_TOP_K)
-            .mapNotNull { activeTools[it.id] }
-        return ranked.ifEmpty { activeTools.values.take(BM25_TOP_K).toList() }
+        val coreTools = activeTools.values.filter { it.handlerKey in CORE_HANDLER_KEYS }
+        return (retrieved + coreTools).distinct()
+            .ifEmpty { activeTools.values.take(MAX_PROMPT_TOOLS).toList() }
     }
 
     private fun matchByKeyword(haystack: String): List<ToolDefinition> =
-        activeTools.values.filter { tool ->
-            tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(haystack) } == true
-        }
+        activeTools.entries
+            .filter { (name, _) -> keywordMatchers[name]?.any { it.containsMatchIn(haystack) } == true }
+            .map { it.value }
 
     fun getToolDefinition(rawToolCall: String): ToolDefinition? {
         val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>|<\\|tool_call>call:"), "").trim()
