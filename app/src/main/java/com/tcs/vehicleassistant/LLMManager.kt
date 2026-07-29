@@ -130,7 +130,7 @@ object LLMManager {
                     else -> { activeBackendString = "GPU"; Backend.GPU() }
                 }
 
-                Log.d("LLMManager", "Initializing LiteRT Engine for Gemma 4 E2B from: $modelPath on backend: $activeBackendString (maxTokens=$maxTokens)")
+                Log.d("LLMManager", "Initializing LiteRT Engine for Gemma 4 E2B from: $modelPath on backend: $activeBackendString (user preference=$requestedBackend)")
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
@@ -152,7 +152,8 @@ object LLMManager {
 
                 withContext(Dispatchers.Main) {
                     val p = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                    p.edit().putString("selected_model", modelPath).putString("backend_choice", activeBackendString).apply()
+                    // Always preserve the user's explicit requested backend choice in preferences
+                    p.edit().putString("selected_model", modelPath).putString("backend_choice", requestedBackend).apply()
                     callback?.onSuccess()
                 }
 
