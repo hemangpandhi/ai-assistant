@@ -90,6 +90,7 @@
 
         <activity
             android:name=".LocalLLMActivity"
+            android:screenOrientation="reverseLandscape"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -123,7 +124,7 @@
                  
         <activity
             android:name=".CockpitAwarenessActivity"
-            android:screenOrientation="sensorLandscape"
+            android:screenOrientation="reverseLandscape"
             android:exported="true" />
 
         <service android:name=".vision.CockpitVisionService"
