@@ -153,7 +153,7 @@ class WakeWordService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.app_display_name))
             .setContentText(getString(R.string.wake_word_notification_text, wakeWord))
-            .setSmallIcon(R.drawable.ic_ai_assistant)
+            .setSmallIcon(R.drawable.ic_notification_waveform)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }
