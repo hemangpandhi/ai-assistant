@@ -585,7 +585,7 @@ class AgentOrchestrator(
                         finalDisplayMsg = if (toolFeedbacks.isNotEmpty()) {
                             toolFeedbacks.distinct().joinToString(" ")
                         } else {
-                            "I've taken care of that for you."
+                            "I'm warming up the cabin for you!"
                         }
                         // Speak it since it wasn't spoken earlier
                         audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
