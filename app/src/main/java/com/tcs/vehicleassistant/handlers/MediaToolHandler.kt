@@ -213,54 +213,24 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
             "setVolumeLevel" -> {
                 val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                 val argStr = toolCall.substringAfter("(").substringBefore(")").replace("\"", "").trim()
-                
-                if (argStr.isBlank() || argStr.equals("UP", ignoreCase = true) || argStr.equals("DOWN", ignoreCase = true)) {
-                    val isDecrease = toolCall.contains("decrease", ignoreCase = true) || argStr.equals("DOWN", ignoreCase = true)
-                    val direction = if (isDecrease) android.media.AudioManager.ADJUST_LOWER else android.media.AudioManager.ADJUST_RAISE
-                    audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, direction, 0)
-                    
-                    val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                    val newVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                    val percentage = Math.round((newVol.toFloat() / maxVol) * 100)
-                    return ToolExecutionResult(true, "I've set the volume to $percentage%.")
-                }
-
                 val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
                 val curVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                var targetVol = curVol
+                val plan = VolumeLevelResolver.plan(argStr, curVol, maxVol, toolCall)
 
-                if (argStr.equals("MAX", ignoreCase = true)) {
-                    targetVol = maxVol
-                } else if (argStr.startsWith("+") || argStr.startsWith("-")) {
-                    val hasPercentSign = argStr.contains("%")
-                    val parsedNum = argStr.replace("%", "").toIntOrNull() ?: 0
-                    val delta = if (hasPercentSign || Math.abs(parsedNum) > maxVol) {
-                        Math.round((parsedNum / 100f) * maxVol).toInt()
-                    } else {
-                        parsedNum
-                    }
-                    targetVol = Math.max(0, Math.min(maxVol, curVol + delta))
-                } else {
-                    val hasPercentSign = argStr.contains("%")
-                    val parsedNum = argStr.replace("%", "").replace("+", "").toIntOrNull()
-                    if (parsedNum != null) {
-                        if (hasPercentSign || parsedNum > maxVol) {
-                            // Treat as percentage
-                            targetVol = Math.round((parsedNum / 100f) * maxVol).toInt()
-                        } else {
-                            // Treat as absolute hardware index
-                            targetVol = parsedNum
-                        }
-                        targetVol = Math.max(0, Math.min(maxVol, targetVol))
-                    } else {
-                        val isDecrease = toolCall.contains("decrease", ignoreCase = true)
-                        targetVol = if (isDecrease) Math.max(0, curVol - 1) else Math.min(maxVol, curVol + 1)
-                    }
+                // Always write an absolute index. adjustStreamVolume(ADJUST_RAISE) is a silent
+                // no-op on some Automotive / multi-user builds, which made "increase volume"
+                // report the unchanged ~5% level as if it had been set.
+                if (plan.targetIndex != curVol) {
+                    audioManager.setStreamVolume(
+                        android.media.AudioManager.STREAM_MUSIC,
+                        plan.targetIndex,
+                        0,
+                    )
                 }
-
-                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVol, 0)
-                val finalPercentage = Math.round((targetVol.toFloat() / maxVol) * 100)
-                ToolExecutionResult(true, "I've set the volume to $finalPercentage%.")
+                val applied = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
+                val message = VolumeLevelResolver.feedback(plan, applied)
+                val success = applied != curVol || plan.targetIndex == curVol
+                ToolExecutionResult(success, message)
             }
             else -> ToolExecutionResult(false, "System Error: Media Handler not recognized.")
         }

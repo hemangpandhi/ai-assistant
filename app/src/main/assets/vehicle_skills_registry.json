@@ -1411,6 +1411,12 @@
         "what is the weather",
         "whats the weather",
         "what's the weather",
+        "whats the current weather",
+        "what's the current weather",
+        "what is the current weather",
+        "current weather",
+        "how is the weather",
+        "how's the weather",
         "weather forecast",
         "weather in",
         "outside temperature",
@@ -1420,7 +1426,7 @@
       "offline_capable": false,
       "requires_vehicle_state": false,
       "direct_executable": true,
-      "success_message": "I've opened the weather for you."
+      "success_message": "Here's the current weather."
     },
     {
       "description": "Searches for nearby amenities like restaurants, gas stations, charging stations, and food. Use this when the user is looking for nearby places and you want to offer them choices in the chat.",

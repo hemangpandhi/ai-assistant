@@ -637,10 +637,13 @@ class AgentOrchestrator(
                 "[Internal Vehicle Telemetry (Do NOT speak or repeat to user): $dynamicState]"
             } else ""
 
-            val stateInject = if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
+            val visionContext = com.tcs.vehicleassistant.vision.VisionState.getVisionContextString()
+            val visionStateInject = "[Vision Context (Do NOT speak or repeat to user): $visionContext]\n"
+
+            val stateInject = (if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
                 LLMManager.lastVehicleState = vehicleState
                 "$vehicleState\n"
-            } else ""
+            } else "") + visionStateInject
 
             val isLlama = LLMManager.currentModelPath?.contains("llama", ignoreCase = true) == true && LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == false
 
@@ -821,7 +824,6 @@ class AgentOrchestrator(
                                 pendingConfirmationTool = toolCall
                             } else {
                                 val job = scope.async(Dispatchers.IO) {
-                                    audioManager.waitUntilFinishedSpeaking()
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
                                         when (val decision = evaluateContextGuard(toolCall)) {
                                             is ContextGuard.Decision.Confirm -> {
@@ -994,7 +996,7 @@ class AgentOrchestrator(
                         MemoryManager.turnCount() > AssistantConfig.Llm.CONVERSATION_RESET_TURNS
                     ) {
                         if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context)) {
-                            MemoryManager.clearMemory()
+                            android.util.Log.i(TAG, "Native conversation reset; string memory retained for sliding window.")
                         } else {
                             android.util.Log.w(TAG, "Deferred conversation reset; inference still active")
                         }

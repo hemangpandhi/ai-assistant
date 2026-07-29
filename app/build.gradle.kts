@@ -107,10 +107,13 @@ android {
             )
         }
         jniLibs {
-            useLegacyPackaging = true
+            // AGP 8.5.1+: store .so uncompressed + 16 KB zip-aligned (required on 16 KB page devices).
+            // Legacy compressed packaging was hiding zip-align issues but still extracted 4 KB ELF libs.
+            useLegacyPackaging = false
             pickFirsts.add("lib/**/libLiteRt.so")
             pickFirsts.add("**/libLiteRt.so")
             pickFirsts.add("**/libonnxruntime.so")
+            pickFirsts.add("**/libc++_shared.so")
         }
     }
     // AGP 8.3 defaults to JaCoCo 0.8.8, whose ASM cannot read the Java 21 class files the
@@ -127,8 +130,9 @@ jacoco {
 }
 
 dependencies {
-    implementation("org.tensorflow:tensorflow-lite:2.13.0")
-    implementation("com.google.mediapipe:tasks-vision:0.10.14")
+    // LiteRT ships 16 KB–aligned libtensorflowlite_jni (classic TFLite 2.13–2.16 are still 4 KB).
+    implementation("com.google.ai.edge.litert:litert:1.4.0")
+    implementation("com.google.mediapipe:tasks-vision:0.10.26")
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
@@ -153,12 +157,12 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.14.0")
 
-    // Vosk Offline Speech Recognition for Wake Word
-    implementation("com.alphacephei:vosk-android:0.3.47@aar")
+    // Vosk Offline Speech Recognition for Wake Word (0.3.75+ is 16 KB ELF-aligned)
+    implementation("com.alphacephei:vosk-android:0.3.75@aar")
     implementation("net.java.dev.jna:jna:5.13.0@aar")
     
-    // CameraX
-    val cameraxVersion = "1.3.1"
+    // CameraX (1.4.2+ ships 16 KB–aligned image_processing_util_jni)
+    val cameraxVersion = "1.4.2"
     implementation("androidx.camera:camera-core:$cameraxVersion")
     implementation("androidx.camera:camera-camera2:$cameraxVersion")
     implementation("androidx.camera:camera-lifecycle:$cameraxVersion")

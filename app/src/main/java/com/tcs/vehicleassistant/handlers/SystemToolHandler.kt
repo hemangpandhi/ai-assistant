@@ -44,28 +44,41 @@ class SystemToolHandler(
             }
             "getWeather" -> {
                 var city = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
-                if (city.isBlank() ||
+                val useHere = city.isBlank() ||
                     city.equals("CITY", ignoreCase = true) ||
                     city.equals("here", ignoreCase = true) ||
                     city.equals("current", ignoreCase = true)
-                ) {
+                if (useHere) {
                     city = try {
                         LocationManager.getCurrentCity(context).ifBlank { "your area" }
                     } catch (_: Exception) {
                         "your area"
                     }
                 }
-                // Do not invent temperatures. Open a search the driver can trust instead.
-                val intent = Intent(Intent.ACTION_WEB_SEARCH)
-                intent.putExtra(SearchManager.QUERY, "weather in $city")
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                return try {
-                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
-                    ToolExecutionResult(true, "I've opened the weather for $city.")
+                val (lon, lat) = try {
+                    LocationManager.getCoordinates(context)
                 } catch (_: Exception) {
+                    Pair(Double.NaN, Double.NaN)
+                }
+                val point = WeatherApiClient.resolveLocation(
+                    cityOrHere = if (useHere) "here" else city,
+                    fallbackLat = lat.takeUnless { it.isNaN() },
+                    fallbackLon = lon.takeUnless { it.isNaN() },
+                    fallbackLabel = city,
+                )
+                if (point == null) {
+                    return ToolExecutionResult(
+                        false,
+                        "I couldn't find a location for the weather request.",
+                    )
+                }
+                val weather = WeatherApiClient.fetchCurrent(point)
+                return if (weather != null) {
+                    ToolExecutionResult(true, WeatherApiClient.formatSpoken(weather))
+                } else {
                     ToolExecutionResult(
                         false,
-                        "I don't have a live weather feed on this build, and couldn't open a search for $city."
+                        "I couldn't reach the weather service for ${point.label} right now. Please try again in a moment.",
                     )
                 }
             }
