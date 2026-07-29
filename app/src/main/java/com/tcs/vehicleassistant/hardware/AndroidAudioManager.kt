@@ -93,31 +93,55 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     private fun initSpeechRecognizer() {
         if (sherpaRecognizer != null) return
+
+        // Try Whisper Base (74M params, much more accurate) from device filesystem first
+        val baseEncoder = java.io.File("/data/local/tmp/stt/base.en-encoder.int8.onnx")
+        val baseDecoder = java.io.File("/data/local/tmp/stt/base.en-decoder.int8.onnx")
+        val baseTokens = java.io.File("/data/local/tmp/stt/base.en-tokens.txt")
+        val useBase = baseEncoder.exists() && baseDecoder.exists() && baseTokens.exists()
+
         try {
-            val whisperConfig = OfflineWhisperModelConfig(
-                encoder = "sherpa-onnx-whisper/tiny.en-encoder.onnx",
-                decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
-                language = "en",
-                task = "transcribe",
-                tailPaddings = -1
-            )
-            val modelConfig = OfflineModelConfig(
-                whisper = whisperConfig,
-                tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
-                numThreads = 4,
-                debug = false,
-                provider = "cpu",
-                modelType = "whisper"
-            )
-            val featConfig = FeatureConfig(
-                sampleRate = 16000,
-                featureDim = 80
-            )
-            val config = OfflineRecognizerConfig(
-                featConfig = featConfig,
-                modelConfig = modelConfig
-            )
-            sherpaRecognizer = OfflineRecognizer(context.assets, config)
+            if (useBase) {
+                android.util.Log.i("AndroidAudioManager", "Using Whisper Base model (high accuracy)")
+                val whisperConfig = OfflineWhisperModelConfig(
+                    encoder = baseEncoder.absolutePath,
+                    decoder = baseDecoder.absolutePath,
+                    language = "en",
+                    task = "transcribe",
+                    tailPaddings = -1
+                )
+                val modelConfig = OfflineModelConfig(
+                    whisper = whisperConfig,
+                    tokens = baseTokens.absolutePath,
+                    numThreads = 4,
+                    debug = false,
+                    provider = "cpu",
+                    modelType = "whisper"
+                )
+                val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
+                val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)
+                sherpaRecognizer = OfflineRecognizer(context.assets, config)
+            } else {
+                android.util.Log.w("AndroidAudioManager", "Whisper Base not found, falling back to Tiny from assets")
+                val whisperConfig = OfflineWhisperModelConfig(
+                    encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
+                    decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
+                    language = "en",
+                    task = "transcribe",
+                    tailPaddings = -1
+                )
+                val modelConfig = OfflineModelConfig(
+                    whisper = whisperConfig,
+                    tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
+                    numThreads = 4,
+                    debug = false,
+                    provider = "cpu",
+                    modelType = "whisper"
+                )
+                val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
+                val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)
+                sherpaRecognizer = OfflineRecognizer(context.assets, config)
+            }
         } catch (e: Exception) {
             android.util.Log.e("AndroidAudioManager", "Failed to init Sherpa-ONNX: ${e.message}", e)
         }
@@ -226,10 +250,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                                 val floatArray = audioBuffer.toFloatArray()
                                 stream.acceptWaveform(floatArray, 16000)
                                 sherpaRecognizer?.decode(stream)
-                                val rawResult = sherpaRecognizer?.getResult(stream)?.text ?: ""
+                                val result = sherpaRecognizer?.getResult(stream)?.text?.trim() ?: ""
                                 stream.release()
-                                val result = postProcessSttResult(rawResult)
-                                android.util.Log.d("AndroidAudioManager", "STT raw='$rawResult' corrected='$result'")
+                                android.util.Log.d("AndroidAudioManager", "STT result='$result'")
                                 
                                 withContext(Dispatchers.Main) {
                                     if (result.isNotBlank()) {
@@ -265,32 +288,6 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
-    /**
-     * Post-process STT results to correct common Whisper misrecognitions.
-     * Whisper Tiny INT8 frequently confuses short command words in noisy car environments.
-     */
-    private fun postProcessSttResult(raw: String): String {
-        var text = raw.trim()
-        
-        // Common misrecognitions of "increase" → "in christan", "in the", "in crease", "in chris", etc.
-        text = text.replace(Regex("\\bin\\s*(the|christan|christian|chris|crease|creased|creas)\\b", RegexOption.IGNORE_CASE), "increase")
-        
-        // Common misrecognitions of "decrease" → "the crease", "de crease", "decrees", etc.
-        text = text.replace(Regex("\\b(the\\s*crease|de\\s*crease|decrees|decree)\\b", RegexOption.IGNORE_CASE), "decrease")
-        
-        // Common misrecognitions of "navigate" → "navi gate", "navvy gate", etc.
-        text = text.replace(Regex("\\b(navi\\s*gate|navvy\\s*gate|never\\s*gate)\\b", RegexOption.IGNORE_CASE), "navigate")
-        
-        // Common misrecognitions of "play music" → "play muse", "play mew sick", etc.
-        text = text.replace(Regex("\\bplay\\s*(muse|mew\\s*sick|mew\\s*sic)\\b", RegexOption.IGNORE_CASE), "play music")
-        
-        // Common misrecognitions of "volume" → "valet", "volley", etc.
-        text = text.replace(Regex("\\b(valet|volley)\\s*(up|down)\\b", RegexOption.IGNORE_CASE)) { mr ->
-            "volume ${mr.groupValues[2]}"
-        }
-
-        return text.trim()
-    }
 
     override fun stopListening() {
         if (!isListening) return
