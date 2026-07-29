@@ -150,9 +150,6 @@ object LLMManager {
             } catch (e: Exception) {
                 Log.e("LLMManager", "Error initializing Gemma 4 E2B model", e)
                 withContext(Dispatchers.Main) { callback?.onError(e) }
-            }
-                    withContext(Dispatchers.Main) { callback?.onError(e) }
-                }
             } finally {
                 isInitializing = false
             }
