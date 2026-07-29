@@ -158,6 +158,95 @@
         <service android:name=".vision.CockpitVisionService"
                  android:foregroundServiceType="camera"
                  android:exported="false" />
+
+        <!-- Compose design assistant entry points (UI decoupled from agent core) -->
+        <activity
+            android:name=".assistant.UiUxOverlayActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.OPEN_UIUX_OVERLAY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.assistant.ui.assistant.entry.VirtualAssistantActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.OPEN_ASSISTANT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.assistant.ui.assistant.ui.gallery.AssistantUiGalleryActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.OPEN_ASSISTANT_GALLERY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.assistant.ui.assistant.ui.overlay.AssistantOverlayBootstrapActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.START_ASSISTANT_OVERLAY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="com.assistant.ui.assistant.ui.immersive.ImmersiveAssistantOverlayService"
+            android:exported="true" />
+
+        <service
+            android:name="com.assistant.ui.assistant.ui.overlay.AssistantOverlayService"
+            android:exported="false" />
+
+        <receiver
+            android:name="com.assistant.ui.assistant.face.AssistantFaceReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_FACE" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_FACE" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.assistant.ui.assistant.api.AssistantDebugStripReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_DEBUG_STRIP" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_DEBUG_STRIP" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".assistant.AssistantUiProfileReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.SET_ASSISTANT_UI" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_ASSISTANT_UI" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".assistant.AssistantIdleTimeoutReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.SET_IDLE_TIMEOUT" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_IDLE_TIMEOUT" />
+            </intent-filter>
+        </receiver>
                  
         <service android:name="audio.soniqo.speech.service.SpeechRecognitionService"
                  android:permission="android.permission.BIND_RECOGNITION_SERVICE"
