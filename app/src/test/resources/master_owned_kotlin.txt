@@ -36,6 +36,7 @@ app/src/main/java/com/tcs/vehicleassistant/hardware/AAOSUserSwitchManager.kt
 app/src/main/java/com/tcs/vehicleassistant/hardware/AndroidAudioManager.kt
 app/src/main/java/com/tcs/vehicleassistant/hardware/CabinCameraManager.kt
 app/src/main/java/com/tcs/vehicleassistant/hardware/IAudioManager.kt
+app/src/main/java/com/tcs/vehicleassistant/hardware/SherpaKwsManager.kt
 app/src/main/java/com/tcs/vehicleassistant/hardware/SoniqoTest.kt
 app/src/main/java/com/tcs/vehicleassistant/hardware/Test.kt
 app/src/main/java/com/tcs/vehicleassistant/LatencyLogger.kt
