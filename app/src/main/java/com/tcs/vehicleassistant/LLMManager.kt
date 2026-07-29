@@ -79,10 +79,12 @@ object LLMManager {
             }
 
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            prefs.edit().putString("selected_model", modelFile.absolutePath).putString("backend_choice", "CPU").apply()
+            val savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
+            val targetBackend = if (backendChoice != "Auto") backendChoice else savedBackendChoice
+            prefs.edit().putString("selected_model", modelFile.absolutePath).apply()
 
             if (modelFile.exists() && modelFile.length() > 0) {
-                initialize(context, modelFile.absolutePath, force, "CPU", callback)
+                initialize(context, modelFile.absolutePath, force, targetBackend, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("Gemma model not found at ${modelFile.absolutePath}")) }
             }
@@ -91,7 +93,7 @@ object LLMManager {
     private val initMutex = kotlinx.coroutines.sync.Mutex()
 
     @OptIn(ExperimentalApi::class)
-    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "CPU", callback: InitCallback? = null) {
+    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
         initMutex.withLock {
             if (!force && engine != null && currentModelPath == modelPath) {
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
@@ -101,9 +103,14 @@ object LLMManager {
             try {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Set max tokens to 1024 to match Gemma 4 E2B compiled sequence length cap
-                val maxTokens = 1024
-                prefs.edit().putInt("max_tokens", 1024).apply()
+                val savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
+                val requestedBackend = if (backendChoice != "Auto") backendChoice else savedBackendChoice
+                
+                var maxTokens = prefs.getInt("max_tokens", 2048)
+                if (maxTokens != 2048) {
+                    maxTokens = 2048
+                    prefs.edit().putInt("max_tokens", 2048).apply()
+                }
                 
                 if (engine != null) {
                     try {
@@ -116,9 +123,12 @@ object LLMManager {
                     engine = null
                 }
 
-                // Gemma 4 E2B (2.58GB) strictly uses CPU backend to prevent 2.0GB GPU VRAM allocation failure
-                activeBackendString = "CPU"
-                val backend = Backend.CPU()
+                val backend = when (requestedBackend) {
+                    "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
+                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
+                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
+                    else -> { activeBackendString = "GPU"; Backend.GPU() }
+                }
 
                 Log.d("LLMManager", "Initializing LiteRT Engine for Gemma 4 E2B from: $modelPath on backend: $activeBackendString (maxTokens=$maxTokens)")
                 val engineConfig = EngineConfig(

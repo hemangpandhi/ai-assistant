@@ -351,9 +351,12 @@ class AgentOrchestrator(
                     interceptedQuery
                 }
                 
-                // For Gemma 4 E2B (1024 token cap), reset conversation per query so prompt length remains strictly under 300 tokens
-                LLMManager.resetConversation(context)
-                "$sysPrompt\n$stateInject\n$formattedQuery".trim()
+                if (LLMManager.isFirstMessage) {
+                    LLMManager.isFirstMessage = false
+                    "$sysPrompt\n$stateInject\n$formattedQuery".trim()
+                } else {
+                    "$stateInject\n$formattedQuery".trim()
+                }
             }
         }
 
