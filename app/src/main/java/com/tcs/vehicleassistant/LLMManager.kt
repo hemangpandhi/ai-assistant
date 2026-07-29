@@ -150,20 +150,24 @@ object LLMManager {
 
                 val backend = when (backendChoice) {
                     "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
-                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
                     "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
+                    "GPU" -> {
+                        if (modelPath.contains("gemma-4-E2B", ignoreCase = true)) {
+                            Log.i("LLMManager", "Gemma 2.58GB exceeds GPU VRAM allocation cap, routing safely to CPU backend.")
+                            activeBackendString = "CPU"
+                            Backend.CPU()
+                        } else {
+                            activeBackendString = "GPU"
+                            Backend.GPU()
+                        }
+                    }
                     else -> {
-                        when {
-                            modelPath.contains("Tensor_G5", ignoreCase = true) ||
-                                modelPath.contains("qualcomm", ignoreCase = true) ||
-                                modelPath.contains("qcs8275", ignoreCase = true) -> {
-                                activeBackendString = "NPU"
-                                Backend.NPU()
-                            }
-                            else -> {
-                                activeBackendString = "GPU"
-                                Backend.GPU()
-                            }
+                        if (modelPath.contains("gemma-4-E2B", ignoreCase = true)) {
+                            activeBackendString = "CPU"
+                            Backend.CPU()
+                        } else {
+                            activeBackendString = "GPU"
+                            Backend.GPU()
                         }
                     }
                 }
