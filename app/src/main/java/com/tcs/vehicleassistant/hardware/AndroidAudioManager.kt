@@ -95,15 +95,15 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         if (sherpaRecognizer != null) return
         try {
             val whisperConfig = OfflineWhisperModelConfig(
-                encoder = "sherpa-onnx-whisper-tiny.en/tiny.en-encoder.int8.onnx",
-                decoder = "sherpa-onnx-whisper-tiny.en/tiny.en-decoder.int8.onnx",
+                encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
+                decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
                 language = "en",
                 task = "transcribe",
                 tailPaddings = -1
             )
             val modelConfig = OfflineModelConfig(
                 whisper = whisperConfig,
-                tokens = "sherpa-onnx-whisper-tiny.en/tiny.en-tokens.txt",
+                tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
                 numThreads = 4,
                 debug = false,
                 provider = "cpu",
