@@ -75,30 +75,40 @@ object LLMManager {
                 .flatMap { it.toList() }
                 .toMutableList()
                 
-            if (explicitQwen.exists() && explicitQwen.canRead()) {
-                allFiles.add(0, explicitQwen)
+            if (explicitGemma.exists() && explicitGemma.canRead()) {
+                allFiles.add(0, explicitGemma)
             }
             if (explicitModel.exists() && explicitModel.canRead()) {
                 allFiles.add(explicitModel)
             }
-            if (explicitGemma.exists() && explicitGemma.canRead()) {
-                allFiles.add(explicitGemma)
+            if (explicitQwen.exists() && explicitQwen.canRead()) {
+                allFiles.add(explicitQwen)
             }
 
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            val savedModelPath = prefs.getString("selected_model", null)
-            val savedBackendChoice = prefs.getString("backend_choice", "Auto") ?: "Auto"
+            var savedModelPath = prefs.getString("selected_model", null)
+            if (savedModelPath == null || savedModelPath.endsWith("model.litertlm") || savedModelPath.contains("Qwen")) {
+                savedModelPath = explicitGemma.absolutePath
+                prefs.edit().putString("selected_model", explicitGemma.absolutePath).apply()
+            }
+            
+            // Force default backend to GPU
+            var savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
+            if (savedBackendChoice == "Auto" || savedBackendChoice == "CPU") {
+                savedBackendChoice = "GPU"
+                prefs.edit().putString("backend_choice", "GPU").apply()
+            }
             
             var modelFile: File? = null
-            if (savedModelPath != null) {
+            if (savedModelPath != null && File(savedModelPath).exists()) {
                 modelFile = File(savedModelPath)
             }
             if (modelFile == null || !modelFile.exists()) {
-                modelFile = models.find { it.name == "model.litertlm" }
+                modelFile = models.find { it.name.contains("gemma-4-E2B", ignoreCase = true) }
                     ?: models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.find { it.name.contains("qwen", ignoreCase = true) }
+                    ?: models.find { it.name == "model.litertlm" }
                     ?: models.firstOrNull()
             }
 
