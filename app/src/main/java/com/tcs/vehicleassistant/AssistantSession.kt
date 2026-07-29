@@ -88,8 +88,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     override fun onHide() {
         super.onHide()
+        isSessionVisible = false
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
+        viewModel?.resetState()
 
         val restartIntent = Intent(context, WakeWordService::class.java)
         restartIntent.action = "ACTION_RESTART_LISTENING"
@@ -192,8 +194,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
 
         val rootOverlay = overlayView.findViewById<View>(R.id.rootOverlay)
-        rootOverlay.setOnClickListener {
-            hide()
+        rootOverlay?.setOnClickListener {
+            teardownSession()
         }
 
         btnOpenApp.setOnClickListener {
@@ -336,12 +338,32 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
     }
 
+    private var isSessionVisible = false
+
+    private fun teardownSession() {
+        android.util.Log.d("AssistantSession", "Tearing down complete session")
+        audioManager?.stopListening()
+        audioManager?.stopSpeaking()
+        viewModel?.resetState()
+        val restartIntent = Intent(context, WakeWordService::class.java)
+        restartIntent.action = "ACTION_RESTART_LISTENING"
+        context.startService(restartIntent)
+        hide()
+    }
+
     // ═══════════════════════════════════════════════════════════════════════
     // SESSION LIFECYCLE
     // ═══════════════════════════════════════════════════════════════════════
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
+
+        if (isSessionVisible) {
+            android.util.Log.d("AssistantSession", "Assistant re-triggered while active. Tearing down complete session.")
+            teardownSession()
+            return
+        }
+        isSessionVisible = true
 
         // Force window to occupy the entire screen on Automotive OS to prevent UI chopping
         window?.window?.setLayout(
