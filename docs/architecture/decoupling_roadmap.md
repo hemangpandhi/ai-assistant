@@ -51,3 +51,19 @@ Koin singles: audio, orchestrator, `AssistantViewModel`, pipeline helpers.
 ## Non-goals
 
 - Hilt migration, Firebase/AICore primary path, multi-process split, replacing LiteRT
+
+## Extend-first (rebase hygiene)
+
+UI/UX / TTFR work should **extend** `dev/refactor` rather than rewrite shared files.
+See [refactor_extension_policy.md](refactor_extension_policy.md).
+
+Additive seams already in place:
+
+| Extension | Shared shell it keeps thin |
+|-----------|----------------------------|
+| `SessionAudioPort` | `IAudioManager` |
+| `DirectCabinCommandRouter` | `FollowUpRouter` |
+| `StreamingToolCallParser` | `ToolCallParser` |
+| `CrossProcessMicLease` | `WakeWordService` companion |
+| `uiUxModule` | `appModule` |
+| `domain/*`, `data/*`, `assistant/*`, `:assistant-ui` | orchestrator / session / VIS |

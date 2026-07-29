@@ -7,7 +7,7 @@ import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
 import com.tcs.vehicleassistant.domain.SpeculativeToolPrep
 import com.tcs.vehicleassistant.hardware.EndpointingProfile
-import com.tcs.vehicleassistant.hardware.IAudioManager
+import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import com.tcs.vehicleassistant.repository.OrchestratorEvent
 import com.tcs.vehicleassistant.repository.OrchestratorState
@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
  */
 class AssistantViewModel(
     private val context: Context,
-    private val audioManager: IAudioManager,
+    private val audioManager: SessionAudioPort,
     private val orchestrator: AgentOrchestrator,
     private val processQuery: ProcessQueryUseCase,
 ) : ViewModel() {

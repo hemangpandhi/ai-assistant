@@ -1,6 +1,7 @@
 package com.tcs.vehicleassistant.domain
 
 import com.tcs.vehicleassistant.LLMManager
+import com.tcs.vehicleassistant.utils.DirectCabinCommandRouter
 import com.tcs.vehicleassistant.utils.FollowUpRouter
 
 /**
@@ -57,7 +58,7 @@ object SpeculativeToolPrep {
     fun looksLikeCommand(partial: String): Boolean {
         val q = partial.trim().lowercase()
         if (q.length < 5) return false
-        return FollowUpRouter.resolveDirectCommand(q) != null ||
+        return DirectCabinCommandRouter.resolve(q) != null ||
             q.startsWith("turn ") || q.startsWith("set ") ||
             q.startsWith("open ") || q.startsWith("close ") ||
             q.startsWith("play ") || q.startsWith("pause ") ||
