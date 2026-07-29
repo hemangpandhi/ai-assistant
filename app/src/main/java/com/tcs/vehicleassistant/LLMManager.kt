@@ -363,7 +363,7 @@ object LLMManager {
                     "control climate music volume track navigation windows sightseeing food charging"
                 }
                 val sysPrompt = getSystemPrompt(context, prewarmQuery)
-                val prewarmPrompt = "$sysPrompt\n\n[System Initialization: Acknowledge this configuration. Do not generate a response.]"
+                val prewarmPrompt = "$sysPrompt\n\nUser: Hello! System initialized."
                 
                 val done = kotlinx.coroutines.CompletableDeferred<Unit>()
                 conversation?.sendMessageAsync(Contents.of(Content.Text(prewarmPrompt)), object : com.google.ai.edge.litertlm.MessageCallback {
