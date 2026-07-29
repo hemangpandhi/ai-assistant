@@ -642,6 +642,7 @@ class AgentOrchestrator(
                         LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true) && 
                         MemoryManager.turnCount() > 8) {
                         LLMManager.resetConversation(context)
+                        MemoryManager.clearMemory()
                     }
                     
                     edgeProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)
