@@ -419,12 +419,28 @@ class AgentOrchestrator(
                 } else {
                     interceptedQuery
                 }
-                
+
+                // Tools and identity rules are query-dependent. On turn 1 they ride inside the full
+                // system prompt; on later turns LiteRT only sees the bare user text unless we
+                // re-inject them — which is when the model starts saying it is a text-only AI that
+                // cannot play music.
+                val toolsForTurn = toolManager.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+                val toolsBlock = if (toolsForTurn.isNotBlank()) {
+                    "=== AVAILABLE TOOLS ===\n$toolsForTurn\n"
+                } else {
+                    ""
+                }
+
                 if (LLMManager.isFirstMessage) {
                     LLMManager.isFirstMessage = false
                     "$sysPrompt\n$stateInject\n$formattedQuery".trim()
                 } else {
-                    "$stateInject\n$formattedQuery".trim()
+                    buildString {
+                        append(LLMManager.capabilityReminder())
+                        append(toolsBlock)
+                        if (stateInject.isNotBlank()) append(stateInject)
+                        append(formattedQuery)
+                    }.trim()
                 }
             }
         }

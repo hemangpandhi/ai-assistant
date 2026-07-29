@@ -14,7 +14,8 @@ class ToolManager {
 
         /** Tools the model may need at any moment, regardless of the current utterance. */
         private val CORE_HANDLER_KEYS = setOf(
-            "stopMusic", "playMusic", "increaseTemperature", "decreaseTemperature", "setSeatHeater"
+            "stopMusic", "playMusic", "pauseMusic", "nextTrack",
+            "increaseTemperature", "decreaseTemperature", "setSeatHeater"
         )
 
         /** Plausible cabin temperature setpoints in Fahrenheit. */

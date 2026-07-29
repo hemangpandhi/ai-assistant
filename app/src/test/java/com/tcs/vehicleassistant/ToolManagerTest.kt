@@ -129,8 +129,12 @@ class ToolManagerTest {
     @Test
     fun `the prompt block is bounded so it cannot overflow the model context`() {
         val prompt = toolManager.getLlmToolsPrompt("turn on the ac and play music and navigate home")
-        val toolLines = prompt.lines().count { it.startsWith("- ") }
-        assertTrue("expected at most 8 tool lines, got $toolLines", toolLines in 1..8)
+        // Catalogue entries look like "- <TOOL>..."; guidance lines may also mention <TOOL> examples.
+        val toolLines = prompt.lines().count { it.trimStart().startsWith("- <TOOL>") }
+        assertTrue(
+            "expected at most ${toolManager.maxPromptTools} tool lines, got $toolLines\n$prompt",
+            toolLines in 1..toolManager.maxPromptTools
+        )
     }
 
     @Test

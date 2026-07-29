@@ -1203,7 +1203,14 @@
         "artist",
         "song",
         "music",
-        "album"
+        "album",
+        "playback",
+        "put on",
+        "radio",
+        "tune",
+        "spotify playlist",
+        "turn on music",
+        "start playing"
       ],
       "offline_capable": false,
       "requires_agentic_loop": false,
@@ -1243,7 +1250,11 @@
       "instruction": "CRITICAL: If the user asks to stop the music/audio, you MUST execute this tool.",
       "keywords": [
         "stop music",
-        "stop"
+        "stop",
+        "turn off music",
+        "kill the music",
+        "shut off the music",
+        "mute music"
       ],
       "offline_capable": true,
       "success_message": "I've stopped the music.",
