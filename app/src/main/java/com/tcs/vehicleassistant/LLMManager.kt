@@ -75,11 +75,11 @@ object LLMManager {
                 .flatMap { it.toList() }
                 .toMutableList()
                 
-            if (explicitModel.exists() && explicitModel.canRead()) {
-                allFiles.add(0, explicitModel)
-            }
             if (explicitGemma.exists() && explicitGemma.canRead()) {
-                allFiles.add(explicitGemma)
+                allFiles.add(0, explicitGemma)
+            }
+            if (explicitModel.exists() && explicitModel.canRead()) {
+                allFiles.add(explicitModel)
             }
             if (explicitQwen.exists() && explicitQwen.canRead()) {
                 allFiles.add(explicitQwen)
@@ -101,8 +101,8 @@ object LLMManager {
             if (savedModelPath != null && File(savedModelPath).exists()) {
                 modelFile = File(savedModelPath)
             } else {
-                modelFile = models.find { it.name == "model.litertlm" }
-                    ?: models.find { it.name.contains("gemma", ignoreCase = true) }
+                modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
+                    ?: models.find { it.name == "model.litertlm" }
                     ?: models.find { it.name.contains("qwen", ignoreCase = true) }
                     ?: models.firstOrNull()
                 if (modelFile != null) {
@@ -127,7 +127,7 @@ object LLMManager {
                 return
             }
     
-            withContext(Dispatchers.IO) {
+            try {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 // Cap max tokens to 2048 to match LiteRT compiled model delegate sequence length metadata
@@ -137,7 +137,7 @@ object LLMManager {
                     prefs.edit().putInt("max_tokens", 2048).apply()
                 }
                 
-                try {
+                if (engine != null) {
                     try {
                         conversation?.close()
                         engine?.close()
@@ -145,7 +145,8 @@ object LLMManager {
                         Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
                     }
                     conversation = null
-                engine = null
+                    engine = null
+                }
 
                 val backend = when (backendChoice) {
                     "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
@@ -167,6 +168,7 @@ object LLMManager {
                     }
                 }
 
+                Log.d("LLMManager", "Initializing LiteRT Engine from: $modelPath on backend: $activeBackendString")
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
@@ -187,6 +189,8 @@ object LLMManager {
                 isPrewarmed = false // enabled prewarm
 
                 withContext(Dispatchers.Main) {
+                    val p = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    p.edit().putString("selected_model", modelPath).putString("backend_choice", activeBackendString).apply()
                     callback?.onSuccess()
                 }
 
@@ -207,7 +211,7 @@ object LLMManager {
                         val engineConfigFallback = EngineConfig(
                             modelPath = modelPath,
                             backend = Backend.CPU(),
-                            maxNumTokens = maxTokens,
+                            maxNumTokens = 2048,
                             cacheDir = context.cacheDir.absolutePath
                         )
                         engine = Engine(engineConfigFallback)
@@ -220,11 +224,8 @@ object LLMManager {
                         isPrewarmed = false // enabled prewarm
 
                         withContext(Dispatchers.Main) { callback?.onSuccess() }
+                        Log.i("LLMManager", "Skipping CPU fallback background prewarm to prevent SIGSEGV crash.")
                         
-                        // Automatically prewarm the model in the background to completely eliminate the 5s TTFT delay on the first query
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-                            prewarm(context)
-                        }
                     } catch (fallbackEx: Exception) {
                          Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
                          withContext(Dispatchers.Main) { callback?.onError(fallbackEx) }
@@ -234,7 +235,6 @@ object LLMManager {
                 }
             } finally {
                 isInitializing = false
-            }
             }
         }
     }
