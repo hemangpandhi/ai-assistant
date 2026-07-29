@@ -59,7 +59,7 @@ object KernelCacheManager {
         return root.isDirectory && (root.listFiles()?.isNotEmpty() == true)
     }
 
-    /** Total bytes held by the cache, surfaced on the diagnostics screen. */
+    /** Total bytes held by the cache, logged when the engine comes up. */
     fun sizeBytes(context: Context): Long {
         val root = cacheRoot(context)
         if (!root.isDirectory) return 0L

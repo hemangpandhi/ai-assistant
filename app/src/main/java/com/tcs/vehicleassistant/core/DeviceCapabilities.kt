@@ -38,17 +38,6 @@ object DeviceCapabilities {
         "/apex/com.android.vndk.v34/lib64",
     )
 
-    /** Devices whose GPU is known to drive the LiteRT OpenCL backend well. */
-    private val KNOWN_OPENCL_DEVICES = setOf(
-        "tangorpro", // Pixel Tablet (Tensor G2, Mali-G710)
-        "felix",
-        "cheetah",
-        "panther",
-        "lynx",
-        "husky",
-        "shiba",
-    )
-
     @Volatile
     private var cachedOpenClPath: String? = null
 
@@ -98,10 +87,6 @@ object DeviceCapabilities {
         Build.DEVICE.equals("tangorpro", ignoreCase = true) ||
             Build.PRODUCT.contains("tangorpro", ignoreCase = true)
 
-    /** True on any device with a validated OpenCL driver profile. */
-    fun isKnownOpenClDevice(): Boolean =
-        KNOWN_OPENCL_DEVICES.any { Build.DEVICE.equals(it, ignoreCase = true) }
-
     /** True for tablets and large head units, which keep the model resident between sessions. */
     fun isLargeScreen(context: Context): Boolean =
         context.resources.configuration.smallestScreenWidthDp >= AssistantConfig.LARGE_SCREEN_MIN_WIDTH_DP ||
@@ -111,20 +96,12 @@ object DeviceCapabilities {
     fun cpuCoreCount(): Int = Runtime.getRuntime().availableProcessors().coerceAtLeast(1)
 
     /**
-     * Resolves the backend LiteRT should be configured with.
-     *
-     * `"Auto"` used to silently mean `"GPU"` regardless of hardware. It now consults the OpenCL
-     * probe, and an explicit GPU request on a device with no OpenCL driver is downgraded to CPU
-     * instead of failing initialization.
-     */
-    fun resolveBackend(requested: String): String = GpuBackendResolver.resolve(
-        requested = requested,
-        openClAvailable = hasOpenCl(),
-    )
-
-    /**
      * Backends to try in order for [requested], so a GPU driver that loads but fails to compile
      * kernels still ends with a working assistant.
+     *
+     * `"Auto"` used to silently mean `"GPU"` regardless of hardware. The chain now starts from the
+     * OpenCL probe, and an explicit GPU request on a device with no OpenCL driver falls through to
+     * CPU instead of failing initialization outright.
      */
     fun backendFallbackChain(requested: String): List<String> = GpuBackendResolver.fallbackChain(
         requested = requested,

@@ -200,7 +200,8 @@ object LLMManager {
                 Log.i(
                     TAG,
                     "Engine ready: model=$modelPath backend=$initializedBackend " +
-                        "requested=$requestedBackend kernelCacheWarm=${KernelCacheManager.isWarm(context)}"
+                        "requested=$requestedBackend kernelCacheWarm=${KernelCacheManager.isWarm(context)} " +
+                        "kernelCacheBytes=${KernelCacheManager.sizeBytes(context)}"
                 )
 
                 withContext(Dispatchers.Main) {
