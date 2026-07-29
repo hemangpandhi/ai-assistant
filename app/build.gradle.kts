@@ -105,7 +105,7 @@ dependencies {
     implementation(files("libs/soniqo-speech.aar"))
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.11.0")
+    implementation("com.google.ai.edge.litertlm:litertlm-android:0.14.0")
 
     // Vosk Offline Speech Recognition for Wake Word
     implementation("com.alphacephei:vosk-android:0.3.47@aar")

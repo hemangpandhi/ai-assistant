@@ -87,21 +87,23 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private var isListening = false
     private var sherpaRecognizer: OfflineRecognizer? = null
     private var audioRecord: android.media.AudioRecord? = null
+    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
+    private var acousticEchoCanceler: android.media.audiofx.AcousticEchoCanceler? = null
     private var listeningJob: Job? = null
 
     private fun initSpeechRecognizer() {
         if (sherpaRecognizer != null) return
         try {
             val whisperConfig = OfflineWhisperModelConfig(
-                encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
-                decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
+                encoder = "sherpa-onnx-whisper-base.en/base.en-encoder.int8.onnx",
+                decoder = "sherpa-onnx-whisper-base.en/base.en-decoder.int8.onnx",
                 language = "en",
                 task = "transcribe",
                 tailPaddings = -1
             )
             val modelConfig = OfflineModelConfig(
                 whisper = whisperConfig,
-                tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
+                tokens = "sherpa-onnx-whisper-base.en/base.en-tokens.txt",
                 numThreads = 4,
                 debug = false,
                 provider = "cpu",
@@ -150,25 +152,55 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                     }
                     return@launch
                 }
+
+                audioRecord?.audioSessionId?.let { sessionId ->
+                    if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
+                        noiseSuppressor = android.media.audiofx.NoiseSuppressor.create(sessionId)
+                        noiseSuppressor?.enabled = true
+                    }
+                    if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
+                        acousticEchoCanceler = android.media.audiofx.AcousticEchoCanceler.create(sessionId)
+                        acousticEchoCanceler?.enabled = true
+                    }
+                }
                 
                 audioRecord?.startRecording()
                 val buffer = ShortArray(bufferSize)
                 
                 var hasSpoken = false
                 var silenceFrames = 0
-                val SPEECH_THRESHOLD = 500
                 val audioBuffer = mutableListOf<Float>()
+                
+                var baselineRms = 0.0
+                var calibrationFrames = 0
+                var speechThreshold = 500.0
                 
                 while (isListening) {
                     val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readSize > 0) {
-                        var maxAmp = 0
+                        var sumSquares = 0.0
                         for (i in 0 until readSize) {
-                            val amp = Math.abs(buffer[i].toInt())
-                            if (amp > maxAmp) maxAmp = amp
+                            val sample = buffer[i].toDouble()
+                            sumSquares += sample * sample
+                        }
+                        val rms = Math.sqrt(sumSquares / readSize)
+                        
+                        if (calibrationFrames < 10) {
+                            baselineRms += rms
+                            calibrationFrames++
+                            if (calibrationFrames == 10) {
+                                baselineRms /= 10.0
+                                speechThreshold = baselineRms * 2.5
+                                if (speechThreshold < 150.0) speechThreshold = 150.0
+                            }
+                            // Buffer audio even during calibration so we don't clip the first word
+                            for (i in 0 until readSize) {
+                                audioBuffer.add(buffer[i].toFloat() / 32768.0f)
+                            }
+                            continue
                         }
                         
-                        if (maxAmp > SPEECH_THRESHOLD) {
+                        if (rms > speechThreshold) {
                             silenceFrames = 0
                             if (!hasSpoken) {
                                 hasSpoken = true
@@ -178,14 +210,13 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             if (hasSpoken) silenceFrames++
                         }
                         
-                        if (hasSpoken) {
-                            for (i in 0 until readSize) {
-                                audioBuffer.add(buffer[i].toFloat() / 32768.0f)
-                            }
+                        // Always keep buffering once listening starts to avoid clipping
+                        for (i in 0 until readSize) {
+                            audioBuffer.add(buffer[i].toFloat() / 32768.0f)
                         }
                         
-                        // Auto-stop after ~1.6 seconds of silence
-                        if (hasSpoken && silenceFrames > 20) {
+                        // Auto-stop after ~1.5 seconds of silence
+                        if (hasSpoken && silenceFrames > 30) {
                             withContext(Dispatchers.Main) {
                                 onSttEndOfSpeech?.invoke()
                             }
@@ -224,6 +255,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 try { audioRecord?.stop() } catch (e: Exception) {}
                 try { audioRecord?.release() } catch (e: Exception) {}
                 audioRecord = null
+                try { noiseSuppressor?.release() } catch (e: Exception) {}
+                noiseSuppressor = null
+                try { acousticEchoCanceler?.release() } catch (e: Exception) {}
+                acousticEchoCanceler = null
             }
         }
     }
