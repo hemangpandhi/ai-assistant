@@ -182,9 +182,13 @@ object LLMManager {
                     callback?.onSuccess()
                 }
 
-                // Automatically prewarm the model in the background to completely eliminate the 5s TTFT delay on the first query
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-                    prewarm(context)
+                // Only prewarm in background if using GPU or NPU. On CPU, prewarming takes 39 seconds and locks the engine.
+                if (activeBackendString != "CPU") {
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                        prewarm(context)
+                    }
+                } else {
+                    Log.i("LLMManager", "Skipping background prewarm on CPU backend to prevent thread lockup.")
                 }
             } catch (e: Exception) {
                 Log.e("LLMManager", "Error initializing model", e)
