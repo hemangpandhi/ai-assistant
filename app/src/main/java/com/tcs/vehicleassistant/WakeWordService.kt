@@ -6,23 +6,29 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.tcs.vehicleassistant.hardware.SherpaKwsManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
-import org.vosk.android.RecognitionListener
-import org.vosk.android.SpeechService
-import org.vosk.android.StorageService
+import java.io.File
 
+/**
+ * Background Foreground Service for Offline Hotword / Wake Word Detection.
+ * Supports Sherpa-ONNX Zipformer KWS and Vosk Constrained Grammar KWS.
+ * Strictly triggers ONLY for "Hey Nissan" and the user-configured setting wake word.
+ */
 class WakeWordService : Service() {
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
-    }
+    override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
         var sharedModel: Model? = null
@@ -31,12 +37,12 @@ class WakeWordService : Service() {
             val files = assetManager.list(fromAssetPath)
             if (files.isNullOrEmpty()) {
                 assetManager.open(fromAssetPath).use { input ->
-                    java.io.File(toPath).outputStream().use { output ->
+                    File(toPath).outputStream().use { output ->
                         input.copyTo(output)
                     }
                 }
             } else {
-                java.io.File(toPath).mkdirs()
+                File(toPath).mkdirs()
                 for (file in files) {
                     copyAssetFolder(assetManager, "$fromAssetPath/$file", "$toPath/$file")
                 }
@@ -47,7 +53,7 @@ class WakeWordService : Service() {
         fun ensureModel(context: Context): Model? {
             if (sharedModel != null) return sharedModel
             return try {
-                val destDir = java.io.File(context.filesDir, "model")
+                val destDir = File(context.filesDir, "model")
                 if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {
                     copyAssetFolder(context.assets, "model", destDir.absolutePath)
                 }
@@ -62,63 +68,79 @@ class WakeWordService : Service() {
     }
 
     private var model: Model? = null
-    private var wakeWord = "hey auto"
+    private var wakeWord = "hey nissan"
+    private var customRecognizer: Recognizer? = null
+    private var customAudioRecord: android.media.AudioRecord? = null
+    private var isRecording = false
+    private var listeningJob: Job? = null
+    private var restartJob: Job? = null
+    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
 
     override fun onCreate() {
         super.onCreate()
-        
+        updateWakeWord()
+    }
+
+    private fun updateWakeWord() {
+        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+        wakeWord = prefs.getString("wake_word", "hey nissan") ?: "hey nissan"
+    }
+
+    private fun createNotification(): Notification {
         val channelId = "wake_word_channel"
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val channel = NotificationChannel(channelId, "Wake Word Service", NotificationManager.IMPORTANCE_LOW)
-            val manager = getSystemService(NotificationManager::class.java)
+        val channelName = "Wake Word Detection"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(channelId, channelName, NotificationManager.IMPORTANCE_LOW)
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }
-        val notification = Notification.Builder(this, channelId)
-            .setContentTitle("Vehicle Assistant")
-            .setContentText("Listening for wake word...")
-            .setSmallIcon(R.drawable.ic_assistant_premium)
+        return NotificationCompat.Builder(this, channelId)
+            .setContentTitle("Vehicle AI Assistant")
+            .setContentText("Listening for 'Hey Nissan'...")
+            .setSmallIcon(R.drawable.ic_ai_assistant)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
-            
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            startForeground(1, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
-        } else {
-            startForeground(1, notification)
-        }
+    }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         updateWakeWord()
 
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-            try {
-                val destDir = java.io.File(filesDir, "model")
-                if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {
-                    copyAssetFolder(assets, "model", destDir.absolutePath)
+        if (intent?.action == "ACTION_RESTART_LISTENING") {
+            restartJob?.cancel()
+            restartJob = CoroutineScope(Dispatchers.Main).launch {
+                try {
+                    stopCustomListening()
+                    delay(300)
+                    startCustomListening()
+                } catch (e: Exception) {
+                    Log.e("WakeWord", "Failed to restart listening", e)
                 }
-                val m = Model(destDir.absolutePath)
-                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                    model = m
-                    sharedModel = m
+            }
+            return START_STICKY
+        }
+
+        val action = intent?.action ?: "ACTION_START"
+        if (action == "ACTION_STOP") {
+            isRecording = false
+            stopCustomListening()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        startForeground(1001, createNotification())
+
+        if (model == null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                model = ensureModel(applicationContext)
+                withContext(Dispatchers.Main) {
                     recognizerSetup()
                 }
-            } catch (e: Exception) {
-                Log.e("WakeWord", "Failed to manually unpack/load model: ${e.message}", e)
             }
+        } else {
+            recognizerSetup()
         }
-        
-        // Background Pre-warming of Gemini Nano and Soniqo
-        // DELETED: Do not autoInitialize LLMManager here. It causes a dual-process OOM crash 
-        // when the main app also tries to load the model. The LLM should only be loaded in the main process.
-
-
+        return START_STICKY
     }
-    
-    private fun updateWakeWord() {
-        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        wakeWord = prefs.getString("wake_word", "hey auto")?.lowercase() ?: "hey auto"
-    }
-
-    private var customAudioRecord: android.media.AudioRecord? = null
-    private var customRecognizer: Recognizer? = null
-    private var isRecording = false
 
     private fun recognizerSetup() {
         try {
@@ -126,15 +148,11 @@ class WakeWordService : Service() {
                 Log.w("WakeWord", "Skipping recognizerSetup because model is null. Waiting for unpack.")
                 return
             }
-            
-            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-            wakeWord = prefs.getString("wake_word", "hey nissan") ?: "hey nissan"
-            val configuredWord = wakeWord.lowercase().trim()
 
-            // Strictly constrain Vosk acoustic search space to "Hey Nissan" and the user-configured setting wake word
+            val configuredWord = wakeWord.lowercase().trim()
             val grammarSet = setOf("hey nissan", "nissan", configuredWord, "[unk]")
             val grammarJson = grammarSet.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
-            
+
             Log.d("WakeWord", "Setting up Vosk recognizer with strict grammar: $grammarJson")
             customRecognizer = Recognizer(model, 16000.0f, grammarJson)
             startCustomListening()
@@ -142,35 +160,42 @@ class WakeWordService : Service() {
             Log.e("WakeWord", "Failed to init recognizer: ${e.message}")
         }
     }
-    private var listeningJob: kotlinx.coroutines.Job? = null
-    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
-    
+
     private fun startCustomListening() {
         if (isRecording) return
         isRecording = true
         listeningJob = CoroutineScope(Dispatchers.IO).launch {
             try {
-                val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
-                
-                customAudioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
-                
+                val bufferSize = android.media.AudioRecord.getMinBufferSize(
+                    16000,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT
+                ) * 2
+
+                customAudioRecord = android.media.AudioRecord(
+                    android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    16000,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize
+                )
+
                 if (customAudioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
                     Log.e("WakeWord", "Failed to init MIC AudioRecord! Permission missing or mic in use.")
                     isRecording = false
                     return@launch
                 }
-                
+
                 if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
                     noiseSuppressor = customAudioRecord?.audioSessionId?.let { android.media.audiofx.NoiseSuppressor.create(it) }
                     noiseSuppressor?.enabled = true
                 }
-                
+
                 customAudioRecord?.startRecording()
                 val buffer = ShortArray(bufferSize)
-                
                 var loopCount = 0
-                var framesSinceLastSpeech = 100 
-                val SPEECH_THRESHOLD = 500 // 16-bit PCM threshold
+                var framesSinceLastSpeech = 100
+                val SPEECH_THRESHOLD = 500
 
                 while (isRecording) {
                     val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
@@ -206,51 +231,12 @@ class WakeWordService : Service() {
                 Log.e("WakeWord", "Custom listening loop error: ${e.message}")
             } finally {
                 try {
-                    customAudioRecord?.stop()
-                    customAudioRecord?.release()
+                    noiseSuppressor?.release()
                 } catch (e: Exception) {}
-                customAudioRecord = null
+                noiseSuppressor = null
+                isRecording = false
             }
         }
-    }
-    private var restartJob: kotlinx.coroutines.Job? = null
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (intent?.action == "ACTION_RESTART_LISTENING") {
-            restartJob?.cancel()
-            restartJob = CoroutineScope(Dispatchers.Main).launch {
-                try {
-                    stopCustomListening()
-                    delay(400)
-                    startCustomListening()
-                } catch (e: Exception) {
-                    Log.e("WakeWord", "Failed to restart listening", e)
-                }
-            }
-            return START_STICKY
-        }
-        
-        val action = intent?.action ?: "ACTION_START"
-        if (action == "ACTION_STOP") {
-            isRecording = false
-            stopCustomListening()
-            stopSelf()
-            return START_NOT_STICKY
-        }
-
-        startForeground(1001, createNotification())
-
-        if (model == null) {
-            CoroutineScope(Dispatchers.IO).launch {
-                model = ensureModel(applicationContext)
-                withContext(Dispatchers.Main) {
-                    recognizerSetup()
-                }
-            }
-        } else {
-            recognizerSetup()
-        }
-        return START_STICKY
     }
 
     private fun stopCustomListening() {
@@ -269,12 +255,9 @@ class WakeWordService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         isRecording = false
-        try {
-            customAudioRecord?.stop()
-            customAudioRecord?.release()
-        } catch(e: Exception) {}
-        customAudioRecord = null
+        stopCustomListening()
         customRecognizer?.close()
+        customRecognizer = null
     }
 
     private fun checkWakeWord(hypothesis: String) {
@@ -285,36 +268,21 @@ class WakeWordService : Service() {
             Log.d("WakeWord", "Vosk heard: $hypothesis")
         }
 
-        val isMatch = lowerHypothesis.contains("hey nissan") || 
-                      lowerHypothesis.contains("nissan") ||
-                      (configuredWord.isNotEmpty() && lowerHypothesis.contains(configuredWord))
-        
+        // Strictly check ONLY for "Hey Nissan" or the user-configured setting wake word
+        val isMatch = lowerHypothesis.contains("hey nissan") ||
+                lowerHypothesis.contains("nissan") ||
+                (configuredWord.isNotEmpty() && lowerHypothesis.contains(configuredWord))
+
         if (isMatch) {
-            Log.d("WakeWord", "Wake word detected: $lowerHypothesis (matches configured: '$configuredWord')")
+            Log.d("WakeWord", "Wake word detected: $lowerHypothesis (configured: '$configuredWord')")
             sendBroadcast(Intent("com.tcs.vehicleassistant.WAKE_WORD_DETECTED").setPackage(packageName))
-            
+
             isRecording = false
             try {
                 customAudioRecord?.stop()
                 customAudioRecord?.release()
             } catch (e: Exception) {}
             customAudioRecord = null
-        }
-    }
-
-    private fun copyAssetFolder(assetManager: android.content.res.AssetManager, fromAssetPath: String, toPath: String) {
-        val files = assetManager.list(fromAssetPath)
-        if (files.isNullOrEmpty()) {
-            assetManager.open(fromAssetPath).use { input ->
-                java.io.File(toPath).outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-        } else {
-            java.io.File(toPath).mkdirs()
-            for (file in files) {
-                copyAssetFolder(assetManager, "$fromAssetPath/$file", "$toPath/$file")
-            }
         }
     }
 }
