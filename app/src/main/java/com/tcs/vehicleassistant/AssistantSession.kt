@@ -415,9 +415,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 btnSend.isEnabled = true
                 btnMic.isEnabled = true
                 
-                // Automatically start listening if invoked via voice match/hotword
-                if (showFlags and SHOW_WITH_ASSIST != 0) {
-                    delay(500) // Wait for WakeWordService to release the mic
+                // Automatically start listening on session open
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(300) // Wait for WakeWordService to release the mic
                     btnMic.performClick()
                 }
             }
@@ -431,12 +431,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             btnSend.isEnabled = true
             btnMic.isEnabled = true
 
-            // Automatically start listening if invoked via voice match/hotword
-            if (showFlags and SHOW_WITH_ASSIST != 0) {
-                CoroutineScope(Dispatchers.Main).launch {
-                    delay(500) // Wait for WakeWordService to release the mic
-                    btnMic.performClick()
-                }
+            // Automatically start listening on session open
+            CoroutineScope(Dispatchers.Main).launch {
+                delay(300) // Wait for WakeWordService to release the mic
+                btnMic.performClick()
             }
         }
     }
