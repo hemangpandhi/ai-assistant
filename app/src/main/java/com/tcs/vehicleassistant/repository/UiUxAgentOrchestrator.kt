@@ -5,6 +5,8 @@ import android.content.Intent
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
+import com.assistant.api.llm.LlmSessionPort
+import com.assistant.api.tools.ToolCatalog
 import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.llm.ILLMProvider
@@ -34,6 +36,8 @@ class UiUxAgentOrchestrator(
     private val queryPipeline: com.tcs.vehicleassistant.domain.QueryPipeline,
     private val toolLoop: com.tcs.vehicleassistant.domain.ToolLoop,
     private val speechPresenter: com.tcs.vehicleassistant.domain.SpeechPresenter,
+    private val llmSession: LlmSessionPort,
+    private val toolCatalog: ToolCatalog,
 ) {
 
     private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
@@ -57,7 +61,7 @@ class UiUxAgentOrchestrator(
         emit = { text -> _state.value = OrchestratorState.Streaming(text) },
     )
     private val ttsTurnIds = TtsTurnIds()
-    private val readinessGate = LlmQueryReadinessGate(context, featureFlags)
+    private val readinessGate = LlmQueryReadinessGate(context, featureFlags, llmSession)
 
     @Volatile var ttsSpokenLength = 0
         private set
@@ -270,7 +274,10 @@ class UiUxAgentOrchestrator(
     private fun tryHandleDirectFollowUp(query: String): Boolean {
         if (pendingConfirmationTool != null) return false
         // Prefer speculative candidate resolved from strong partials; else fresh FollowUp.
-        val toolCall = com.tcs.vehicleassistant.domain.SpeculativeToolPrep.resolveForFinal(query)
+        val toolCall = com.tcs.vehicleassistant.domain.SpeculativeToolPrep.resolveForFinal(
+            query,
+            llmSession.lastAiResponse,
+        )
             ?: return false
 
         lastResponseBuilder.clear()
@@ -302,7 +309,7 @@ class UiUxAgentOrchestrator(
             }
 
             memory.addTurn("Assistant", finalMsg)
-            LLMManager.lastAiResponse = finalMsg
+            llmSession.lastAiResponse = finalMsg
             _state.value = OrchestratorState.Speaking(finalMsg)
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
             isQueryProcessed = true
@@ -331,23 +338,21 @@ class UiUxAgentOrchestrator(
     ) {
         timeoutJob?.cancel()
         timeoutJob = scope.launch {
-            val timeoutDuration = if (LLMManager.isFirstMessage) 180000L else 45000L
+            val timeoutDuration = if (llmSession.isFirstMessage) 180000L else 45000L
             delay(timeoutDuration)
             if (!isQueryProcessed) {
                 _state.value = OrchestratorState.Error("Timeout - Restarting Model...")
                 _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-                LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
-                    override fun onSuccess() {
-                        _state.value = OrchestratorState.Idle
-                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                        isQueryProcessed = true
-                    }
-                    override fun onError(e: Exception) {
-                        _state.value = OrchestratorState.Error("Error restarting.")
-                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                        isQueryProcessed = true
-                    }
-                })
+                try {
+                    llmSession.ensureReady(context, force = true)
+                    _state.value = OrchestratorState.Idle
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    isQueryProcessed = true
+                } catch (_: Exception) {
+                    _state.value = OrchestratorState.Error("Error restarting.")
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    isQueryProcessed = true
+                }
             }
         }
 
@@ -499,7 +504,8 @@ class UiUxAgentOrchestrator(
                             it.contains("recommend", ignoreCase = true)
                         }
                         val isTerminalTool = executedTools.isNotEmpty() && !isQueryTool
-                        val requiresAgenticLoop = executedTools.any { org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(it)?.requiresAgenticLoop == true }
+                        val requiresAgenticLoop =
+                            executedTools.any { toolCatalog.find(it)?.requiresAgenticLoop == true }
                         val shouldRunAgenticLoop = isAgenticLoopEnabled && loopCount < 3 &&
                             (hasError || isQueryTool || requiresAgenticLoop || (!hasConversationalText && !isTerminalTool))
 
@@ -547,7 +553,7 @@ class UiUxAgentOrchestrator(
                         // dry tool confirmation text — it breaks the human companion feel.
                     }
 
-                    LLMManager.lastAiResponse = finalMsg
+                    llmSession.lastAiResponse = finalMsg
                     _state.value = OrchestratorState.Speaking(finalMsg)
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                     isQueryProcessed = true

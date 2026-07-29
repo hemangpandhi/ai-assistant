@@ -15,3 +15,4 @@ dependencyResolutionManagement {
 rootProject.name = "AOSP_GeminiNano_Sample"
 include(":app")
 include(":assistant-ui")
+include(":assistant-api")

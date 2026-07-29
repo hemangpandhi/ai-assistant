@@ -2,11 +2,10 @@
 
 **Goal:** Keep `dev/ui_ux_v2` (and agent branches) rebase-friendly against `origin/dev/refactor`. Prefer **new files + thin wiring** over editing shared refactor implementations.
 
-The refactor-owned class tree is every Kotlin or Java file under
-`app/src/main/java/com/tcs/vehicleassistant/` that also exists on
-`origin/dev/refactor`. Every file in that set must remain byte-identical to
-`origin/dev/refactor`, except for the two Kotlin seam files listed below. UI/UX
-code must live in parallel, additive types.
+The refactor-owned Kotlin tree is every `.kt` file under `app/src` that exists
+on `origin/dev/refactor`. Every file in that set must remain byte-identical to
+`origin/dev/refactor`: there are **zero Kotlin seam exceptions**. UI/UX code
+must live in parallel, additive types.
 
 ## Rule of thumb
 
@@ -40,28 +39,55 @@ visibility changes or UI/UX APIs to them.
 
 Overlay UI host: `assistant/UiUxOverlayActivity` (additive manifest entry).
 
-## Unavoidable thin edits
+## Extension entry points
 
-These still need a one-line (or small) touch in a shared file — keep them minimal and commented `// ui_ux extension seam`:
+UI/UX startup is selected without editing refactor-owned Kotlin:
 
-1. `VehicleApplication.kt` — `modules(appModule, uiUxModule)` and UI/UX runtime bootstrap.
-2. `AssistantSessionService.kt` — choose Compose vs XML session.
-3. `AndroidManifest.xml` — additive UI/UX activities, services, and receivers only.
-4. `app/build.gradle.kts` / `settings.gradle.kts` — `:assistant-ui` and required dependencies.
+1. `UiUxVehicleApplication` loads `appModule` plus `uiUxModule`; the manifest
+   selects this additive application class.
+2. `UiUxAssistantSessionService` chooses Compose versus XML sessions;
+   `voice_interaction_service.xml` selects this additive service.
+3. `AndroidManifest.xml` contains additive UI/UX activities, services, and receivers.
+4. `app/build.gradle.kts` / `settings.gradle.kts` include `:assistant-ui`,
+   `:assistant-api`, and required dependencies.
 
-Only items 1 and 2 are exceptions inside the refactor-owned Kotlin/Java class
-tree. Mark each shared-file edit with `// ui_ux extension seam`.
+Manifest, XML, and Gradle wiring may differ from `origin/dev/refactor`; Kotlin
+files owned by that branch may not.
+
+## Host API boundary
+
+`:assistant-api` owns the host-neutral contracts used by additive UI/UX code:
+
+- `LlmSessionPort` exposes model readiness, initialization, labels, and
+  conversation metadata.
+- `ToolCatalog` exposes tool prompt metadata, confirmation/agentic-loop flags,
+  and execution.
+
+`LlmManagerSessionAdapter` and `ToolManagerCatalog` are app-side adapters over
+the refactor-owned `LLMManager` and `ToolManager`. UI/UX domain, session, and
+orchestrator code depends on the ports, not those refactor implementations.
 
 ## How to take remote `dev/refactor` changes
 
 1. Fetch `origin/dev/refactor`.
-2. Prefer **merge/rebase** when shared files only differ at marked seams.
-3. For conflict magnets, **take refactor’s version of the shared file**, then re-apply only the two Kotlin seam call sites.
-4. Never re-port large UI/UX bodies back into shared files — put them in extension types instead.
+2. Merge or rebase while keeping every refactor-owned Kotlin file unchanged.
+3. For conflicts, take refactor’s version of the shared Kotlin file and place
+   UI/UX behavior in an additive type or adapter.
+4. Never re-port UI/UX bodies back into shared files.
+
+## Enforced contract
+
+`RefactorOwnedTreeContractTest` reads
+`app/src/test/resources/refactor_owned_kotlin.txt`, generated from
+`git ls-tree -r --name-only origin/dev/refactor -- app/src`, and byte-compares
+every listed Kotlin file with `git show origin/dev/refactor:<path>`. Its seam
+exception set is empty. The test is skipped only when Git or the ref is
+unavailable.
 
 ## Already additive (good patterns — keep using)
 
 - `:assistant-ui` module and `AssistantBackend` / `AssistantHost`
+- `:assistant-api` module and app-side LLM/tool adapters
 - `VehicleAgentAssistantBackend`, `AssistantUiProfile`, idle timeout, runtime bootstrap
 - `domain/*` (`QueryPipeline`, `ToolLoop`, `SpeechPresenter`, use cases)
 - `data/*` ports (`LlmEngine`, `VhalGateway`, `ConversationMemory`)

@@ -1,9 +1,9 @@
 package com.tcs.vehicleassistant.domain
 
 import android.content.Context
-import com.tcs.vehicleassistant.LLMManager
+import com.assistant.api.llm.LlmSessionPort
+import com.assistant.api.tools.ToolCatalog
 import com.tcs.vehicleassistant.SmartContextInjector
-import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
 import com.tcs.vehicleassistant.data.memory.ConversationMemory
 
@@ -11,9 +11,10 @@ import com.tcs.vehicleassistant.data.memory.ConversationMemory
  * Builds the edge/cloud prompt for one turn — keeps prompt policy out of the orchestrator loop.
  */
 class QueryPipeline(
-    private val toolManager: ToolManager,
+    private val toolCatalog: ToolCatalog,
     private val memory: ConversationMemory,
     private val featureFlags: AssistantFeatureFlags,
+    private val llmSession: LlmSessionPort,
 ) {
     data class BuiltPrompt(
         val prompt: String,
@@ -25,7 +26,7 @@ class QueryPipeline(
         interceptedQuery: String,
         isAgenticObservation: Boolean,
     ): BuiltPrompt {
-        val maxHistoryChars = toolManager.slidingWindowMaxChars
+        val maxHistoryChars = toolCatalog.slidingWindowMaxChars
         val isFollowUp = memory.isFollowUpQuery(interceptedQuery)
         val historyCap =
             if (isFollowUp || interceptedQuery.length < 30) {
@@ -42,7 +43,7 @@ class QueryPipeline(
             memory.addTurn("User", interceptedQuery)
         }
 
-        val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+        val sysPrompt = llmSession.getSystemPrompt(context, interceptedQuery)
         val looksCommand = SpeculativeToolPrep.looksLikeCommand(interceptedQuery)
         val needsTelemetry = !isAgenticObservation &&
             !looksCommand &&
@@ -54,18 +55,18 @@ class QueryPipeline(
         }
         val vehicleState = if (dynamicState.isNotEmpty()) "[Current State: $dynamicState]" else ""
 
-        val stateInject = if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
-            LLMManager.lastVehicleState = vehicleState
+        val stateInject = if (vehicleState.isNotEmpty() && vehicleState != llmSession.lastVehicleState) {
+            llmSession.lastVehicleState = vehicleState
             "$vehicleState\n"
         } else {
             ""
         }
 
         val currentToolsString =
-            toolManager.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+            toolCatalog.llmToolsPrompt(interceptedQuery, llmSession.lastAiResponse)
         val toolsInject =
-            if (currentToolsString.isNotBlank() && currentToolsString != LLMManager.lastInjectedTools) {
-                LLMManager.lastInjectedTools = currentToolsString
+            if (currentToolsString.isNotBlank() && currentToolsString != llmSession.lastInjectedTools) {
+                llmSession.lastInjectedTools = currentToolsString
                 "\n[Available Tools]\n$currentToolsString\n"
             } else {
                 ""

@@ -1,15 +1,12 @@
 package com.tcs.vehicleassistant.llm
 
 import android.content.Context
-import com.tcs.vehicleassistant.LLMManager
+import com.assistant.api.llm.LlmSessionPort
 import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
-import com.tcs.vehicleassistant.llm.ILLMProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.koin.core.qualifier.named
-import org.koin.java.KoinJavaComponent.getKoin
 
 /**
  * Queues voice finals while the edge model is cold / prewarming (UI/UX extension).
@@ -18,6 +15,7 @@ import org.koin.java.KoinJavaComponent.getKoin
 class LlmQueryReadinessGate(
     private val context: Context,
     private val featureFlags: AssistantFeatureFlags,
+    private val llmSession: LlmSessionPort,
 ) {
     private var pendingQuery: Pair<String, Int>? = null
     private var waitJob: Job? = null
@@ -33,31 +31,30 @@ class LlmQueryReadinessGate(
         onReady: (query: String, retryCount: Int) -> Unit,
         onFailure: (message: String) -> Unit,
     ): Boolean {
-        if (LLMManager.isPrewarming ||
-            (!featureFlags.isCloudActive && !LLMManager.isReady())
+        if (llmSession.isPrewarming() ||
+            (!featureFlags.isCloudActive && !llmSession.isReady())
         ) {
             pendingQuery = query to retryCount
             onWaiting(retryCount == 0)
             if (waitJob?.isActive != true) {
                 waitJob = scope.launch {
                     try {
-                        if (!featureFlags.isCloudActive && !LLMManager.isReady()) {
-                            val edgeProvider: ILLMProvider by getKoin().inject(named("edge"))
-                            edgeProvider.initialize(context, force = false)
+                        if (!featureFlags.isCloudActive && !llmSession.isReady()) {
+                            llmSession.ensureReady(context, force = false)
                         }
                         var waits = 0
                         while (
                             waits < 40 &&
-                            (LLMManager.isPrewarming ||
-                                (!featureFlags.isCloudActive && !LLMManager.isReady()))
+                            (llmSession.isPrewarming() ||
+                                (!featureFlags.isCloudActive && !llmSession.isReady()))
                         ) {
                             delay(250)
                             waits++
                         }
                         val queued = pendingQuery
                         pendingQuery = null
-                        if (LLMManager.isPrewarming ||
-                            (!featureFlags.isCloudActive && !LLMManager.isReady())
+                        if (llmSession.isPrewarming() ||
+                            (!featureFlags.isCloudActive && !llmSession.isReady())
                         ) {
                             onFailure("Model not ready yet. Try again in a moment.")
                             return@launch
