@@ -43,20 +43,6 @@ object FollowUpRouter {
         val q = query.lowercase().trim()
         val last = lastAssistantMessage.lowercase()
 
-        // Instant Direct Execution for Media Controls
-        if (q == "stop music" || q == "pause music" || q == "stop the music" || q == "pause the music" || 
-            q == "turn off music" || q == "turn off the music" || q == "mute music" || q == "stop" || q == "pause") {
-            return "stopMusic()"
-        }
-
-        // Instant Direct Execution for HVAC Controls
-        if (q == "increase temperature" || q == "warmer" || q == "make it warm" || q == "make it hot" || q == "temp up") {
-            return "increaseTemperature(all)"
-        }
-        if (q == "decrease temperature" || q == "cooler" || q == "make it cool" || q == "make it cold" || q == "temp down") {
-            return "decreaseTemperature(all)"
-        }
-
         if (MemoryManager.isAffirmative(query)) {
             when {
                 last.contains("seat heater") -> return "setSeatHeater(2)"

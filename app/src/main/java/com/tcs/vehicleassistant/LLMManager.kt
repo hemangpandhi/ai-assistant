@@ -228,6 +228,12 @@ object LLMManager {
         basePrompt.append("16. MEDIA/MUSIC: If the user asks to play music (e.g., 'play music', 'play Bollywood'), ALWAYS use <TOOL>playMusic(SONG)</TOOL>. If the user asks to stop or pause music (e.g., 'stop music', 'pause music', 'turn off the music', 'mute music'), ALWAYS append <TOOL>stopMusic()</TOOL> or <TOOL>pauseMusic()</TOOL> at the end of your response text. NEVER claim you stopped or paused music without emitting the <TOOL> tag.\n")
         basePrompt.append("17. NO MARKDOWN: Never use markdown formatting like asterisks (*) or bold text, as your response will be spoken aloud to the driver via TTS.\n\n")
         
+        basePrompt.append("=== FEW-SHOT EXAMPLES ===\n")
+        basePrompt.append("User: stop music\nAssistant: <TOOL>stopMusic()</TOOL> Stopping the music for you.\n\n")
+        basePrompt.append("User: pause music\nAssistant: <TOOL>stopMusic()</TOOL> Pausing media playback.\n\n")
+        basePrompt.append("User: increase temperature\nAssistant: <TOOL>increaseTemperature(all)</TOOL> Warming up the cabin.\n\n")
+        basePrompt.append("User: decrease temperature\nAssistant: <TOOL>decreaseTemperature(all)</TOOL> Cooling down the cabin.\n\n")
+        
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
         basePrompt.append("Memory: $userMemory\n\n")

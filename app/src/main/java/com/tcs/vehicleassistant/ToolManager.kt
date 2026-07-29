@@ -237,7 +237,10 @@ class ToolManager {
             }.toMutableList()
         }
         
-        val combinedTools = (contextTools + exactMatches).distinct()
+        val coreTools = activeTools.values.filter { tool ->
+            tool.handlerKey in setOf("stopMusic", "playMusic", "increaseTemperature", "decreaseTemperature", "setSeatHeater")
+        }
+        val combinedTools = (contextTools + exactMatches + coreTools).distinct()
         
         if (combinedTools.isNotEmpty()) {
             return combinedTools
