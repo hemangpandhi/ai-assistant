@@ -150,6 +150,33 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
+    private var sherpaVad: Vad? = null
+
+    private fun initVad() {
+        if (sherpaVad != null) return
+        try {
+            val sileroConfig = SileroVadModelConfig(
+                model = "silero_vad.onnx",
+                threshold = 0.5f,
+                minSilenceDuration = 1.0f,
+                minSpeechDuration = 0.25f,
+                windowSize = 512,
+                maxSpeechDuration = 15.0f
+            )
+            val vadConfig = VadModelConfig(
+                sileroVadModelConfig = sileroConfig,
+                sampleRate = 16000,
+                numThreads = 1,
+                provider = "cpu",
+                debug = false
+            )
+            sherpaVad = Vad(context.assets, vadConfig)
+            android.util.Log.i("AndroidAudioManager", "Silero VAD initialized successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("AndroidAudioManager", "Failed to init Silero VAD: ${e.message}", e)
+        }
+    }
+
     override fun startListening() {
         if (isListening) return
         isListening = true
@@ -157,6 +184,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         listeningJob = CoroutineScope(Dispatchers.IO).launch {
             try {
                 initSpeechRecognizer()
+                initVad()
                 if (sherpaRecognizer == null) {
                     withContext(Dispatchers.Main) { 
                         isListening = false
@@ -197,53 +225,50 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 var hasSpoken = false
                 var silenceFrames = 0
                 val audioBuffer = mutableListOf<Float>()
-                
-                var baselineRms = 0.0
-                var calibrationFrames = 0
-                var speechThreshold = 500.0
+                sherpaVad?.reset()
                 
                 while (isListening) {
                     val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readSize > 0) {
-                        var sumSquares = 0.0
-                        for (i in 0 until readSize) {
-                            val sample = buffer[i].toDouble()
-                            sumSquares += sample * sample
-                        }
-                        val rms = Math.sqrt(sumSquares / readSize)
-                        
-                        if (calibrationFrames < 10) {
-                            baselineRms += rms
-                            calibrationFrames++
-                            if (calibrationFrames == 10) {
-                                baselineRms /= 10.0
-                                speechThreshold = baselineRms * 2.5
-                                if (speechThreshold < 150.0) speechThreshold = 150.0
-                            }
-                            // Buffer audio even during calibration so we don't clip the first word
-                            for (i in 0 until readSize) {
-                                audioBuffer.add(buffer[i].toFloat() / 32768.0f)
-                            }
-                            continue
-                        }
-                        
-                        if (rms > speechThreshold) {
-                            silenceFrames = 0
-                            if (!hasSpoken) {
-                                hasSpoken = true
-                                withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
+                        val floatSamples = FloatArray(readSize) { buffer[it].toFloat() / 32768.0f }
+                        for (f in floatSamples) audioBuffer.add(f)
+
+                        // Feed float samples to Silero Neural VAD
+                        val vad = sherpaVad
+                        if (vad != null) {
+                            vad.acceptWaveform(floatSamples)
+                            val isSpeech = vad.isSpeechDetected()
+                            if (isSpeech) {
+                                silenceFrames = 0
+                                if (!hasSpoken) {
+                                    hasSpoken = true
+                                    withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
+                                }
+                            } else {
+                                if (hasSpoken) silenceFrames++
                             }
                         } else {
-                            if (hasSpoken) silenceFrames++
+                            // Fallback to basic volume threshold if VAD init failed
+                            var sumSquares = 0.0
+                            for (i in 0 until readSize) {
+                                val s = buffer[i].toDouble()
+                                sumSquares += s * s
+                            }
+                            val rms = Math.sqrt(sumSquares / readSize)
+                            if (rms > 200.0) {
+                                silenceFrames = 0
+                                if (!hasSpoken) {
+                                    hasSpoken = true
+                                    withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
+                                }
+                            } else if (hasSpoken) {
+                                silenceFrames++
+                            }
                         }
                         
-                        // Always keep buffering once listening starts to avoid clipping
-                        for (i in 0 until readSize) {
-                            audioBuffer.add(buffer[i].toFloat() / 32768.0f)
-                        }
-                        
-                        // Auto-stop after ~1 second of silence to avoid clipping short phrases
-                        if (hasSpoken && silenceFrames > 10) {
+                        // Stop listening when Silero VAD detects end of speech segment or 1.0s silence reached
+                        val isSegmentFinished = sherpaVad?.empty() == false
+                        if (hasSpoken && (isSegmentFinished || silenceFrames > 10)) {
                             withContext(Dispatchers.Main) {
                                 onSttEndOfSpeech?.invoke()
                             }
@@ -329,10 +354,15 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun speak(text: String, utteranceId: String) {
         ttsChannel.trySend {
             try {
-                withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }
                 val cleanText = text.replace("*", "").replace("#", "").replace("_", "")
-                val audio = offlineTts?.generate(cleanText, sid = 0, speed = 1.0f)
-                if (audio != null && isActive) {
+                val sentences = cleanText.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
+                if (sentences.isEmpty()) return@trySend
+
+                var isFirstSentence = true
+
+                for (sentence in sentences) {
+                    if (!isActive) break
+                    val audio = offlineTts?.generate(sentence, sid = 0, speed = 1.0f) ?: continue
                     val samples = audio.samples
                     val sampleRate = audio.sampleRate
                     
@@ -360,11 +390,15 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                     if (globalAudioTrack?.playState != AudioTrack.PLAYSTATE_PLAYING) {
                         globalAudioTrack?.play()
                     }
+
+                    if (isFirstSentence) {
+                        isFirstSentence = false
+                        withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }
+                    }
                     
                     val shortSamples = ShortArray(samples.size)
                     for (i in samples.indices) {
                         var v = samples[i]
-                        // Sherpa-ONNX returns floats in [-1.0, 1.0]. Convert to 16-bit PCM.
                         if (v > 1.0f || v < -1.0f) {
                             if (v > 32767f) v = 32767f
                             if (v < -32768f) v = -32768f
