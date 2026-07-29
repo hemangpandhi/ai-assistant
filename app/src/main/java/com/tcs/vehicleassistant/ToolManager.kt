@@ -193,27 +193,9 @@ class ToolManager {
         val combinedQuery = "$conversationalContext $userQuery".trim()
         if (combinedQuery.isBlank()) return activeTools.values.toList()
         
-        // Fast path: Keyword matching (0ms)
         val q = combinedQuery.lowercase()
         val userQ = userQuery.lowercase()
-        val hasEmbeddedCommand = hasExplicitCommandIntent(userQuery)
-        
-        // Conversational Bypass: If the user is asking for sightseeing suggestions, 
-        // we DO NOT want to inject map tools, otherwise the model gets tempted to use them instead of talking.
-        // BUT if the same turn also contains an explicit vehicle command ("also turn on the AC"), still inject tools.
-        val bypassKeywords = listOf(
-            "suggest", "recommend", "places to visit", "best places", "sightseeing", "what to do", 
-            "tourist", "attractions", "tell me about", "what is in", "history of", "describe"
-        )
-        if (!hasEmbeddedCommand && bypassKeywords.any { q.contains(it) }) {
-            return emptyList()
-        }
-        
-        // Conversational empathy: "feeling cold" is handled by system prompt without tool injection
-        val coldEmpathyPhrases = listOf("feeling cold", "i am cold", "i'm cold", "shivering", "bit cold")
-        if (!hasEmbeddedCommand && coldEmpathyPhrases.any { userQ.contains(it) }) {
-            return emptyList()
-        }
+        val queryTokens = userQ.split(Regex("""\W+""")).filter { it.length > 2 }.toSet()
 
         // Short follow-ups rely on prior assistant context for tool routing
         val contextTools = if (MemoryManager.isFollowUpQuery(userQuery, conversationalContext) && conversationalContext.isNotBlank()) {
@@ -223,6 +205,22 @@ class ToolManager {
         } else {
             emptyList()
         }
+
+        // Scalable BM25 / Token scoring against JSON keywords and aliases
+        val scoredTools = activeTools.values.mapNotNull { tool ->
+            var score = 0
+            val keywords = tool.keywords ?: emptyList()
+            val aliases = tool.aliases ?: emptyList()
+
+            // Exact keyword/alias token overlap scoring
+            for (kw in keywords + aliases) {
+                val kwLower = kw.lowercase()
+                if (userQ.contains(kwLower)) score += 10
+                if (queryTokens.any { token -> kwLower.contains(token) }) score += 2
+            }
+
+            if (score > 0) Pair(tool, score) else null
+        }.sortedByDescending { it.second }.map { it.first }.toMutableList()
 
         // Mid-conversation commands: match keywords in the current user turn first
         val userTurnMatches = activeTools.values.filter { tool ->
@@ -247,7 +245,7 @@ class ToolManager {
         }
         
         // Temperature heuristic: catch explicit numbers (50-90) or 'degrees'
-        val tempSource = if (hasEmbeddedCommand) userQ else q
+        val tempSource = userQ
         val tempRegex = Regex("""\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b""")
         if (tempRegex.containsMatchIn(tempSource) || tempSource.contains("degrees") || Regex("""\d{2}f""").containsMatchIn(tempSource)) {
             val tempTools = activeTools.values.filter { it.handlerKey?.contains("Temperature", ignoreCase = true) == true }
