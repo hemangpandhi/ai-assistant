@@ -150,7 +150,7 @@ class WakeWordService : Service() {
             }
 
             val configuredWord = wakeWord.lowercase().trim()
-            val grammarSet = setOf("hey nissan", "nissan", configuredWord, "[unk]")
+            val grammarSet = if (configuredWord.isNotEmpty()) setOf("hey nissan", configuredWord, "[unk]") else setOf("hey nissan", "[unk]")
             val grammarJson = grammarSet.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
 
             Log.d("WakeWord", "Setting up Vosk recognizer with strict grammar: $grammarJson")
@@ -264,25 +264,21 @@ class WakeWordService : Service() {
         val lowerHypothesis = hypothesis.lowercase()
         val configuredWord = wakeWord.lowercase().trim()
 
-        if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
-            Log.d("WakeWord", "Vosk heard: $hypothesis")
-        }
+        // Extract clean transcribed text from Vosk JSON result {"text": "..."} or {"partial": "..."}
+        val textMatch = Regex(""""(?:text|partial)"\s*:\s*"([^"]+)"""").find(lowerHypothesis)?.groupValues?.getOrNull(1)?.trim() ?: ""
 
-        // Strictly check ONLY for "Hey Nissan" or the user-configured setting wake word
-        val isMatch = lowerHypothesis.contains("hey nissan") ||
-                lowerHypothesis.contains("nissan") ||
-                (configuredWord.isNotEmpty() && lowerHypothesis.contains(configuredWord))
+        if (textMatch.isEmpty() || textMatch == "[unk]") return
+
+        // Strictly check ONLY for full "hey nissan" or the user's exact configured wake word
+        val isMatch = textMatch.contains("hey nissan") ||
+                (configuredWord.isNotEmpty() && textMatch.contains(configuredWord))
 
         if (isMatch) {
-            Log.d("WakeWord", "Wake word detected: $lowerHypothesis (configured: '$configuredWord')")
+            Log.d("WakeWord", "Wake word MATCHED: '$textMatch' (configured: '$configuredWord')")
             sendBroadcast(Intent("com.tcs.vehicleassistant.WAKE_WORD_DETECTED").setPackage(packageName))
 
             isRecording = false
-            try {
-                customAudioRecord?.stop()
-                customAudioRecord?.release()
-            } catch (e: Exception) {}
-            customAudioRecord = null
+            stopCustomListening()
         }
     }
 }
