@@ -10,11 +10,11 @@ There is no backend/server to run; the "product" is an installable APK. See
 `README.md` and `ARCHITECTURE.md` for product/architecture details and
 `app/build.gradle.kts` for the module config.
 
-### Hard rule: do not modify `origin/dev/refactor`-owned classes
+### Hard rule: do not modify `origin/master`-owned classes
 
-The Kotlin tree that exists on `origin/dev/refactor` under `app/src` is
-**refactor-owned**. Treat it as read-only for UI/UX / TTFR / agent work on
-`dev/ui_ux_v2` (and agent branches):
+This branch is based on `origin/master`. The Kotlin tree that exists on
+`origin/master` under `app/src` is **master-owned**. Treat it as read-only for
+UI/UX / TTFR / agent work:
 
 - **Do not edit** those `.kt` files unless it is **extremely required** (e.g. a
   true compile break that cannot be fixed with a parallel type, adapter, or
@@ -22,13 +22,13 @@ The Kotlin tree that exists on `origin/dev/refactor` under `app/src` is
 - Prefer **new parallel types**, **extensions**, **ports/adapters**, and
   **manifest / Koin / XML wiring** instead (see
   `docs/architecture/refactor_extension_policy.md`).
-- After any accidental touch, restore the file from `origin/dev/refactor` and
+- After any accidental touch, restore the file from `origin/master` and
   move the change into an additive type.
-- Enforced by `RefactorOwnedTreeContractTest` +
-  `app/src/test/resources/refactor_owned_kotlin.txt` (byte-identical check).
+- Enforced by `MasterOwnedTreeContractTest` +
+  `app/src/test/resources/master_owned_kotlin.txt` (byte-identical check).
 
 ### Toolchain (non-obvious)
-- **Use JDK 17, not the VM default JDK 21.** AGP 8.2.2 / Gradle 8.4 require Java 17;
+- **Use JDK 17, not the VM default JDK 21.** AGP 8.7.3 / Gradle 8.9 require Java 17;
   building with 21 fails. `JAVA_HOME` and `ANDROID_HOME` are exported in `~/.bashrc`
   (JDK 17 at `/usr/lib/jvm/java-17-openjdk-amd64`, SDK at `~/android-sdk`).
 - The Android SDK (`platforms;android-34`, `build-tools;34.0.0`, `platform-tools`)

@@ -45,14 +45,6 @@ class AssistantViewModel(
             onReadyForSpeech = {
                 _uiState.value = AssistantUiState.Listening()
             },
-            onBeginningOfSpeech = {
-                // Barge-in lite: supersede in-flight Think/Act/Speak when user talks again.
-                if (orchestrator.isProcessing()) {
-                    orchestrator.cancelInFlight()
-                }
-                runCatching { audioManager.stopSpeaking() }
-                _uiState.value = AssistantUiState.Listening
-            },
             onBeginningOfSpeech = { },
             onEndOfSpeech = {
                 _uiState.value = AssistantUiState.Thinking()
@@ -67,7 +59,6 @@ class AssistantViewModel(
                 // Do not dismiss automatically so user can try again
             },
             onError = { errorCode ->
-                SpeculativeToolPrep.clear()
                 val errorMsg = mapSpeechError(errorCode)
                 _uiState.value = AssistantUiState.Error(errorMsg)
                 // Do not dismiss automatically so user can try again

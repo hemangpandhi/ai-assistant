@@ -7,11 +7,7 @@ import android.media.AudioTrack
 import kotlinx.coroutines.*
 import com.k2fsa.sherpa.onnx.*
 
-/**
- * Sherpa-ONNX offline STT (Whisper tiny.en) + Piper VITS TTS stack from [dev/refactor],
- * implementing [SessionAudioPort] for UI/UX mic handoff / ducking / endpointing.
- */
-class AndroidAudioManager(private val context: Context) : SessionAudioPort {
+class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     private var offlineTts: OfflineTts? = null
     
@@ -178,79 +174,6 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
             android.util.Log.i("AndroidAudioManager", "Silero VAD initialized successfully")
         } catch (e: Exception) {
             android.util.Log.e("AndroidAudioManager", "Failed to init Silero VAD: ${e.message}", e)
-        }
-        copyAssetsToDir("sherpa-onnx-tts/espeak-ng-data", outDir)
-        return outDir.absolutePath
-    }
-
-    override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
-        // Warm STT early — independent of TTS init.
-        ensureWarmRecognizer()
-        try {
-            val espeakDataPath = copyEspeakData()
-            val vitsConfig = OfflineTtsVitsModelConfig(
-                model = "sherpa-onnx-tts/en_US-amy-low.onnx",
-                tokens = "sherpa-onnx-tts/tokens.txt",
-                lexicon = "",
-                dataDir = espeakDataPath,
-                dictDir = "",
-                noiseScale = 0.667f,
-                noiseScaleW = 0.8f,
-                lengthScale = 1.0f
-            )
-            val modelConfig = OfflineTtsModelConfig(
-                vits = vitsConfig, 
-                numThreads = 1, 
-                debug = false, 
-                provider = "cpu"
-            )
-            val config = OfflineTtsConfig(
-                model = modelConfig, 
-                ruleFsts = "", 
-                maxNumSentences = 1
-            )
-            offlineTts = OfflineTts(context.assets, config)
-            onSuccess()
-        } catch (e: Exception) {
-            e.printStackTrace()
-            onError()
-        }
-    }
-
-    private var isListening = false
-    private var sherpaRecognizer: OfflineRecognizer? = null
-    private var audioRecord: android.media.AudioRecord? = null
-    private var listeningJob: Job? = null
-
-    private fun initSpeechRecognizer() {
-        if (sherpaRecognizer != null) return
-        try {
-            val whisperConfig = OfflineWhisperModelConfig(
-                encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
-                decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
-                language = "en",
-                task = "transcribe",
-                tailPaddings = -1
-            )
-            val modelConfig = OfflineModelConfig(
-                whisper = whisperConfig,
-                tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
-                numThreads = 4,
-                debug = false,
-                provider = "cpu",
-                modelType = "whisper"
-            )
-            val featConfig = FeatureConfig(
-                sampleRate = 16000,
-                featureDim = 80
-            )
-            val config = OfflineRecognizerConfig(
-                featConfig = featConfig,
-                modelConfig = modelConfig
-            )
-            sherpaRecognizer = OfflineRecognizer(context.assets, config)
-        } catch (e: Exception) {
-            android.util.Log.e("AndroidAudioManager", "Failed to init Sherpa-ONNX: ${e.message}", e)
         }
     }
 
@@ -426,9 +349,6 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
                 } catch (e: Exception) {}
             }
         }
-        if (holdingDuck) {
-            requestAssistantDuckLocked()
-        }
     }
 
     override fun speak(text: String, utteranceId: String) {
@@ -479,7 +399,6 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
                     val shortSamples = ShortArray(samples.size)
                     for (i in samples.indices) {
                         var v = samples[i]
-                        // Sherpa-ONNX returns floats in [-1.0, 1.0]. Convert to 16-bit PCM.
                         if (v > 1.0f || v < -1.0f) {
                             if (v > 32767f) v = 32767f
                             if (v < -32768f) v = -32768f

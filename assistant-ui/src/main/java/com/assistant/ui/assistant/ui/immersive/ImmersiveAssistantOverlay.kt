@@ -154,12 +154,14 @@ fun ImmersiveAssistantOverlay(
     val stageStore = remember {
         AssistantStageStore(
             StageState(
-                visible = !awaitHotword,
-                session = if (!awaitHotword) 1 else 0,
+                // Always start hidden so enter animation runs when the session/icon actually shows.
+                visible = false,
+                session = 0,
                 mood = if (!awaitHotword) AssistantMood.Listening else initialMood,
             )
         )
     }
+    var summonOrigin by remember { mutableStateOf(ImmersiveSummonOrigin.Icon) }
     val stage = stageStore.state
     val visible = stage.visible
     val session = stage.session
@@ -456,18 +458,7 @@ fun ImmersiveAssistantOverlay(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) }
-                    .then(
-                        if (visible) {
-                            Modifier.clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { stageStore.dispatch(StageIntent.Dismiss) },
-                            )
-                        } else {
-                            Modifier
-                        },
-                    ),
+                    .then(immersiveSummonGraphics(summonOrigin, reveal)),
             ) {
                 Box(
                     modifier = Modifier
@@ -478,7 +469,7 @@ fun ImmersiveAssistantOverlay(
                                 Modifier.clickable(
                                     interactionSource = remember { MutableInteractionSource() },
                                     indication = null,
-                                    onClick = { visible = false },
+                                    onClick = { stageStore.dispatch(StageIntent.Dismiss) },
                                 )
                             } else {
                                 Modifier
@@ -496,32 +487,19 @@ fun ImmersiveAssistantOverlay(
                     }
                 }
 
-            CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
-                ImmersiveAssistantBottomChrome(
-                    mood = mood,
-                    faceKind = faceKind,
-                    transcript = transcript,
-                    speaker = speaker,
-                    gazeX = effectiveGazeX,
-                    gazeY = effectiveGazeY,
-                    mouthAmplitude = mouthAmplitude,
-                    brandGlow = brandGlow,
-                    highContrast = highContrast,
-                    gesture = gesture,
-                    contextGlyph = contextGlyph,
-                    showFace = faceKind != AssistantFaceKind.None,
-                    faceRise = faceRise.value,
-                    faceScale = faceScale.value,
-                    faceAlpha = faceAlpha.value,
-                    transcriptAlpha = transcriptAlpha.value,
-                    faceSizeScale = 1.32f, // 1.10 baseline × 1.20
-                    modifier = Modifier.clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { /* consume — keep session alive */ },
-                    ),
-                )
-            }
+                val glyphGaze = contextGlyphGaze()
+                val effectiveGazeX =
+                    if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
+                        glyphGaze.first
+                    } else {
+                        gazeX
+                    }
+                val effectiveGazeY =
+                    if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
+                        glyphGaze.second
+                    } else {
+                        gazeY
+                    }
 
                 CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
                     ImmersiveAssistantBottomChrome(
@@ -635,8 +613,8 @@ private fun ImmersiveAssistantDebugStrip(
 }
 
 /**
- * Full-stage dim for the immersive assistant, with a stronger bottom/center pool
- * behind the face so chrome stays readable over maps / launcher.
+ * Full-stage dim for the immersive assistant: light empty areas, stronger
+ * bottom-center pool behind the face / transcript so chrome stays readable.
  *
  * @param rich when false, skips Offscreen compositing / DstIn masks so the first
  * frame is a single scrim + cheap gradient (target &lt; 100ms TTFF).
@@ -647,7 +625,7 @@ fun ImmersiveBackdrop(
     rich: Boolean = true,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        // Full-screen base dim — always present for instant first paint.
+        // Soft full-screen base — mostly transparent so maps / launcher show through.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -655,15 +633,16 @@ fun ImmersiveBackdrop(
         )
         if (!rich) {
             // Single-pass vertical darken — no Offscreen layer, no blend mask.
+            // Keep the lite path soft to match the transparent stage.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
-                                0.0f to Color(0x4010141C),
-                                0.55f to Color(0x990E1218),
-                                1.0f to Color(0xE6050608),
+                                0.0f to Color(0x1410141C),
+                                0.55f to Color(0x440E1218),
+                                1.0f to Color(0x99050608),
                             ),
                         ),
                     ),
@@ -944,16 +923,28 @@ private fun ImmersiveSummonBridge(
     onSummon: (ImmersiveSummonOrigin) -> Unit,
     onDismiss: () -> Unit = {},
 ) {
-    // SharedFlow bus (preferred) + legacy handler list for any external registrants.
-    LaunchedEffect(onSummon) {
-        ImmersiveStageBus.summon.collect { onSummon() }
+    val summonState = rememberUpdatedState(onSummon)
+    val dismissState = rememberUpdatedState(onDismiss)
+
+    // Dismiss still rides the SharedFlow bus; summon is origin-aware via handlers.
+    LaunchedEffect(Unit) {
+        ImmersiveStageBus.dismiss.collect {
+            dismissState.value()
+        }
     }
-    LaunchedEffect(onDismiss) {
-        ImmersiveStageBus.dismiss.collect { onDismiss() }
-    }
-    DisposableEffect(onSummon, onDismiss) {
-        immersiveSummonHandlers += onSummon
-        immersiveDismissHandlers += onDismiss
+
+    DisposableEffect(Unit) {
+        val summonHandler: (ImmersiveSummonOrigin) -> Unit = { origin ->
+            summonState.value(origin)
+        }
+        val dismissHandler: () -> Unit = { dismissState.value() }
+        immersiveSummonHandlers += summonHandler
+        immersiveDismissHandlers += dismissHandler
+        // Deliver a summon that arrived before this composition registered.
+        pendingSummonOrigin?.let { pending ->
+            pendingSummonOrigin = null
+            summonHandler(pending)
+        }
         onDispose {
             immersiveSummonHandlers -= summonHandler
             immersiveDismissHandlers -= dismissHandler
@@ -966,14 +957,27 @@ private fun ImmersiveSummonBridge(
  * Defaults to hotword (bottom→top) for backward-compatible wake-word callers.
  */
 fun notifyImmersiveAssistantHotword() {
-    ImmersiveStageBus.notifySummon()
-    immersiveSummonHandlers.toList().forEach { it.invoke() }
+    notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Hotword)
+}
+
+/** Summon with an explicit enter style (icon emerge vs hotword bottom→top). */
+fun notifyImmersiveAssistantSummon(origin: ImmersiveSummonOrigin) {
+    // Origin-aware handler list is the source of truth (StageBus is Unit-only).
+    val handlers = immersiveSummonHandlers.toList()
+    if (handlers.isEmpty()) {
+        // Composition may not have registered yet (session onShow races first frame).
+        pendingSummonOrigin = origin
+    } else {
+        pendingSummonOrigin = null
+        handlers.forEach { it.invoke(origin) }
+    }
     notifyAssistantHotword()
 }
 
 /** Release Compose STT / stage when the VoiceInteractionSession hides. */
 fun notifyImmersiveAssistantDismiss() {
     ImmersiveStageBus.notifyDismiss()
+    pendingSummonOrigin = null
     immersiveDismissHandlers.toList().forEach { it.invoke() }
 }
 
