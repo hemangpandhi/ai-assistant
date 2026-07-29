@@ -198,7 +198,9 @@ class WakeWordService : Service() {
                                     checkWakeWord(partialText)
                                 }
                             }
+                        }
                     }
+                    loopCount++
                 }
             } catch (e: Exception) {
                 Log.e("WakeWord", "Custom listening loop error: ${e.message}")
@@ -218,60 +220,50 @@ class WakeWordService : Service() {
             restartJob?.cancel()
             restartJob = CoroutineScope(Dispatchers.Main).launch {
                 try {
-                    // Wait 50ms to ensure the Assistant's SpeechRecognizer has fully released the mic hardware
-                    // before the WakeWord engine grabs it again.
-                    delay(50)
-                    
-                    // 1. Tell IO thread to stop
-                    isRecording = false
-                    
-                    // 2. Unblock the IO thread's AudioRecord.read() by stopping the microphone
-                    try {
-                        customAudioRecord?.stop()
-                    } catch(e: Exception) {}
-                    
-                    // 3. WAIT for the IO thread to fully exit the acceptWaveForm loop!
-                    listeningJob?.join()
-                    
-                    // 4. Safely close the C++ Recognizer now that no thread is using it
-                    try {
-                        customRecognizer?.close()
-                    } catch (e: Exception) {}
-                    customRecognizer = null
-                    
-                    recognizerSetup()
-                    Log.d("WakeWord", "Restarting listener loop after RESTART intent...")
-                    delay(50)
+                    stopCustomListening()
+                    delay(400)
                     startCustomListening()
                 } catch (e: Exception) {
-                    Log.e("WakeWord", "Failed to restart: ${e.message}")
+                    Log.e("WakeWord", "Failed to restart listening", e)
                 }
             }
-        } else if (intent?.action == "ACTION_STOP_LISTENING") {
-            Log.d("WakeWord", "ACTION_STOP_LISTENING received. Stopping HOTWORD loop.")
-            isRecording = false
-            // Must wait for the IO thread to fully exit acceptWaveForm before closing the C++ recognizer
-            CoroutineScope(Dispatchers.Main).launch {
-                try {
-                    customAudioRecord?.stop()
-                } catch (e: Exception) {}
-                // Wait for the IO thread to finish so it's not mid-acceptWaveForm
-                listeningJob?.join()
-                listeningJob = null
-                try {
-                    customAudioRecord?.release()
-                } catch (e: Exception) {}
-                customAudioRecord = null
-                // Safely close the C++ recognizer now that no thread is using it
-                try {
-                    customRecognizer?.close()
-                } catch (e: Exception) {}
-                customRecognizer = null
-                Log.d("WakeWord", "WakeWord fully stopped and recognizer released.")
-            }
+            return START_STICKY
         }
-        updateWakeWord()
+        
+        val action = intent?.action ?: "ACTION_START"
+        if (action == "ACTION_STOP") {
+            isRecording = false
+            stopCustomListening()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
+        startForeground(1001, createNotification())
+
+        if (model == null) {
+            CoroutineScope(Dispatchers.IO).launch {
+                model = ensureModel(applicationContext)
+                withContext(Dispatchers.Main) {
+                    recognizerSetup()
+                }
+            }
+        } else {
+            recognizerSetup()
+        }
         return START_STICKY
+    }
+
+    private fun stopCustomListening() {
+        isRecording = false
+        try {
+            listeningJob?.cancel()
+            listeningJob = null
+            customAudioRecord?.stop()
+            customAudioRecord?.release()
+        } catch (e: Exception) {
+            Log.e("WakeWord", "Failed to stop AudioRecord", e)
+        }
+        customAudioRecord = null
     }
 
     override fun onDestroy() {
@@ -287,39 +279,20 @@ class WakeWordService : Service() {
 
     private fun checkWakeWord(hypothesis: String) {
         val lowerHypothesis = hypothesis.lowercase()
+        val configuredWord = wakeWord.lowercase().trim()
+
         if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
             Log.d("WakeWord", "Vosk heard: $hypothesis")
         }
-        val isMatch = lowerHypothesis.contains(wakeWord) || 
-                      lowerHypothesis.contains("hey nissan") ||
+
+        val isMatch = lowerHypothesis.contains("hey nissan") || 
                       lowerHypothesis.contains("nissan") ||
-                      lowerHypothesis.contains("hey nice") ||
-                      lowerHypothesis.contains("hey me") ||
-                      lowerHypothesis.contains("hey listen") ||
-                      lowerHypothesis.contains("hey lisa") ||
-                      lowerHypothesis.contains("hey mason") ||
-                      lowerHypothesis.contains("hey nathan") ||
-                      lowerHypothesis.contains("hey missing") ||
-                      lowerHypothesis.contains("hey auto") ||
-                      lowerHypothesis.contains("hey otto") || 
-                      lowerHypothesis.contains("hey out") || 
-                      lowerHypothesis.contains("hey miss") ||
-                      lowerHypothesis.contains("hey reason") ||
-                      lowerHypothesis.contains("hey recent") ||
-                      lowerHypothesis.contains("hey decent") ||
-                      lowerHypothesis.contains("hey sam") ||
-                      lowerHypothesis.contains("hey sun") ||
-                      lowerHypothesis.contains("hey son") ||
-                      lowerHypothesis.contains("hey i have a hot") ||
-                      lowerHypothesis.contains("haney") ||
-                      lowerHypothesis.contains("nisa") ||
-                      lowerHypothesis.contains("haney sir")
+                      (configuredWord.isNotEmpty() && lowerHypothesis.contains(configuredWord))
         
         if (isMatch) {
-            Log.d("WakeWord", "Wake word detected: $wakeWord")
+            Log.d("WakeWord", "Wake word detected: $lowerHypothesis (matches configured: '$configuredWord')")
             sendBroadcast(Intent("com.tcs.vehicleassistant.WAKE_WORD_DETECTED").setPackage(packageName))
             
-            // Stop listening. The AssistantSession will explicitly send ACTION_RESTART_LISTENING when it hides.
             isRecording = false
             try {
                 customAudioRecord?.stop()
