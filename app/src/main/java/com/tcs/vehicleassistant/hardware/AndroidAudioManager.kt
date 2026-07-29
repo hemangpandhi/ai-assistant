@@ -215,8 +215,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             audioBuffer.add(buffer[i].toFloat() / 32768.0f)
                         }
                         
-                        // Auto-stop after ~1.2 seconds of silence to drastically reduce handoff latency
-                        if (hasSpoken && silenceFrames > 12) {
+                        // Auto-stop after ~0.5 seconds of silence for extreme latency handoff
+                        if (hasSpoken && silenceFrames > 5) {
                             withContext(Dispatchers.Main) {
                                 onSttEndOfSpeech?.invoke()
                             }
