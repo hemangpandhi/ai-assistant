@@ -215,8 +215,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             audioBuffer.add(buffer[i].toFloat() / 32768.0f)
                         }
                         
-                        // Auto-stop after ~1.5 seconds of silence
-                        if (hasSpoken && silenceFrames > 30) {
+                        // Auto-stop after ~1.2 seconds of silence to drastically reduce handoff latency
+                        if (hasSpoken && silenceFrames > 12) {
                             withContext(Dispatchers.Main) {
                                 onSttEndOfSpeech?.invoke()
                             }
@@ -301,8 +301,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         ttsChannel.trySend {
             try {
                 withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }
-                
-                val audio = offlineTts?.generate(text, sid = 0, speed = 1.0f)
+                val cleanText = text.replace("*", "").replace("#", "").replace("_", "")
+                val audio = offlineTts?.generate(cleanText, sid = 0, speed = 1.0f)
                 if (audio != null && isActive) {
                     val samples = audio.samples
                     val sampleRate = audio.sampleRate
