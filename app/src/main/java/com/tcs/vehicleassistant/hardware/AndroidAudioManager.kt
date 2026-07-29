@@ -7,6 +7,10 @@ import android.media.AudioTrack
 import kotlinx.coroutines.*
 import com.k2fsa.sherpa.onnx.*
 
+/**
+ * Sherpa-ONNX offline STT (Whisper tiny.en) + Piper VITS TTS stack from [dev/refactor],
+ * adapted to the extended [IAudioManager] surface used by MicCaptureCoordinator / backend.
+ */
 class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     private var offlineTts: OfflineTts? = null
@@ -174,26 +178,95 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         } catch (e: Exception) {
             android.util.Log.e("AndroidAudioManager", "Failed to init Silero VAD: ${e.message}", e)
         }
+        copyAssetsToDir("sherpa-onnx-tts/espeak-ng-data", outDir)
+        return outDir.absolutePath
+    }
+
+    override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
+        // Warm STT early — independent of TTS init.
+        ensureWarmRecognizer()
+        try {
+            val espeakDataPath = copyEspeakData()
+            val vitsConfig = OfflineTtsVitsModelConfig(
+                model = "sherpa-onnx-tts/en_US-amy-low.onnx",
+                tokens = "sherpa-onnx-tts/tokens.txt",
+                lexicon = "",
+                dataDir = espeakDataPath,
+                dictDir = "",
+                noiseScale = 0.667f,
+                noiseScaleW = 0.8f,
+                lengthScale = 1.0f,
+            )
+            val modelConfig = OfflineTtsModelConfig(
+                vits = vitsConfig,
+                numThreads = 1,
+                debug = false,
+                provider = "cpu",
+            )
+            val config = OfflineTtsConfig(
+                model = modelConfig,
+                ruleFsts = "",
+                maxNumSentences = 1,
+            )
+            offlineTts = OfflineTts(appContext.assets, config)
+            onSuccess()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init Sherpa TTS", e)
+            onError()
+        }
+    }
+
+    private fun initSpeechRecognizer() {
+        if (sherpaRecognizer != null) return
+        try {
+            val whisperConfig = OfflineWhisperModelConfig(
+                encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
+                decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
+                language = "en",
+                task = "transcribe",
+                tailPaddings = -1,
+            )
+            val modelConfig = OfflineModelConfig(
+                whisper = whisperConfig,
+                tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
+                numThreads = 4,
+                debug = false,
+                provider = "cpu",
+                modelType = "whisper",
+            )
+            val featConfig = FeatureConfig(
+                sampleRate = 16000,
+                featureDim = 80,
+            )
+            val config = OfflineRecognizerConfig(
+                featConfig = featConfig,
+                modelConfig = modelConfig,
+            )
+            sherpaRecognizer = OfflineRecognizer(appContext.assets, config)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init Sherpa-ONNX Whisper: ${e.message}", e)
+        }
     }
 
     override fun ensureWarmRecognizer() {
-        val run = Runnable { ensureRecognizer() }
+        val run = Runnable { initSpeechRecognizer() }
         if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
     }
 
     override fun isActivelyListening(): Boolean =
-        sttPhase == SttPhase.Starting ||
-            sttPhase == SttPhase.Listening ||
-            startPending
+        isListening || startPending
 
     override fun isReadyListening(): Boolean =
-        sttPhase == SttPhase.Listening
+        isListening && hasSignaledReady
 
-    @Volatile
-    private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
+    override fun setEndpointingProfile(profile: EndpointingProfile) {
+        endpointingProfile = profile
+    }
 
-    /** True while a delayed startListening is queued on the main handler. */
-    @Volatile private var startPending: Boolean = false
+    private fun silenceLimitFrames(profile: EndpointingProfile): Int {
+        // ~80ms per AudioRecord read iteration on typical devices.
+        return ((profile.completeSilenceMs / 80L).toInt()).coerceIn(6, 30)
+    }
 
     override fun startListening() {
         if (isListening) return
@@ -480,6 +553,11 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         offlineTts = null
 
         destroySpeechRecognizer()
+        try {
+            globalAudioTrack?.release()
+        } catch (_: Exception) {
+        }
+        globalAudioTrack = null
     }
 
     override fun setUtteranceListener(
@@ -510,29 +588,5 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         this.onSttEmptyResult = onEmptyResult
         this.onSttError = onError
         this.onSttPartial = onPartial
-    }
-
-    companion object {
-        private const val POST_STOP_SETTLE_MS = 220L
-        private const val DESTROY_SETTLE_MS = 400L
-        private const val BUSY_BACKOFF_MS = 900L
-        private const val CLIENT_BACKOFF_MS = 550L
-        private const val MIN_START_GAP_MS = 450L
-        private const val READY_WATCHDOG_MS = 2500L
-        /** Window where ERROR_CLIENT from cancel/stop/destroy is ignored. */
-        private const val IGNORE_CLIENT_ERROR_MS = 600L
-
-        fun sttErrorLabel(error: Int): String = when (error) {
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
-            SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
-            SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
-            SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
-            SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
-            SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
-            else -> "ERROR_UNKNOWN"
-        }
     }
 }
