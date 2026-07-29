@@ -583,9 +583,9 @@ class AgentOrchestrator(
                     var finalDisplayMsg = finalMsg
                     if (finalMsg.isEmpty() || finalMsg == "Taking action...") {
                         finalDisplayMsg = if (toolFeedbacks.isNotEmpty()) {
-                            toolFeedbacks.joinToString(" ")
+                            toolFeedbacks.distinct().joinToString(" ")
                         } else {
-                            "Done!"
+                            "I've taken care of that for you."
                         }
                         // Speak it since it wasn't spoken earlier
                         audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
