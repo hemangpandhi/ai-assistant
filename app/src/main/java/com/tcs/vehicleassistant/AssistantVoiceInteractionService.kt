@@ -51,9 +51,20 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
     override fun onReady() {
         super.onReady()
         VehicleManager.initialize(this) // 'this' is a Service, which is a valid Context for Car Service binding!
+
+        // Starting the microphone service unconditionally here re-enabled wake-word listening on
+        // every boot even after the user turned it off in settings.
+        val enabled = getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
+        if (!enabled) {
+            android.util.Log.i("WakeWord", "Wake word disabled in settings; not starting the listener.")
+            return
+        }
         try {
             startService(Intent(this, WakeWordService::class.java))
-        } catch (e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w("WakeWord", "Could not start the wake word service", e)
+        }
     }
 
     override fun onShutdown() {

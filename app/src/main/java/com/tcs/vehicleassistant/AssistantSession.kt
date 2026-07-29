@@ -111,8 +111,16 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
     }
 
-    /** Hands the microphone back to the wake-word service once a session is finished. */
+    /**
+     * Hands the microphone back to the wake-word service once a session is finished, unless the
+     * user has turned the wake word off — a restart would otherwise start the listener from
+     * scratch and leave the microphone held against their setting.
+     */
     private fun resumeWakeWordListening() {
+        val enabled = context
+            .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
+        if (!enabled) return
         sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)
     }
 

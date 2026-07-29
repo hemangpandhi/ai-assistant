@@ -18,6 +18,7 @@ object AssistantConfig {
         const val SELECTED_MODEL = "selected_model"
         const val MAX_TOKENS = "max_tokens"
         const val WAKE_WORD = "wake_word"
+        const val WAKE_WORD_ENABLED = "wake_word_enabled"
         const val SYSTEM_PROMPT = "system_prompt"
         const val USER_MEMORY = "user_memory"
         const val UI_LAYOUT = "ui_layout_pref"

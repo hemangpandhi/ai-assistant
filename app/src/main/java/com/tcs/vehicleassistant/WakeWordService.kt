@@ -1,11 +1,13 @@
 package com.tcs.vehicleassistant
 
+import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -162,14 +164,22 @@ class WakeWordService : Service() {
         updateWakeWord()
         val action = intent?.action
 
-        return when {
-            AssistantConfig.WakeWordAction.isStop(action) -> {
-                Log.i(TAG, "Stop requested; releasing microphone and stopping service.")
-                stopCustomListening()
-                stopSelf()
-                START_NOT_STICKY
-            }
+        if (AssistantConfig.WakeWordAction.isStop(action)) {
+            Log.i(TAG, "Stop requested; releasing microphone and stopping service.")
+            stopCustomListening()
+            // stopSelf clears the pending startForeground obligation, so a stop that arrived via
+            // startForegroundService does not need the notification posted first.
+            stopSelf()
+            return START_NOT_STICKY
+        }
 
+        // Every branch that keeps the service alive has to post the notification. Callers reach
+        // this service through both startService and startForegroundService — the permission-grant
+        // path uses the latter with a restart action — and a startForegroundService that is never
+        // matched by startForeground is killed with ForegroundServiceDidNotStartInTimeException.
+        if (!promoteToForeground()) return START_NOT_STICKY
+
+        return when {
             AssistantConfig.WakeWordAction.isPause(action) -> {
                 // A voice session is opening. Release the microphone but stay alive so the
                 // session can hand it straight back when it finishes.
@@ -194,10 +204,32 @@ class WakeWordService : Service() {
             }
 
             else -> {
-                startForeground(NOTIFICATION_ID, createNotification())
                 serviceScope.launch { ensureRecognizerAndListen() }
                 START_STICKY
             }
+        }
+    }
+
+    /**
+     * Posts the ongoing notification, or stops the service and returns false when it cannot.
+     *
+     * A `microphone` foreground service may not start without `RECORD_AUDIO` on API 34, so
+     * promoting before the user grants the permission throws instead of merely failing to record.
+     * There is nothing this service can do without the microphone, so it stops in that case.
+     */
+    private fun promoteToForeground(): Boolean {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "RECORD_AUDIO not granted; wake word detection cannot run.")
+            stopSelf()
+            return false
+        }
+        return try {
+            startForeground(NOTIFICATION_ID, createNotification())
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Could not enter the foreground; stopping wake word detection.", e)
+            stopSelf()
+            false
         }
     }
 

@@ -626,14 +626,18 @@ class LocalLLMActivity : AppCompatActivity() {
         val currentWakeWord = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD, com.tcs.vehicleassistant.core.AssistantConfig.WakeWord.DEFAULT_WAKE_WORD)
         etWakeWord.setText(currentWakeWord)
         
-        val isWakeWordEnabled = prefs.getBoolean("wake_word_enabled", false)
+        val isWakeWordEnabled = prefs.getBoolean(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, false
+        )
         switchWakeWord.isChecked = isWakeWordEnabled
         if (isWakeWordEnabled) {
             try { startService(Intent(this, WakeWordService::class.java)) } catch (e: Exception) {}
         }
         
         switchWakeWord.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("wake_word_enabled", isChecked).apply()
+            prefs.edit().putBoolean(
+                com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, isChecked
+            ).apply()
             val intent = Intent(this, WakeWordService::class.java)
             if (isChecked) {
                 try { startService(intent) } catch (e: Exception) {}
@@ -960,12 +964,22 @@ class LocalLLMActivity : AppCompatActivity() {
         }
     }
 
+    /** The wake-word toggle in settings; the microphone service must not outlive it being off. */
+    private fun isWakeWordEnabled(): Boolean =
+        getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, MODE_PRIVATE)
+            .getBoolean(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
+
     override fun onStop() {
         super.onStop()
         // Restart background wake word listening when the UI hides
+        if (!isWakeWordEnabled()) return
         val intent = Intent(this, WakeWordService::class.java)
         intent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART
-        startService(intent)
+        try {
+            startService(intent)
+        } catch (e: Exception) {
+            android.util.Log.w("WakeWord", "Could not resume wake word listening", e)
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -976,7 +990,10 @@ class LocalLLMActivity : AppCompatActivity() {
                 com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
             }
             val audioIndex = permissions.indexOf(android.Manifest.permission.RECORD_AUDIO)
-            if (audioIndex != -1 && grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED) {
+            if (audioIndex != -1 &&
+                grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED &&
+                isWakeWordEnabled()
+            ) {
                 // Restart WakeWordService to bind to the microphone now that permission is granted
                 val serviceIntent = Intent(this, WakeWordService::class.java)
                 serviceIntent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART
