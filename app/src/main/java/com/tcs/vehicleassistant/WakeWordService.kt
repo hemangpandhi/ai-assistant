@@ -105,17 +105,8 @@ class WakeWordService : Service() {
         }
         
         // Background Pre-warming of Gemini Nano and Soniqo
-        CoroutineScope(Dispatchers.Main).launch {
-            LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
-                override fun onSuccess() {
-                    // Deliberately removed LLMManager.prewarm() because it causes 
-                    // a dual-process OOM crash when the main app also tries to load the model.
-                }
-                override fun onError(e: Exception) {
-                    Log.e("WakeWord", "Background LLM Init Failed", e)
-                }
-            })
-        }
+        // DELETED: Do not autoInitialize LLMManager here. It causes a dual-process OOM crash 
+        // when the main app also tries to load the model. The LLM should only be loaded in the main process.
 
 
     }
