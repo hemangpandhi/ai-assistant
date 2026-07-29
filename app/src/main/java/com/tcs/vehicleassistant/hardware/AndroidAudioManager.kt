@@ -245,6 +245,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 val audioBuffer = mutableListOf<Float>()
                 sherpaVad?.reset()
                 
+                var noSpeechFrames = 0
                 while (isListening) {
                     val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readSize > 0) {
@@ -258,12 +259,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             val isSpeech = vad.isSpeechDetected()
                             if (isSpeech) {
                                 silenceFrames = 0
+                                noSpeechFrames = 0
                                 if (!hasSpoken) {
                                     hasSpoken = true
                                     withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
                                 }
                             } else {
-                                if (hasSpoken) silenceFrames++
+                                if (hasSpoken) {
+                                    silenceFrames++
+                                } else {
+                                    noSpeechFrames++
+                                }
                             }
                         } else {
                             // Fallback to basic volume threshold if VAD init failed
@@ -275,24 +281,27 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             val rms = Math.sqrt(sumSquares / readSize)
                             if (rms > 200.0) {
                                 silenceFrames = 0
+                                noSpeechFrames = 0
                                 if (!hasSpoken) {
                                     hasSpoken = true
                                     withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
                                 }
                             } else if (hasSpoken) {
                                 silenceFrames++
+                            } else {
+                                noSpeechFrames++
                             }
                         }
                         
-                        // Stop listening when Silero VAD detects end of speech segment or 1.0s silence reached
+                        // Stop listening when VAD detects end of speech segment (1.0s) OR total 5s silence timeout reached
                         val isSegmentFinished = sherpaVad?.empty() == false
-                        if (hasSpoken && (isSegmentFinished || silenceFrames > 10)) {
+                        if ((hasSpoken && (isSegmentFinished || silenceFrames > 10)) || noSpeechFrames > 50) {
                             withContext(Dispatchers.Main) {
                                 onSttEndOfSpeech?.invoke()
                             }
                             
                             val stream = sherpaRecognizer?.createStream()
-                            if (stream != null) {
+                            if (stream != null && hasSpoken) {
                                 val floatArray = audioBuffer.toFloatArray()
                                 stream.acceptWaveform(floatArray, 16000)
                                 sherpaRecognizer?.decode(stream)
