@@ -24,6 +24,21 @@ import java.util.concurrent.Executors
 
 object CabinCameraManager {
     private const val TAG = "CabinCameraManager"
+
+    // Blendshape score thresholds. Smile and frown sum a left/right pair, so they can exceed 1.0;
+    // jawOpen is a single score.
+    private const val YAWN_THRESHOLD = 0.4f
+    private const val SMILE_THRESHOLD = 0.6f
+    private const val FROWN_THRESHOLD = 0.6f
+
+    // Mood labels are consumed verbatim by the system prompt, so they are constants rather than
+    // literals scattered across the vision pipeline.
+    const val MOOD_TIRED = "Tired / Yawning"
+    const val MOOD_HAPPY = "Happy / Smiling"
+    const val MOOD_FRUSTRATED = "Frustrated / Frowning"
+    const val MOOD_NEUTRAL = "Neutral / Focused"
+    const val MOOD_NO_OCCUPANT = "No one detected"
+
     private var faceLandmarker: FaceLandmarker? = null
     private var cameraExecutor: ExecutorService? = null
 
@@ -123,21 +138,29 @@ object CabinCameraManager {
                     }
                 }
                 
-                val detectedMood = when {
-                    yawnScore > 0.4f -> "Tired / Yawning"
-                    smileScore > 0.6f -> "Happy / Smiling"
-                    frownScore > 0.6f || frownScore > 0.6f -> "Frustrated / Frowning"
-                    else -> "Neutral / Focused"
-                }
-                currentMood = detectedMood
+                currentMood = classifyMood(smileScore, yawnScore, frownScore)
                 Log.d(TAG, "Detected $occupantCount occupants. Driver Mood: $currentMood")
             } else {
-                currentMood = "No one detected"
+                currentMood = MOOD_NO_OCCUPANT
             }
         } else {
             occupantCount = 0
-            currentMood = "No one detected"
+            currentMood = MOOD_NO_OCCUPANT
         }
+    }
+
+    /**
+     * Maps MediaPipe blendshape scores onto the mood label the system prompt reacts to.
+     *
+     * Extracted from the landmark callback so the thresholds can be asserted without a camera;
+     * rule 15 of the system prompt changes the assistant's behaviour based on this string, so a
+     * silent change here changes what the driver hears.
+     */
+    fun classifyMood(smileScore: Float, yawnScore: Float, frownScore: Float): String = when {
+        yawnScore > YAWN_THRESHOLD -> MOOD_TIRED
+        smileScore > SMILE_THRESHOLD -> MOOD_HAPPY
+        frownScore > FROWN_THRESHOLD -> MOOD_FRUSTRATED
+        else -> MOOD_NEUTRAL
     }
 
     private fun imageProxyToBitmap(image: ImageProxy): Bitmap? {

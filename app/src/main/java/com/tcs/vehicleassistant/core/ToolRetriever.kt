@@ -23,16 +23,33 @@ object ToolRetriever {
     /** BM25 length-normalization strength. 0.75 is the standard default. */
     private const val B = 0.75
 
+    /**
+     * Function words carry no routing signal, and in a catalogue this small they would otherwise
+     * pick up a misleadingly high inverse document frequency: a description that happens to contain
+     * "the" would outrank a tool that actually matches the driver's noun.
+     */
+    private val STOP_WORDS = setOf(
+        "the", "and", "for", "you", "your", "can", "could", "would", "please", "with", "that",
+        "this", "there", "here", "are", "was", "were", "has", "have", "had", "its", "it's",
+        "from", "into", "onto", "out", "off", "not", "but", "all", "any", "some", "then",
+        "than", "too", "very", "just", "now", "get", "got", "let", "lets", "me", "my", "mine",
+        "our", "ours", "his", "her", "hers", "them", "they", "their", "who", "what", "when",
+        "where", "why", "how", "which", "will", "shall", "should", "may", "might", "must",
+        "does", "did", "doing", "done", "been", "being", "about", "over", "under", "again"
+    )
+
     /** A retrievable tool reduced to its searchable text. */
     data class Document(val id: String, val terms: List<String>)
 
     data class ScoredDocument(val id: String, val score: Double)
 
-    /** Splits text into lowercase alphanumeric terms, dropping single characters. */
+    /**
+     * Splits text into lowercase alphanumeric terms, dropping single characters and stop words.
+     */
     fun tokenize(text: String): List<String> =
         text.lowercase()
             .split(Regex("[^a-z0-9]+"))
-            .filter { it.length > 1 }
+            .filter { it.length > 1 && it !in STOP_WORDS }
 
     /**
      * Builds a [Document] from a tool's identifier and its keyword/alias/description text.

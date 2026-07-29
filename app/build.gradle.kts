@@ -9,6 +9,7 @@ if (localPropertiesFile.exists()) {
 val geminiApiKey: String = localProperties.getProperty("GEMINI_API_KEY", "")
 
 val coroutinesVersion = "1.8.1"
+val jacocoToolVersion = "0.8.12"
 
 plugins {
     id("com.android.application")
@@ -101,12 +102,17 @@ android {
             pickFirsts.add("**/libonnxruntime.so")
         }
     }
+    // AGP 8.3 defaults to JaCoCo 0.8.8, whose ASM cannot read the Java 21 class files the
+    // toolchain produces ("Unsupported class file major version 65").
+    testCoverage {
+        jacocoVersion = jacocoToolVersion
+    }
+
     useLibrary("android.car")
 }
 
 jacoco {
-    // Pinned to the version AGP 8.3 bundles; anything newer is silently downgraded.
-    toolVersion = "0.8.8"
+    toolVersion = jacocoToolVersion
 }
 
 dependencies {
