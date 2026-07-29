@@ -367,7 +367,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         stopListeningIntent.action = "ACTION_STOP_LISTENING"
         context.startService(stopListeningIntent)
 
-        if (!LLMManager.isReady() || LLMManager.isInitializing || LLMManager.isPrewarming) {
+        if (!LLMManager.isReady() || LLMManager.isInitializing) {
             statusText.text = "Initializing Model..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
@@ -377,12 +377,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 // Ensure initialization is started if not already
                 LLMManager.autoInitialize(context.applicationContext)
                 
-                // Wait until LLMManager is fully ready and not prewarming
+                // Wait until LLMManager engine is ready (don't block on prewarm - it runs in background)
                 withContext(Dispatchers.IO) {
                     var waitCount = 0
-                    while (!LLMManager.isReady() || LLMManager.isInitializing || LLMManager.isPrewarming) {
+                    while (!LLMManager.isReady() || LLMManager.isInitializing) {
                         if (waitCount % 2 == 0) {
-                            android.util.Log.d("AssistantSession", "Waiting for LLM. isReady=${LLMManager.isReady()}, isInit=${LLMManager.isInitializing}, isPrewarm=${LLMManager.isPrewarming}, engineNull=${!LLMManager.isReady()}")
+                            android.util.Log.d("AssistantSession", "Waiting for LLM. isReady=${LLMManager.isReady()}, isInit=${LLMManager.isInitializing}, engineNull=${!LLMManager.isReady()}")
                         }
                         delay(500)
                         waitCount++
