@@ -77,6 +77,7 @@ class WakeWordService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        bindHoldContext(this)
 
         val channelId = "wake_word_channel"
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -130,6 +131,7 @@ class WakeWordService : Service() {
     private var customAudioRecord: android.media.AudioRecord? = null
     private var customRecognizer: Recognizer? = null
     private var isRecording = false
+    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
 
     private fun recognizerSetup() {
         try {
@@ -214,6 +216,11 @@ class WakeWordService : Service() {
                         }
                     }
                 } finally {
+                    try {
+                        noiseSuppressor?.release()
+                    } catch (_: Exception) {
+                    }
+                    noiseSuppressor = null
                     try {
                         customAudioRecord?.stop()
                         customAudioRecord?.release()
