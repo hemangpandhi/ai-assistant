@@ -227,6 +227,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
 
             try {
+                statusText.visibility = View.VISIBLE
+                statusText.text = "Listening..."
+                voiceAnimation.state = VoiceAnimationView.State.LISTENING
                 audioManager?.startListening()
             } catch (e: Exception) {
                 LatencyLogger.log("AssistantSession", "Error starting speech recognizer: ${e.message}")
