@@ -1,33 +1,61 @@
 package com.tcs.vehicleassistant.hardware
 
 import android.content.Context
-import android.content.Intent
 import android.media.AudioAttributes
 import android.media.AudioFocusRequest
+import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioTrack
 import android.os.Build
-import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
-import android.speech.RecognitionListener
-import android.speech.RecognizerIntent
-import android.speech.SpeechRecognizer
-import android.speech.tts.TextToSpeech
-import android.speech.tts.UtteranceProgressListener
-import com.assistant.ui.assistant.api.AssistantDebugLog
-import java.util.Locale
+import android.util.Log
+import com.k2fsa.sherpa.onnx.FeatureConfig
+import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineRecognizer
+import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
+import com.k2fsa.sherpa.onnx.OfflineTts
+import com.k2fsa.sherpa.onnx.OfflineTtsConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
+import com.k2fsa.sherpa.onnx.OfflineTtsVitsModelConfig
+import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
+/**
+ * Sherpa-ONNX offline STT (Whisper tiny.en) + Piper VITS TTS stack from [dev/refactor],
+ * adapted to the extended [IAudioManager] surface used by MicCaptureCoordinator / backend.
+ */
 class AndroidAudioManager(private val context: Context) : IAudioManager {
+
+    companion object {
+        /** Human-readable SpeechRecognizer / sherpa error codes for logs and UI. */
+        fun sttErrorLabel(error: Int): String = when (error) {
+            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
+            android.speech.SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
+            android.speech.SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
+            android.speech.SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
+            android.speech.SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
+            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
+            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
+            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
+            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
+            0 -> "SHERPA_ERROR"
+            else -> "ERROR_$error"
+        }
+    }
 
     private val appContext = context.applicationContext
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var pendingRestart: Runnable? = null
-    private var pendingStartRunnable: Runnable? = null
-    private var readyWatchdog: Runnable? = null
+    private val TAG = "AndroidAudioManager"
 
-    private var tts: TextToSpeech? = null
-    private var speechRecognizer: SpeechRecognizer? = null
+    private var offlineTts: OfflineTts? = null
 
     private var onTtsStart: ((String) -> Unit)? = null
     private var onTtsDone: ((String) -> Unit)? = null
@@ -42,432 +70,450 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private var onSttError: ((Int) -> Unit)? = null
     private var onSttPartial: ((String) -> Unit)? = null
 
-    /**
-     * Idle → Starting (startListening issued) → Listening (ready) → Idle.
-     * Soft-stop uses cancel + recreate on next start to avoid ERROR_CLIENT races.
-     */
-    private enum class SttPhase { Idle, Starting, Listening }
-    @Volatile private var sttPhase: SttPhase = SttPhase.Idle
-
-    /** Ignore late callbacks from a destroyed recognizer. */
-    private var recognizerEpoch: Int = 0
-
-    /** Next startListening must create a fresh SpeechRecognizer (after cancel/stop). */
-    @Volatile private var needsFreshRecognizer: Boolean = false
-
-    /** Earliest uptime when startListening may proceed after a soft stop / BUSY. */
-    @Volatile private var earliestStartUptimeMs: Long = 0L
-
-    /** Debounce overlapping startListening from pre-arm + session + retry. */
-    @Volatile private var lastStartAttemptUptimeMs: Long = 0L
-
-    /**
-     * cancel()/stopListening()/destroy commonly deliver ERROR_CLIENT — that is expected,
-     * not a driver-visible failure. Ignore callbacks until this uptime.
-     */
-    @Volatile private var ignoreClientErrorUntilUptimeMs: Long = 0L
-
-    @Volatile private var consecutiveClientErrors: Int = 0
+    @Volatile private var isListening = false
+    @Volatile private var hasSignaledReady = false
+    @Volatile private var startPending = false
+    private var pendingStartRunnable: Runnable? = null
+    private var sherpaRecognizer: OfflineRecognizer? = null
+    private var audioRecord: android.media.AudioRecord? = null
+    private var listeningJob: Job? = null
+    private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
 
     @Volatile private var holdingDuck = false
     private var duckFocusRequest: AudioFocusRequest? = null
     private val duckFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
-        AssistantDebugLog.d("Audio", "duck focus change=$change holding=$holdingDuck")
+        Log.d(TAG, "duck focus change=$change holding=$holdingDuck")
     }
 
-    override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
-        // Warm STT early — independent of TTS init.
-        mainHandler.post { ensureRecognizer() }
-        tts = TextToSpeech(appContext) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                tts?.language = Locale.US
+    private fun copyEspeakData(): String {
+        val outDir = java.io.File(appContext.filesDir, "espeak-ng-data")
+        if (outDir.exists() && java.io.File(outDir, "phontab").exists()) return outDir.absolutePath
+        outDir.mkdirs()
+
+        fun copyAssetsToDir(assetPath: String, destDir: java.io.File) {
+            val list = appContext.assets.list(assetPath)
+            if (list.isNullOrEmpty()) {
                 try {
-                    val voices = tts?.voices
-                    if (voices != null) {
-                        for (voice in voices) {
-                            if (voice.locale.language == Locale.US.language && !voice.isNetworkConnectionRequired) {
-                                tts?.voice = voice
-                                break
-                            }
+                    appContext.assets.open(assetPath).use { input ->
+                        java.io.FileOutputStream(destDir).use { output ->
+                            input.copyTo(output)
                         }
                     }
                 } catch (_: Exception) {
                 }
-                // Match Compose TTS: USAGE_MEDIA is audible on AAOS; USAGE_ASSISTANT often is not.
-                try {
-                    tts?.setAudioAttributes(
-                        AudioAttributes.Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                            .build(),
-                    )
-                } catch (_: Exception) {
-                }
-
-                tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                    override fun onStart(utteranceId: String?) {
-                        utteranceId?.let { onTtsStart?.invoke(it) }
-                    }
-                    override fun onDone(utteranceId: String?) {
-                        utteranceId?.let { onTtsDone?.invoke(it) }
-                    }
-                    override fun onError(utteranceId: String?) {
-                        utteranceId?.let { onTtsError?.invoke(it) }
-                    }
-                    override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
-                        utteranceId?.let { onTtsRangeStart?.invoke(it, start, end, frame) }
-                    }
-                })
-                onSuccess()
             } else {
-                onError()
+                destDir.mkdirs()
+                for (file in list) {
+                    copyAssetsToDir("$assetPath/$file", java.io.File(destDir, file))
+                }
             }
+        }
+        copyAssetsToDir("sherpa-onnx-tts/espeak-ng-data", outDir)
+        return outDir.absolutePath
+    }
+
+    override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
+        // Warm STT early — independent of TTS init.
+        ensureWarmRecognizer()
+        try {
+            val espeakDataPath = copyEspeakData()
+            val vitsConfig = OfflineTtsVitsModelConfig(
+                model = "sherpa-onnx-tts/en_US-amy-low.onnx",
+                tokens = "sherpa-onnx-tts/tokens.txt",
+                lexicon = "",
+                dataDir = espeakDataPath,
+                dictDir = "",
+                noiseScale = 0.667f,
+                noiseScaleW = 0.8f,
+                lengthScale = 1.0f,
+            )
+            val modelConfig = OfflineTtsModelConfig(
+                vits = vitsConfig,
+                numThreads = 1,
+                debug = false,
+                provider = "cpu",
+            )
+            val config = OfflineTtsConfig(
+                model = modelConfig,
+                ruleFsts = "",
+                maxNumSentences = 1,
+            )
+            offlineTts = OfflineTts(appContext.assets, config)
+            onSuccess()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init Sherpa TTS", e)
+            onError()
+        }
+    }
+
+    private fun initSpeechRecognizer() {
+        if (sherpaRecognizer != null) return
+        try {
+            val whisperConfig = OfflineWhisperModelConfig(
+                encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
+                decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
+                language = "en",
+                task = "transcribe",
+                tailPaddings = -1,
+            )
+            val modelConfig = OfflineModelConfig(
+                whisper = whisperConfig,
+                tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
+                numThreads = 4,
+                debug = false,
+                provider = "cpu",
+                modelType = "whisper",
+            )
+            val featConfig = FeatureConfig(
+                sampleRate = 16000,
+                featureDim = 80,
+            )
+            val config = OfflineRecognizerConfig(
+                featConfig = featConfig,
+                modelConfig = modelConfig,
+            )
+            sherpaRecognizer = OfflineRecognizer(appContext.assets, config)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to init Sherpa-ONNX Whisper: ${e.message}", e)
         }
     }
 
     override fun ensureWarmRecognizer() {
-        val run = Runnable { ensureRecognizer() }
+        val run = Runnable { initSpeechRecognizer() }
         if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
     }
 
     override fun isActivelyListening(): Boolean =
-        sttPhase == SttPhase.Starting ||
-            sttPhase == SttPhase.Listening ||
-            startPending
+        isListening || startPending
 
     override fun isReadyListening(): Boolean =
-        sttPhase == SttPhase.Listening
+        isListening && hasSignaledReady
 
-    @Volatile
-    private var endpointingProfile: EndpointingProfile = EndpointingProfile.Default
+    override fun setEndpointingProfile(profile: EndpointingProfile) {
+        endpointingProfile = profile
+    }
 
-    /** True while a delayed startListening is queued on the main handler. */
-    @Volatile private var startPending: Boolean = false
+    private fun silenceLimitFrames(profile: EndpointingProfile): Int {
+        // ~80ms per AudioRecord read iteration on typical devices.
+        return ((profile.completeSilenceMs / 80L).toInt()).coerceIn(6, 30)
+    }
 
     override fun startListening() {
         if (Looper.myLooper() == Looper.getMainLooper()) {
-            startListeningOnMain(forceRecreate = false)
+            startListeningInternal()
         } else {
-            // Mark in-flight immediately so callers do not stack a second start.
             startPending = true
             pendingStartRunnable?.let { mainHandler.removeCallbacks(it) }
             val run = Runnable {
                 pendingStartRunnable = null
-                startListeningOnMain(forceRecreate = false)
+                startListeningInternal()
             }
             pendingStartRunnable = run
             mainHandler.post(run)
         }
     }
 
-    override fun setEndpointingProfile(profile: EndpointingProfile) {
-        endpointingProfile = profile
-    }
-
-    /**
-     * Tear down any recognizer and start clean. Call after ERROR_CLIENT / BUSY.
-     * Must be followed by a short delay before the next [startListening] from the caller,
-     * or pass [delayedMs] to wait here on the main thread.
-     */
     override fun restartListening(delayedMs: Long) {
-        val run = Runnable {
-            cancelPendingWork()
-            ignoreClientErrorsFor(IGNORE_CLIENT_ERROR_MS)
-            destroySpeechRecognizerLocked()
-            sttPhase = SttPhase.Idle
-            needsFreshRecognizer = false
-            // RecognitionService stays busy briefly after destroy — always settle.
-            val settle = delayedMs.coerceAtLeast(DESTROY_SETTLE_MS)
-            earliestStartUptimeMs = SystemClock.uptimeMillis() + settle
-            AssistantDebugLog.d("STT", "restartListening delay=${settle}ms")
-            // Already destroyed — do not force-recreate again (avoids destroy loop).
-            scheduleDeferredStart(settle, forceRecreate = false)
-        }
-        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
-    }
-
-    private fun scheduleDeferredStart(delayMs: Long, forceRecreate: Boolean) {
-        pendingRestart?.let { mainHandler.removeCallbacks(it) }
+        stopListening()
         startPending = true
-        val restart = Runnable {
-            pendingRestart = null
-            // Keep startPending until startListeningOnMain sets Starting or clears it.
-            startListeningOnMain(forceRecreate = forceRecreate)
+        pendingStartRunnable?.let { mainHandler.removeCallbacks(it) }
+        val run = Runnable {
+            pendingStartRunnable = null
+            startListeningInternal()
         }
-        pendingRestart = restart
-        mainHandler.postDelayed(restart, delayMs)
+        pendingStartRunnable = run
+        if (delayedMs <= 0L) {
+            mainHandler.post(run)
+        } else {
+            mainHandler.postDelayed(run, delayedMs)
+        }
     }
 
-    private fun startListeningOnMain(forceRecreate: Boolean) {
-        if (!forceRecreate && sttPhase == SttPhase.Listening) {
+    private fun startListeningInternal() {
+        if (isListening) {
             startPending = false
-            AssistantDebugLog.w("STT", "startListening ignored — already Listening")
             return
         }
-        if (!forceRecreate && sttPhase == SttPhase.Starting) {
-            startPending = false
-            AssistantDebugLog.w("STT", "startListening ignored — already Starting")
-            return
-        }
-        val now = SystemClock.uptimeMillis()
-        // Collapse bursty callers (pre-arm + requestListen + retry) into one start.
-        if (!forceRecreate && now - lastStartAttemptUptimeMs < MIN_START_GAP_MS) {
-            val wait = MIN_START_GAP_MS - (now - lastStartAttemptUptimeMs)
-            AssistantDebugLog.d("STT", "startListening coalesced — retry in ${wait}ms")
-            scheduleDeferredStart(wait, forceRecreate = needsFreshRecognizer)
-            return
-        }
-        if (now < earliestStartUptimeMs) {
-            val wait = earliestStartUptimeMs - now
-            AssistantDebugLog.d("STT", "startListening delayed ${wait}ms (settle/backoff)")
-            scheduleDeferredStart(wait, forceRecreate = forceRecreate || needsFreshRecognizer)
-            return
-        }
-        if (!SpeechRecognizer.isRecognitionAvailable(appContext)) {
-            startPending = false
-            AssistantDebugLog.e("STT", "Recognition not available on device")
-            sttPhase = SttPhase.Idle
-            // Not ERROR_CLIENT — VM must not silent-retry forever.
-            onSttError?.invoke(SpeechRecognizer.ERROR_AUDIO)
-            return
-        }
-
-        // Soft-stop leaves the engine in a bad state for same-instance restart.
-        if (forceRecreate || needsFreshRecognizer) {
-            destroySpeechRecognizerLocked()
-            needsFreshRecognizer = false
-            val settle = DESTROY_SETTLE_MS
-            earliestStartUptimeMs = SystemClock.uptimeMillis() + settle
-            lastStartAttemptUptimeMs = SystemClock.uptimeMillis()
-            AssistantDebugLog.d("STT", "post-destroy settle ${settle}ms")
-            scheduleDeferredStart(settle, forceRecreate = false)
-            return
-        }
-        ensureRecognizer()
-        // Keep media ducked while the recognizer arms (avoids a full pause gap).
+        isListening = true
+        startPending = false
+        hasSignaledReady = false
         requestAssistantDuck()
 
-        val profile = endpointingProfile
-        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault())
-            putExtra(
-                RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS,
-                profile.completeSilenceMs,
-            )
-            putExtra(
-                RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS,
-                profile.possiblyCompleteSilenceMs,
-            )
-            putExtra(
-                RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS,
-                profile.minimumLengthMs,
-            )
-            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3)
-        }
-        AssistantDebugLog.d(
-            "STT",
-            "endpointing=${profile.name} silence=${profile.completeSilenceMs}ms",
-        )
-        try {
-            lastStartAttemptUptimeMs = SystemClock.uptimeMillis()
-            startPending = false
-            sttPhase = SttPhase.Starting
-            AssistantDebugLog.d("STT", "startListening() phase=Starting")
-            speechRecognizer?.startListening(intent)
-            armReadyWatchdog()
-        } catch (t: Throwable) {
-            clearReadyWatchdog()
-            startPending = false
-            sttPhase = SttPhase.Idle
-            needsFreshRecognizer = true
-            earliestStartUptimeMs = SystemClock.uptimeMillis() + BUSY_BACKOFF_MS
-            AssistantDebugLog.e("STT", "startListening failed: ${t.message}")
-            onSttError?.invoke(SpeechRecognizer.ERROR_CLIENT)
-        }
-    }
-
-    private fun armReadyWatchdog() {
-        clearReadyWatchdog()
-        val epochAtStart = recognizerEpoch
-        val watchdog = Runnable {
-            if (epochAtStart != recognizerEpoch) return@Runnable
-            if (sttPhase != SttPhase.Starting) return@Runnable
-            AssistantDebugLog.e("STT", "ready watchdog — stuck Starting epoch=$epochAtStart")
-            needsFreshRecognizer = true
-            sttPhase = SttPhase.Idle
-            destroySpeechRecognizerLocked()
-            onSttError?.invoke(SpeechRecognizer.ERROR_CLIENT)
-        }
-        readyWatchdog = watchdog
-        mainHandler.postDelayed(watchdog, READY_WATCHDOG_MS)
-    }
-
-    private fun clearReadyWatchdog() {
-        readyWatchdog?.let { mainHandler.removeCallbacks(it) }
-        readyWatchdog = null
-    }
-
-    private fun cancelPendingWork() {
-        pendingRestart?.let { mainHandler.removeCallbacks(it) }
-        pendingRestart = null
-        pendingStartRunnable?.let { mainHandler.removeCallbacks(it) }
-        pendingStartRunnable = null
-        startPending = false
-        clearReadyWatchdog()
-    }
-
-    private fun ensureRecognizer() {
-        if (speechRecognizer != null) return
-        // applicationContext avoids Service/Activity teardown races (ERROR_CLIENT).
-        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(appContext)
-        val myEpoch = ++recognizerEpoch
-        speechRecognizer?.setRecognitionListener(object : RecognitionListener {
-            private fun alive(): Boolean = speechRecognizer != null && myEpoch == recognizerEpoch
-
-            override fun onReadyForSpeech(params: Bundle?) {
-                if (!alive()) return
-                clearReadyWatchdog()
-                consecutiveClientErrors = 0
-                sttPhase = SttPhase.Listening
-                AssistantDebugLog.d("STT", "ready (phase=Listening) epoch=$myEpoch")
-                onSttReadyForSpeech?.invoke()
-            }
-            override fun onBeginningOfSpeech() {
-                if (!alive()) return
-                AssistantDebugLog.d("STT", "speech begin")
-                onSttBeginningOfSpeech?.invoke()
-            }
-            override fun onRmsChanged(rmsdB: Float) {}
-            override fun onBufferReceived(buffer: ByteArray?) {}
-            override fun onEndOfSpeech() {
-                if (!alive()) return
-                restoreAssistantMedia()
-                AssistantDebugLog.d("STT", "speech end")
-                onSttEndOfSpeech?.invoke()
-            }
-            override fun onError(error: Int) {
-                if (!alive()) return
-                restoreAssistantMedia()
-                clearReadyWatchdog()
-                val now = SystemClock.uptimeMillis()
-                // Intentional cancel/stop/destroy → ERROR_CLIENT is normal; do not surface.
-                if (error == SpeechRecognizer.ERROR_CLIENT &&
-                    now < ignoreClientErrorUntilUptimeMs
-                ) {
-                    sttPhase = SttPhase.Idle
-                    needsFreshRecognizer = true
-                    AssistantDebugLog.d(
-                        "STT",
-                        "ERROR_CLIENT ignored (intentional stop/cancel) epoch=$myEpoch",
-                    )
-                    return
+        listeningJob = CoroutineScope(Dispatchers.IO).launch {
+            try {
+                initSpeechRecognizer()
+                if (sherpaRecognizer == null) {
+                    withContext(Dispatchers.Main) {
+                        isListening = false
+                        hasSignaledReady = false
+                        onSttError?.invoke(0)
+                    }
+                    return@launch
                 }
-                sttPhase = SttPhase.Idle
-                needsFreshRecognizer = true
-                val backoff = when (error) {
-                    SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> BUSY_BACKOFF_MS
-                    SpeechRecognizer.ERROR_CLIENT -> CLIENT_BACKOFF_MS
-                    else -> POST_STOP_SETTLE_MS
+
+                withContext(Dispatchers.Main) {
+                    hasSignaledReady = true
+                    onSttReadyForSpeech?.invoke()
                 }
-                earliestStartUptimeMs = now + backoff
-                val label = sttErrorLabel(error)
-                AssistantDebugLog.e(
-                    "STT",
-                    "onError=$error ($label) epoch=$myEpoch backoff=${backoff}ms",
+
+                val bufferSize = android.media.AudioRecord.getMinBufferSize(
+                    16000,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT,
+                ) * 2
+                audioRecord = android.media.AudioRecord(
+                    android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                    16000,
+                    android.media.AudioFormat.CHANNEL_IN_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize,
                 )
-                if (error == SpeechRecognizer.ERROR_CLIENT) {
-                    consecutiveClientErrors++
-                    // Let backend own recovery — avoid a second competing restart here.
-                } else if (error != SpeechRecognizer.ERROR_NO_MATCH &&
-                    error != SpeechRecognizer.ERROR_SPEECH_TIMEOUT
-                ) {
-                    consecutiveClientErrors = 0
+
+                if (audioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
+                    withContext(Dispatchers.Main) {
+                        isListening = false
+                        hasSignaledReady = false
+                        onSttError?.invoke(0)
+                    }
+                    return@launch
                 }
-                onSttError?.invoke(error)
-            }
-            override fun onResults(results: Bundle?) {
-                if (!alive()) return
-                clearReadyWatchdog()
-                sttPhase = SttPhase.Idle
-                needsFreshRecognizer = true
-                val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty() && matches[0].isNotBlank()) {
-                    AssistantDebugLog.d("STT", "result=${matches[0].take(40)}")
-                    onSttResult?.invoke(matches[0])
-                } else {
-                    AssistantDebugLog.w("STT", "empty result")
-                    onSttEmptyResult?.invoke()
+
+                audioRecord?.startRecording()
+                val buffer = ShortArray(bufferSize)
+
+                var hasSpoken = false
+                var silenceFrames = 0
+                val speechThreshold = 500
+                val silenceLimit = silenceLimitFrames(endpointingProfile)
+                val audioBuffer = mutableListOf<Float>()
+
+                while (isListening && isActive) {
+                    val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0
+                    if (readSize > 0) {
+                        var maxAmp = 0
+                        for (i in 0 until readSize) {
+                            val amp = kotlin.math.abs(buffer[i].toInt())
+                            if (amp > maxAmp) maxAmp = amp
+                        }
+
+                        if (maxAmp > speechThreshold) {
+                            silenceFrames = 0
+                            if (!hasSpoken) {
+                                hasSpoken = true
+                                withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
+                            }
+                        } else if (hasSpoken) {
+                            silenceFrames++
+                        }
+
+                        if (hasSpoken) {
+                            for (i in 0 until readSize) {
+                                audioBuffer.add(buffer[i].toFloat() / 32768.0f)
+                            }
+                        }
+
+                        if (hasSpoken && silenceFrames > silenceLimit) {
+                            withContext(Dispatchers.Main) {
+                                onSttEndOfSpeech?.invoke()
+                            }
+
+                            val stream = sherpaRecognizer?.createStream()
+                            if (stream != null) {
+                                val floatArray = audioBuffer.toFloatArray()
+                                stream.acceptWaveform(floatArray, 16000)
+                                sherpaRecognizer?.decode(stream)
+                                val result = sherpaRecognizer?.getResult(stream)?.text ?: ""
+                                stream.release()
+
+                                withContext(Dispatchers.Main) {
+                                    if (result.isNotBlank()) {
+                                        onSttResult?.invoke(result.trim())
+                                    } else {
+                                        onSttEmptyResult?.invoke()
+                                    }
+                                }
+                            } else {
+                                withContext(Dispatchers.Main) { onSttEmptyResult?.invoke() }
+                            }
+                            isListening = false
+                            hasSignaledReady = false
+                            break
+                        }
+                    } else {
+                        delay(10)
+                    }
                 }
-            }
-            override fun onPartialResults(partialResults: Bundle?) {
-                if (!alive()) return
-                val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (!matches.isNullOrEmpty()) {
-                    onSttPartial?.invoke(matches[0])
+            } catch (e: CancellationException) {
+                // soft stop
+            } catch (e: Exception) {
+                Log.e(TAG, "Sherpa listening loop error", e)
+                withContext(Dispatchers.Main) {
+                    isListening = false
+                    hasSignaledReady = false
+                    onSttError?.invoke(0)
                 }
+            } finally {
+                try {
+                    audioRecord?.stop()
+                } catch (_: Exception) {
+                }
+                try {
+                    audioRecord?.release()
+                } catch (_: Exception) {
+                }
+                audioRecord = null
+                isListening = false
             }
-            override fun onEvent(eventType: Int, params: Bundle?) {}
-        })
-        AssistantDebugLog.d("STT", "SpeechRecognizer created epoch=$myEpoch")
+        }
     }
 
     override fun stopListening() {
-        val run = Runnable {
-            cancelPendingWork()
-            ignoreClientErrorsFor(IGNORE_CLIENT_ERROR_MS)
-            try {
-                // cancel() aborts immediately; it also often delivers ERROR_CLIENT.
-                speechRecognizer?.cancel()
-            } catch (t: Throwable) {
-                AssistantDebugLog.w("STT", "cancel failed: ${t.message}")
-            }
-            sttPhase = SttPhase.Idle
-            needsFreshRecognizer = true
-            earliestStartUptimeMs = SystemClock.uptimeMillis() + POST_STOP_SETTLE_MS
-            AssistantDebugLog.d("STT", "stop/cancel — next start recreates recognizer")
+        startPending = false
+        pendingStartRunnable?.let { mainHandler.removeCallbacks(it) }
+        pendingStartRunnable = null
+        if (!isListening) return
+        isListening = false
+        hasSignaledReady = false
+        listeningJob?.cancel()
+        listeningJob = null
+        try {
+            audioRecord?.stop()
+        } catch (_: Exception) {
         }
-        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+        try {
+            audioRecord?.release()
+        } catch (_: Exception) {
+        }
+        audioRecord = null
     }
 
     override fun destroySpeechRecognizer() {
-        val run = Runnable { destroySpeechRecognizerLocked() }
-        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
+        stopListening()
+        try {
+            sherpaRecognizer?.release()
+        } catch (_: Exception) {
+        }
+        sherpaRecognizer = null
     }
 
-    private fun ignoreClientErrorsFor(ms: Long) {
-        ignoreClientErrorUntilUptimeMs =
-            maxOf(ignoreClientErrorUntilUptimeMs, SystemClock.uptimeMillis() + ms)
+    private val ttsScope = CoroutineScope(Dispatchers.IO)
+    private var ttsChannel =
+        kotlinx.coroutines.channels.Channel<suspend CoroutineScope.() -> Unit>(
+            kotlinx.coroutines.channels.Channel.UNLIMITED,
+        )
+    private var ttsLoopJob: Job? = null
+    private var globalAudioTrack: AudioTrack? = null
+
+    init {
+        startTtsLoop()
     }
 
-    private fun destroySpeechRecognizerLocked() {
-        cancelPendingWork()
-        ignoreClientErrorsFor(IGNORE_CLIENT_ERROR_MS)
-        recognizerEpoch++
-        val recognizer = speechRecognizer ?: run {
-            sttPhase = SttPhase.Idle
-            return
+    private fun startTtsLoop() {
+        ttsLoopJob = ttsScope.launch {
+            for (task in ttsChannel) {
+                if (!isActive) break
+                try {
+                    task()
+                } catch (e: CancellationException) {
+                    break
+                } catch (_: Exception) {
+                }
+            }
         }
-        speechRecognizer = null
-        sttPhase = SttPhase.Idle
-        // Service-side teardown lags destroy(); callers must honor earliestStartUptimeMs.
-        earliestStartUptimeMs = SystemClock.uptimeMillis() + DESTROY_SETTLE_MS
+    }
+
+    override fun speak(text: String, utteranceId: String) {
+        ttsChannel.trySend {
+            try {
+                withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }
+
+                val audio = offlineTts?.generate(text, sid = 0, speed = 1.0f)
+                if (audio != null && isActive) {
+                    val samples = audio.samples
+                    val sampleRate = audio.sampleRate
+
+                    if (globalAudioTrack == null || globalAudioTrack!!.sampleRate != sampleRate) {
+                        globalAudioTrack?.release()
+                        val minBufferSize = AudioTrack.getMinBufferSize(
+                            sampleRate,
+                            AudioFormat.CHANNEL_OUT_MONO,
+                            AudioFormat.ENCODING_PCM_16BIT,
+                        )
+                        // USAGE_MEDIA is audible on AAOS; USAGE_ASSISTANT often is not.
+                        val audioAttributes = AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_MEDIA)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                            .build()
+                        val audioFormat = AudioFormat.Builder()
+                            .setSampleRate(sampleRate)
+                            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                            .build()
+                        globalAudioTrack = AudioTrack.Builder()
+                            .setAudioAttributes(audioAttributes)
+                            .setAudioFormat(audioFormat)
+                            .setBufferSizeInBytes(minBufferSize * 4)
+                            .setTransferMode(AudioTrack.MODE_STREAM)
+                            .build()
+                        globalAudioTrack?.play()
+                    }
+
+                    if (globalAudioTrack?.playState != AudioTrack.PLAYSTATE_PLAYING) {
+                        globalAudioTrack?.play()
+                    }
+
+                    val shortSamples = ShortArray(samples.size)
+                    for (i in samples.indices) {
+                        var v = samples[i]
+                        if (v > 1.0f || v < -1.0f) {
+                            if (v > 32767f) v = 32767f
+                            if (v < -32768f) v = -32768f
+                        } else {
+                            v *= 32767f
+                        }
+                        shortSamples[i] = v.toInt().toShort()
+                    }
+                    // Approximate range-start for lip-sync / UI progress.
+                    withContext(Dispatchers.Main) {
+                        onTtsRangeStart?.invoke(utteranceId, 0, text.length, 0)
+                    }
+                    globalAudioTrack?.write(shortSamples, 0, shortSamples.size)
+                }
+
+                if (isActive) {
+                    withContext(Dispatchers.Main) { onTtsDone?.invoke(utteranceId) }
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "TTS speak failed", e)
+                if (isActive) {
+                    withContext(Dispatchers.Main) { onTtsError?.invoke(utteranceId) }
+                }
+            }
+        }
+    }
+
+    override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
+        ttsChannel.trySend {
+            withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }
+            delay(durationMs)
+            if (isActive) {
+                withContext(Dispatchers.Main) { onTtsDone?.invoke(utteranceId) }
+            }
+        }
+    }
+
+    override fun stopSpeaking() {
+        ttsLoopJob?.cancel()
+        ttsChannel.close()
+        ttsChannel = kotlinx.coroutines.channels.Channel(
+            kotlinx.coroutines.channels.Channel.UNLIMITED,
+        )
         try {
-            // Prefer cancel before destroy so the service tears down cleanly.
-            recognizer.cancel()
-        } catch (_: Throwable) {
+            globalAudioTrack?.pause()
+            globalAudioTrack?.flush()
+        } catch (_: Exception) {
         }
-        try {
-            recognizer.setRecognitionListener(null)
-        } catch (_: Throwable) {
-        }
-        try {
-            recognizer.destroy()
-            AssistantDebugLog.d("STT", "recognizer destroyed")
-        } catch (t: Throwable) {
-            AssistantDebugLog.w("STT", "destroy failed: ${t.message}")
-        }
+        startTtsLoop()
     }
 
     override fun requestAssistantDuck() {
@@ -481,28 +527,21 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     private fun requestAssistantDuckLocked() {
+        if (holdingDuck) return
+        val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         try {
-            if (holdingDuck) {
-                AssistantDebugLog.d("Audio", "requestDuck skip — already holding")
-                return
-            }
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            holdingDuck = true
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val attrs = AudioAttributes.Builder()
-                    // Navigation guidance ducks media on AAOS without fully pausing it.
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setUsage(AudioAttributes.USAGE_ASSISTANT)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                     .build()
                 val req = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
                     .setAudioAttributes(attrs)
-                    .setOnAudioFocusChangeListener(duckFocusListener, mainHandler)
-                    .setWillPauseWhenDucked(false)
-                    .setAcceptsDelayedFocusGain(true)
+                    .setOnAudioFocusChangeListener(duckFocusListener)
                     .build()
                 duckFocusRequest = req
                 val result = am.requestAudioFocus(req)
-                AssistantDebugLog.d("Audio", "requestDuck result=$result")
+                holdingDuck = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
             } else {
                 @Suppress("DEPRECATION")
                 val result = am.requestAudioFocus(
@@ -510,99 +549,45 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                     AudioManager.STREAM_MUSIC,
                     AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
                 )
-                AssistantDebugLog.d("Audio", "requestDuck(legacy) result=$result")
+                holdingDuck = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
             }
-        } catch (t: Throwable) {
-            AssistantDebugLog.w("Audio", "requestDuck failed: ${t.message}")
+        } catch (e: Exception) {
+            Log.w(TAG, "requestAssistantDuck failed", e)
         }
     }
 
     private fun abandonAssistantDuckLocked() {
-        holdingDuck = false
+        if (!holdingDuck) return
+        val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         try {
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 duckFocusRequest?.let { am.abandonAudioFocusRequest(it) }
-                duckFocusRequest = null
             } else {
                 @Suppress("DEPRECATION")
                 am.abandonAudioFocus(duckFocusListener)
             }
-            AssistantDebugLog.d("Audio", "abandonDuck")
-        } catch (t: Throwable) {
-            AssistantDebugLog.w("Audio", "abandonDuck failed: ${t.message}")
-        }
-    }
-
-    /**
-     * SpeechRecognizer often mutes/pauses music. Unmute the stream, then re-assert
-     * duck focus so media stays soft for the rest of the assistant session.
-     */
-    private fun restoreAssistantMedia() {
-        try {
-            val am = appContext.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            am.adjustStreamVolume(AudioManager.STREAM_MUSIC, AudioManager.ADJUST_UNMUTE, 0)
-        } catch (_: Exception) {
-        }
-        if (holdingDuck) {
-            requestAssistantDuckLocked()
-        }
-    }
-
-    override fun speak(text: String, utteranceId: String) {
-        try {
-            val result = tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
-            if (result == TextToSpeech.ERROR || tts == null) {
-                initialize(
-                    onSuccess = {
-                        tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
-                    },
-                    onError = {
-                        onTtsError?.invoke(utteranceId)
-                    },
-                )
-            }
-        } catch (t: Throwable) {
-            android.util.Log.w("AndroidAudioManager", "speak failed", t)
-        }
-    }
-
-    override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
-        try {
-            val result = tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
-            if (result == TextToSpeech.ERROR || tts == null) {
-                initialize(
-                    onSuccess = {
-                        tts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
-                    },
-                    onError = {
-                        onTtsError?.invoke(utteranceId)
-                    },
-                )
-            }
-        } catch (t: Throwable) {
-            android.util.Log.w("AndroidAudioManager", "playSilentUtterance failed", t)
-        }
-    }
-
-    override fun stopSpeaking() {
-        try {
-            tts?.stop()
-        } catch (t: Throwable) {
-            android.util.Log.w("AndroidAudioManager", "stopSpeaking failed", t)
+        } catch (e: Exception) {
+            Log.w(TAG, "abandonAssistantDuck failed", e)
+        } finally {
+            duckFocusRequest = null
+            holdingDuck = false
         }
     }
 
     override fun shutdown() {
+        stopSpeaking()
+        abandonAssistantDuck()
         try {
-            tts?.stop()
-            tts?.shutdown()
-        } catch (t: Throwable) {
-            android.util.Log.w("AndroidAudioManager", "TTS shutdown failed", t)
+            offlineTts?.release()
+        } catch (_: Exception) {
         }
-        tts = null
-        abandonAssistantDuckLocked()
+        offlineTts = null
         destroySpeechRecognizer()
+        try {
+            globalAudioTrack?.release()
+        } catch (_: Exception) {
+        }
+        globalAudioTrack = null
     }
 
     override fun setUtteranceListener(
@@ -633,29 +618,5 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         this.onSttEmptyResult = onEmptyResult
         this.onSttError = onError
         this.onSttPartial = onPartial
-    }
-
-    companion object {
-        private const val POST_STOP_SETTLE_MS = 220L
-        private const val DESTROY_SETTLE_MS = 400L
-        private const val BUSY_BACKOFF_MS = 900L
-        private const val CLIENT_BACKOFF_MS = 550L
-        private const val MIN_START_GAP_MS = 450L
-        private const val READY_WATCHDOG_MS = 2500L
-        /** Window where ERROR_CLIENT from cancel/stop/destroy is ignored. */
-        private const val IGNORE_CLIENT_ERROR_MS = 600L
-
-        fun sttErrorLabel(error: Int): String = when (error) {
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
-            SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
-            SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
-            SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
-            SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
-            SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
-            SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
-            SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
-            SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
-            else -> "ERROR_UNKNOWN"
-        }
     }
 }

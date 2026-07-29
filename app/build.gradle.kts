@@ -34,6 +34,10 @@ android {
         }
     }
 
+    androidResources {
+        noCompress += listOf("onnx")
+    }
+
     signingConfigs {
         create("platform") {
             storeFile = file("platform.jks")
@@ -70,8 +74,10 @@ android {
     }
     packaging {
         jniLibs {
+            useLegacyPackaging = true
             pickFirsts.add("lib/**/libLiteRt.so")
             pickFirsts.add("**/libLiteRt.so")
+            pickFirsts.add("**/libonnxruntime.so")
         }
     }
     useLibrary("android.car")
@@ -110,7 +116,9 @@ dependencies {
     // Alternatively, for cloud fallback:
     // implementation("com.google.ai.client.generativeai:generativeai:0.2.0")
 
+    implementation(files("libs/sherpa-onnx.aar"))
     implementation(files("libs/soniqo-speech.aar"))
+    implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.11.0")
 
