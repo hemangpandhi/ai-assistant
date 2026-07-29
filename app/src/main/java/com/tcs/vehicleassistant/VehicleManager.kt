@@ -1,5 +1,6 @@
 
 package com.tcs.vehicleassistant
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 import android.car.Car
@@ -13,6 +14,9 @@ import kotlin.coroutines.resumeWithException
 
 object VehicleManager {
     private var carPropertyManager: CarPropertyManager? = null
+
+    /** Retained so [cleanup] can disconnect; the Car binder was previously never released. */
+    private var car: Car? = null
     var isInitialized = false
         private set
 
@@ -87,8 +91,9 @@ object VehicleManager {
         try {
             org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().initialize(context)
 
-            val car = Car.createCar(context)
-            carPropertyManager = car.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
+            val createdCar = Car.createCar(context)
+            car = createdCar
+            carPropertyManager = createdCar.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
             
             val propertiesToRegister = listOf(
                 VehiclePropertyIds.PERF_VEHICLE_SPEED,
@@ -670,17 +675,32 @@ object VehicleManager {
         return false
     }
 
+    /**
+     * Scope for fire-and-forget VHAL writes. Replaces GlobalScope so [cleanup] can cancel pending
+     * property writes instead of leaving them to outlive the component that requested them.
+     */
+    private val vhalScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+    )
+
     fun cleanup() {
         try {
             carPropertyManager?.unregisterCallback(carPropertyCallback)
         } catch (e: Exception) {
-            Log.e("VehicleManager", "Failed to cleanup", e)
+            Log.e("VehicleManager", "Failed to unregister car property callback", e)
         }
+        vhalScope.coroutineContext.cancelChildren()
+        try {
+            car?.disconnect()
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to disconnect from Car service", e)
+        }
+        car = null
+        carPropertyManager = null
     }
 
-
     fun setTemperature(temp: Float) {
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        vhalScope.launch {
             writeTemperatureToVhalVerified(temp)
         }
     }

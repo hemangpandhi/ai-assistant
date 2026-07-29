@@ -4,10 +4,15 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import com.tcs.vehicleassistant.core.AssistantConfig
 import kotlinx.coroutines.*
 import com.k2fsa.sherpa.onnx.*
 
 class AndroidAudioManager(private val context: Context) : IAudioManager {
+
+    private companion object {
+        const val TAG = "AndroidAudioManager"
+    }
 
     private var offlineTts: OfflineTts? = null
     
@@ -177,11 +182,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
+    /**
+     * Owned scope for the microphone capture loop. Previously each [startListening] created a
+     * detached `CoroutineScope(Dispatchers.IO)`, so [shutdown] could not stop an in-flight capture.
+     */
+    private val listeningScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun startListening() {
         if (isListening) return
         isListening = true
-        
-        listeningJob = CoroutineScope(Dispatchers.IO).launch {
+
+        listeningJob = listeningScope.launch {
             try {
                 initSpeechRecognizer()
                 initVad()
@@ -198,18 +209,21 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 }
                 
                 val bufferSize = android.media.AudioRecord.getMinBufferSize(
-                    16000,
+                    AssistantConfig.Audio.SAMPLE_RATE_HZ,
                     android.media.AudioFormat.CHANNEL_IN_MONO,
                     android.media.AudioFormat.ENCODING_PCM_16BIT
                 ) * 2
 
+                // Retry loop covers the handoff window while the :wakeword process releases the mic.
                 var audioRecordAttempts = 0
-                while (audioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED && audioRecordAttempts < 5) {
-                    if (audioRecordAttempts > 0) delay(150)
+                while (audioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED &&
+                    audioRecordAttempts < AssistantConfig.Audio.AUDIO_RECORD_MAX_ATTEMPTS
+                ) {
+                    if (audioRecordAttempts > 0) delay(AssistantConfig.Audio.AUDIO_RECORD_RETRY_DELAY_MS)
                     try { audioRecord?.release() } catch (_: Exception) {}
                     audioRecord = android.media.AudioRecord(
                         android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                        16000,
+                        AssistantConfig.Audio.SAMPLE_RATE_HZ,
                         android.media.AudioFormat.CHANNEL_IN_MONO,
                         android.media.AudioFormat.ENCODING_PCM_16BIT,
                         bufferSize
@@ -293,9 +307,13 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             }
                         }
                         
-                        // Stop listening when VAD detects end of speech segment (1.0s) OR total 5s silence timeout reached
+                        // Close the utterance when the VAD reports end-of-segment, when trailing
+                        // silence exceeds the threshold, or when the user never spoke at all — the
+                        // last case is what stops the mic loop hanging open on silence.
                         val isSegmentFinished = sherpaVad?.empty() == false
-                        if ((hasSpoken && (isSegmentFinished || silenceFrames > 10)) || noSpeechFrames > 50) {
+                        val trailingSilenceElapsed = silenceFrames > AssistantConfig.Audio.TRAILING_SILENCE_FRAMES
+                        val noSpeechTimeout = noSpeechFrames > AssistantConfig.Audio.NO_SPEECH_TIMEOUT_FRAMES
+                        if ((hasSpoken && (isSegmentFinished || trailingSilenceElapsed)) || noSpeechTimeout) {
                             withContext(Dispatchers.Main) {
                                 onSttEndOfSpeech?.invoke()
                             }
@@ -326,37 +344,65 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                         delay(10)
                     }
                 }
+            } catch (e: CancellationException) {
+                isListening = false
+                throw e
             } catch (e: Exception) {
+                android.util.Log.e(TAG, "Microphone capture failed", e)
                 withContext(Dispatchers.Main) {
                     isListening = false
                     onSttError?.invoke(0)
                 }
             } finally {
-                try { audioRecord?.stop() } catch (e: Exception) {}
-                try { audioRecord?.release() } catch (e: Exception) {}
-                audioRecord = null
-                try { noiseSuppressor?.release() } catch (e: Exception) {}
-                noiseSuppressor = null
-                try { acousticEchoCanceler?.release() } catch (e: Exception) {}
-                acousticEchoCanceler = null
+                releaseCaptureResources()
             }
         }
     }
 
+    private fun releaseCaptureResources() {
+        try {
+            if (audioRecord?.state == android.media.AudioRecord.STATE_INITIALIZED) audioRecord?.stop()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to stop AudioRecord", e)
+        }
+        try { audioRecord?.release() } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to release AudioRecord", e)
+        }
+        audioRecord = null
+        try { noiseSuppressor?.release() } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to release noise suppressor", e)
+        }
+        noiseSuppressor = null
+        try { acousticEchoCanceler?.release() } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to release echo canceler", e)
+        }
+        acousticEchoCanceler = null
+    }
 
     override fun stopListening() {
         if (!isListening) return
         isListening = false
         listeningJob?.cancel()
+        listeningJob = null
     }
 
     override fun destroySpeechRecognizer() {
         stopListening()
-        sherpaRecognizer?.release()
+        try {
+            sherpaRecognizer?.release()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to release Sherpa recognizer", e)
+        }
         sherpaRecognizer = null
+        try {
+            sherpaVad?.release()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to release Silero VAD", e)
+        }
+        sherpaVad = null
     }
 
-    private val ttsScope = CoroutineScope(Dispatchers.IO)
+    private val ttsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var ttsChannel = kotlinx.coroutines.channels.Channel<suspend CoroutineScope.() -> Unit>(kotlinx.coroutines.channels.Channel.UNLIMITED)
     private var ttsLoopJob: Job? = null
     private var globalAudioTrack: AudioTrack? = null
@@ -476,15 +522,41 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         try {
             globalAudioTrack?.pause()
             globalAudioTrack?.flush()
-        } catch(e: Exception) {}
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to flush AudioTrack", e)
+        }
         startTtsLoop()
     }
 
+    /**
+     * Terminal teardown. This releases every native handle the manager owns and cancels its
+     * scopes — the previous implementation left the [AudioTrack], the Silero VAD, and [ttsScope]
+     * alive, so each service restart leaked an audio track and an ONNX session.
+     */
     override fun shutdown() {
-        stopSpeaking()
-        offlineTts?.release()
+        isListening = false
+        ttsLoopJob?.cancel()
+        ttsChannel.close()
+        ttsScope.cancel()
+        listeningScope.cancel()
+
+        try {
+            globalAudioTrack?.pause()
+            globalAudioTrack?.flush()
+            globalAudioTrack?.release()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to release AudioTrack", e)
+        }
+        globalAudioTrack = null
+
+        try {
+            offlineTts?.release()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to release offline TTS", e)
+        }
         offlineTts = null
 
+        releaseCaptureResources()
         destroySpeechRecognizer()
     }
 

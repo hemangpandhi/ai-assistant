@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Debug-only relaxation. The LAN MJPEG camera feed and locally hosted model downloads are served
+    over plaintext HTTP during development and demos; release builds keep the restrictive
+    network_security_config.xml from the main source set.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <application
+        android:usesCleartextTraffic="true"
+        tools:replace="android:usesCleartextTraffic" />
+
+</manifest>

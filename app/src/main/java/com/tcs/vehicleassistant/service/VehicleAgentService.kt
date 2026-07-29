@@ -42,24 +42,26 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = NotificationCompat.Builder(this, "AgenticServiceChannel")
-            .setContentTitle("Vehicle AI Agent")
-            .setContentText("Processing tasks in the background...")
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(getString(R.string.agent_notification_title))
+            .setContentText(getString(R.string.agent_notification_text))
             .setSmallIcon(R.drawable.ic_mic_small)
             .build()
-            
-        startForeground(1, notification)
-        return START_NOT_STICKY
+
+        startForeground(NOTIFICATION_ID, notification)
+        // Sticky so the OS restores the agent after a low-memory kill; the previous
+        // START_NOT_STICKY left the assistant dead until the user manually reopened the app.
+        return START_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder {
         return binder
     }
-    
+
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val serviceChannel = NotificationChannel(
-                "AgenticServiceChannel",
+                CHANNEL_ID,
                 "Agentic Service Channel",
                 NotificationManager.IMPORTANCE_LOW
             )
@@ -68,17 +70,37 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
         }
     }
 
+    /**
+     * Full teardown. This previously only destroyed the speech recognizer, leaking the TTS engine,
+     * the AudioTrack, and the ViewModel's coroutine scope on every service restart.
+     */
     override fun onDestroy() {
+        try {
+            viewModel.destroy()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to destroy view model", e)
+        }
+        try {
+            audioManager.shutdown()
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "Failed to shut down audio manager", e)
+        }
         super.onDestroy()
-        audioManager.destroySpeechRecognizer()
     }
 
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
-            android.util.Log.w("VehicleAgentService", "OS Memory Pressure Critical (Level $level). Unloading LLM from RAM.")
-            com.tcs.vehicleassistant.LLMManager.unload()
-            System.gc()
+            // unload() declines while an inference is still inside the native engine, so a
+            // memory-pressure callback can no longer free state a streaming callback is using.
+            val unloaded = com.tcs.vehicleassistant.LLMManager.unload()
+            android.util.Log.w(TAG, "Memory pressure level=$level. LLM unloaded=$unloaded")
         }
+    }
+
+    private companion object {
+        const val TAG = "VehicleAgentService"
+        const val CHANNEL_ID = "AgenticServiceChannel"
+        const val NOTIFICATION_ID = 1
     }
 }

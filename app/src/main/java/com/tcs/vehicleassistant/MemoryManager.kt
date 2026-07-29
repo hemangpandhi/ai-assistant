@@ -2,14 +2,22 @@ package com.tcs.vehicleassistant
 
 import android.content.Context
 import android.util.Log
+import com.tcs.vehicleassistant.core.AssistantConfig
 
 object MemoryManager {
     private const val TAG = "MemoryManager"
-    private const val DEFAULT_MAX_CHARS = 3000
+    private const val DEFAULT_MAX_CHARS = AssistantConfig.Memory.DEFAULT_MAX_CHARS
 
     data class Turn(val role: String, val content: String)
 
-    private val conversationHistory = java.util.Collections.synchronizedList(mutableListOf<Turn>())
+    /**
+     * Guards [conversationHistory]. Turns are appended from the orchestrator's main-dispatcher
+     * coroutines and read from the IO dispatcher while assembling prompts, so a
+     * `Collections.synchronizedList` alone was not enough: iterating it without holding the lock
+     * could observe a torn view or throw `ConcurrentModificationException`.
+     */
+    private val historyLock = Any()
+    private val conversationHistory = mutableListOf<Turn>()
 
     private val followUpPatterns = listOf(
         "yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead",
@@ -22,8 +30,17 @@ object MemoryManager {
     fun addTurn(role: String, content: String) {
         val trimmed = content.trim()
         if (trimmed.isEmpty()) return
-        conversationHistory.add(Turn(role, trimmed))
-        Log.d(TAG, "Added turn: $role. Total turns: ${conversationHistory.size}")
+        val size = synchronized(historyLock) {
+            conversationHistory.add(Turn(role, trimmed))
+            // Cap retained turns. Without this the list grew for the whole process lifetime — the
+            // sliding window only bounded what was *read*, not what was stored.
+            val overflow = conversationHistory.size - AssistantConfig.Memory.MAX_RETAINED_TURNS
+            if (overflow > 0) {
+                repeat(overflow) { conversationHistory.removeAt(0) }
+            }
+            conversationHistory.size
+        }
+        Log.d(TAG, "Added turn: $role. Retained turns: $size")
     }
 
     fun isAffirmative(query: String): Boolean {
@@ -100,33 +117,32 @@ object MemoryManager {
         return true
     }
 
-    fun turnCount(): Int = conversationHistory.size
+    fun turnCount(): Int = synchronized(historyLock) { conversationHistory.size }
+
+    /** Immutable copy of the stored turns, taken under the lock. */
+    fun snapshot(): List<Turn> = synchronized(historyLock) { conversationHistory.toList() }
 
     /**
-     * Returns the most recent conversation turns without mutating stored history.
+     * Most recent turns that fit within [maxChars], oldest first, without mutating stored history.
      */
     fun getSlidingWindowContext(maxChars: Int = DEFAULT_MAX_CHARS): String {
-        val sb = StringBuilder()
+        val turns = snapshot()
         var currentLength = 0
-        val reversedContext = mutableListOf<String>()
+        val mostRecentFirst = mutableListOf<String>()
 
-        for (i in conversationHistory.indices.reversed()) {
-            val turn = conversationHistory[i]
+        for (i in turns.indices.reversed()) {
+            val turn = turns[i]
             val turnString = "${turn.role}: ${turn.content}\n"
             if (currentLength + turnString.length > maxChars) break
-            reversedContext.add(turnString)
+            mostRecentFirst.add(turnString)
             currentLength += turnString.length
         }
 
-        for (i in reversedContext.indices.reversed()) {
-            sb.append(reversedContext[i])
-        }
-
-        return sb.toString().trim()
+        return mostRecentFirst.asReversed().joinToString("").trim()
     }
 
     fun getAnthropicHistory(): List<org.json.JSONObject> {
-        return conversationHistory.map { turn ->
+        return snapshot().map { turn ->
             org.json.JSONObject().apply {
                 val apiRole = if (turn.role.equals("User", true)) "user" else "assistant"
                 put("role", apiRole)
@@ -136,7 +152,7 @@ object MemoryManager {
     }
 
     fun getGeminiHistory(): List<org.json.JSONObject> {
-        return conversationHistory.map { turn ->
+        return snapshot().map { turn ->
             org.json.JSONObject().apply {
                 val apiRole = if (turn.role.equals("User", true)) "user" else "model"
                 put("role", apiRole)
@@ -146,7 +162,7 @@ object MemoryManager {
     }
 
     fun clearMemory() {
-        conversationHistory.clear()
+        synchronized(historyLock) { conversationHistory.clear() }
         Log.i(TAG, "Conversation memory cleared.")
     }
 }

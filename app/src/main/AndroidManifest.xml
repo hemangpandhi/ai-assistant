@@ -67,26 +67,46 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+        Signature-level permission gating the wake-word microphone service. WakeWordService must
+        stay exported because it is started across the app and :wakeword process boundary, but it
+        was previously exported with no permission at all, letting any installed app start or stop
+        the microphone service.
+    -->
+    <permission
+        android:name="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT"
+        android:label="@string/permission_control_assistant_label"
+        android:description="@string/permission_control_assistant_description"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT" />
 
     <application
         android:name=".VehicleApplication"
-        android:allowBackup="true"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:fullBackupContent="false"
         android:icon="@drawable/ic_ai_assistant"
         android:label="VehicleEdgeAssistant"
         android:supportsRtl="true"
-        android:usesCleartextTraffic="true"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:largeHeap="true"
         android:allowNativeHeapPointerTagging="false"
         android:memtagMode="off"
-        android:extractNativeLibs="true"
         android:theme="@style/Theme.MaterialComponents.DayNight.DarkActionBar">
-        
-        <!-- Grant access to vendor OpenCL libraries for LiteRT GPU Backend on Android 14+ -->
+
+        <!--
+            Vendor libraries the LiteRT GPU backend dlopens at runtime. Without these declarations
+            Android 14+ blocks the load and the GPU backend silently fails to initialize.
+            The list mirrors the dlopen targets in liblitertlm_jni.so.
+        -->
         <uses-native-library android:name="libvndksupport.so" android:required="false" />
         <uses-native-library android:name="libOpenCL.so" android:required="false" />
         <uses-native-library android:name="libOpenCL-pixel.so" android:required="false" />
+        <uses-native-library android:name="libOpenCL-car.so" android:required="false" />
         <uses-native-library android:name="libGLES_mali.so" android:required="false" />
+        <uses-native-library android:name="libcdsprpc.so" android:required="false" />
+        <uses-native-library android:name="libion.so" android:required="false" />
 
         <activity
             android:name=".LocalLLMActivity"
@@ -116,12 +136,14 @@
         <service android:name=".service.VehicleAgentService"
                  android:foregroundServiceType="dataSync"
                  android:exported="false" />
-                 
+
         <service android:name=".WakeWordService"
                  android:process=":wakeword"
                  android:foregroundServiceType="microphone"
+                 android:permission="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT"
                  android:exported="true" />
-                 
+
+
         <activity
             android:name=".CockpitAwarenessActivity"
             android:screenOrientation="reverseLandscape"

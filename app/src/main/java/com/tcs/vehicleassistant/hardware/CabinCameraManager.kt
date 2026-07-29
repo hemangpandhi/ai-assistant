@@ -36,6 +36,9 @@ object CabinCameraManager {
     
     private var cacheDir: java.io.File? = null
 
+    /** Retained so [stopCamera] can unbind the CameraX use cases and actually free the camera. */
+    private var boundProvider: ProcessCameraProvider? = null
+
     fun startCamera(context: Context, lifecycleOwner: LifecycleOwner) {
         cacheDir = context.cacheDir
         if (cameraExecutor == null || cameraExecutor!!.isShutdown) {
@@ -45,6 +48,7 @@ object CabinCameraManager {
         cameraProviderFuture.addListener({
             try {
                 val cameraProvider = cameraProviderFuture.get()
+                boundProvider = cameraProvider
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                     .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
@@ -183,8 +187,33 @@ object CabinCameraManager {
 
     private var frameCount = 0
 
+    /**
+     * Releases the camera and analysis pipeline.
+     *
+     * The previous version shut the executor down but never unbound the CameraX use cases, so the
+     * camera stayed held by this process after the vision service was destroyed and a later
+     * [startCamera] bound a second analyzer on a dead executor.
+     */
     fun stopCamera() {
+        try {
+            boundProvider?.unbindAll()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to unbind camera use cases", e)
+        }
+        boundProvider = null
+
         cameraExecutor?.shutdown()
-        faceLandmarker?.close()
+        cameraExecutor = null
+
+        try {
+            faceLandmarker?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to close face landmarker", e)
+        }
+        faceLandmarker = null
+
+        frameCallback = null
+        occupantCount = 0
+        currentMood = "Neutral"
     }
 }

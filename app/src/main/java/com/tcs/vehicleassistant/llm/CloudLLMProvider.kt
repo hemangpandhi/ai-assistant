@@ -24,8 +24,12 @@ class CloudLLMProvider : ILLMProvider {
         onDone: (String) -> Unit,
         onError: (Exception) -> Unit
     ) {
-        // The system prompt is already injected into the `prompt` by AgentOrchestrator.
-        val fullPrompt = prompt
+        // The orchestrator assembles the operating rules, tool catalogue, and telemetry into
+        // [prompt]. That whole block has to arrive as the API's system instruction: passing it as
+        // the user message meant the cloud managers dropped it entirely (they build the request
+        // body from MemoryManager history plus the systemPrompt argument), so cloud mode ran with
+        // no tools and no safety rules.
+        val systemPrompt = LLMManager.getSystemPrompt(context, userQuery)
 
         val responseBuilder = StringBuilder()
         val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {
@@ -40,18 +44,12 @@ class CloudLLMProvider : ILLMProvider {
                 onError(Exception(throwable))
             }
         }
-        
-        // Let's hook into the existing Cloud managers
+
         try {
             if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
-                // For now, Cloud managers don't perfectly stream to a callback without changes, 
-                // but we can pass the logic down. Let's assume we call their async methods.
-                // In a perfect world, GeminiManager/AnthropicManager would take onToken and onDone directly.
-                // We will simulate it by delegating.
-                // Streaming delegated to GeminiManager / AnthropicManager
-                GeminiManager.sendMessageAsync("", fullPrompt, callback)
+                GeminiManager.sendMessageAsync(systemPrompt, userQuery, callback)
             } else {
-                AnthropicManager.sendMessageAsync("", fullPrompt, callback)
+                AnthropicManager.sendMessageAsync(systemPrompt, userQuery, callback)
             }
         } catch (e: Exception) {
             onError(e)

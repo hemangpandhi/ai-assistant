@@ -588,7 +588,7 @@ class LocalLLMActivity : AppCompatActivity() {
             btnSyncTime.text = "Syncing..."
             Thread {
                 try {
-                    val url = java.net.URL("http://google.com")
+                    val url = java.net.URL("https://clients3.google.com/generate_204")
                     val conn = url.openConnection() as java.net.HttpURLConnection
                     conn.requestMethod = "HEAD"
                     conn.connectTimeout = 5000
@@ -644,7 +644,7 @@ class LocalLLMActivity : AppCompatActivity() {
         }
         
         // Wake Word Initialization
-        val currentWakeWord = prefs.getString("wake_word", "hey auto")
+        val currentWakeWord = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD, com.tcs.vehicleassistant.core.AssistantConfig.WakeWord.DEFAULT_WAKE_WORD)
         etWakeWord.setText(currentWakeWord)
         
         val isWakeWordEnabled = prefs.getBoolean("wake_word_enabled", false)
@@ -682,7 +682,7 @@ class LocalLLMActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
-                prefs.edit().putString("wake_word", s.toString().lowercase()).apply()
+                prefs.edit().putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD, s.toString().lowercase()).apply()
                 if (switchWakeWord.isChecked) {
                     val intent = Intent(this@LocalLLMActivity, WakeWordService::class.java)
                     try { startService(intent) } catch (e: Exception) {}
@@ -987,7 +987,7 @@ class LocalLLMActivity : AppCompatActivity() {
         super.onStop()
         // Restart background wake word listening when the UI hides
         val intent = Intent(this, WakeWordService::class.java)
-        intent.action = "ACTION_RESTART_LISTENING"
+        intent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART
         startService(intent)
     }
 
@@ -1002,7 +1002,7 @@ class LocalLLMActivity : AppCompatActivity() {
             if (audioIndex != -1 && grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED) {
                 // Restart WakeWordService to bind to the microphone now that permission is granted
                 val serviceIntent = Intent(this, WakeWordService::class.java)
-                serviceIntent.action = "ACTION_RESTART_LISTENING"
+                serviceIntent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART
                 startForegroundService(serviceIntent)
             }
         }
