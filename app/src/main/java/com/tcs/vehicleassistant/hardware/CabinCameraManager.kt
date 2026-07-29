@@ -66,7 +66,7 @@ object CabinCameraManager {
                 boundProvider = cameraProvider
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()
 
                 imageAnalysis.setAnalyzer(cameraExecutor!!) { imageProxy ->
@@ -164,32 +164,18 @@ object CabinCameraManager {
     }
 
     private fun imageProxyToBitmap(image: ImageProxy): Bitmap? {
-        if (image.format != ImageFormat.YUV_420_888) return null
-        val yBuffer = image.planes[0].buffer
-        val uBuffer = image.planes[1].buffer
-        val vBuffer = image.planes[2].buffer
-        
-        val ySize = yBuffer.remaining()
-        val uSize = uBuffer.remaining()
-        val vSize = vBuffer.remaining()
-        
-        val nv21 = ByteArray(ySize + uSize + vSize)
-        yBuffer.get(nv21, 0, ySize)
-        vBuffer.get(nv21, ySize, vSize)
-        uBuffer.get(nv21, ySize + vSize, uSize)
-        
-        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-        val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
-        val imageBytes = out.toByteArray()
-        val rawBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size) ?: return null
-        
-        // Use dynamic rotation provided by CameraX
-        val rotation = image.imageInfo.rotationDegrees.toFloat()
-        Log.d(TAG, "Raw Image: ${image.width}x${image.height}, applying $rotation degree rotation")
-        
+        val rawBitmap = try {
+            image.toBitmap()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to convert ImageProxy to Bitmap", e)
+            return null
+        }
+
+        // Force rotate the image 90 degrees to ensure it is portrait and upright.
+        // Also mirror it for the front camera.
         val matrix = android.graphics.Matrix()
-        matrix.postRotate(rotation)
+        matrix.postRotate(90f)
+        matrix.preScale(-1.0f, 1.0f)
         
         val finalBitmap = Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
         
