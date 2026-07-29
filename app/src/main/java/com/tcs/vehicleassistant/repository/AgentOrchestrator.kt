@@ -328,7 +328,7 @@ class AgentOrchestrator(
             }
             val isHandoffModel = LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true
             val vehicleState = if (dynamicState.isNotEmpty()) {
-                if (isHandoffModel) "[System Context: $dynamicState]" else "[Current State: $dynamicState]"
+                "[Internal Vehicle Telemetry (Do NOT speak or repeat to user): $dynamicState]"
             } else ""
 
             val stateInject = if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
