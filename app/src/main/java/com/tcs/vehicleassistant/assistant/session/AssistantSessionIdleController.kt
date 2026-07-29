@@ -6,7 +6,7 @@ import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.controller.AssistantUiState
-import com.tcs.vehicleassistant.controller.AssistantViewModel
+import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -26,7 +26,7 @@ internal class AssistantSessionIdleController(
     private val isVisible: () -> Boolean,
     private val isBusy: () -> Boolean,
     private val currentUiState: () -> AssistantUiState?,
-    private val viewModelProvider: () -> AssistantViewModel?,
+    private val viewModelProvider: () -> UiUxAssistantViewModel?,
     private val onTimeout: () -> Unit,
 ) {
     private var idleJob: Job? = null

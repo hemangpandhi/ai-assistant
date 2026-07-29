@@ -4,42 +4,54 @@ data class ParsedToolCall(
     val fullTag: String,
     val toolName: String,
     val args: String
-) {
-    /** Canonical tool call string used for execution / dedupe. */
-    val invocation: String get() = "$toolName($args)"
-}
+)
 
-/**
- * Final / fallback tool extraction — kept close to `dev/refactor`.
- *
- * Eager mid-stream (complete-tags-only) parsing lives in [StreamingToolCallParser].
- */
 object ToolCallParser {
 
     /**
      * Extracts all valid tool calls from the LLM output.
-     * Prefers complete streaming-safe tags; falls back to bare function-call syntax
-     * when the name matches a registered tool.
+     * We look for the exact format: <TOOL>toolName(args)</TOOL>
+     * Malformed or incomplete tags are ignored to prevent execution errors.
      */
     fun extractToolCalls(llmOutput: String): List<ParsedToolCall> {
-        val complete = extractCompleteToolCalls(llmOutput)
-        if (complete.isNotEmpty()) return complete
-
         val calls = mutableListOf<ParsedToolCall>()
-        val funcRegex = Regex("""\b([a-zA-Z0-9_]+)\((.*?)\)""")
-        for (match in funcRegex.findAll(llmOutput)) {
+        
+        // 1. XML Tag Format: <TOOL>toolName(args)</TOOL>
+        val xmlRegex = Regex("(?i)<TOOL>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:</TOOL>|</TOOL|$)", RegexOption.DOT_MATCHES_ALL)
+        for (match in xmlRegex.findAll(llmOutput)) {
             val fullTag = match.value
             val toolName = match.groups[1]?.value?.trim() ?: continue
             val args = match.groups[2]?.value?.trim() ?: ""
-            val toolManager = try {
-                org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
-            } catch (_: Exception) {
-                null
-            }
-            if (toolManager?.getToolDefinition(toolName) != null) {
-                calls.add(ParsedToolCall(fullTag, toolName, args))
+            calls.add(ParsedToolCall(fullTag, toolName, args))
+        }
+
+        // 2. Native JSON Format: <tool_call>{"name": "toolName", "arguments": {...}}</tool_call>
+        val jsonRegex = Regex("""(?i)<tool_call>\s*\{[\s\S]*?"name"\s*:\s*"([^"]+)"[\s\S]*?\}\s*</tool_call>""")
+        for (match in jsonRegex.findAll(llmOutput)) {
+            val fullTag = match.value
+            val toolName = match.groups[1]?.value?.trim() ?: continue
+            // Extract raw arguments inside JSON
+            val args = if (fullTag.contains("\"arguments\"")) {
+                fullTag.substringAfter("\"arguments\"").substringAfter(":").substringBefore("}").replace("\"", "").replace("{", "").trim()
+            } else ""
+            calls.add(ParsedToolCall(fullTag, toolName, args))
+        }
+        // 3. Fallback Function Call Syntax: toolName(args) or call:toolName(args) without explicit XML wrapping
+        if (calls.isEmpty()) {
+            val funcRegex = Regex("""\b([a-zA-Z0-9_]+)\((.*?)\)""")
+            for (match in funcRegex.findAll(llmOutput)) {
+                val fullTag = match.value
+                val toolName = match.groups[1]?.value?.trim() ?: continue
+                val args = match.groups[2]?.value?.trim() ?: ""
+                val toolManager = try {
+                    org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+                } catch (_: Exception) { null }
+                if (toolManager?.getToolDefinition(toolName) != null) {
+                    calls.add(ParsedToolCall(fullTag, toolName, args))
+                }
             }
         }
+
         return calls
     }
 
@@ -109,7 +121,7 @@ object ToolCallParser {
                 cleaned = cleaned.substring(0, finalLastTagIndex)
             }
         }
-
+        
         return cleaned.trim()
     }
 }

@@ -11,9 +11,10 @@ import com.assistant.ui.assistant.api.AssistantSpeaker
 import com.assistant.ui.assistant.api.AssistantSpeechInput
 import com.assistant.ui.assistant.api.AssistantStartReason
 import com.tcs.vehicleassistant.controller.AssistantUiState
-import com.tcs.vehicleassistant.controller.AssistantViewModel
+import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
 import com.tcs.vehicleassistant.hardware.SessionAudioPort
+import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,7 +28,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Production [AssistantBackend] bridge to [AssistantViewModel] / [SessionAudioPort].
+ * Production [AssistantBackend] bridge to [UiUxAssistantViewModel] / [SessionAudioPort].
  *
  * Compose collects [events] only. Mic / STT / TTS stay on the agent path (same as XML).
  *
@@ -51,7 +52,7 @@ class VehicleAgentAssistantBackend(
     private val _sessionActive = MutableStateFlow(false)
     override val sessionActive: StateFlow<Boolean> = _sessionActive.asStateFlow()
 
-    private var viewModel: AssistantViewModel? = null
+    private var viewModel: UiUxAssistantViewModel? = null
     private var audioManager: SessionAudioPort? = null
     private var uiCollectJob: Job? = null
     private var eventCollectJob: Job? = null
@@ -76,12 +77,12 @@ class VehicleAgentAssistantBackend(
     /** Optional LLM / heuristic emotion (Happy / Sad / …). */
     private var affectiveMood: AssistantMoodId? = null
 
-    fun attachViewModel(vm: AssistantViewModel?, audio: SessionAudioPort? = null) {
+    fun attachViewModel(vm: UiUxAssistantViewModel?, audio: SessionAudioPort? = null) {
         attachSession(vm, audio)
     }
 
     override fun attachSession(session: Any?, audio: Any?) {
-        val vm = session as? AssistantViewModel
+        val vm = session as? UiUxAssistantViewModel
         val audioMgr = audio as? SessionAudioPort
         uiCollectJob?.cancel()
         eventCollectJob?.cancel()
@@ -337,22 +338,22 @@ class VehicleAgentAssistantBackend(
             if (!isActive || !_sessionActive.value || gen != micGeneration) return@launch
 
             // Wait for Vosk to actually release — never start STT while it holds AudioRecord.
-            if (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
+            if (UiUxWakeWordService.isHoldingMic) {
                 AssistantDebugLog.d(TAG, "await wake-word release")
                 var attempts = 0
                 while (
                     isActive &&
                     _sessionActive.value &&
                     gen == micGeneration &&
-                    com.tcs.vehicleassistant.WakeWordService.isHoldingMic &&
+                    UiUxWakeWordService.isHoldingMic &&
                     attempts < 6
                 ) {
-                    com.tcs.vehicleassistant.WakeWordService.awaitMicReleased(400L)
-                    if (!com.tcs.vehicleassistant.WakeWordService.isHoldingMic) break
+                    UiUxWakeWordService.awaitMicReleased(400L)
+                    if (!UiUxWakeWordService.isHoldingMic) break
                     attempts++
                     delay(100)
                 }
-                if (com.tcs.vehicleassistant.WakeWordService.isHoldingMic) {
+                if (UiUxWakeWordService.isHoldingMic) {
                     AssistantDebugLog.w(TAG, "wake still holding — defer arm ($reason)")
                     if (_sessionActive.value && gen == micGeneration) {
                         // Soft UI; schedule a single delayed retry outside this job.

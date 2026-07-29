@@ -1,5 +1,6 @@
 package com.tcs.vehicleassistant.utils
 
+import com.tcs.vehicleassistant.domain.FollowUpUseCase
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,8 +23,8 @@ class DirectCabinCommandRouterTest {
     }
 
     @Test
-    fun resolve_playMusic_viaFollowUpFacade() {
-        assertEquals("playMusic(music)", FollowUpRouter.resolveDirectTool("play music", ""))
+    fun resolve_playMusic_viaUseCase() {
+        assertEquals("playMusic(music)", FollowUpUseCase().resolve("play music", ""))
     }
 
     @Test
@@ -51,9 +52,8 @@ class StreamingToolCallParserTest {
     }
 
     @Test
-    fun toolCallParser_delegatesCompleteExtraction() {
-        val viaFacade = ToolCallParser.extractCompleteToolCalls("<TOOL>nextTrack()</TOOL>")
-        val viaExt = StreamingToolCallParser.extractCompleteToolCalls("<TOOL>nextTrack()</TOOL>")
-        assertEquals(viaExt, viaFacade)
+    fun parsedCall_exposesInvocation() {
+        val call = StreamingToolCallParser.extractCompleteToolCalls("<TOOL>nextTrack()</TOOL>").single()
+        assertEquals("nextTrack()", call.invocation)
     }
 }

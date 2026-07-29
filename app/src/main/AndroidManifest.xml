@@ -123,6 +123,11 @@
                  android:process=":wakeword"
                  android:foregroundServiceType="microphone"
                  android:exported="true" />
+
+        <service android:name=".wakeword.UiUxWakeWordService"
+                 android:process=":wakeword"
+                 android:foregroundServiceType="microphone"
+                 android:exported="true" />
                  
         <activity
             android:name=".CockpitAwarenessActivity"

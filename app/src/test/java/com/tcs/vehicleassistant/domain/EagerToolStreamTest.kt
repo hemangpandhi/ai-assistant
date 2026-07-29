@@ -1,6 +1,8 @@
 package com.tcs.vehicleassistant.domain
 
 import com.tcs.vehicleassistant.utils.ToolCallParser
+import com.tcs.vehicleassistant.utils.StreamingToolCallParser
+import com.tcs.vehicleassistant.utils.invocation
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -15,16 +17,16 @@ class EagerToolStreamTest {
     fun closedToolTagIsExecutableWhileStreamContinues() {
         val stream = StringBuilder()
         stream.append("Cooling the cabin. ")
-        assertTrue(ToolCallParser.extractCompleteToolCalls(stream.toString()).isEmpty())
+        assertTrue(StreamingToolCallParser.extractCompleteToolCalls(stream.toString()).isEmpty())
 
         stream.append("<TOOL>setTemperature(68)")
         assertTrue(
             "Incomplete tag must not fire",
-            ToolCallParser.extractCompleteToolCalls(stream.toString()).isEmpty(),
+            StreamingToolCallParser.extractCompleteToolCalls(stream.toString()).isEmpty(),
         )
 
         stream.append("</TOOL> Enjoy the breeze.")
-        val calls = ToolCallParser.extractCompleteToolCalls(stream.toString())
+        val calls = StreamingToolCallParser.extractCompleteToolCalls(stream.toString())
         assertEquals(1, calls.size)
         assertEquals("setTemperature(68)", calls[0].invocation)
 
@@ -38,7 +40,7 @@ class EagerToolStreamTest {
     fun secondClosedToolIsAlsoEager() {
         val text =
             "OK. <TOOL>turnOnAC()</TOOL> and <TOOL>playMusic(jazz)</TOOL> done."
-        val calls = ToolCallParser.extractCompleteToolCalls(text)
+        val calls = StreamingToolCallParser.extractCompleteToolCalls(text)
         assertEquals(2, calls.size)
         assertEquals("turnOnAC()", calls[0].invocation)
         assertEquals("playMusic(jazz)", calls[1].invocation)
