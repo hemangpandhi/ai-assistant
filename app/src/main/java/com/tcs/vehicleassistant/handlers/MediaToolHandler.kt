@@ -15,11 +15,12 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
         
         return when (handlerKey) {
             "playMusic" -> {
-                val argStr = toolCall.substringAfter("(").substringBefore(")").replace("\"", "").trim()
-                if (argStr.isBlank() || argStr.equals("SONG", ignoreCase = true) || argStr.equals("music", ignoreCase = true)) {
-                    return ToolExecutionResult(false, "What kind of music are you in the mood for?")
+                val rawArg = toolCall.substringAfter("(").substringBefore(")").replace("\"", "").trim()
+                val query = if (rawArg.isBlank() || rawArg.equals("SONG", ignoreCase = true) || rawArg.equals("music", ignoreCase = true)) {
+                    "popular music"
+                } else {
+                    rawArg
                 }
-                val query = argStr.trim().replace("\"", "")
                 
                 var success = false
                 try {
@@ -91,6 +92,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     val controllers = mediaSessionManager.getActiveSessions(null)
                     if (controllers.isNotEmpty()) {
                         for (controller in controllers) {
+                            // Many apps ignore stop(), always use pause() for both pause and stop intents
                             controller.transportControls.pause()
                         }
                     } else {
@@ -99,20 +101,26 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to pause media via MediaSessionManager, using fallback", e)
                     try {
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        val keycode = if (handlerKey == "stopMusic") android.view.KeyEvent.KEYCODE_MEDIA_STOP else android.view.KeyEvent.KEYCODE_MEDIA_PAUSE
+                        // Use KEYCODE_MEDIA_PAUSE for both, as KEYCODE_MEDIA_STOP is often ignored
+                        val keycode = android.view.KeyEvent.KEYCODE_MEDIA_PAUSE
                         
-                        // Send the specific pause/stop key
+                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                         audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, keycode))
                         audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keycode))
-                        
-                        // Fallback: Also try sending generic PAUSE if stop failed to be recognized
-                        if (handlerKey == "stopMusic") {
-                            audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE))
-                            audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PAUSE))
-                        }
+
+                        // Fallback 2: Generic music service command (Supported by Spotify, AOSP Music, etc.)
+                        val cmdIntent = Intent("com.android.music.musicservicecommand")
+                        cmdIntent.putExtra("command", "pause")
+                        context.sendBroadcast(cmdIntent)
+
+                        // Fallback 3: Explicitly target Spotify if installed
+                        val spotifyIntent = Intent("com.spotify.mobile.android.ui.widget.PLAY")
+                        spotifyIntent.setPackage("com.spotify.music")
+                        spotifyIntent.action = "com.spotify.mobile.android.ui.widget.PAUSE"
+                        context.sendBroadcast(spotifyIntent)
+
                     } catch (ex: Exception) {
-                        Log.e(TAG, "Fallback dispatchMediaKeyEvent failed", ex)
+                        Log.e(TAG, "Fallback media broadcast failed", ex)
                         return ToolExecutionResult(false, "System Error: Could not control media playback.")
                     }
                 }

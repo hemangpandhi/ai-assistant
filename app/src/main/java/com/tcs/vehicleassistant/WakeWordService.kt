@@ -34,18 +34,28 @@ class WakeWordService : Service() {
     companion object {
         var sharedModel: Model? = null
         private const val TAG = "WakeWord"
+        private const val MIC_HOLD_MARKER = ".vosk_mic_holding"
         /** PCM samples below this are treated as silence for duty-cycling. */
         private const val SILENCE_THRESHOLD = 180
         /** When silent, run recognizer on 1 of every N buffers. */
         private const val SILENT_DUTY_SKIP = 4
 
+        @Volatile
+        private var holdContext: Context? = null
+
         /**
          * True while Vosk holds [android.media.AudioRecord].
-         * AssistantSession / MicCaptureCoordinator wait for release before STT.
+         * Cross-process safe via filesDir marker (WakeWord runs in `:wakeword`).
          */
+        val isHoldingMic: Boolean
+            get() {
+                if (_isHoldingMic) return true
+                val marker = holdMarkerFile() ?: return false
+                return marker.exists()
+            }
+
         @Volatile
-        var isHoldingMic: Boolean = false
-            private set
+        private var _isHoldingMic: Boolean = false
 
         /** Invalidates late release callbacks from a previous AudioRecord loop. */
         private val micHoldGeneration = AtomicInteger(0)
@@ -54,13 +64,27 @@ class WakeWordService : Service() {
         private var releaseGate: kotlinx.coroutines.CompletableDeferred<Unit> =
             kotlinx.coroutines.CompletableDeferred<Unit>().also { it.complete(Unit) }
 
+        private fun holdMarkerFile(): java.io.File? {
+            val ctx = holdContext ?: return null
+            return java.io.File(ctx.filesDir, MIC_HOLD_MARKER)
+        }
+
+        fun bindHoldContext(context: Context) {
+            holdContext = context.applicationContext
+        }
+
         /** @return hold generation that must be passed to [signalMicReleased]. */
         fun beginMicHold(): Int {
             val gen = micHoldGeneration.incrementAndGet()
             if (releaseGate.isCompleted) {
                 releaseGate = kotlinx.coroutines.CompletableDeferred()
             }
-            isHoldingMic = true
+            _isHoldingMic = true
+            try {
+                holdMarkerFile()?.writeText(gen.toString())
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to write mic hold marker", e)
+            }
             return gen
         }
 
@@ -69,7 +93,11 @@ class WakeWordService : Service() {
                 Log.d(TAG, "ignore stale mic release gen=$generation current=${micHoldGeneration.get()}")
                 return
             }
-            isHoldingMic = false
+            _isHoldingMic = false
+            try {
+                holdMarkerFile()?.delete()
+            } catch (_: Exception) {
+            }
             if (!releaseGate.isCompleted) {
                 releaseGate.complete(Unit)
             }
@@ -78,18 +106,37 @@ class WakeWordService : Service() {
         /** Force-open the gate after an intentional stop (invalidates in-flight holds). */
         fun forceReleaseMic() {
             micHoldGeneration.incrementAndGet()
-            isHoldingMic = false
+            _isHoldingMic = false
+            try {
+                holdMarkerFile()?.delete()
+            } catch (_: Exception) {
+            }
             if (!releaseGate.isCompleted) {
                 releaseGate.complete(Unit)
             }
         }
 
-        /** Suspend until Vosk releases the mic, or [timeoutMs] elapses. */
+        /** Suspend until Vosk releases the mic, or [timeoutMs] elapses. Cross-process safe. */
         suspend fun awaitMicReleased(timeoutMs: Long = 1000L): Boolean {
-            if (!isHoldingMic && releaseGate.isCompleted) return true
+            if (!isHoldingMic) {
+                if (!releaseGate.isCompleted) {
+                    // Same-process waiter may still be attached
+                } else {
+                    return true
+                }
+            }
+            // Prefer in-process gate when available; also poll file for cross-process.
             return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
-                releaseGate.await()
-            } != null
+                val deadline = System.currentTimeMillis() + timeoutMs
+                while (System.currentTimeMillis() < deadline) {
+                    if (!isHoldingMic) return@withTimeoutOrNull true
+                    if (!releaseGate.isCompleted) {
+                        // Race: complete may happen concurrently
+                    }
+                    kotlinx.coroutines.delay(20)
+                }
+                !isHoldingMic
+            } == true || !isHoldingMic
         }
     }
 
@@ -102,6 +149,7 @@ class WakeWordService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        bindHoldContext(this)
 
         val channelId = "wake_word_channel"
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -140,17 +188,8 @@ class WakeWordService : Service() {
             }
         }
 
-        // Background LLM prewarm — short delay so first UI paint wins.
-        mainScope.launch {
-            delay(2_000)
-            LLMManager.autoInitialize(applicationContext, callback = object : LLMManager.InitCallback {
-                override fun onSuccess() {
-                }
-                override fun onError(e: Exception) {
-                    Log.e(TAG, "Background LLM Init Failed", e)
-                }
-            })
-        }
+        // Do NOT load the LLM in the :wakeword process — dual-process model load causes OOM
+        // (dev/refactor). Main process / VoiceInteractionService owns LLM init.
     }
 
     private fun updateWakeWord() {
@@ -161,6 +200,7 @@ class WakeWordService : Service() {
     private var customAudioRecord: android.media.AudioRecord? = null
     private var customRecognizer: Recognizer? = null
     private var isRecording = false
+    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
 
     private fun recognizerSetup() {
         try {
@@ -198,6 +238,16 @@ class WakeWordService : Service() {
 
                 if (customAudioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
                     Log.e(TAG, "Failed to init MIC AudioRecord!")
+                    isRecording = false
+                    return@launch
+                }
+
+                // Filter emulator/cabin static (from dev/refactor)
+                if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
+                    noiseSuppressor = customAudioRecord?.audioSessionId?.let {
+                        android.media.audiofx.NoiseSuppressor.create(it)
+                    }
+                    noiseSuppressor?.enabled = true
                 }
 
                 customAudioRecord?.startRecording()
@@ -243,6 +293,11 @@ class WakeWordService : Service() {
                         }
                     }
                 } finally {
+                    try {
+                        noiseSuppressor?.release()
+                    } catch (_: Exception) {
+                    }
+                    noiseSuppressor = null
                     try {
                         customAudioRecord?.stop()
                         customAudioRecord?.release()

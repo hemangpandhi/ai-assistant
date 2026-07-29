@@ -25,21 +25,25 @@ import com.tcs.vehicleassistant.llm.EngineStatus
 import java.io.File
 
 object LLMManager {
+    @Volatile
     var engine: Engine? = null
         private set
 
+    @Volatile
     var conversation: Conversation? = null
         private set
 
     var currentModelPath: String = ""
         private set
 
+    @Volatile
     var isInitializing = false
         private set
         
     var activeBackendString = "Unknown"
         private set
         
+    @Volatile
     var isPrewarming = false
         private set
 
@@ -82,13 +86,20 @@ object LLMManager {
         withContext(Dispatchers.IO) {
             val internalDir = context.filesDir
             val externalDir = context.getExternalFilesDir(null)
-            val tmpDir = File("/data/local/tmp/")
-            val explicitGemma = File("/data/local/tmp/gemma-4-E2B-it.litertlm")
+            val explicitModel = File("/data/local/tmp/llm/model.litertlm")
+            val explicitQwen = File("/data/local/tmp/llm/Qwen2.5.litertlm")
+            val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
             
             val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
                 .flatMap { it.toList() }
                 .toMutableList()
                 
+            if (explicitQwen.exists() && explicitQwen.canRead()) {
+                allFiles.add(0, explicitQwen)
+            }
+            if (explicitModel.exists() && explicitModel.canRead()) {
+                allFiles.add(explicitModel)
+            }
             if (explicitGemma.exists() && explicitGemma.canRead()) {
                 allFiles.add(explicitGemma)
             }
@@ -100,12 +111,12 @@ object LLMManager {
             val savedBackendChoice = prefs.getString("backend_choice", "Auto") ?: "Auto"
             
             var modelFile: File? = null
-            if (savedModelPath != null) {
+            if (savedModelPath != null && !savedModelPath.endsWith("model.litertlm")) {
                 modelFile = File(savedModelPath)
             }
             if (modelFile == null || !modelFile.exists()) {
                 modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+                    ?: models.find { it.name.contains("qwen", ignoreCase = true) }
                     ?: models.firstOrNull()
             }
 
@@ -184,7 +195,9 @@ object LLMManager {
                 currentModelPath = modelPath
                 Log.d("LLMManager", "LLM Initialized successfully from $modelPath (backend=$activeBackendString)")
 
-                prewarm(context)
+                // Remote (dev/refactor): disabled prewarm to avoid startup lockup / native collisions.
+                isPrewarmed = true
+                refreshEngineStatus()
 
                 withContext(Dispatchers.Main) {
                     callback?.onSuccess()
@@ -208,7 +221,8 @@ object LLMManager {
                         currentModelPath = modelPath
                         Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
 
-                        prewarm(context)
+                        isPrewarmed = true
+                        refreshEngineStatus()
 
                         withContext(Dispatchers.Main) { callback?.onSuccess() }
                     } catch (fallbackEx: Exception) {
@@ -260,7 +274,7 @@ object LLMManager {
             basePrompt.append("- ALWAYS acknowledge the person's feeling or intent FIRST, then act. Empathy before mechanics.\n")
             basePrompt.append("- Routine requests: energetic and helpful ('I'm warming it up for you!', 'On it — cranking the fan!').\n")
             basePrompt.append("- Discomfort or pain: deep care ('That sounds uncomfortable — let me help.', 'Oh no, let me fix that for you.').\n")
-            basePrompt.append("- Safety hazards (fog, freezing window): urgent but calm ('That's not safe — clearing your view right now.').\n")
+            basePrompt.append("- Safety hazards (fog, freezing window): urgent but calm ('That\'s not safe — clearing your view right now.').\n")
             basePrompt.append("- Music/media: enthusiastic ('Great choice — putting that on for you!').\n")
             basePrompt.append("- Avoid apologizing unless you made a mistake. Focus on helping, not reporting.\n\n")
         } else {
@@ -274,7 +288,7 @@ object LLMManager {
         basePrompt.append("2. NO BLIND GUESSING: Ask for clarification instead of guessing if a request is highly ambiguous or unrelated to available capabilities.\n")
         basePrompt.append("3. DIRECT COMMAND HANDLING: For relative temperature commands ('increase temperature', 'decrease temperature', 'warmer', 'cooler'), execute immediately with zone 'all' — do NOT ask driver vs passenger. Only ask for zone when the user sets an EXACT degree value for a specific seat (e.g. '72 degrees for the driver'). Fan speed and airflow apply to the ENTIRE car — never ask for a zone.\n")
         basePrompt.append("4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.\n")
-        basePrompt.append("5. COMFORT EMPATHY: If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute <TOOL>setSeatHeater(2)</TOOL>. If they say they are 'feeling hot', immediately execute <TOOL>decreaseTemperature(all)</TOOL> and say you're cooling it down.\n")
+        basePrompt.append("5. COMFORT EMPATHY: You are in a car, NOT a house. NEVER ask which room the user is in. If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute <TOOL>setSeatHeater(2)</TOOL>. If they say they are 'feeling hot', immediately execute <TOOL>decreaseTemperature(all)</TOOL> and say you're cooling it down.\n")
         basePrompt.append("6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n")
         basePrompt.append("7. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n")
         basePrompt.append("8. AMBIGUITY & FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n")
@@ -284,8 +298,7 @@ object LLMManager {
         basePrompt.append("12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n")
         basePrompt.append("13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using <TOOL> tags.\n")
         basePrompt.append("14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use <TOOL>remember(FACT)</TOOL> for durable facts. Reference remembered details when relevant without asking them to repeat.\n")
-        basePrompt.append("15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is 'Tired / Yawning', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is 'Frustrated / Frowning', keep your answers extremely brief and avoid asking follow-up questions. If 'Happy / Smiling', match their energetic tone. If 'No one detected', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n")
-        basePrompt.append("16. FACE MOOD (OPTIONAL): You may append <MOOD>name</MOOD> at the end of a reply to color the assistant face. Allowed names only: happy, sad, excited, bored, drowsy, tired. Do NOT emit idle, listening, thinking, speaking, searching, or reading — the harness owns those. Example: Glad I could help! <MOOD>happy</MOOD>\n\n")
+        basePrompt.append("15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is 'Tired / Yawning', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is 'Frustrated / Frowning', keep your answers extremely brief and avoid asking follow-up questions. If 'Happy / Smiling', match their energetic tone. If 'No one detected', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n\n")
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
@@ -330,13 +343,13 @@ object LLMManager {
             Log.w("LLMManager", "Error closing previous conversation", e)
         }
         
-        isFirstMessage = true
         lastAiResponse = ""
         
         val conversationConfig = ConversationConfig()
         
         try {
             conversation = engine!!.createConversation(conversationConfig)
+            isFirstMessage = true
             Log.d("LLMManager", "Conversation reset. isFirstMessage=true.")
         } catch (e: Exception) {
             Log.e("LLMManager", "Failed to reset conversation", e)
@@ -404,6 +417,7 @@ object LLMManager {
             lastAiResponse = ""
             isPrewarmed = false
             refreshEngineStatus()
+            System.gc()
             Log.i("LLMManager", "LLM Model unloaded from memory to save resources.")
         }
     }

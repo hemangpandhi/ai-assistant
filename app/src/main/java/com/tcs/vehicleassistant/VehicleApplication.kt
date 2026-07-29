@@ -18,6 +18,8 @@ class VehicleApplication : Application() {
         }
 
         DemoSettingsPresets.ensureDefaults(this)
+        // So main-process STT can observe the `:wakeword` mic-hold marker.
+        WakeWordService.bindHoldContext(this)
         // Production agent backend (mic / hotword / LLM / TTS).
         AssistantRuntimeBootstrap.install(this, useDemoBackend = false)
     }

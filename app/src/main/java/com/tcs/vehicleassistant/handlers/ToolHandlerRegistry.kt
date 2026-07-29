@@ -3,7 +3,19 @@ package com.tcs.vehicleassistant.handlers
 import com.tcs.vehicleassistant.ToolManager
 
 object ToolHandlerRegistry {
-    val hvacHandlers = setOf("setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature", "setDriverTemperature", "setPassengerTemperature", "increasePassengerTemperature", "decreasePassengerTemperature", "increaseDriverTemperature", "decreaseDriverTemperature", "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager", "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster", "turnOnAC", "turnOffAC", "turnOnAutoClimate", "turnOffAutoClimate", "turnOnHvacPower", "turnOffHvacPower", "handleFeelingCold", "enableFreshAirIntake", "protectFromPollutedAir", "defogWindshield", "movePassengerSeatForward", "turnOnRecirculation", "turnOffRecirculation")
+    val hvacHandlers = setOf(
+        "setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature",
+        "setDriverTemperature", "setPassengerTemperature", "increasePassengerTemperature",
+        "decreasePassengerTemperature", "increaseDriverTemperature", "decreaseDriverTemperature",
+        "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager",
+        "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster",
+        "turnOnAC", "turnOnAc", "turnOffAC", "turnOffAc",
+        "turnOnAutoClimate", "turnOnAutoHvac", "turnOffAutoClimate", "turnOffAutoHvac",
+        "turnOnHvacPower", "turnOnHvac", "turnOffHvacPower", "turnOffHvac",
+        "handleFeelingCold", "enableFreshAirIntake", "protectFromPollutedAir", "defogWindshield",
+        "movePassengerSeatForward",
+        "turnOnRecirculation", "turnOnAirRecirculation", "turnOffRecirculation", "turnOffAirRecirculation",
+    )
     val mediaHandlers = setOf("playMusic", "pauseMusic", "stopMusic", "nextTrack", "prevTrack", "adjustBgmForSituation", "setVolumeLevel")
     val navHandlers = setOf("startNavigationTo", "searchNearby", "search", "suggestNearbyPlaces", "provideLaneLevelGuidance", "suggestAlternateRoute")
     val commHandlers = setOf("call", "bookRestaurant", "queryMemory", "callContact", "sendText")
