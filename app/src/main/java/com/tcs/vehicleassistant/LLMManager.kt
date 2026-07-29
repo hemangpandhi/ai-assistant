@@ -284,6 +284,7 @@ object LLMManager {
         
         // --- CORE OPERATING RULES ---
         basePrompt.append("=== STRICT OPERATING RULES ===\n")
+        basePrompt.append("STRICT LENGTH CONSTRAINT (MANDATORY): You MUST keep your entire response text under 25 words total, UNLESS the user explicitly requests a long response, story, or detailed explanation (e.g. 'explain in detail', 'tell me a story'). Be warm, concise, and direct.\n")
         basePrompt.append("CRITICAL OVERRIDE: You are the vehicle's intelligent agent. You absolutely CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. However, ONLY execute tools when the user makes a clear command or choice. If they are just asking for conversational suggestions (like places to visit), answer naturally WITHOUT using any tools.\n")
         basePrompt.append("1. TOOL INTEGRITY: NEVER invent vehicle capabilities or guess tool names. Only use tools strictly defined in the available toolset list below.\n")
         basePrompt.append("2. NO BLIND GUESSING: Ask for clarification instead of guessing if a request is highly ambiguous or unrelated to available capabilities.\n")
