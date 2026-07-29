@@ -333,6 +333,21 @@ sequenceDiagram
 *   **Role**: A strict state emitter.
 *   **Purpose**: Stripped of all logic, it now solely converts `OrchestratorState` into `AssistantUiState` for the `VoiceInteractionSession` overlay to render.
 
+### 5. Persistent Hardware Backend Selection: `LLMManager.kt`
+*   **Role**: Manages LiteRT GPU, NPU, and CPU execution delegates.
+*   **Preference Integrity**: Saves and strictly respects user-selected backend choices in `SharedPreferences` without mutating user preferences during runtime fallbacks.
+
+### 6. Hardware Hand-off Safety & Silence Timeout: `AndroidAudioManager.kt`
+*   **AudioRecord Retry Loop**: Includes a 5-attempt retry loop with 150ms backoff to handle physical microphone hardware hand-off from `WakeWordService` to `SpeechRecognizer`.
+*   **Silence Guard**: Implements a 5-second maximum silence guard (`noSpeechFrames > 50`) ensuring the listening loop cleanly releases the microphone and resets state when no speech is detected.
+
+### 7. Strict Grammar Wake Word Engine: `WakeWordService.kt`
+*   **Single-Word Elimination**: Removes generic single-word grammars to prevent false triggers from background room noise.
+*   **Regex JSON Parsing**: Extracts transcribed text cleanly from Vosk JSON results (`"text": "..."`) and strictly matches `"hey nissan"` or the user's configured setting wake word.
+
+### 8. Non-Toggle Media Execution: `MediaToolHandler.kt`
+*   **Permanent Stop/Pause**: Dispatches non-toggle `KEYCODE_MEDIA_PAUSE` and `KEYCODE_MEDIA_STOP` hardware keycodes without sending `KEYCODE_MEDIA_PLAY_PAUSE`, ensuring media stays permanently stopped without resuming.
+
 ## Communication Medium Details
 
 *   **View ↔ ViewModel**: Kotlin `StateFlow` (`uiState`) for continuous state updates (Idle, Listening, Thinking, Streaming). Kotlin `SharedFlow` (`events`) for one-off events (Toasts, Intent launching).
