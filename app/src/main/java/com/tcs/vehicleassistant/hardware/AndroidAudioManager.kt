@@ -89,6 +89,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
+    /** Polled by the capture loop on an IO thread and written from the main thread. */
+    @Volatile
     private var isListening = false
     private var sherpaRecognizer: OfflineRecognizer? = null
     private var audioRecord: android.media.AudioRecord? = null
@@ -407,6 +409,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private var ttsLoopJob: Job? = null
     private var globalAudioTrack: AudioTrack? = null
 
+    /** Callers parked in [waitUntilFinishedSpeaking], so discarding the queue can release them. */
+    private val speechDrainWaiters =
+        java.util.concurrent.ConcurrentHashMap.newKeySet<kotlinx.coroutines.CompletableDeferred<Unit>>()
+
     init {
         startTtsLoop()
     }
@@ -494,15 +500,39 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
+    /**
+     * Waits for queued speech to drain by putting a marker on the TTS queue.
+     *
+     * The wait is bounded because [stopSpeaking] and [shutdown] discard the queue: a barge-in while
+     * a tool call was waiting here left the marker unrun and the caller suspended forever, wedging
+     * the turn in `AgentOrchestrator`.
+     */
     override suspend fun waitUntilFinishedSpeaking() {
         val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
         val result = ttsChannel.trySend {
             delay(500)
             deferred.complete(Unit)
         }
-        if (result.isSuccess) {
-            deferred.await()
+        if (!result.isSuccess) return
+
+        speechDrainWaiters.add(deferred)
+        try {
+            val drained = withTimeoutOrNull(AssistantConfig.Audio.SPEECH_DRAIN_TIMEOUT_MS) {
+                deferred.await()
+            }
+            if (drained == null) {
+                android.util.Log.w(TAG, "Speech queue did not drain in time; continuing.")
+            }
+        } finally {
+            speechDrainWaiters.remove(deferred)
         }
+    }
+
+    /** Releases anyone blocked in [waitUntilFinishedSpeaking] when the queue is thrown away. */
+    private fun releaseSpeechDrainWaiters() {
+        val waiters = speechDrainWaiters.toList()
+        speechDrainWaiters.clear()
+        for (waiter in waiters) waiter.complete(Unit)
     }
 
     override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
@@ -518,6 +548,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun stopSpeaking() {
         ttsLoopJob?.cancel()
         ttsChannel.close()
+        releaseSpeechDrainWaiters()
         ttsChannel = kotlinx.coroutines.channels.Channel<suspend CoroutineScope.() -> Unit>(kotlinx.coroutines.channels.Channel.UNLIMITED)
         try {
             globalAudioTrack?.pause()
@@ -537,6 +568,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         isListening = false
         ttsLoopJob?.cancel()
         ttsChannel.close()
+        releaseSpeechDrainWaiters()
         ttsScope.cancel()
         listeningScope.cancel()
 

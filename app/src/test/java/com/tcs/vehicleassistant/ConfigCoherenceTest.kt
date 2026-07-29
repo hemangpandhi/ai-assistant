@@ -44,6 +44,20 @@ class ConfigCoherenceTest {
     }
 
     @Test
+    fun `speech drain wait is bounded and covers a typical utterance`() {
+        // Tool execution waits for speech to drain; an unbounded wait wedged the turn on barge-in.
+        // A few seconds is too short for a multi-sentence reply; a minute is too long for a hang.
+        assertTrue(
+            "SPEECH_DRAIN_TIMEOUT_MS must be at least 5s",
+            AssistantConfig.Audio.SPEECH_DRAIN_TIMEOUT_MS >= 5_000L
+        )
+        assertTrue(
+            "SPEECH_DRAIN_TIMEOUT_MS must stay under a minute",
+            AssistantConfig.Audio.SPEECH_DRAIN_TIMEOUT_MS <= 60_000L
+        )
+    }
+
+    @Test
     fun `audio runs at the sample rate the speech models were trained on`() {
         // Vosk, sherpa-onnx and Silero VAD are all 16 kHz; a mismatch silently degrades accuracy
         // rather than failing.
@@ -122,6 +136,7 @@ class ConfigCoherenceTest {
             AssistantConfig.Prefs.SELECTED_MODEL,
             AssistantConfig.Prefs.MAX_TOKENS,
             AssistantConfig.Prefs.WAKE_WORD,
+            AssistantConfig.Prefs.WAKE_WORD_ENABLED,
             AssistantConfig.Prefs.SYSTEM_PROMPT,
             AssistantConfig.Prefs.USER_MEMORY,
             AssistantConfig.Prefs.UI_LAYOUT,

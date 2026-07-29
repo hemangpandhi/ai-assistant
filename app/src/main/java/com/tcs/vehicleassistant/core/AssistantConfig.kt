@@ -105,6 +105,13 @@ object AssistantConfig {
 
         /** Grace period for the wake-word process to release the microphone. */
         const val MIC_HANDOFF_DELAY_MS = 400L
+
+        /**
+         * Ceiling on how long a caller waits for queued speech to drain. The wait is a marker task
+         * on the TTS queue, so an interruption that discards the queue would otherwise leave the
+         * waiter suspended for good — and tool execution waits on it before touching the vehicle.
+         */
+        const val SPEECH_DRAIN_TIMEOUT_MS = 30_000L
     }
 
     object WakeWord {
