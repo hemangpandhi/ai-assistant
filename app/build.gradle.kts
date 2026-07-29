@@ -84,6 +84,8 @@ android {
 }
 
 dependencies {
+    implementation(project(":agent-core"))
+    implementation(project(":assistant-ext"))
     implementation(project(":assistant-ui"))
     implementation(project(":assistant-api"))
 

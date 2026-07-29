@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
-    android:sessionService="com.tcs.vehicleassistant.AssistantSessionService"
-    android:recognitionService="audio.soniqo.speech.service.SpeechRecognitionService"
+    android:sessionService="com.tcs.vehicleassistant.assistant.UiUxAssistantSessionService"
+    android:recognitionService="com.tcs.vehicleassistant.assistant.UiUxAssistantVoiceInteractionService"
     android:supportsAssist="true"
     android:supportsLaunchVoiceAssistFromKeyguard="true"
     android:supportsLocalInteraction="true" />

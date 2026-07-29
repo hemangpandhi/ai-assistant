@@ -4,28 +4,24 @@
 
 This repo is a single Android Automotive OS (AAOS) app — `VehicleEdgeAssistant`
 (package `com.tcs.vehicleassistant`), built with Gradle (Kotlin DSL). Modules:
-`:app` (agent / VHAL host), `:assistant-ui` (Compose face/overlay contracts), and
-`:assistant-api` (host-neutral LLM/tool ports).
+`:app` (application shell / manifest), `:agent-core` (origin/master-owned agent),
+`:assistant-ext` (UI/UX / TTFR extensions), `:assistant-ui` (Compose face/overlay),
+and `:assistant-api` (host-neutral LLM/tool ports).
 There is no backend/server to run; the "product" is an installable APK. See
 `README.md` and `ARCHITECTURE.md` for product/architecture details and
 `app/build.gradle.kts` for the module config.
 
 ### Hard rule: do not modify `origin/master`-owned classes
 
-This branch is based on `origin/master`. The Kotlin tree that exists on
-`origin/master` under `app/src` is **master-owned**. Treat it as read-only for
-UI/UX / TTFR / agent work:
+This branch is based on `origin/master`. Master-owned Kotlin lives in **`:agent-core`** (byte-identical to
+`origin/master` `app/src/main/java`). UI/UX / TTFR work goes in
+**`:assistant-ext`** (and `:assistant-ui` / `:assistant-api`):
 
-- **Do not edit** those `.kt` files unless it is **extremely required** (e.g. a
-  true compile break that cannot be fixed with a parallel type, adapter, or
-  manifest/DI wiring). Prefer almost never.
-- Prefer **new parallel types**, **extensions**, **ports/adapters**, and
-  **manifest / Koin / XML wiring** instead (see
-  `docs/architecture/refactor_extension_policy.md`).
-- After any accidental touch, restore the file from `origin/master` and
-  move the change into an additive type.
-- Enforced by `MasterOwnedTreeContractTest` +
-  `app/src/test/resources/master_owned_kotlin.txt` (byte-identical check).
+- **Do not edit** `:agent-core` `.kt` files unless **extremely required**.
+- Prefer new types in `:assistant-ext`, ports in `:assistant-api`, and
+  manifest / Koin wiring in `:app` / `:assistant-ext`.
+- After any accidental touch, restore from `origin/master` into `:agent-core`.
+- Enforced by `MasterOwnedTreeContractTest` (path-mapped allowlist).
 
 ### Toolchain (non-obvious)
 - **Use JDK 17, not the VM default JDK 21.** AGP 8.7.3 / Gradle 8.9 require Java 17;

@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="accessibility_service_description">Enables the Vehicle Edge Assistant to use the microphone in the background to listen for your wake word, bypassing Android 11 background privacy restrictions.</string>
+    <string name="app_name_placeholder">VehicleEdgeAssistant</string>
 </resources>

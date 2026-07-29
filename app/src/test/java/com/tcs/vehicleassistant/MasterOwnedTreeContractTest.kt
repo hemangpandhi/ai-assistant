@@ -10,8 +10,8 @@ import org.junit.Assume
 import org.junit.Test
 
 /**
- * Ensures every Kotlin file that exists on [REF] under `app/src` stays byte-identical.
- * UI/UX / TTFR work must live in additive parallels, not in master-owned shared classes.
+ * Ensures every Kotlin file that exists on [REF] under `app/src` stays byte-identical
+ * in `:agent-core` (path-mapped). UI/UX extensions live in `:assistant-ext`.
  */
 class MasterOwnedTreeContractTest {
     private val seamExceptions = emptySet<String>()
@@ -23,10 +23,7 @@ class MasterOwnedTreeContractTest {
         val repoRoot = requireNotNull(discoveredRoot)
 
         val refCheck = runGit(repoRoot, "rev-parse", "--verify", "$REF^{commit}")
-        Assume.assumeTrue(
-            "git or $REF is unavailable",
-            refCheck?.exitCode == 0,
-        )
+        Assume.assumeTrue("git or $REF is unavailable", refCheck?.exitCode == 0)
 
         val paths = requireNotNull(
             javaClass.classLoader?.getResourceAsStream(ALLOWLIST_RESOURCE),
@@ -36,17 +33,18 @@ class MasterOwnedTreeContractTest {
                 lines.map { it.trim() }.filter { it.isNotEmpty() }.toList()
             }
 
-        for (path in paths) {
-            if (path in seamExceptions) continue
+        for (localPath in paths) {
+            if (localPath in seamExceptions) continue
+            val masterPath = localPath.replaceFirst("^agent-core/src/main/java/".toRegex(), "app/src/main/java/")
 
-            val expected = requireNotNull(runGit(repoRoot, "show", "$REF:$path")) {
-                "git became unavailable while checking $path"
+            val expected = requireNotNull(runGit(repoRoot, "show", "$REF:$masterPath")) {
+                "git became unavailable while checking $masterPath"
             }
-            assertEquals("git show failed for $path", 0, expected.exitCode)
+            assertEquals("git show failed for $masterPath", 0, expected.exitCode)
             assertArrayEquals(
-                "$path differs from $REF",
+                "$localPath differs from $REF:$masterPath",
                 expected.stdout,
-                Files.readAllBytes(repoRoot.resolve(path)),
+                Files.readAllBytes(repoRoot.resolve(localPath)),
             )
         }
     }

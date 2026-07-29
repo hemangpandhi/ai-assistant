@@ -4,10 +4,10 @@
 `origin/master`. Prefer **new files + thin wiring** over editing shared master
 implementations.
 
-The master-owned Kotlin tree is every `.kt` file under `app/src` that exists
-on `origin/master`. Every file in that set must remain byte-identical to
-`origin/master`: there are **zero Kotlin seam exceptions**. UI/UX code
-must live in parallel, additive types.
+Master-owned Kotlin lives in **`:agent-core`** and must remain byte-identical
+to `origin/master` `app/src/main/java`. UI/UX / TTFR extensions live in
+**`:assistant-ext`** (plus `:assistant-ui` / `:assistant-api`). Do not add
+extension classes into `:agent-core` packages.
 
 ## Rule of thumb
 
