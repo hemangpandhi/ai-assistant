@@ -280,5 +280,45 @@ class DirectToolResolverTest {
             DirectToolResolver.resolve("What's the weather?", listOf(weather))
                 is DirectToolResolver.Outcome.Execute,
         )
+
+        val gujarat = (DirectToolResolver.resolve("what's the current weather in Gujarat", listOf(weather))
+            as DirectToolResolver.Outcome.Execute).hit
+        assertEquals("getWeather(gujarat)", gujarat.toolCall)
+
+        val currentIn = (DirectToolResolver.resolve("current weather in Gujarat", listOf(weather))
+            as DirectToolResolver.Outcome.Execute).hit
+        assertEquals("getWeather(gujarat)", currentIn.toolCall)
+
+        val tokyoCurrent = (DirectToolResolver.resolve("what is the current weather in Tokyo", listOf(weather))
+            as DirectToolResolver.Outcome.Execute).hit
+        assertEquals("getWeather(tokyo)", tokyoCurrent.toolCall)
+    }
+
+    @Test
+    fun extractCityArg_currentWeatherVariants() {
+        assertEquals(
+            "gujarat",
+            DirectToolResolver.extractCityArg(
+                DirectToolResolver.normalize("what's the current weather in Gujarat"),
+            ),
+        )
+        assertEquals(
+            "gujarat",
+            DirectToolResolver.extractCityArg(
+                DirectToolResolver.normalize("current weather in Gujarat"),
+            ),
+        )
+        assertEquals(
+            "tokyo",
+            DirectToolResolver.extractCityArg(
+                DirectToolResolver.normalize("what is the current weather in Tokyo"),
+            ),
+        )
+        assertEquals(
+            "tokyo",
+            DirectToolResolver.extractCityArg(
+                DirectToolResolver.normalize("whats the weather in tokyo"),
+            ),
+        )
     }
 }

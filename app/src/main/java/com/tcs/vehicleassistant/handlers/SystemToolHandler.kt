@@ -60,26 +60,44 @@ class SystemToolHandler(
                 } catch (_: Exception) {
                     Pair(Double.NaN, Double.NaN)
                 }
-                val point = WeatherApiClient.resolveLocation(
+                val resolved = WeatherApiClient.resolveLocationDetailed(
                     cityOrHere = if (useHere) "here" else city,
                     fallbackLat = lat.takeUnless { it.isNaN() },
                     fallbackLon = lon.takeUnless { it.isNaN() },
                     fallbackLabel = city,
                 )
-                if (point == null) {
-                    return ToolExecutionResult(
-                        false,
-                        "I couldn't find a location for the weather request.",
-                    )
+                val point = when (resolved) {
+                    is WeatherApiClient.LookupResult.Ok -> resolved.value
+                    is WeatherApiClient.LookupResult.NotFound -> {
+                        val asked = if (useHere) "your area" else city
+                        return ToolExecutionResult(
+                            false,
+                            "I couldn't find a location called $asked for the weather request.",
+                        )
+                    }
+                    is WeatherApiClient.LookupResult.NetworkError -> {
+                        Log.w(TAG, "Weather geocode network error: ${resolved.stage} ${resolved.detail}")
+                        return ToolExecutionResult(
+                            false,
+                            "I couldn't reach the weather service right now. Please try again in a moment.",
+                        )
+                    }
                 }
-                val weather = WeatherApiClient.fetchCurrent(point)
-                return if (weather != null) {
-                    ToolExecutionResult(true, WeatherApiClient.formatSpoken(weather))
-                } else {
-                    ToolExecutionResult(
-                        false,
-                        "I couldn't reach the weather service for ${point.label} right now. Please try again in a moment.",
-                    )
+                return when (val weather = WeatherApiClient.fetchCurrentDetailed(point)) {
+                    is WeatherApiClient.LookupResult.Ok ->
+                        ToolExecutionResult(true, WeatherApiClient.formatSpoken(weather.value))
+                    is WeatherApiClient.LookupResult.NotFound ->
+                        ToolExecutionResult(
+                            false,
+                            "I couldn't find weather data for ${point.label}.",
+                        )
+                    is WeatherApiClient.LookupResult.NetworkError -> {
+                        Log.w(TAG, "Weather forecast network error: ${weather.stage} ${weather.detail}")
+                        ToolExecutionResult(
+                            false,
+                            "I couldn't reach the weather service for ${point.label} right now. Please try again in a moment.",
+                        )
+                    }
                 }
             }
             "openApp" -> {

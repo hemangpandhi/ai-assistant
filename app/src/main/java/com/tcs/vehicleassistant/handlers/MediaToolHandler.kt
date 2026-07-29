@@ -211,25 +211,22 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 )
             }
             "setVolumeLevel" -> {
-                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
                 val argStr = toolCall.substringAfter("(").substringBefore(")").replace("\"", "").trim()
-                val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)
-                val curVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                val plan = VolumeLevelResolver.plan(argStr, curVol, maxVol, toolCall)
-
-                // Always write an absolute index. adjustStreamVolume(ADJUST_RAISE) is a silent
-                // no-op on some Automotive / multi-user builds, which made "increase volume"
-                // report the unchanged ~5% level as if it had been set.
-                if (plan.targetIndex != curVol) {
-                    audioManager.setStreamVolume(
-                        android.media.AudioManager.STREAM_MUSIC,
-                        plan.targetIndex,
-                        0,
-                    )
+                val before = CabinVolumeController.read(context)
+                val plan = VolumeLevelResolver.plan(argStr, before.current, before.max, toolCall)
+                Log.i(
+                    TAG,
+                    "setVolumeLevel arg='$argStr' source=${before.source} cur=${before.current}/${before.max} target=${plan.targetIndex}",
+                )
+                val after = if (plan.targetIndex != before.current) {
+                    CabinVolumeController.write(context, plan.targetIndex)
+                } else {
+                    before
                 }
-                val applied = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)
-                val message = VolumeLevelResolver.feedback(plan, applied)
-                val success = applied != curVol || plan.targetIndex == curVol
+                // Re-plan percentages against the max we actually wrote against.
+                val planForFeedback = plan.copy(maxIndex = after.max, previousIndex = before.current)
+                val message = VolumeLevelResolver.feedback(planForFeedback, after.current)
+                val success = after.current != before.current || plan.targetIndex == before.current
                 ToolExecutionResult(success, message)
             }
             else -> ToolExecutionResult(false, "System Error: Media Handler not recognized.")

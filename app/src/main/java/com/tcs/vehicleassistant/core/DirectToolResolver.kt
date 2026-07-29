@@ -162,6 +162,8 @@ object DirectToolResolver {
     fun normalize(raw: String): String =
         raw.lowercase()
             .replace(Regex("[^a-z0-9\\s]"), " ")
+            // "what's" → "what s" after punctuation strip; treat as "whats"
+            .replace(Regex("""\bwhat\s+s\b"""), "whats")
             .replace(Regex("\\s+"), " ")
             .trim()
 
@@ -360,8 +362,13 @@ object DirectToolResolver {
         extractTrailingArg(
             normalizedQuery,
             prefixes = listOf(
+                "what is the current weather in",
+                "whats the current weather in",
                 "what is the weather in",
                 "whats the weather in",
+                "current weather in",
+                "current weather for",
+                "current weather at",
                 "weather forecast in",
                 "weather forecast for",
                 "forecast in",
@@ -370,8 +377,28 @@ object DirectToolResolver {
                 "weather for",
                 "weather at",
             ),
-        )?.let { return it }
+        )?.let { return sanitizeCityArg(it) }
+
+        // Mid-phrase fallback when fillers precede the weather preposition.
+        Regex("""\b(?:current\s+)?weather\s+(?:in|for|at)\s+(.+)$""")
+            .find(normalizedQuery)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let { return sanitizeCityArg(it) }
+        Regex("""\bforecast\s+(?:in|for)\s+(.+)$""")
+            .find(normalizedQuery)
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.let { return sanitizeCityArg(it) }
         return null
+    }
+
+    private fun sanitizeCityArg(raw: String): String? {
+        val city = raw.trim()
+            .removePrefix("the ")
+            .removePrefix("a ")
+            .trim()
+        return city.takeIf { it.length in 2..60 }
     }
 
     /**

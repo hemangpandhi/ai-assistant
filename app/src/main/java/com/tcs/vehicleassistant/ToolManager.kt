@@ -524,7 +524,10 @@ class ToolManager {
                     if (handler != null) {
                         val args = toolCall.substringAfter("(").substringBeforeLast(")")
                         val startToolTime = System.currentTimeMillis()
-                        val result = handler.execute(context, toolCall, args, intentHandler)
+                        // DirectTool often runs on Main; keep network/disk off the UI thread.
+                        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            handler.execute(context, toolCall, args, intentHandler)
+                        }
                         val endToolTime = System.currentTimeMillis()
                         val latency = endToolTime - startToolTime
                         com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency
