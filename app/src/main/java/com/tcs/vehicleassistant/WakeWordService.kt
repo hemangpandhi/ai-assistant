@@ -127,9 +127,16 @@ class WakeWordService : Service() {
                 return
             }
             
-            // Constrain Vosk acoustic search space strictly to wake phrases for >95% accuracy and zero false positives
-            val grammar = """["hey nissan", "nissan", "hey auto", "hey assistant", "hey gemini", "hey sdi", "[unk]"]"""
-            customRecognizer = Recognizer(model, 16000.0f, grammar)
+            val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
+            wakeWord = prefs.getString("wake_word", "hey nissan") ?: "hey nissan"
+            val configuredWord = wakeWord.lowercase().trim()
+
+            // Strictly constrain Vosk acoustic search space to "Hey Nissan" and the user-configured setting wake word
+            val grammarSet = setOf("hey nissan", "nissan", configuredWord, "[unk]")
+            val grammarJson = grammarSet.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
+            
+            Log.d("WakeWord", "Setting up Vosk recognizer with strict grammar: $grammarJson")
+            customRecognizer = Recognizer(model, 16000.0f, grammarJson)
             startCustomListening()
         } catch (e: Exception) {
             Log.e("WakeWord", "Failed to init recognizer: ${e.message}")
@@ -153,7 +160,6 @@ class WakeWordService : Service() {
                     return@launch
                 }
                 
-                // IMPROVEMENT: Explicitly attach a software noise suppressor to filter out emulator/cabin static
                 if (android.media.audiofx.NoiseSuppressor.isAvailable()) {
                     noiseSuppressor = customAudioRecord?.audioSessionId?.let { android.media.audiofx.NoiseSuppressor.create(it) }
                     noiseSuppressor?.enabled = true
@@ -163,46 +169,35 @@ class WakeWordService : Service() {
                 val buffer = ShortArray(bufferSize)
                 
                 var loopCount = 0
-                var framesSinceLastSpeech = 100 // Initialize high to start in idle state
+                var framesSinceLastSpeech = 100 
                 val SPEECH_THRESHOLD = 500 // 16-bit PCM threshold
 
                 while (isRecording) {
                     val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
                     if (readSize > 0) {
-                        loopCount++
-                        
-                        // 1. Calculate Max Amplitude for VAD
                         var maxAmp = 0
                         for (i in 0 until readSize) {
-                            val amp = Math.abs(buffer[i].toInt())
-                            if (amp > maxAmp) maxAmp = amp
+                            val absVal = Math.abs(buffer[i].toInt())
+                            if (absVal > maxAmp) maxAmp = absVal
                         }
-                        
-                        if (loopCount % 20 == 0) {
-                            Log.d("WakeWord", "Audio buffer max amplitude: $maxAmp")
-                        }
-                        
-                        // 2. VAD Logic
+
                         if (maxAmp > SPEECH_THRESHOLD) {
                             framesSinceLastSpeech = 0
                         } else {
                             framesSinceLastSpeech++
                         }
-                        
-                        // 3. Only invoke heavy Vosk recognizer if someone is speaking (or recently stopped)
-                        // Hang time of ~20 frames (~1.6 seconds) to let Vosk process the end of the sentence
-                        if (framesSinceLastSpeech < 20) {
-                            if (customRecognizer?.acceptWaveForm(buffer, readSize) == true) {
-                                val result = customRecognizer?.result
-                                if (result != null) checkWakeWord(result)
+
+                        if (framesSinceLastSpeech < 30) {
+                            val isCompleted = customRecognizer?.acceptWaveForm(buffer, readSize) ?: false
+                            if (isCompleted) {
+                                val hypothesis = customRecognizer?.result ?: ""
+                                checkWakeWord(hypothesis)
                             } else {
-                                val partial = customRecognizer?.partialResult
-                                if (partial != null) checkWakeWord(partial)
+                                if (loopCount % 10 == 0) {
+                                    val partialText = customRecognizer?.partialResult ?: ""
+                                    checkWakeWord(partialText)
+                                }
                             }
-                        }
-                    } else if (readSize < 0) {
-                        Log.e("WakeWord", "AudioRecord read error: $readSize")
-                        delay(1000) // Sleep and try to recover
                     }
                 }
             } catch (e: Exception) {
