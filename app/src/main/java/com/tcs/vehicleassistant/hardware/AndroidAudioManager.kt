@@ -120,7 +120,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 )
                 val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
                 val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)
-                sherpaRecognizer = OfflineRecognizer(context.assets, config)
+                // sherpa-onnx requires assetManager=null for absolute filesystem paths.
+                // Use the (AssetManager?, Config) constructor with null.
+                @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
+                sherpaRecognizer = OfflineRecognizer(null, config)
             } else {
                 android.util.Log.w("AndroidAudioManager", "Whisper Base not found, falling back to Tiny from assets")
                 val whisperConfig = OfflineWhisperModelConfig(
