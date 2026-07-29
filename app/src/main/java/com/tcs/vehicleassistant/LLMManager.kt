@@ -89,14 +89,10 @@ object LLMManager {
             
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             var savedModelPath = prefs.getString("selected_model", null)
-            if (savedModelPath == null || savedModelPath.contains("gemma-4-E2B") || savedModelPath.contains("Qwen")) {
-                savedModelPath = explicitModel.absolutePath
-                prefs.edit().putString("selected_model", explicitModel.absolutePath).apply()
-            }
             
-            // Force default backend to GPU
+            // Allow GPU/CPU/NPU selection, default GPU
             var savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
-            if (savedBackendChoice == "Auto" || savedBackendChoice == "CPU") {
+            if (savedBackendChoice == "Auto") {
                 savedBackendChoice = "GPU"
                 prefs.edit().putString("backend_choice", "GPU").apply()
             }
@@ -104,11 +100,14 @@ object LLMManager {
             var modelFile: File? = null
             if (savedModelPath != null && File(savedModelPath).exists()) {
                 modelFile = File(savedModelPath)
-            }
-            if (modelFile == null || !modelFile.exists()) {
+            } else {
                 modelFile = models.find { it.name == "model.litertlm" }
                     ?: models.find { it.name.contains("gemma", ignoreCase = true) }
+                    ?: models.find { it.name.contains("qwen", ignoreCase = true) }
                     ?: models.firstOrNull()
+                if (modelFile != null) {
+                    prefs.edit().putString("selected_model", modelFile.absolutePath).apply()
+                }
             }
 
             if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
