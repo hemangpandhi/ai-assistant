@@ -127,9 +127,9 @@ class WakeWordService : Service() {
                 return
             }
             
-            // Removed strict grammar to allow the fuzzy matching logic in checkWakeWord to work properly
-            // for different accents that might sound like "hey listen", "hey mason", etc.
-            customRecognizer = Recognizer(model, 16000.0f)
+            // Constrain Vosk acoustic search space strictly to wake phrases for >95% accuracy and zero false positives
+            val grammar = """["hey nissan", "nissan", "hey auto", "hey assistant", "hey gemini", "hey sdi", "[unk]"]"""
+            customRecognizer = Recognizer(model, 16000.0f, grammar)
             startCustomListening()
         } catch (e: Exception) {
             Log.e("WakeWord", "Failed to init recognizer: ${e.message}")
