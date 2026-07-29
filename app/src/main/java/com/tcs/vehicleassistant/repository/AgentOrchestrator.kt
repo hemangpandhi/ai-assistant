@@ -323,12 +323,21 @@ class AgentOrchestrator(
 
     private suspend fun processQuery(
         query: String,
-        retryCount: Int,
+        retryCount: Int = 0,
         loopCount: Int = 0,
         isAgenticObservation: Boolean = false,
         previousExecutedTools: Set<String> = emptySet(),
         turnId: Long
     ) {
+        if (!isCurrentTurn(turnId)) return
+        
+        // Wait for any background native inference to drain before touching the engine state.
+        // Preemptively closing the conversation while LiteRT is generating tokens corrupts the GPU context.
+        while (com.tcs.vehicleassistant.LLMManager.hasActiveInference()) {
+            if (!isCurrentTurn(turnId)) return
+            kotlinx.coroutines.delay(100)
+        }
+
         timeoutJob?.cancel()
         timeoutJob = scope.launch {
             val timeoutDuration = if (LLMManager.isFirstMessage) {

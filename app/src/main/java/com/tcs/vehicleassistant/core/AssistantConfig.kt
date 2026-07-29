@@ -48,7 +48,7 @@ object AssistantConfig {
     }
 
     object Llm {
-        const val MAX_NUM_TOKENS = 2048
+        const val MAX_NUM_TOKENS = 3072
 
         /** Directory holding LiteRT serialized inference contexts / compiled OpenCL kernels. */
         const val KERNEL_CACHE_DIR = "litertlm_kernel_cache"
