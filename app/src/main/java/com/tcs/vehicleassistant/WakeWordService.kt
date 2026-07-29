@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.abs
 
 /**
@@ -34,110 +33,39 @@ class WakeWordService : Service() {
     companion object {
         var sharedModel: Model? = null
         private const val TAG = "WakeWord"
-        private const val MIC_HOLD_MARKER = ".vosk_mic_holding"
         /** PCM samples below this are treated as silence for duty-cycling. */
         private const val SILENCE_THRESHOLD = 180
         /** When silent, run recognizer on 1 of every N buffers. */
         private const val SILENT_DUTY_SKIP = 4
 
-        @Volatile
-        private var holdContext: Context? = null
-
         /**
          * True while Vosk holds [android.media.AudioRecord].
-         * Cross-process safe via filesDir marker (WakeWord runs in `:wakeword`).
+         * Delegates to [com.tcs.vehicleassistant.hardware.CrossProcessMicLease]
+         * (UI/UX extension; file marker for `:wakeword` process).
          */
         val isHoldingMic: Boolean
-            get() {
-                if (_isHoldingMic) return true
-                val marker = holdMarkerFile() ?: return false
-                return marker.exists()
-            }
-
-        @Volatile
-        private var _isHoldingMic: Boolean = false
-
-        /** Invalidates late release callbacks from a previous AudioRecord loop. */
-        private val micHoldGeneration = AtomicInteger(0)
-
-        @Volatile
-        private var releaseGate: kotlinx.coroutines.CompletableDeferred<Unit> =
-            kotlinx.coroutines.CompletableDeferred<Unit>().also { it.complete(Unit) }
-
-        private fun holdMarkerFile(): java.io.File? {
-            val ctx = holdContext ?: return null
-            return java.io.File(ctx.filesDir, MIC_HOLD_MARKER)
-        }
+            get() = com.tcs.vehicleassistant.hardware.CrossProcessMicLease.isHoldingMic
 
         fun bindHoldContext(context: Context) {
-            holdContext = context.applicationContext
+            com.tcs.vehicleassistant.hardware.CrossProcessMicLease.bindHoldContext(context)
         }
 
         /** @return hold generation that must be passed to [signalMicReleased]. */
-        fun beginMicHold(): Int {
-            val gen = micHoldGeneration.incrementAndGet()
-            if (releaseGate.isCompleted) {
-                releaseGate = kotlinx.coroutines.CompletableDeferred()
-            }
-            _isHoldingMic = true
-            try {
-                holdMarkerFile()?.writeText(gen.toString())
-            } catch (e: Exception) {
-                Log.w(TAG, "Failed to write mic hold marker", e)
-            }
-            return gen
-        }
+        fun beginMicHold(): Int =
+            com.tcs.vehicleassistant.hardware.CrossProcessMicLease.beginMicHold()
 
         fun signalMicReleased(generation: Int) {
-            if (generation != micHoldGeneration.get()) {
-                Log.d(TAG, "ignore stale mic release gen=$generation current=${micHoldGeneration.get()}")
-                return
-            }
-            _isHoldingMic = false
-            try {
-                holdMarkerFile()?.delete()
-            } catch (_: Exception) {
-            }
-            if (!releaseGate.isCompleted) {
-                releaseGate.complete(Unit)
-            }
+            com.tcs.vehicleassistant.hardware.CrossProcessMicLease.signalMicReleased(generation)
         }
 
         /** Force-open the gate after an intentional stop (invalidates in-flight holds). */
         fun forceReleaseMic() {
-            micHoldGeneration.incrementAndGet()
-            _isHoldingMic = false
-            try {
-                holdMarkerFile()?.delete()
-            } catch (_: Exception) {
-            }
-            if (!releaseGate.isCompleted) {
-                releaseGate.complete(Unit)
-            }
+            com.tcs.vehicleassistant.hardware.CrossProcessMicLease.forceReleaseMic()
         }
 
         /** Suspend until Vosk releases the mic, or [timeoutMs] elapses. Cross-process safe. */
-        suspend fun awaitMicReleased(timeoutMs: Long = 1000L): Boolean {
-            if (!isHoldingMic) {
-                if (!releaseGate.isCompleted) {
-                    // Same-process waiter may still be attached
-                } else {
-                    return true
-                }
-            }
-            // Prefer in-process gate when available; also poll file for cross-process.
-            return kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
-                val deadline = System.currentTimeMillis() + timeoutMs
-                while (System.currentTimeMillis() < deadline) {
-                    if (!isHoldingMic) return@withTimeoutOrNull true
-                    if (!releaseGate.isCompleted) {
-                        // Race: complete may happen concurrently
-                    }
-                    kotlinx.coroutines.delay(20)
-                }
-                !isHoldingMic
-            } == true || !isHoldingMic
-        }
+        suspend fun awaitMicReleased(timeoutMs: Long = 1000L): Boolean =
+            com.tcs.vehicleassistant.hardware.CrossProcessMicLease.awaitMicReleased(timeoutMs)
     }
 
     private val serviceJob = SupervisorJob()

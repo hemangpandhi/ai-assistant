@@ -13,7 +13,7 @@ import com.assistant.ui.assistant.api.AssistantStartReason
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
-import com.tcs.vehicleassistant.hardware.IAudioManager
+import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -27,7 +27,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Production [AssistantBackend] bridge to [AssistantViewModel] / [IAudioManager].
+ * Production [AssistantBackend] bridge to [AssistantViewModel] / [SessionAudioPort].
  *
  * Compose collects [events] only. Mic / STT / TTS stay on the agent path (same as XML).
  *
@@ -52,7 +52,7 @@ class VehicleAgentAssistantBackend(
     override val sessionActive: StateFlow<Boolean> = _sessionActive.asStateFlow()
 
     private var viewModel: AssistantViewModel? = null
-    private var audioManager: IAudioManager? = null
+    private var audioManager: SessionAudioPort? = null
     private var uiCollectJob: Job? = null
     private var eventCollectJob: Job? = null
     private var listenJob: Job? = null
@@ -76,13 +76,13 @@ class VehicleAgentAssistantBackend(
     /** Optional LLM / heuristic emotion (Happy / Sad / …). */
     private var affectiveMood: AssistantMoodId? = null
 
-    fun attachViewModel(vm: AssistantViewModel?, audio: IAudioManager? = null) {
+    fun attachViewModel(vm: AssistantViewModel?, audio: SessionAudioPort? = null) {
         attachSession(vm, audio)
     }
 
     override fun attachSession(session: Any?, audio: Any?) {
         val vm = session as? AssistantViewModel
-        val audioMgr = audio as? IAudioManager
+        val audioMgr = audio as? SessionAudioPort
         uiCollectJob?.cancel()
         eventCollectJob?.cancel()
         viewModel = vm

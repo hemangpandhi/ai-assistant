@@ -3,6 +3,7 @@ package com.tcs.vehicleassistant
 import android.app.Application
 import com.tcs.vehicleassistant.assistant.AssistantRuntimeBootstrap
 import com.tcs.vehicleassistant.di.appModule
+import com.tcs.vehicleassistant.di.uiUxModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
@@ -14,7 +15,8 @@ class VehicleApplication : Application() {
         startKoin {
             androidLogger()
             androidContext(this@VehicleApplication)
-            modules(appModule)
+            // ui_ux extension seam — keep appModule close to refactor; additive bindings here
+            modules(appModule, uiUxModule)
         }
 
         DemoSettingsPresets.ensureDefaults(this)

@@ -13,7 +13,7 @@ import com.tcs.vehicleassistant.R
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.core.AgentRuntime
 import com.tcs.vehicleassistant.hardware.AndroidAudioManager
-import com.tcs.vehicleassistant.hardware.IAudioManager
+import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import com.tcs.vehicleassistant.llm.LlmEngine
 import kotlinx.coroutines.launch
 import org.koin.java.KoinJavaComponent.getKoin
@@ -35,7 +35,7 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
         AgentRuntime.resetForService()
         createNotificationChannel()
 
-        audioManager = getKoin().get<IAudioManager>() as AndroidAudioManager
+        audioManager = getKoin().get<SessionAudioPort>() as AndroidAudioManager
         viewModel = getKoin().get()
         llmEngine = getKoin().get()
 

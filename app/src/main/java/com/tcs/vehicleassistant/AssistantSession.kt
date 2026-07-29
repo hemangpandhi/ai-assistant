@@ -53,7 +53,7 @@ import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
-import com.tcs.vehicleassistant.hardware.IAudioManager
+import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import com.tcs.vehicleassistant.service.VehicleAgentService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -127,7 +127,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var voiceAnimation: VoiceAnimationView? = null
     private var svResponse: android.widget.ScrollView? = null
 
-    private var audioManager: IAudioManager? = null
+    private var audioManager: SessionAudioPort? = null
     private var viewModel: AssistantViewModel? = null
     private var agentService: VehicleAgentService? = null
     private var isBound = false
@@ -425,7 +425,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         awaitHotword = false,
                         // Wait for onShow → notifyImmersiveAssistantSummon(origin).
                         autoPresent = false,
-                        // Agent owns STT via IAudioManager (same path as XML).
+                        // Agent owns STT via SessionAudioPort (same path as XML).
                         enableLiveSpeech = false,
                         // Agent owns TTS via orchestrator audioManager.
                         enableTts = false,

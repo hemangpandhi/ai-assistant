@@ -128,16 +128,9 @@ class InAppOrchestratorBridge(
         }
 
         override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) = onSuccess()
-        override fun ensureWarmRecognizer() {}
-        override fun isActivelyListening(): Boolean = false
-        override fun isReadyListening(): Boolean = false
         override fun startListening() {}
-        override fun setEndpointingProfile(profile: com.tcs.vehicleassistant.hardware.EndpointingProfile) {}
-        override fun restartListening(delayedMs: Long) {}
         override fun stopListening() {}
         override fun destroySpeechRecognizer() {}
-        override fun requestAssistantDuck() {}
-        override fun abandonAssistantDuck() {}
         override fun shutdown() {}
 
         override fun speak(text: String, utteranceId: String) {
@@ -161,6 +154,10 @@ class InAppOrchestratorBridge(
 
         override fun stopSpeaking() {
             ttsProvider()?.stop()
+        }
+
+        override suspend fun waitUntilFinishedSpeaking() {
+            // In-app bridge has no TTS queue to drain.
         }
 
         override fun setUtteranceListener(

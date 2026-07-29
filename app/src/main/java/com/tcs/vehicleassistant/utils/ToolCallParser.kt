@@ -9,19 +9,17 @@ data class ParsedToolCall(
     val invocation: String get() = "$toolName($args)"
 }
 
+/**
+ * Final / fallback tool extraction — kept close to `dev/refactor`.
+ *
+ * Eager mid-stream (complete-tags-only) parsing lives in [StreamingToolCallParser].
+ */
 object ToolCallParser {
-
-    /** Complete tags only — safe for eager mid-stream execution. */
-    private val COMPLETE_TOOL_REGEX =
-        Regex("(?i)<TOOL>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*</TOOL>", RegexOption.DOT_MATCHES_ALL)
-
-    private val COMPLETE_JSON_TOOL_REGEX =
-        Regex("""(?i)<tool_call>\s*\{[\s\S]*?"name"\s*:\s*"([^"]+)"[\s\S]*?\}\s*</tool_call>""")
 
     /**
      * Extracts all valid tool calls from the LLM output.
-     * Prefers complete XML tags; also accepts closed JSON tool_call blocks and
-     * bare function-call syntax when the name matches a registered tool (dev/refactor).
+     * Prefers complete streaming-safe tags; falls back to bare function-call syntax
+     * when the name matches a registered tool.
      */
     fun extractToolCalls(llmOutput: String): List<ParsedToolCall> {
         val complete = extractCompleteToolCalls(llmOutput)
@@ -47,28 +45,10 @@ object ToolCallParser {
 
     /**
      * Only tags with a closing `</TOOL>` / `</tool_call>` — use during streaming so incomplete
-     * tags never execute early.
+     * tags never execute early. Delegates to [StreamingToolCallParser].
      */
-    fun extractCompleteToolCalls(llmOutput: String): List<ParsedToolCall> {
-        val calls = mutableListOf<ParsedToolCall>()
-        for (match in COMPLETE_TOOL_REGEX.findAll(llmOutput)) {
-            val toolName = match.groups[1]?.value?.trim() ?: continue
-            val args = match.groups[2]?.value?.trim() ?: ""
-            calls.add(ParsedToolCall(match.value, toolName, args))
-        }
-        for (match in COMPLETE_JSON_TOOL_REGEX.findAll(llmOutput)) {
-            val fullTag = match.value
-            val toolName = match.groups[1]?.value?.trim() ?: continue
-            val args = if (fullTag.contains("\"arguments\"")) {
-                fullTag.substringAfter("\"arguments\"").substringAfter(":").substringBefore("}")
-                    .replace("\"", "").replace("{", "").trim()
-            } else {
-                ""
-            }
-            calls.add(ParsedToolCall(fullTag, toolName, args))
-        }
-        return calls
-    }
+    fun extractCompleteToolCalls(llmOutput: String): List<ParsedToolCall> =
+        StreamingToolCallParser.extractCompleteToolCalls(llmOutput)
 
     /**
      * Strips all tool tags (complete and incomplete) from the LLM output,

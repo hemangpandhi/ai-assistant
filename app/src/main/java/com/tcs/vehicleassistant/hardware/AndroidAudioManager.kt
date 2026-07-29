@@ -30,9 +30,9 @@ import kotlinx.coroutines.withContext
 
 /**
  * Sherpa-ONNX offline STT (Whisper tiny.en) + Piper VITS TTS stack from [dev/refactor],
- * adapted to the extended [IAudioManager] surface used by MicCaptureCoordinator / backend.
+ * implementing [SessionAudioPort] for UI/UX mic handoff / ducking / endpointing.
  */
-class AndroidAudioManager(private val context: Context) : IAudioManager {
+class AndroidAudioManager(private val context: Context) : SessionAudioPort {
 
     companion object {
         /** Human-readable SpeechRecognizer / sherpa error codes for logs and UI. */
@@ -514,6 +514,17 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         } catch (_: Exception) {
         }
         startTtsLoop()
+    }
+
+    override suspend fun waitUntilFinishedSpeaking() {
+        val deferred = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val result = ttsChannel.trySend {
+            delay(500)
+            deferred.complete(Unit)
+        }
+        if (result.isSuccess) {
+            deferred.await()
+        }
     }
 
     override fun requestAssistantDuck() {
