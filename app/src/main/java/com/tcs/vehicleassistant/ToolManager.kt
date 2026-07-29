@@ -243,12 +243,6 @@ class ToolManager {
             return combinedTools
         }
         
-        val combinedTools = (contextTools + exactMatches).distinct()
-        
-        if (combinedTools.isNotEmpty()) {
-            return combinedTools
-        }
-        
         // Temperature heuristic: catch explicit numbers (50-90) or 'degrees'
         val tempSource = if (hasEmbeddedCommand) userQ else q
         val tempRegex = Regex("""\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b""")

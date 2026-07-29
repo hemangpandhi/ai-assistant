@@ -1,10 +1,12 @@
-# Extend-first policy (on top of `dev/refactor`)
+# Extend-first policy (on top of `origin/master`)
 
-**Goal:** Keep `dev/ui_ux_v2` (and agent branches) rebase-friendly against `origin/dev/refactor`. Prefer **new files + thin wiring** over editing shared refactor implementations.
+**Goal:** Keep `dev/ui_ux_v2` (and agent branches) rebase-friendly against
+`origin/master`. Prefer **new files + thin wiring** over editing shared master
+implementations.
 
-The refactor-owned Kotlin tree is every `.kt` file under `app/src` that exists
-on `origin/dev/refactor`. Every file in that set must remain byte-identical to
-`origin/dev/refactor`: there are **zero Kotlin seam exceptions**. UI/UX code
+The master-owned Kotlin tree is every `.kt` file under `app/src` that exists
+on `origin/master`. Every file in that set must remain byte-identical to
+`origin/master`: there are **zero Kotlin seam exceptions**. UI/UX code
 must live in parallel, additive types.
 
 ## Rule of thumb
@@ -20,7 +22,7 @@ must live in parallel, additive types.
 ## Refactor-owned class tree (keep byte-identical)
 
 This rule covers the entire shared class tree, not only the examples in this
-table. Restore shared implementations from `origin/dev/refactor`; do not add
+table. Restore shared implementations from `origin/master`; do not add
 visibility changes or UI/UX APIs to them.
 
 | Refactor file | UI/UX parallel / extension |
@@ -78,20 +80,20 @@ files owned by that branch may not.
 the refactor-owned `LLMManager` and `ToolManager`. UI/UX domain, session, and
 orchestrator code depends on the ports, not those refactor implementations.
 
-## How to take remote `dev/refactor` changes
+## How to take remote `master` changes
 
-1. Fetch `origin/dev/refactor`.
-2. Merge or rebase while keeping every refactor-owned Kotlin file unchanged.
-3. For conflicts, take refactor’s version of the shared Kotlin file and place
+1. Fetch `origin/master`.
+2. Merge or rebase while keeping every master-owned Kotlin file unchanged.
+3. For conflicts, take master’s version of the shared Kotlin file and place
    UI/UX behavior in an additive type or adapter.
 4. Never re-port UI/UX bodies back into shared files.
 
 ## Enforced contract
 
-`RefactorOwnedTreeContractTest` reads
-`app/src/test/resources/refactor_owned_kotlin.txt`, generated from
-`git ls-tree -r --name-only origin/dev/refactor -- app/src`, and byte-compares
-every listed Kotlin file with `git show origin/dev/refactor:<path>`. Its seam
+`MasterOwnedTreeContractTest` reads
+`app/src/test/resources/master_owned_kotlin.txt`, generated from
+`git ls-tree -r --name-only origin/master -- app/src`, and byte-compares
+every listed Kotlin file with `git show origin/master:<path>`. Its seam
 exception set is empty. The test is skipped only when Git or the ref is
 unavailable.
 

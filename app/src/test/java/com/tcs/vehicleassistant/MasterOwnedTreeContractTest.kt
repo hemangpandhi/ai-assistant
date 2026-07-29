@@ -9,11 +9,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Assume
 import org.junit.Test
 
-class RefactorOwnedTreeContractTest {
+/**
+ * Ensures every Kotlin file that exists on [REF] under `app/src` stays byte-identical.
+ * UI/UX / TTFR work must live in additive parallels, not in master-owned shared classes.
+ */
+class MasterOwnedTreeContractTest {
     private val seamExceptions = emptySet<String>()
 
     @Test
-    fun refactorOwnedKotlinFilesRemainByteIdentical() {
+    fun masterOwnedKotlinFilesRemainByteIdentical() {
         val discoveredRoot = findRepoRoot(Paths.get(System.getProperty("user.dir")))
         Assume.assumeNotNull(discoveredRoot)
         val repoRoot = requireNotNull(discoveredRoot)
@@ -78,7 +82,7 @@ class RefactorOwnedTreeContractTest {
     )
 
     companion object {
-        private const val REF = "origin/dev/refactor"
-        private const val ALLOWLIST_RESOURCE = "refactor_owned_kotlin.txt"
+        private const val REF = "origin/master"
+        private const val ALLOWLIST_RESOURCE = "master_owned_kotlin.txt"
     }
 }

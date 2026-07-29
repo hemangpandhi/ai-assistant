@@ -46,54 +46,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var agentService: com.tcs.vehicleassistant.service.VehicleAgentService? = null
     private var isBound = false
 
-    private var dotAnimatorJob: Job? = null
-    private var typewriterJob: Job? = null
-    private var targetDisplayMessage = ""
-    private var currentDisplayLength = 0
-    private val typingSpeedMs: Long = 15L
-    private var unloadJob: Job? = null
-    /** Opens agent STT after wake-word AudioRecord is released. */
-    private var micHandoffJob: Job? = null
-
-    private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private val idleController = AssistantSessionIdleController(
-        context = context,
-        scope = observerScope,
-        isVisible = { sessionUiVisible },
-        isBusy = { viewModel?.isProcessing() == true },
-        currentUiState = { viewModel?.uiState?.value },
-        viewModelProvider = { viewModel },
-        onTimeout = ::dismissForIdleTimeout,
-    )
-    private val dismissController = AssistantSessionDismissController(
-        context = context,
-        scope = observerScope,
-        overlayViewProvider = {
-            if (::overlayView.isInitialized) overlayView else null
-        },
-        isVisible = { sessionUiVisible },
-        onDismiss = ::dismissForExternalUi,
-    )
-    private val fallbackAudioFocusDucker = AssistantAudioFocusDucker(context)
-
-    private fun dismissForExternalUi(reason: String) {
-        AssistantDebugLog.d("Session", "dismiss overlay ($reason) visible=$sessionUiVisible")
-        val wasVisible = sessionUiVisible
-        sessionUiVisible = false
-        if (wasVisible) {
-            runCatching { hide() }
-        }
-        // Some AAOS builds keep the session window until finish() — always tear it down
-        // even if hide() already cleared sessionUiVisible (Compose LaunchIntent race).
-        observerScope.launch {
-            delay(50)
-            runCatching { finish() }
-        }
-    }
-
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as VehicleAgentService.LocalBinder
+    private val serviceConnection = object : android.content.ServiceConnection {
+        override fun onServiceConnected(className: android.content.ComponentName, service: android.os.IBinder) {
+            val binder = service as com.tcs.vehicleassistant.service.VehicleAgentService.LocalBinder
             agentService = binder.getService()
             isBound = true
             
@@ -164,16 +119,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         inflateAndBindLayout()
 
         return overlayView
-    }
-
-    private fun inflateAndBindLayout() {
-        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        var layoutStyle = prefs.getInt("ui_layout_pref", -1)
-        if (layoutStyle == -1) {
-            val isTablet = context.resources.configuration.smallestScreenWidthDp >= 600 || android.os.Build.DEVICE.contains("tangorpro", ignoreCase = true)
-            layoutStyle = if (isTablet) 1 else 0
-            prefs.edit().putInt("ui_layout_pref", layoutStyle).apply()
-        }
     }
 
     private fun inflateAndBindLayout() {
@@ -364,15 +309,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                     is ViewModelEvent.LaunchIntent -> {
                         try {
                             event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            this@AssistantSession.startVoiceActivity(event.intent)
+                            context.applicationContext.startActivity(event.intent)
+                            
+                            // Optionally hide the assistant UI so the newly launched app is visible
+                            this@AssistantSession.hide()
                         } catch (e: Exception) {
-                            android.util.Log.e("AssistantSession", "startVoiceActivity failed", e)
-                            try {
-                                event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                context.applicationContext.startActivity(event.intent)
-                            } catch (e2: Exception) {
-                                android.util.Log.e("AssistantSession", "Fallback startActivity failed", e2)
-                            }
+                            android.util.Log.e("AssistantSession", "startActivity failed for intent: ${event.intent}", e)
                         }
                     }
                     is ViewModelEvent.FinishSession -> {
@@ -384,69 +326,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                     is ViewModelEvent.ShowToast -> {
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     }
-                    is AssistantUiState.Listening -> {
-                        statusText?.visibility = View.VISIBLE
-                        startDotAnimation("")
-                        voiceAnimation.state = VoiceAnimationView.State.LISTENING
-                        if (state.partialText.isNotEmpty()) {
-                            responseText.text = "\"${state.partialText}\""
-                            responseText.gravity = android.view.Gravity.CENTER
-                        } else {
-                            responseText.text = ""
-                        }
-                    }
-                    is AssistantUiState.Thinking -> {
-                        resetDisplayState()
-                        statusText?.visibility = View.VISIBLE
-                        startDotAnimation("")
-                        voiceAnimation.state = VoiceAnimationView.State.THINKING
-                        if (!state.userQuery.isNullOrBlank()) {
-                            responseText.text = "\"${state.userQuery}\""
-                            responseText.gravity = android.view.Gravity.CENTER
-                        }
-                    }
-                    is AssistantUiState.Streaming -> {
-                        if (statusText?.visibility == View.VISIBLE) {
-                            stopDotAnimation()
-                            voiceAnimation?.state = VoiceAnimationView.State.SPEAKING
-                        }
-                        targetDisplayMessage = state.displayText
-                        startTypewriterIfNeeded()
-                    }
-                    is AssistantUiState.Speaking -> {
-                        voiceAnimation?.state = VoiceAnimationView.State.SPEAKING
-                        stopDotAnimation()
-                        targetDisplayMessage = state.finalMessage
-                        startTypewriterIfNeeded()
-                    }
-                    is AssistantUiState.Error -> {
-                        voiceAnimation?.state = VoiceAnimationView.State.IDLE
-                        stopDotAnimation()
-                        responseText?.text = state.errorMessage
-                    }
-                }
-            }
-        }
-
-        observerScope.launch {
-            viewModel?.events?.collect { event ->
-                when (event) {
-                    is ViewModelEvent.LaunchIntent -> {
-                        try {
-                            event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                            context.applicationContext.startActivity(event.intent)
-                            
-                            // Optionally hide the assistant UI so the newly launched app is visible
-                            this@AssistantSession.hide()
-                        } catch (e: Exception) {
-                            android.util.Log.e("AssistantSession", "startActivity failed for intent: ${event.intent}", e)
-                        }
-                        dismissForExternalUi("xml-launch-intent")
-                    }
-                    is ViewModelEvent.FinishSession -> finish()
-                    is ViewModelEvent.StartListening -> btnMic?.performClick()
-                    is ViewModelEvent.ShowToast ->
-                        Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     is ViewModelEvent.SetInputEnabled -> {
                         btnSend.isEnabled = event.enabled
                         btnMic.isEnabled = event.enabled

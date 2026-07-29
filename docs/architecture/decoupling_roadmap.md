@@ -54,7 +54,7 @@ Koin singles: audio, orchestrator, `AssistantViewModel`, pipeline helpers.
 
 ## Extend-first (rebase hygiene)
 
-UI/UX / TTFR work should **extend** `dev/refactor` rather than rewrite shared files.
+UI/UX / TTFR work should **extend** `origin/master` rather than rewrite shared files.
 See [refactor_extension_policy.md](refactor_extension_policy.md).
 
 Additive seams already in place:

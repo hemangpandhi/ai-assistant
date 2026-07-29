@@ -110,43 +110,30 @@ class AgentOrchestrator(
         }
 
         if (LLMManager.isPrewarming) {
-            pendingPrewarmQuery = query to retryCount
-            _state.value = OrchestratorState.Thinking
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-            if (prewarmWaitJob?.isActive != true) {
-                prewarmWaitJob = scope.launch {
-                    while (LLMManager.isPrewarming) {
-                        delay(50)
-                    }
-                    val queued = pendingPrewarmQuery
-                    pendingPrewarmQuery = null
-                    if (queued != null) {
-                        handleQuery(queued.first, queued.second)
-                    }
-                }
-            }
+            _events.tryEmit(OrchestratorEvent.ShowToast("Model is prewarming, please wait a moment..."))
+            _state.value = OrchestratorState.Idle
+            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
             return
         }
 
         if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
             _state.value = OrchestratorState.Thinking(query)
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-            queryJob = scope.launch {
+            scope.launch {
                 try {
                     val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
                         .inject(org.koin.core.qualifier.named("edge"))
                     edgeProvider.initialize(context, force = false)
-                    val queued = pendingPrewarmQuery
-                    pendingPrewarmQuery = null
-                    if (queued != null) {
-                        handleQuery(queued.first, queued.second)
-                    }
+                    handleQuery(query, retryCount)
                 } catch (e: Exception) {
-                    pendingPrewarmQuery = null
                     _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                 }
             }
+            return
+        }
+
+        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
             return
         }
 
@@ -317,23 +304,19 @@ class AgentOrchestrator(
         val finalPrompt: String = withContext(Dispatchers.IO) {
             val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
             val maxHistoryChars = toolManager.slidingWindowMaxChars
-            val isFollowUp = memory.isFollowUpQuery(interceptedQuery)
+            val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)
             val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
-            val priorHistory = memory.getSlidingWindowContext(historyCap)
+            val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
 
             if (isAgenticObservation) {
-                memory.addTurn("System", interceptedQuery)
+                MemoryManager.addTurn("System", interceptedQuery)
             } else {
-                memory.captureLongTermFacts(context, interceptedQuery)
-                memory.addTurn("User", interceptedQuery)
+                MemoryManager.captureLongTermFacts(context, interceptedQuery)
+                MemoryManager.addTurn("User", interceptedQuery)
             }
 
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
-            // Stricter deferral: short / command-like turns skip VHAL telemetry injection.
-            val looksCommand = com.tcs.vehicleassistant.domain.SpeculativeToolPrep.looksLikeCommand(interceptedQuery)
-            val needsTelemetry = !isAgenticObservation &&
-                !looksCommand &&
-                (interceptedQuery.length >= 50 || isFollowUp)
+            val needsTelemetry = !isAgenticObservation && (interceptedQuery.length >= 25 || isFollowUp)
             val dynamicState = if (needsTelemetry) {
                 SmartContextInjector.getInjectedContext(interceptedQuery, context)
             } else {
@@ -535,7 +518,7 @@ class AgentOrchestrator(
                     // Now parse tools
                     val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
                     for (parsed in parsedTools) {
-                        val toolCall = parsed.invocation
+                        val toolCall = "${parsed.toolName}(${parsed.args})"
                         if (executedTools.add(toolCall)) {
                             val toolDef = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(toolCall)
                             if (toolDef?.requiresConfirmation == true) {
