@@ -1,147 +1,80 @@
 package com.tcs.vehicleassistant.controller
 
 import android.content.Context
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import com.assistant.ui.assistant.api.AssistantDebugLog
-import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
-import com.tcs.vehicleassistant.domain.SpeculativeToolPrep
-import com.tcs.vehicleassistant.hardware.EndpointingProfileSelector
-import com.tcs.vehicleassistant.hardware.SessionAudioPort
-import com.tcs.vehicleassistant.hardware.SpeechRecognitionErrors
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import com.tcs.vehicleassistant.repository.OrchestratorEvent
 import com.tcs.vehicleassistant.repository.OrchestratorState
-import kotlinx.coroutines.delay
+import com.tcs.vehicleassistant.hardware.IAudioManager
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.launch
+import org.koin.java.KoinJavaComponent.getKoin
 
 /**
- * androidx [ViewModel] hosting presentation MVI intents over the shared agent pipeline.
+ * ViewModel that owns the UI state for the Assistant.
+ *
+ * Responsibilities:
+ *  - Receive UI intents (Speech Recognition, Text input)
+ *  - Delegate queries to AgentOrchestrator
+ *  - Map OrchestratorState to AssistantUiState
+ *
+ * The View (AssistantSession) observes [uiState] and [events] and renders accordingly.
  */
 class AssistantViewModel(
     private val context: Context,
-    private val audioManager: SessionAudioPort,
-    private val orchestrator: AgentOrchestrator,
-    private val processQuery: ProcessQueryUseCase,
-) : ViewModel() {
+    private val audioManager: IAudioManager
+) {
+    private val orchestrator = AgentOrchestrator(context, audioManager)
 
+    // ── Public observable state ──────────────────────────────────────────────
     private val _uiState = MutableStateFlow<AssistantUiState>(AssistantUiState.Idle)
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
-
-    /** Live STT partial/final text — StateFlow so UI is not dependent on SharedFlow subscribers. */
-    private val _liveTranscript = MutableStateFlow("")
-    val liveTranscript: StateFlow<String> = _liveTranscript.asStateFlow()
 
     private val _events = MutableSharedFlow<ViewModelEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<ViewModelEvent> = _events.asSharedFlow()
 
+    // ── Internal state ──────────────────────────────────────────────────────
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
     init {
         audioManager.setRecognitionListener(
             onReadyForSpeech = {
-                _liveTranscript.value = ""
-                _uiState.value = AssistantUiState.Listening
+                _uiState.value = AssistantUiState.Listening()
             },
-            onBeginningOfSpeech = {
-                // Barge-in lite: supersede in-flight Think/Act/Speak when user talks again.
-                if (orchestrator.isProcessing()) {
-                    orchestrator.cancelInFlight()
-                }
-                runCatching { audioManager.stopSpeaking() }
-                _uiState.value = AssistantUiState.Listening
-            },
+            onBeginningOfSpeech = { },
             onEndOfSpeech = {
-                // Partial-driven UI only: stay Listening until final commits Phase B.
-                // Never jump to Thinking on endpoint alone.
+                _uiState.value = AssistantUiState.Thinking()
             },
             onResult = { spokenText ->
-                // Phase A: utterance text committed (transcript + input).
                 audioManager.stopSpeaking()
-                _liveTranscript.value = spokenText
                 _events.tryEmit(ViewModelEvent.SetInputText(spokenText))
-                // Phase B: FollowUp / LLM on agent dispatcher — does not block re-listen.
-                dispatch(AssistantUiIntent.SubmitQuery(spokenText))
+                handleQuery(spokenText)
             },
             onEmptyResult = {
-                SpeculativeToolPrep.clear()
-                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
-                _liveTranscript.value = ""
-                // Soft miss — keep session open and re-arm ear.
-                _uiState.value = AssistantUiState.Listening
-                if (!audioManager.isActivelyListening()) {
-                    _events.tryEmit(ViewModelEvent.StartListening)
-                }
+                _uiState.value = AssistantUiState.Error("I didn't hear anything.")
+                // Do not dismiss automatically so user can try again
             },
             onError = { errorCode ->
-                SpeculativeToolPrep.clear()
-                com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
-                val softMiss = SpeechRecognitionErrors.isSoftMiss(errorCode)
-                val recoverable = SpeechRecognitionErrors.isRecoverable(errorCode)
-                when {
-                    softMiss -> {
-                        _liveTranscript.value = ""
-                        _uiState.value = AssistantUiState.Listening
-                        if (!audioManager.isActivelyListening()) {
-                            _events.tryEmit(ViewModelEvent.StartListening)
-                        }
-                    }
-                    recoverable -> {
-                        // Do not flash "Client side error (5)" — cancel/stop often emit this,
-                        // and unexpected ones self-heal via silent re-arm / recreate.
-                        // Never re-arm while Speaking/Streaming — that ERROR_CLIENT is intentional.
-                        AssistantDebugLog.w(
-                            "VM",
-                            "STT recoverable $errorCode — silent re-arm",
-                        )
-                        _liveTranscript.value = ""
-                        val busy =
-                            _uiState.value is AssistantUiState.Speaking ||
-                                _uiState.value is AssistantUiState.Streaming ||
-                                _uiState.value is AssistantUiState.Thinking
-                        if (!busy) {
-                            _uiState.value = AssistantUiState.Listening
-                            if (!audioManager.isActivelyListening()) {
-                                _events.tryEmit(ViewModelEvent.StartListening)
-                            }
-                        }
-                    }
-                    else -> {
-                        val errorMsg = SpeechRecognitionErrors.userMessage(errorCode)
-                        _uiState.value = AssistantUiState.Error(errorMsg)
-                        viewModelScope.launch {
-                            delay(2000)
-                            _events.tryEmit(ViewModelEvent.FinishSession)
-                        }
-                    }
-                }
+                val errorMsg = mapSpeechError(errorCode)
+                _uiState.value = AssistantUiState.Error(errorMsg)
+                // Do not dismiss automatically so user can try again
             },
             onPartial = { partialText ->
-                if (partialText.isNotBlank()) {
-                    SpeculativeToolPrep.onPartial(partialText)
-                    audioManager.setEndpointingProfile(EndpointingProfileSelector.forPartial(partialText))
-                    _liveTranscript.value = partialText
-                    _events.tryEmit(ViewModelEvent.SetInputText(partialText))
-                }
+                _uiState.value = AssistantUiState.Listening(partialText)
+                _events.tryEmit(ViewModelEvent.SetInputText(partialText))
             }
         )
 
-        viewModelScope.launch {
+        // Map Orchestrator State to UI State
+        scope.launch {
             orchestrator.state.collect { state ->
                 _uiState.value = when (state) {
-                    is OrchestratorState.Idle -> {
-                        // Don't clobber an already-open ear (pre-armed STT / Listening).
-                        if (audioManager.isActivelyListening()) {
-                            AssistantUiState.Listening
-                        } else {
-                            AssistantUiState.Idle
-                        }
-                    }
-                    is OrchestratorState.Thinking -> AssistantUiState.Thinking
+                    is OrchestratorState.Idle -> AssistantUiState.Idle
+                    is OrchestratorState.Thinking -> AssistantUiState.Thinking(state.query)
                     is OrchestratorState.Streaming -> AssistantUiState.Streaming(state.displayMsg)
                     is OrchestratorState.Speaking -> AssistantUiState.Speaking(state.finalMsg)
                     is OrchestratorState.Error -> AssistantUiState.Error(state.message)
@@ -149,7 +82,8 @@ class AssistantViewModel(
             }
         }
 
-        viewModelScope.launch {
+        // Map Orchestrator Events to UI Events
+        scope.launch {
             orchestrator.events.collect { event ->
                 when (event) {
                     is OrchestratorEvent.ShowToast -> _events.tryEmit(ViewModelEvent.ShowToast(event.message))
@@ -157,26 +91,14 @@ class AssistantViewModel(
                     is OrchestratorEvent.LaunchIntent -> _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))
                     is OrchestratorEvent.StartListening -> _events.tryEmit(ViewModelEvent.StartListening)
                     is OrchestratorEvent.FinishSession -> _events.tryEmit(ViewModelEvent.FinishSession)
-                    is OrchestratorEvent.AffectiveMood ->
-                        _events.tryEmit(ViewModelEvent.AffectiveMood(event.mood))
                 }
             }
         }
     }
 
-    fun dispatch(intent: AssistantUiIntent) {
-        when (intent) {
-            is AssistantUiIntent.SubmitQuery -> processQuery(intent.query, intent.retryCount)
-            AssistantUiIntent.Reset -> {
-                SpeculativeToolPrep.clear()
-                orchestrator.resetState()
-            }
-        }
-    }
+    // ── Public API ──────────────────────────────────────────────────────────
 
     fun isProcessing(): Boolean = orchestrator.isProcessing()
-
-    fun cancelInFlight() = orchestrator.cancelInFlight()
 
     val lastTtsUpdateTime: Long
         get() = orchestrator.lastTtsUpdateTime
@@ -185,25 +107,30 @@ class AssistantViewModel(
         get() = orchestrator.ttsSpokenLength
 
     fun handleQuery(query: String, retryCount: Int = 0) {
-        dispatch(AssistantUiIntent.SubmitQuery(query, retryCount))
+        orchestrator.handleQuery(query, retryCount)
     }
 
     fun resetUiState() {
-        _liveTranscript.value = ""
-        SpeculativeToolPrep.clear()
-        dispatch(AssistantUiIntent.Reset)
+        orchestrator.resetState()
     }
 
     fun destroy() {
-        // viewModelScope cancelled by [onCleared]; shared orchestrator lives with the service.
+        scope.cancel()
+        orchestrator.destroy()
     }
 
-    override fun onCleared() {
-        super.onCleared()
+    private fun mapSpeechError(errorCode: Int): String {
+        return when (errorCode) {
+            android.speech.SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
+            android.speech.SpeechRecognizer.ERROR_CLIENT -> "Client side error"
+            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+            android.speech.SpeechRecognizer.ERROR_NETWORK -> "Network error"
+            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
+            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "No recognition result matched"
+            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RecognitionService busy"
+            android.speech.SpeechRecognizer.ERROR_SERVER -> "Error from server"
+            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
+            else -> "Unknown recognition error"
+        }
     }
-}
-
-sealed interface AssistantUiIntent {
-    data class SubmitQuery(val query: String, val retryCount: Int = 0) : AssistantUiIntent
-    data object Reset : AssistantUiIntent
 }

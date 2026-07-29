@@ -1,6 +1,6 @@
 package com.tcs.vehicleassistant.vision
 
-import com.tcs.vehicleassistant.repository.AgentOrchestrator
+import com.tcs.vehicleassistant.repository.UiUxAgentOrchestrator
 import com.tcs.vehicleassistant.VehicleManager
 import org.koin.android.ext.android.inject
 
@@ -15,7 +15,6 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.R
-import com.tcs.vehicleassistant.repository.OrchestratorState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -61,7 +60,7 @@ class CockpitVisionService : Service() {
         super.onCreate()
         startForegroundServiceNotification()
 
-        val orchestrator: AgentOrchestrator by inject()
+        val orchestrator: UiUxAgentOrchestrator by inject()
         visionBridge = VisionOrchestratorBridge(this, orchestrator)
         faceIdentityProcessor = FaceIdentityProcessor(this)
         faceProfileManager = FaceProfileManager(this)

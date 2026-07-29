@@ -1,5 +1,8 @@
 package com.tcs.vehicleassistant.utils
 
+val ParsedToolCall.invocation: String
+    get() = "$toolName($args)"
+
 /**
  * Streaming-safe tool extraction (UI/UX / TTFR extension).
  *

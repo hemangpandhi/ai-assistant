@@ -9,7 +9,7 @@ import android.content.Intent
  * Note: TTS operations (speak, playSilentUtterance) are handled directly by the
  * ViewModel via IAudioManager and do NOT flow through events.
  */
-sealed class ViewModelEvent {
+abstract class ViewModelEvent {
     /** Launch an intent after TTS finishes (e.g. Google Maps navigation). */
     data class LaunchIntent(val intent: Intent) : ViewModelEvent()
     

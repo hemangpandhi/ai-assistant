@@ -2,6 +2,9 @@
 
 **Goal:** Keep `dev/ui_ux_v2` (and agent branches) rebase-friendly against `origin/dev/refactor`. Prefer **new files + thin wiring** over editing shared refactor implementations.
 
+Refactor-owned files must remain byte-identical to `origin/dev/refactor` except
+unavoidable visibility (`public`/`internal`) changes; UI/UX lives in parallel types.
+
 ## Rule of thumb
 
 | Prefer | Avoid |
@@ -12,19 +15,24 @@
 | Koin `uiUxModule` additive bindings | Expanding `appModule` with all UI/UX singles |
 | Delegate from a thin wrapper in the shared file | Copy-paste forking the whole shared class |
 
-## Shared files that should stay thin
+## Refactor-owned files (keep byte-identical)
 
-These exist on `dev/refactor` and change often upstream. Treat them as **integration shells**:
+Restore from `origin/dev/refactor` and do not edit (except rare `public`/`internal` visibility seams):
 
-- `AssistantSession.kt` → `assistant/session/*` controllers + Compose host; prefer parallel `ComposeAssistantSession` later
-- `AndroidAudioManager.kt` / `IAudioManager.kt` → baseline on `IAudioManager`; session extras on `SessionAudioPort`; labels/ducking helpers outside
-- `AgentOrchestrator.kt` → `StreamingStateCoalescer`, `TtsTurnIds`, `LlmQueryReadinessGate`, domain helpers
-- `WakeWordService.kt` → `CrossProcessMicLease`, `WakeWordDutyCycle`, `WakePhraseMatcher`, `MicCaptureCoordinator`
-- `AssistantViewModel.kt` → `SpeechRecognitionErrors`, `EndpointingProfileSelector` (speech controller next)
-- `FollowUpRouter.kt` / `ToolCallParser.kt` → `DirectCabinCommandRouter` / `StreamingToolCallParser`
-- `LLMManager.kt` → `LlmModelLocator` / `EngineStatusStore`
-- `HVACToolHandler.kt` / `ToolHandlerRegistry.kt` → `HvacToolAliases`
-- `AppModule.kt` → keep refactor-ish core; load `uiUxModule` from `VehicleApplication`
+| Refactor file | UI/UX parallel / extension |
+|---|---|
+| `AssistantSession.kt` | `ComposeAssistantSession` + `assistant/session/*` |
+| `AndroidAudioManager.kt` / `IAudioManager.kt` | `SessionAndroidAudioManager` / `SessionAudioPort` |
+| `AgentOrchestrator.kt` | `UiUxAgentOrchestrator` + `repository/uiux/*` |
+| `AssistantViewModel.kt` | `UiUxAssistantViewModel` |
+| `WakeWordService.kt` | `UiUxWakeWordService` + wakeword helpers |
+| `FollowUpRouter.kt` / `ToolCallParser.kt` | `DirectCabinCommandRouter` / `StreamingToolCallParser` |
+| `HVACToolHandler.kt` / `ToolHandlerRegistry.kt` | `HvacToolAliases` (canonicalize before dispatch) |
+| `AppModule.kt` | `uiUxModule` loaded beside it |
+
+Still to isolate fully: `LLMManager.kt` (singleton; locator/status helpers exist but file still diverges).
+
+Overlay UI host: `assistant/UiUxOverlayActivity` (additive manifest entry).
 
 ## Unavoidable thin edits
 

@@ -126,6 +126,11 @@
                  android:process=":wakeword"
                  android:foregroundServiceType="microphone"
                  android:exported="true" />
+
+        <service android:name=".wakeword.UiUxWakeWordService"
+                 android:process=":wakeword"
+                 android:foregroundServiceType="microphone"
+                 android:exported="true" />
                  
         <activity
             android:name=".CockpitAwarenessActivity"
@@ -137,6 +142,18 @@
                  android:exported="false" />
 
         <!-- Compose design assistant entry points (UI decoupled from agent core) -->
+        <activity
+            android:name=".assistant.UiUxOverlayActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.OPEN_UIUX_OVERLAY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
         <activity
             android:name="com.assistant.ui.assistant.entry.VirtualAssistantActivity"
             android:exported="true"

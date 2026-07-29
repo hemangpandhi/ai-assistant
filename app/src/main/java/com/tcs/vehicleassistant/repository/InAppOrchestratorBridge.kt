@@ -13,13 +13,15 @@ import com.tcs.vehicleassistant.domain.QueryPipeline
 import com.tcs.vehicleassistant.domain.SpeechPresenter
 import com.tcs.vehicleassistant.domain.ToolLoop
 import com.tcs.vehicleassistant.hardware.IAudioManager
+import com.tcs.vehicleassistant.repository.uiux.OrchestratorEvent
+import com.tcs.vehicleassistant.repository.uiux.OrchestratorState
 import com.tcs.vehicleassistant.utils.ToolCallParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
 /**
- * Runs [AgentOrchestrator] inside LocalLLMActivity with optional TTS and chat UI callbacks.
+ * Runs [UiUxAgentOrchestrator] inside LocalLLMActivity with optional TTS and chat UI callbacks.
  * Prefers the Koin-shared orchestrator when available; otherwise builds a bridge-scoped instance
  * (in-app TTS uses a different [IAudioManager]).
  */
@@ -32,11 +34,11 @@ class InAppOrchestratorBridge(
 
     private val bridgeAudio = BridgeAudioManager()
     private val appContext = context.applicationContext
-    private val orchestrator: AgentOrchestrator = run {
+    private val orchestrator: UiUxAgentOrchestrator = run {
         // Always use bridge audio for Activity TTS callbacks — construct with shared ports.
         val koin = runCatching { org.koin.java.KoinJavaComponent.getKoin() }.getOrNull()
         if (koin != null) {
-            AgentOrchestrator(
+            UiUxAgentOrchestrator(
                 context = appContext,
                 audioManager = bridgeAudio,
                 memory = koin.get(),
@@ -53,7 +55,7 @@ class InAppOrchestratorBridge(
             val memory = MemoryManagerStore()
             val flags = AssistantFeatureFlags(appContext)
             val tools = ToolManager()
-            AgentOrchestrator(
+            UiUxAgentOrchestrator(
                 context = appContext,
                 audioManager = bridgeAudio,
                 memory = memory,

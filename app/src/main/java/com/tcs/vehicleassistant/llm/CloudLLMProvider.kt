@@ -7,7 +7,7 @@ import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
 
 class CloudLLMProvider(
-    private val featureFlags: AssistantFeatureFlags,
+    private val featureFlags: AssistantFeatureFlags? = null,
 ) : ILLMProvider {
     private var isInitialized = false
 
@@ -39,9 +39,10 @@ class CloudLLMProvider(
         }
 
         try {
-            val modelName = featureFlags.cloudModelName.ifBlank {
+            val flags = featureFlags ?: AssistantFeatureFlags(context.applicationContext)
+            val modelName = flags.cloudModelName.ifBlank {
                 // Legacy companion fallback during migration only.
-                featureFlags.cloudModelName
+                flags.cloudModelName
             }
             if (modelName.contains("Gemini")) {
                 GeminiManager.sendMessageAsync(sysPrompt, prompt, callback)
