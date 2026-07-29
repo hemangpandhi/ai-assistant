@@ -72,4 +72,7 @@ Additive seams already in place:
 | `StreamingStateCoalescer` / `TtsTurnIds` / `LlmQueryReadinessGate` | `AgentOrchestrator` |
 | `SessionComposeHost` / idle+dismiss controllers / `AssistantAudioFocusDucker` | `AssistantSession` |
 | `uiUxModule` | `appModule` |
+| `OrchestratorExtension` / `MoodOrchestratorExtension` | mood hooks in `UiUxAgentOrchestrator` |
+| `UiUxToolDispatcher` | HVAC alias front-door over `ToolCatalog` |
+| `UiUxAssistantVoiceInteractionService` | system VIS; legacy VIS unbound |
 | `domain/*`, `data/*`, `assistant/*`, `:assistant-ui` | orchestrator / session / VIS |

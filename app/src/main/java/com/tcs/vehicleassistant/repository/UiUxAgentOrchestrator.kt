@@ -11,11 +11,11 @@ import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.llm.ILLMProvider
 import com.tcs.vehicleassistant.repository.uiux.OrchestratorEvent
+import com.tcs.vehicleassistant.repository.uiux.OrchestratorExtension
 import com.tcs.vehicleassistant.repository.uiux.OrchestratorState
 import com.tcs.vehicleassistant.utils.FollowUpRouter
 import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
 import com.tcs.vehicleassistant.utils.StreamingToolCallParser
-import com.tcs.vehicleassistant.utils.MoodTagParser
 import com.tcs.vehicleassistant.utils.invocation
 import com.tcs.vehicleassistant.domain.StreamingStateCoalescer
 import com.tcs.vehicleassistant.domain.TtsTurnIds
@@ -38,6 +38,7 @@ class UiUxAgentOrchestrator(
     private val speechPresenter: com.tcs.vehicleassistant.domain.SpeechPresenter,
     private val llmSession: LlmSessionPort,
     private val toolCatalog: ToolCatalog,
+    private val extensions: List<OrchestratorExtension> = emptyList(),
 ) {
 
     private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
@@ -145,6 +146,7 @@ class UiUxAgentOrchestrator(
         isQueryProcessed = true
         _state.value = OrchestratorState.Idle
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        extensions.forEach { it.onReset() }
     }
 
     fun triggerProactiveEvent(prompt: String) {
@@ -157,16 +159,18 @@ class UiUxAgentOrchestrator(
         queryJob?.cancel()
         queryJob = null
 
+        val rewritten = extensions.fold(query) { acc, ext -> ext.beforeQuery(acc) }
+
         // Zero-LLM path first — never block capture/response on model warm-up.
         // Speculative prep may already have resolved the tool from strong partials.
-        if (toolLoop.pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
+        if (toolLoop.pendingConfirmationTool == null && tryHandleDirectFollowUp(rewritten)) {
             return
         }
 
         // Wait out prewarm / cold start so voice finals still reach the LLM
         // (ui_ux extension seam — LlmQueryReadinessGate).
         if (readinessGate.deferIfNeeded(
-                query = query,
+                query = rewritten,
                 retryCount = retryCount,
                 scope = scope,
                 onWaiting = { showToast ->
@@ -199,12 +203,17 @@ class UiUxAgentOrchestrator(
 
         // Phase B: understand / act / speak on agent dispatcher — never blocks re-listen.
         queryJob = scope.launch {
-            processQuery(query, retryCount)
+            processQuery(rewritten, retryCount)
         }
     }
 
     fun resetState() {
         _state.value = OrchestratorState.Idle
+        extensions.forEach { it.onReset() }
+    }
+
+    private fun emitAffectiveMood(mood: com.assistant.ui.assistant.api.AssistantMoodId) {
+        _events.tryEmit(OrchestratorEvent.AffectiveMood(mood))
     }
 
     private fun onTtsFinalUtteranceDone(utteranceId: String) {
@@ -297,8 +306,8 @@ class UiUxAgentOrchestrator(
             }
 
             val feedback = executeToolCall(toolCall) ?: "Action completed."
-            MoodTagParser.heuristicForTool(toolCall, query)?.let { mood ->
-                _events.tryEmit(OrchestratorEvent.AffectiveMood(mood))
+            extensions.forEach { ext ->
+                ext.moodForDirectTool(toolCall, query)?.let(::emitAffectiveMood)
             }
             val finalMsg = when {
                 toolCall.startsWith("handleDrowsyDriving") ->
@@ -443,9 +452,7 @@ class UiUxAgentOrchestrator(
                         emitStreamingUi(displayMsg)
                     }
 
-                    MoodTagParser.extractAffectiveMood(currentText)?.let { mood ->
-                        _events.tryEmit(OrchestratorEvent.AffectiveMood(mood))
-                    }
+                    extensions.forEach { it.onToken(currentText, ::emitAffectiveMood) }
 
                     // Eager mid-stream tool execution as soon as </TOOL> closes.
                     val completeTools = StreamingToolCallParser.extractCompleteToolCalls(currentText)
@@ -491,9 +498,9 @@ class UiUxAgentOrchestrator(
                         val isAgenticLoopEnabled = featureFlags.agenticLoopEnabled
 
                         val rawResponse = lastResponseBuilder.toString()
-                        val responseWithoutTags = MoodTagParser.stripMoodTags(
+                        val responseWithoutTags = extensions.fold(
                             rawResponse.replace(Regex("(?i)<TOOL>[\\s\\S]*?(</TOOL>|$)"), ""),
-                        ).trim()
+                        ) { acc, ext -> ext.stripDecorations(acc) }.trim()
                         val hasConversationalText = responseWithoutTags.length > 5
                         val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
 
@@ -523,9 +530,7 @@ class UiUxAgentOrchestrator(
                     var finalMsg = lastResponseBuilder.toString()
                     memory.addTurn("Assistant", finalMsg.trim())
 
-                    MoodTagParser.extractAffectiveMood(finalMsg)?.let { mood ->
-                        _events.tryEmit(OrchestratorEvent.AffectiveMood(mood))
-                    }
+                    extensions.forEach { it.onDone(finalMsg, ::emitAffectiveMood) }
 
                     finalMsg = speechPresenter.cleanDisplay(finalMsg)
 

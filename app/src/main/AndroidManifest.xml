@@ -99,7 +99,8 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".AssistantVoiceInteractionService"
+        <!-- Primary UI/UX VoiceInteractionService (Compose + profile-aware wake). -->
+        <service android:name=".assistant.UiUxAssistantVoiceInteractionService"
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:icon="@drawable/ic_ai_assistant"
                  android:exported="true">
@@ -109,30 +110,40 @@
                 <action android:name="android.service.voice.VoiceInteractionService" />
             </intent-filter>
         </service>
+
+        <!-- Legacy refactor VIS — not system-bound; LocalLLMActivity / XML debug only. -->
+        <service android:name=".AssistantVoiceInteractionService"
+                 android:permission="android.permission.BIND_VOICE_INTERACTION"
+                 android:icon="@drawable/ic_mic_small"
+                 android:exported="true" />
         
+        <!-- Legacy refactor session factory — XML profile still reachable via UiUxAssistantSessionService. -->
         <service android:name=".AssistantSessionService"
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:exported="true" />
 
-        <!-- ui_ux extension seam: Compose / profile-aware session factory -->
+        <!-- Primary session factory: Compose vs XML via AssistantUiProfile. -->
         <service android:name=".assistant.UiUxAssistantSessionService"
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:exported="true" />
                  
+        <!-- Legacy refactor agent service — XML AssistantSession path only. -->
         <service android:name=".service.VehicleAgentService"
                  android:foregroundServiceType="dataSync"
                  android:exported="false" />
 
-        <!-- ui_ux extension seam -->
+        <!-- Primary Compose agent host. -->
         <service android:name=".service.UiUxVehicleAgentService"
                  android:foregroundServiceType="dataSync"
                  android:exported="false" />
                  
+        <!-- Legacy refactor wake word — XML profile / LocalLLMActivity. -->
         <service android:name=".WakeWordService"
                  android:process=":wakeword"
                  android:foregroundServiceType="microphone"
                  android:exported="true" />
 
+        <!-- Primary Compose wake word (:wakeword process). -->
         <service android:name=".wakeword.UiUxWakeWordService"
                  android:process=":wakeword"
                  android:foregroundServiceType="microphone"

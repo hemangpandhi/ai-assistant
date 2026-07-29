@@ -8,8 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.IBinder
 import android.util.Log
-import com.tcs.vehicleassistant.AssistantVoiceInteractionService
 import com.tcs.vehicleassistant.R
+import com.tcs.vehicleassistant.assistant.UiUxAssistantVoiceInteractionService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -321,7 +321,7 @@ class UiUxWakeWordService : Service() {
                 this@UiUxWakeWordService,
                 reason = "hotword",
             )
-            AssistantVoiceInteractionService.triggerSession(this@UiUxWakeWordService)
+            UiUxAssistantVoiceInteractionService.triggerSession(this@UiUxWakeWordService)
         }
     }
 
