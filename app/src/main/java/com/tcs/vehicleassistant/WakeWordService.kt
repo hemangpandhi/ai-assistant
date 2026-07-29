@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
-import kotlin.math.abs
 
 /**
  * Always-on wake-word listener with duty-cycled Vosk processing when the cabin is quiet.
@@ -174,6 +173,7 @@ class WakeWordService : Service() {
                 customAudioRecord?.startRecording()
                 val holdGen = beginMicHold()
                 val buffer = ShortArray(bufferSize)
+                val dutyCycle = com.tcs.vehicleassistant.wakeword.WakeWordDutyCycle()
 
                 var loopCount = 0
                 var framesSinceLastSpeech = 100 // Initialize high to start in idle state
@@ -308,30 +308,10 @@ class WakeWordService : Service() {
         if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
             Log.d(TAG, "Vosk heard: $hypothesis")
         }
-        val isMatch = lowerHypothesis.contains(wakeWord) ||
-            lowerHypothesis.contains("hey nissan") ||
-            lowerHypothesis.contains("nissan") ||
-            lowerHypothesis.contains("hey nice") ||
-            lowerHypothesis.contains("hey me") ||
-            lowerHypothesis.contains("hey listen") ||
-            lowerHypothesis.contains("hey lisa") ||
-            lowerHypothesis.contains("hey mason") ||
-            lowerHypothesis.contains("hey nathan") ||
-            lowerHypothesis.contains("hey missing") ||
-            lowerHypothesis.contains("hey auto") ||
-            lowerHypothesis.contains("hey otto") ||
-            lowerHypothesis.contains("hey out") ||
-            lowerHypothesis.contains("hey miss") ||
-            lowerHypothesis.contains("hey reason") ||
-            lowerHypothesis.contains("hey recent") ||
-            lowerHypothesis.contains("hey decent") ||
-            lowerHypothesis.contains("hey sam") ||
-            lowerHypothesis.contains("hey sun") ||
-            lowerHypothesis.contains("hey son") ||
-            lowerHypothesis.contains("hey i have a hot") ||
-            lowerHypothesis.contains("haney") ||
-            lowerHypothesis.contains("nisa") ||
-            lowerHypothesis.contains("haney sir")
+        val isMatch = com.tcs.vehicleassistant.wakeword.WakePhraseMatcher.matches(
+            hypothesis,
+            wakeWord,
+        )
 
         if (isMatch) {
             Log.d("WakeWord", "Wake word detected: $wakeWord")

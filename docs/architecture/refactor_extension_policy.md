@@ -16,12 +16,14 @@
 
 These exist on `dev/refactor` and change often upstream. Treat them as **integration shells**:
 
-- `AssistantSession.kt` → prefer parallel `ComposeAssistantSession` + factory hook
-- `AndroidAudioManager.kt` / `IAudioManager.kt` → keep baseline on `IAudioManager`; put session extras on `SessionAudioPort`
-- `AgentOrchestrator.kt` → prefer `OrchestratorExtension` / domain helpers (`QueryPipeline`, `ToolLoop`, `SpeechPresenter`)
-- `WakeWordService.kt` → prefer `CrossProcessMicLease`, `MicCaptureCoordinator`, duty-cycle helpers
-- `AssistantViewModel.kt` → prefer backend/controller in `assistant/`
-- `FollowUpRouter.kt` / `ToolCallParser.kt` → prefer `DirectCabinCommandRouter` / `StreamingToolCallParser`
+- `AssistantSession.kt` → `assistant/session/*` controllers + Compose host; prefer parallel `ComposeAssistantSession` later
+- `AndroidAudioManager.kt` / `IAudioManager.kt` → baseline on `IAudioManager`; session extras on `SessionAudioPort`; labels/ducking helpers outside
+- `AgentOrchestrator.kt` → `StreamingStateCoalescer`, `TtsTurnIds`, `LlmQueryReadinessGate`, domain helpers
+- `WakeWordService.kt` → `CrossProcessMicLease`, `WakeWordDutyCycle`, `WakePhraseMatcher`, `MicCaptureCoordinator`
+- `AssistantViewModel.kt` → `SpeechRecognitionErrors`, `EndpointingProfileSelector` (speech controller next)
+- `FollowUpRouter.kt` / `ToolCallParser.kt` → `DirectCabinCommandRouter` / `StreamingToolCallParser`
+- `LLMManager.kt` → `LlmModelLocator` / `EngineStatusStore`
+- `HVACToolHandler.kt` / `ToolHandlerRegistry.kt` → `HvacToolAliases`
 - `AppModule.kt` → keep refactor-ish core; load `uiUxModule` from `VehicleApplication`
 
 ## Unavoidable thin edits

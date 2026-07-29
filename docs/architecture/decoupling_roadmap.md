@@ -65,5 +65,11 @@ Additive seams already in place:
 | `DirectCabinCommandRouter` | `FollowUpRouter` |
 | `StreamingToolCallParser` | `ToolCallParser` |
 | `CrossProcessMicLease` | `WakeWordService` companion |
+| `WakeWordDutyCycle` / `WakePhraseMatcher` | `WakeWordService` capture loop |
+| `HvacToolAliases` | `HVACToolHandler` / `ToolHandlerRegistry` |
+| `SpeechRecognitionErrors` / `EndpointingProfileSelector` | `AssistantViewModel` / `AndroidAudioManager` |
+| `LlmModelLocator` / `EngineStatusStore` | `LLMManager` |
+| `StreamingStateCoalescer` / `TtsTurnIds` / `LlmQueryReadinessGate` | `AgentOrchestrator` |
+| `SessionComposeHost` / idle+dismiss controllers / `AssistantAudioFocusDucker` | `AssistantSession` |
 | `uiUxModule` | `appModule` |
 | `domain/*`, `data/*`, `assistant/*`, `:assistant-ui` | orchestrator / session / VIS |
