@@ -2,7 +2,7 @@ import urllib.request
 import json
 import os
 
-url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.en.tar.bz2"
+url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.en.tar.bz2"
 print(f"Downloading from {url}...")
 try:
     urllib.request.urlretrieve(url, "model.tar.bz2")
