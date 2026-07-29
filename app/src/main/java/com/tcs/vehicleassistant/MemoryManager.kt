@@ -9,7 +9,7 @@ object MemoryManager {
 
     data class Turn(val role: String, val content: String)
 
-    private val conversationHistory = mutableListOf<Turn>()
+    private val conversationHistory = java.util.Collections.synchronizedList(mutableListOf<Turn>())
 
     private val followUpPatterns = listOf(
         "yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead",
