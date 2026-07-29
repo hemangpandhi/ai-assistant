@@ -20,12 +20,29 @@ object ToolHandlerRegistry {
             mediaHandlers.contains(handlerKey) -> MediaToolHandler(handlerKey)
             navHandlers.contains(handlerKey) -> NavigationToolHandler(handlerKey)
             commHandlers.contains(handlerKey) -> CommunicationToolHandler(handlerKey)
-            systemHandlers.contains(handlerKey) -> SystemToolHandler(handlerKey)
-            windowHandlers.contains(handlerKey) -> WindowToolHandler(handlerKey)
+            systemHandlers.contains(handlerKey) -> SystemToolHandler(handlerKey, toolDefinition)
+            windowHandlers.contains(handlerKey) -> WindowToolHandler(handlerKey, toolDefinition)
             macroHandlers.contains(handlerKey) -> MacroOrchestrationHandler(handlerKey)
             safetyHandlers.contains(handlerKey) -> SafetyAndCareHandler(handlerKey)
             evHandlers.contains(handlerKey) -> EVHandler(handlerKey)
             else -> null
         }
     }
+
+    /** Every CUSTOM_KOTLIN handler_key the registry may declare. */
+    fun allRegisteredKeys(): Set<String> =
+        hvacHandlers + mediaHandlers + navHandlers + commHandlers +
+            systemHandlers + windowHandlers + macroHandlers + safetyHandlers + evHandlers
+
+    /**
+     * Returns CUSTOM_KOTLIN handler keys from [tools] that have no registered implementation.
+     * Call after loading the registry so a missing `when` branch fails at init, not on first use.
+     */
+    fun missingHandlers(tools: Map<String, ToolManager.ToolDefinition>): List<String> =
+        tools.values
+            .filter { it.handlerType == "CUSTOM_KOTLIN" }
+            .mapNotNull { it.handlerKey }
+            .filter { it !in allRegisteredKeys() }
+            .distinct()
+            .sorted()
 }

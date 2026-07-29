@@ -63,6 +63,14 @@
       "id": 356517131,
       "value_type": "INT32",
       "type": "INT"
+    },
+    {
+      "name": "DOOR_LOCK",
+      "hex": "0x16200b02",
+      "id": 371198722,
+      "value_type": "BOOLEAN",
+      "type": "BOOLEAN",
+      "instruction": "Door lock state (true = locked, false = unlocked). When the user asks whether the doors are locked, read DOOR_LOCK from Current State."
     }
   ],
   "tools": [
@@ -163,7 +171,7 @@
         "boiling"
       ],
       "offline_capable": true,
-      "success_message": "Cooling it down \u2014 you should feel better soon.",
+      "success_message": "Cooling it down — you should feel better soon.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "aliases": [
@@ -235,7 +243,7 @@
         "windshield"
       ],
       "offline_capable": true,
-      "success_message": "Adjusting the airflow \u2014 you should feel it soon.",
+      "success_message": "Adjusting the airflow — you should feel it soon.",
       "requires_vehicle_state": false
     },
     {
@@ -245,7 +253,7 @@
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
-      "success_message": "AC is on \u2014 you should feel that soon.",
+      "success_message": "AC is on — you should feel that soon.",
       "keywords": [
         "turn on ac",
         "start ac",
@@ -417,7 +425,7 @@
       "data_type": "BOOLEAN",
       "area_id": 1,
       "value_to_write": "true",
-      "success_message": "Defroster's on \u2014 your view should clear up.",
+      "success_message": "Defroster's on — your view should clear up.",
       "keywords": [
         "turn on front defroster",
         "defrost front windshield",
@@ -564,7 +572,7 @@
       "data_type": "INT",
       "area_id": 0,
       "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
-      "success_message": "Seat heater's on \u2014 hope that warms you up!",
+      "success_message": "Seat heater's on — hope that warms you up!",
       "keywords": [
         "warm seat",
         "heated seat",
@@ -614,10 +622,7 @@
     },
     {
       "prompt_string": "<TOOL>checkAllWindowsClosed()</TOOL>",
-      "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 322964416,
-      "data_type": "INT",
-      "area_id": 0,
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "are all windows closed",
         "window status",
@@ -625,11 +630,12 @@
         "windows secure"
       ],
       "offline_capable": true,
-      "success_message": "I've checked the status of all windows.",
+      "success_message": "I have checked the window status.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "checkAllWindowsClosed",
-      "handler_key": "checkAllWindowsClosed"
+      "handler_key": "checkAllWindowsClosed",
+      "description": "Read window positions and report whether all windows are closed."
     },
     {
       "prompt_string": "<TOOL>movePassengerSeatForward()</TOOL>",
@@ -710,7 +716,7 @@
       "prompt_string": "<TOOL>defogWindshield()</TOOL>",
       "handler_key": "defogWindshield",
       "handler_type": "CUSTOM_KOTLIN",
-      "success_message": "Clearing your windshield \u2014 safety first.",
+      "success_message": "Clearing your windshield — safety first.",
       "keywords": [
         "visibility",
         "mist",
@@ -1171,10 +1177,7 @@
     },
     {
       "prompt_string": "<TOOL>answerVehicleIdentity()</TOOL>",
-      "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 286261506,
-      "data_type": "STRING",
-      "area_id": 0,
+      "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "what model is this",
         "car model",
@@ -1182,11 +1185,12 @@
         "what am I driving"
       ],
       "offline_capable": true,
-      "success_message": "I've checked the vehicle identity.",
+      "success_message": "Here is the vehicle identity.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "answerVehicleIdentity",
-      "handler_key": "answerVehicleIdentity"
+      "handler_key": "answerVehicleIdentity",
+      "description": "Report the vehicle model / identity from INFO_MODEL."
     },
     {
       "prompt_string": "<TOOL>playMusic(SONG)</TOOL>",
@@ -1203,7 +1207,7 @@
       ],
       "offline_capable": false,
       "requires_agentic_loop": false,
-      "success_message": "Great choice \u2014 putting that on for you!",
+      "success_message": "Great choice — putting that on for you!",
       "requires_vehicle_state": false,
       "instruction": "Plays music. Output <TOOL>playMusic(SONG)</TOOL> replacing SONG with the requested music. If no song is specified, output <TOOL>playMusic(music)</TOOL>.",
       "aliases": [
@@ -1451,11 +1455,7 @@
     {
       "prompt_string": "<TOOL>openTrunk()</TOOL>",
       "handler_key": "openTrunk",
-      "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865540,
-      "data_type": "BOOLEAN",
-      "area_id": 0,
-      "value_to_write": "true",
+      "handler_type": "CUSTOM_KOTLIN",
       "success_message": "I've popped the trunk.",
       "constraints": [
         {
@@ -1475,7 +1475,9 @@
       "requires_confirmation": true,
       "confirmation_message": "Warning: Are you sure you want to open the trunk?",
       "requires_vehicle_state": true,
-      "error_message": "The vehicle hardware did not confirm the change."
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "offline_capable": false,
+      "description": "Open the vehicle trunk/cargo area. Requires the vehicle to be in PARK."
     },
     {
       "prompt_string": "<TOOL>setWindowPosition(PCT)</TOOL>",
@@ -1507,10 +1509,10 @@
       "prompt_string": "<TOOL>unlockDoors()</TOOL>",
       "handler_key": "unlockDoors",
       "handler_type": "GENERIC_VHAL_WRITE",
-      "property_id": 320865541,
+      "property_id": 371198722,
       "data_type": "BOOLEAN",
       "area_id": 0,
-      "value_to_write": "true",
+      "value_to_write": "false",
       "success_message": "I've unlocked the doors.",
       "keywords": [
         "unlock",
@@ -1522,7 +1524,7 @@
       "requires_confirmation": true,
       "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?",
       "requires_vehicle_state": true,
-      "error_message": "The vehicle hardware did not confirm the change."
+      "error_message": "The vehicle hardware did not confirm the door unlock."
     },
     {
       "prompt_string": "<TOOL>setDriverTemperature(VAL)</TOOL>",
@@ -1758,6 +1760,7 @@
   "config": {
     "prewarm_query": "control climate music volume track navigation windows sightseeing food charging",
     "sliding_window_max_chars": 3000,
-    "max_relevant_tools": 4
+    "max_relevant_tools": 4,
+    "max_prompt_tools": 8
   }
 }

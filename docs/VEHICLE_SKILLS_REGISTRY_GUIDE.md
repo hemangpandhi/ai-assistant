@@ -97,7 +97,17 @@ Add a block to the `"tools"` array:
     - For `INT` properties (like Window Position or Fan Speed), look at the `dumpsys` output for `min` and `max` limits. For example, if Window Position accepts 0-100, you would write `"100"` to fully open it. If it's an enum (like Ambient Light colors), look up the specific integer mapping in your OEM's HAL documentation.
 - **`success_message`**: The human-readable confirmation the Assistant will speak out loud when the command succeeds.
 - **`keywords`**: An array of relevant words. 
-  - *How to fill this:* Think of synonyms a user might say. The Semantic Search Engine (RAG) uses these to intelligently route the user's voice prompt to this specific tool without sending the whole list to the LLM. For an ambient light tool, you would use `["ambient", "light", "color", "mood", "lighting"]`.
+  - *How to fill this:* Think of synonyms a user might say. The BM25 tool retriever (`ToolRetriever`) and whole-word keyword matchers use these to route the user's utterance to this tool without dumping the whole catalogue into the LLM prompt. For an ambient light tool, you would use `["ambient", "light", "color", "mood", "lighting"]`.
+
+### Read vs write
+- **Writes** (flip a switch, set a value) → `GENERIC_VHAL_WRITE` with a `value_to_write`.
+- **Reads** (report model, window status, sensor state) → `CUSTOM_KOTLIN` and a handler that calls `VehicleManager`. A read mis-tagged as `GENERIC_VHAL_WRITE` either writes a garbage value or silently fails.
+
+### Adding a CUSTOM_KOTLIN tool
+1. Add the JSON block with `"handler_type": "CUSTOM_KOTLIN"` and a unique `"handler_key"`.
+2. Add that key to the matching set in `ToolHandlerRegistry` (e.g. `hvacHandlers`).
+3. Implement the `when (handlerKey)` branch in the handler class.
+4. Run `RegistryCoherenceTest` — it fails if step 2 was skipped.
 
 ---
 

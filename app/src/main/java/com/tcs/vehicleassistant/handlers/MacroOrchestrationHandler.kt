@@ -47,7 +47,7 @@ class MacroOrchestrationHandler(override val handlerKey: String) : ToolHandler {
                 ToolExecutionResult(true, "I've cracked the windows so you can enjoy the evening breeze.")
             }
             "prepareForIncomingRain" -> {
-                VehicleManager.writeWindowPositionToVhalVerified(100) // close windows
+                VehicleManager.writeWindowPositionToVhalVerified(0) // close windows (0 = fully closed)
                 VehicleManager.setGenericVhalProperty(android.car.VehiclePropertyIds.HVAC_DEFROSTER, 0, "true", "BOOLEAN") // Front defroster
                 VehicleManager.setGenericVhalProperty(320865544, 0, "true", "BOOLEAN") // Rear defroster (HVAC_ELECTRIC_DEFROSTER_ON)
                 ToolExecutionResult(true, "I've made sure all windows are securely closed and activated the defrosters since rain is expected.")

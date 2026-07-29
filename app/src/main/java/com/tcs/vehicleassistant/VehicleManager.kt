@@ -48,6 +48,37 @@ object VehicleManager {
     fun getCustomPropertyInstructions(): List<String> {
         return customPropertyInstructions
     }
+
+    /** Latest value for a registry property name, or null when it has never been observed. */
+    fun getCustomPropertyValue(name: String): String? = customPropertyValues[name]
+
+    /**
+     * Human-readable window closure report from [VehiclePropertyIds.WINDOW_POS].
+     * Convention matches the registry instruction: 0 = fully closed, higher = more open.
+     */
+    fun getWindowClosureStatus(): String {
+        val manager = carPropertyManager ?: return "I can't read the window sensors right now."
+        return try {
+            val config = manager.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS)
+                ?: return "This vehicle image does not expose window position sensors."
+            val openAreas = mutableListOf<String>()
+            for (areaId in config.areaIds) {
+                val pos = try {
+                    manager.getIntProperty(VehiclePropertyIds.WINDOW_POS, areaId)
+                } catch (_: Exception) {
+                    continue
+                }
+                if (pos > 0) openAreas.add("area $areaId at $pos%")
+            }
+            when {
+                openAreas.isEmpty() -> "I've checked the sensors. All windows are currently closed."
+                else -> "Some windows are open (${openAreas.joinToString(", ")})."
+            }
+        } catch (e: Exception) {
+            Log.w("VehicleManager", "Failed to read WINDOW_POS", e)
+            "I couldn't read the window sensors."
+        }
+    }
     
     fun getLLMContextString(context: Context): String {
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -118,12 +149,9 @@ object VehicleManager {
             
             // Dynamic JSON Properties
             try {
-                val inputStream = context.assets.open("vehicle_skills_registry.json")
-                val size = inputStream.available()
-                val buffer = ByteArray(size)
-                inputStream.read(buffer)
-                inputStream.close()
-                val jsonStr = String(buffer, Charsets.UTF_8)
+                val jsonStr = context.assets.open("vehicle_skills_registry.json").use { input ->
+                    input.readBytes().toString(Charsets.UTF_8)
+                }
                 val jsonObject = org.json.JSONObject(jsonStr)
                 val propertiesArray = jsonObject.getJSONArray("properties")
                 

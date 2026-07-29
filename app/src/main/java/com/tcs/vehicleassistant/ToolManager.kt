@@ -57,6 +57,11 @@ class ToolManager {
         val requiresVehicleState: Boolean = false,
         val requiresAgenticLoop: Boolean = false
     )
+
+    data class SystemInstruction(
+        val instruction: String,
+        val keywords: List<String>,
+    )
     
     // Maps command prefix -> ToolDefinition
     private val activeTools = mutableMapOf<String, ToolDefinition>()
@@ -70,10 +75,21 @@ class ToolManager {
      */
     private var keywordMatchers: Map<String, List<Regex>> = emptyMap()
 
+    /** Keyword-gated instructions from the registry `system_instructions` array. */
+    private var systemInstructions: List<SystemInstruction> = emptyList()
+
     var isInitialized = false
         private set
 
     var slidingWindowMaxChars: Int = AssistantConfig.Memory.DEFAULT_MAX_CHARS
+        private set
+
+    /** Cap on BM25 fallback results; overridable from registry `config.max_relevant_tools`. */
+    var bm25TopK: Int = BM25_TOP_K
+        private set
+
+    /** Cap on tools injected into the LLM prompt; overridable from `config.max_prompt_tools`. */
+    var maxPromptTools: Int = MAX_PROMPT_TOOLS
         private set
 
     fun initialize(context: Context) {
@@ -91,7 +107,15 @@ class ToolManager {
                 if (config.has("sliding_window_max_chars")) {
                     slidingWindowMaxChars = config.getInt("sliding_window_max_chars")
                 }
+                if (config.has("max_relevant_tools")) {
+                    bm25TopK = config.getInt("max_relevant_tools").coerceAtLeast(1)
+                }
+                if (config.has("max_prompt_tools")) {
+                    maxPromptTools = config.getInt("max_prompt_tools").coerceAtLeast(1)
+                }
             }
+
+            systemInstructions = parseSystemInstructions(jsonObject)
 
             if (jsonObject.has("tools")) {
                 val toolsArray = jsonObject.getJSONArray("tools")
@@ -173,11 +197,33 @@ class ToolManager {
             }
             retrievalIndex = buildRetrievalIndex()
             keywordMatchers = buildKeywordMatchers()
+            val missing = com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.missingHandlers(activeTools)
+            if (missing.isNotEmpty()) {
+                Log.e(TAG, "CUSTOM_KOTLIN tools with no registered handler: $missing")
+            }
             isInitialized = true
             Log.i(TAG, "Registered ${activeTools.size} tools; BM25 index holds ${retrievalIndex.size} documents.")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse tools from vehicle_skills_registry.json", e)
         }
+    }
+
+    private fun parseSystemInstructions(jsonObject: JSONObject): List<SystemInstruction> {
+        if (!jsonObject.has("system_instructions")) return emptyList()
+        val arr = jsonObject.getJSONArray("system_instructions")
+        val out = mutableListOf<SystemInstruction>()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val instruction = obj.optString("instruction").trim()
+            if (instruction.isEmpty()) continue
+            val keywords = mutableListOf<String>()
+            if (obj.has("keywords")) {
+                val kw = obj.getJSONArray("keywords")
+                for (j in 0 until kw.length()) keywords.add(kw.getString(j).lowercase())
+            }
+            out.add(SystemInstruction(instruction, keywords))
+        }
+        return out
     }
 
     private fun buildRetrievalIndex(): List<ToolRetriever.Document> = activeTools.map { (commandName, tool) ->
@@ -238,12 +284,12 @@ class ToolManager {
         // edge model's context window. Note this runs before core tools are added, since those
         // would otherwise make the retrieved set look non-empty for every query.
         val retrieved = lexical.ifEmpty {
-            ToolRetriever.rank(userQuery, retrievalIndex, BM25_TOP_K).mapNotNull { activeTools[it.id] }
+            ToolRetriever.rank(userQuery, retrievalIndex, bm25TopK).mapNotNull { activeTools[it.id] }
         }
 
         val coreTools = activeTools.values.filter { it.handlerKey in CORE_HANDLER_KEYS }
         return (retrieved + coreTools).distinct()
-            .ifEmpty { activeTools.values.take(MAX_PROMPT_TOOLS).toList() }
+            .ifEmpty { activeTools.values.take(maxPromptTools).toList() }
     }
 
     private fun matchByKeyword(haystack: String): List<ToolDefinition> =
@@ -271,15 +317,16 @@ class ToolManager {
 
     /**
      * Renders the tool block for the LLM system prompt: one line per tool plus an explicit
-     * allow-list of callable names.
+     * allow-list of callable names. Keyword-matched `system_instructions` from the registry are
+     * appended so OEM guidance reaches the model without a code change.
      */
     fun getLlmToolsPrompt(userQuery: String = "", conversationalContext: String = ""): String {
         val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) {
-            getRelevantTools(userQuery, conversationalContext).take(MAX_PROMPT_TOOLS)
+            getRelevantTools(userQuery, conversationalContext).take(maxPromptTools)
         } else {
-            activeTools.values.take(MAX_PROMPT_TOOLS).toList()
+            activeTools.values.take(maxPromptTools).toList()
         }
-        if (relevantTools.isEmpty()) return ""
+        if (relevantTools.isEmpty() && systemInstructions.isEmpty()) return ""
         
         val sb = StringBuilder()
         val toolNames = mutableListOf<String>()
@@ -297,9 +344,23 @@ class ToolManager {
                 toolNames.add(match.groupValues[1])
             }
         }
-        sb.append("Allowed tools: ")
-        sb.append(toolNames.joinToString(", "))
-        return sb.toString()
+        if (toolNames.isNotEmpty()) {
+            sb.append("Allowed tools: ")
+            sb.append(toolNames.joinToString(", "))
+            sb.append("\n")
+        }
+
+        val haystack = "$conversationalContext $userQuery".lowercase()
+        val matchedInstructions = systemInstructions.filter { inst ->
+            inst.keywords.isEmpty() || inst.keywords.any { kw -> haystack.contains(kw) }
+        }
+        if (matchedInstructions.isNotEmpty()) {
+            sb.append("\nTool guidance:\n")
+            for (inst in matchedInstructions) {
+                sb.append("- ${inst.instruction}\n")
+            }
+        }
+        return sb.toString().trimEnd()
     }
 
     /**

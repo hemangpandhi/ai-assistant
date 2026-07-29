@@ -194,6 +194,7 @@ refactor.
 | Tool call hangs after barge-in | `AndroidAudioManager.waitUntilFinishedSpeaking`; speech-drain waiters must be released on `stopSpeaking` |
 | First response is very slow every launch | Kernel cache not persisting; check `KernelCacheManager` and the `no_backup` directory |
 | Model calls the wrong tool | `ToolRetriever` ranking and the `keywords`/`aliases` in `vehicle_skills_registry.json` |
+| Tool writes the wrong hardware property | `RegistryCoherenceTest`; confirm `GENERIC_VHAL_WRITE` `property_id` matches `properties[]` / AOSP |
 | Tool tags read aloud | `ToolCallParser.stripToolTags`; check the partial-tag cases |
 | Release build crashes where debug does not | R8. Run `scripts/verify_r8_keeps.sh`, then deobfuscate the stack with `mapping.txt` |
 | API errors spoken as assistant replies | A cloud manager routing to `onMessage` instead of `onError` |
