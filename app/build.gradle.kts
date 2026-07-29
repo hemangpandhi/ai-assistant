@@ -95,6 +95,17 @@ android {
         }
     }
     packaging {
+        resources {
+            // The test dependencies each ship their own copy of these, which collides when the
+            // androidTest APK is packaged.
+            excludes += setOf(
+                "META-INF/LICENSE*",
+                "META-INF/NOTICE*",
+                "META-INF/DEPENDENCIES",
+                "META-INF/AL2.0",
+                "META-INF/LGPL2.1"
+            )
+        }
         jniLibs {
             useLegacyPackaging = true
             pickFirsts.add("lib/**/libLiteRt.so")
@@ -195,7 +206,9 @@ tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
         )
     )
     sourceDirectories.setFrom(files("src/main/java"))
+    // Pointing at the single exec file rather than scanning the build directory; a wildcard scan
+    // makes Gradle infer implicit dependencies on unrelated tasks such as mergeProjectDexDebug.
     executionData.setFrom(
-        fileTree(layout.buildDirectory) { include("**/*.exec", "**/*.ec") }
+        layout.buildDirectory.file("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
     )
 }
