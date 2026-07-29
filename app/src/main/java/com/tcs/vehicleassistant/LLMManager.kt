@@ -65,62 +65,33 @@ object LLMManager {
         appContext = context.applicationContext
 
         withContext(Dispatchers.IO) {
-            val internalDir = context.filesDir
-            val externalDir = context.getExternalFilesDir(null)
-            val explicitModel = File("/data/local/tmp/llm/model.litertlm")
-            val explicitQwen = File("/data/local/tmp/llm/Qwen2.5.litertlm")
             val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
+            val internalFiles = context.filesDir?.listFiles()?.toList() ?: emptyList()
+            val externalFiles = context.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
+            val tmpFiles = File("/data/local/tmp/llm/").listFiles()?.toList() ?: emptyList()
+            val allModelFiles = (internalFiles + externalFiles + tmpFiles).filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             
-            val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
-                .flatMap { it.toList() }
-                .toMutableList()
-                
-            if (explicitGemma.exists() && explicitGemma.canRead()) {
-                allFiles.add(0, explicitGemma)
-            }
-            if (explicitModel.exists() && explicitModel.canRead()) {
-                allFiles.add(explicitModel)
-            }
-            if (explicitQwen.exists() && explicitQwen.canRead()) {
-                allFiles.add(explicitQwen)
+            // Strictly lock exclusively to Gemma 4 E2B model
+            val modelFile = if (explicitGemma.exists() && explicitGemma.canRead()) {
+                explicitGemma
+            } else {
+                allModelFiles.find { it.name.contains("gemma", ignoreCase = true) } ?: explicitGemma
             }
 
-            val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            var savedModelPath = prefs.getString("selected_model", null)
-            
-            // Allow GPU/CPU/NPU selection, default GPU
-            var savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
-            if (savedBackendChoice == "Auto") {
-                savedBackendChoice = "GPU"
-                prefs.edit().putString("backend_choice", "GPU").apply()
-            }
-            
-            var modelFile: File? = null
-            if (savedModelPath != null && File(savedModelPath).exists()) {
-                modelFile = File(savedModelPath)
-            } else {
-                modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.find { it.name == "model.litertlm" }
-                    ?: models.find { it.name.contains("qwen", ignoreCase = true) }
-                    ?: models.firstOrNull()
-                if (modelFile != null) {
-                    prefs.edit().putString("selected_model", modelFile.absolutePath).apply()
-                }
-            }
+            prefs.edit().putString("selected_model", modelFile.absolutePath).putString("backend_choice", "CPU").apply()
 
-            if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
-                initialize(context, modelFile.absolutePath, force, if (backendChoice != "Auto") backendChoice else savedBackendChoice, callback)
+            if (modelFile.exists() && modelFile.length() > 0) {
+                initialize(context, modelFile.absolutePath, force, "CPU", callback)
             } else {
-                withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
+                withContext(Dispatchers.Main) { callback?.onError(Exception("Gemma model not found at ${modelFile.absolutePath}")) }
             }
         }
     }
     private val initMutex = kotlinx.coroutines.sync.Mutex()
 
     @OptIn(ExperimentalApi::class)
-    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "Auto", callback: InitCallback? = null) {
+    suspend fun initialize(context: Context, modelPath: String, force: Boolean = false, backendChoice: String = "CPU", callback: InitCallback? = null) {
         initMutex.withLock {
             if (!force && engine != null && currentModelPath == modelPath) {
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
@@ -130,12 +101,9 @@ object LLMManager {
             try {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Cap max tokens to 2048 to match LiteRT compiled model delegate sequence length metadata
-                var maxTokens = prefs.getInt("max_tokens", 2048)
-                if (maxTokens != 2048) {
-                    maxTokens = 2048
-                    prefs.edit().putInt("max_tokens", 2048).apply()
-                }
+                // Set max tokens to 1024 to match Gemma 4 E2B compiled sequence length cap
+                val maxTokens = 1024
+                prefs.edit().putInt("max_tokens", 1024).apply()
                 
                 if (engine != null) {
                     try {
@@ -148,14 +116,11 @@ object LLMManager {
                     engine = null
                 }
 
-                val backend = when (backendChoice) {
-                    "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
-                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
-                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
-                    else -> { activeBackendString = "GPU"; Backend.GPU() }
-                }
+                // Gemma 4 E2B (2.58GB) strictly uses CPU backend to prevent 2.0GB GPU VRAM allocation failure
+                activeBackendString = "CPU"
+                val backend = Backend.CPU()
 
-                Log.d("LLMManager", "Initializing LiteRT Engine from: $modelPath on backend: $activeBackendString")
+                Log.d("LLMManager", "Initializing LiteRT Engine for Gemma 4 E2B from: $modelPath on backend: $activeBackendString (maxTokens=$maxTokens)")
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
@@ -163,7 +128,7 @@ object LLMManager {
                     cacheDir = context.cacheDir.absolutePath
                 )
 
-                // Disable Multi-Token Prediction (MTP) / Speculative Decoding to fix token repetition
+                // Disable Multi-Token Prediction (MTP) / Speculative Decoding
                 ExperimentalFlags.enableSpeculativeDecoding = false
 
                 engine = Engine(engineConfig)
@@ -171,9 +136,9 @@ object LLMManager {
 
                 resetConversation(context)
                 currentModelPath = modelPath
-                Log.d("LLMManager", "LLM Initialized successfully from $modelPath (backend=$activeBackendString)")
+                Log.d("LLMManager", "Gemma 4 E2B Initialized successfully from $modelPath (backend=$activeBackendString)")
 
-                isPrewarmed = false // enabled prewarm
+                isPrewarmed = false
 
                 withContext(Dispatchers.Main) {
                     val p = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -181,43 +146,11 @@ object LLMManager {
                     callback?.onSuccess()
                 }
 
-                // Only prewarm in background if using GPU or NPU. On CPU, prewarming takes 39 seconds and locks the engine.
-                if (activeBackendString != "CPU") {
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-                        prewarm(context)
-                    }
-                } else {
-                    Log.i("LLMManager", "Skipping background prewarm on CPU backend to prevent thread lockup.")
-                }
+                Log.i("LLMManager", "Skipping background prewarm on CPU backend to prevent SIGSEGV thread lockup.")
             } catch (e: Exception) {
-                Log.e("LLMManager", "Error initializing model", e)
-                if (backendChoice != "CPU") {
-                    Log.i("LLMManager", "Attempting fallback to CPU backend...")
-                    try {
-                        activeBackendString = "CPU"
-                        val engineConfigFallback = EngineConfig(
-                            modelPath = modelPath,
-                            backend = Backend.CPU(),
-                            maxNumTokens = 2048,
-                            cacheDir = context.cacheDir.absolutePath
-                        )
-                        engine = Engine(engineConfigFallback)
-                        engine!!.initialize()
-                        
-                        resetConversation(context)
-                        currentModelPath = modelPath
-                        Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
-
-                        isPrewarmed = false // enabled prewarm
-
-                        withContext(Dispatchers.Main) { callback?.onSuccess() }
-                        Log.i("LLMManager", "Skipping CPU fallback background prewarm to prevent SIGSEGV crash.")
-                        
-                    } catch (fallbackEx: Exception) {
-                         Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
-                         withContext(Dispatchers.Main) { callback?.onError(fallbackEx) }
-                    }
-                } else {
+                Log.e("LLMManager", "Error initializing Gemma 4 E2B model", e)
+                withContext(Dispatchers.Main) { callback?.onError(e) }
+            }
                     withContext(Dispatchers.Main) { callback?.onError(e) }
                 }
             } finally {
