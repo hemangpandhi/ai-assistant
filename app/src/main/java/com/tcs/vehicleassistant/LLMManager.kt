@@ -121,11 +121,11 @@ object LLMManager {
             withContext(Dispatchers.IO) {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Cap max tokens to 2048 to prevent GPU Out-of-Memory (OOM) while still allowing the 1784-token system prompt
-                var maxTokens = prefs.getInt("max_tokens", 2048)
-                if (maxTokens > 2048 || maxTokens < 2048) {
-                    maxTokens = 2048
-                    prefs.edit().putInt("max_tokens", 2048).apply()
+                // Set max tokens to 4096 to provide ample KV cache headroom for multi-turn conversations
+                var maxTokens = prefs.getInt("max_tokens", 4096)
+                if (maxTokens != 4096) {
+                    maxTokens = 4096
+                    prefs.edit().putInt("max_tokens", 4096).apply()
                 }
                 
                 try {
