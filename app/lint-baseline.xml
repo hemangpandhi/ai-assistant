@@ -1,0 +1,3708 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 8.3.2" type="baseline" client="gradle" dependencies="true" name="AGP (8.3.2)" variant="all" version="8.3.2">
+
+    <issue
+        id="CutPasteId"
+        message="The id `R.id.assistantResponseText` has already been looked up in this method; possible cut &amp; paste error?"
+        errorLine1="        responseText = overlayView.findViewById(R.id.assistantResponseText)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="163"
+            column="24"/>
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="162"
+            column="22"
+            message="First usage here"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/blurBackgroundView&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="29"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;ImageView android:id=&quot;@+id/localAiIcon&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="30"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="31"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="32"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="33"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="34"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="35"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;ImageButton android:id=&quot;@+id/btnMic&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="36"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/blurBackgroundView&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="29"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;ImageView android:id=&quot;@+id/localAiIcon&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="30"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="31"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="32"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="33"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="34"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="35"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;ImageButton android:id=&quot;@+id/btnMic&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="36"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="92"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="93"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="94"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="95"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="96"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;ImageButton android:id=&quot;@+id/btnMic&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="97"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/blurBackgroundView&quot; android:layout_width=&quot;0dp&quot; android:layout_height=&quot;0dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="99"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="101"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="102"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="103"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="104"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="105"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/blurBackgroundView&quot; android:layout_width=&quot;0dp&quot; android:layout_height=&quot;0dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="108"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="83"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="    &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="84"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="    &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="85"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="    &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="86"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="    &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="87"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="    &lt;View android:id=&quot;@+id/blurBackgroundView&quot; android:layout_width=&quot;0dp&quot; android:layout_height=&quot;0dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="90"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="126"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="127"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="128"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="129"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="130"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="100"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="101"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="102"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="103"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="104"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="103"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnSend&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="104"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;Button android:id=&quot;@+id/btnOpenApp&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="105"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;View android:id=&quot;@+id/inputControlsContainer&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="106"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="MissingConstraints"
+        message="This view is not constrained. It only has designtime positions, so it will jump to (0,0) at runtime unless you add the constraints"
+        errorLine1="        &lt;TextView android:id=&quot;@+id/assistantStatusText&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="107"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="PrivateApi"
+        message="Accessing internal APIs via reflection is not supported and may not work on all devices or in the future"
+        errorLine1="            val carClass = Class.forName(&quot;android.car.Car&quot;)"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/hardware/AAOSUserSwitchManager.kt"
+            line="46"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="PrivateApi"
+        message="Accessing internal APIs via reflection is not supported and may not work on all devices or in the future"
+        errorLine1="                val builderClass = Class.forName(&quot;android.car.user.UserSwitchRequest\$Builder&quot;)"
+        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/hardware/AAOSUserSwitchManager.kt"
+            line="66"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="SdCardPath"
+        message="Do not hardcode &quot;/sdcard/&quot;; use `Environment.getExternalStorageDirectory().getPath()` instead"
+        errorLine1="                val externalSd = File(&quot;/sdcard/FaceProfiles.json&quot;)"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/FaceProfileManager.kt"
+            line="27"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="ProtectedPermissions"
+        message="Permission is only granted to system apps"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.SET_TIME&quot; />"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="44"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="ProtectedPermissions"
+        message="Permission is only granted to system apps"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.CAPTURE_AUDIO_HOTWORD&quot; />"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="46"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="ProtectedPermissions"
+        message="Permission is only granted to system apps"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.MEDIA_CONTENT_CONTROL&quot; />"
+        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="50"
+            column="22"/>
+    </issue>
+
+    <issue
+        id="UseSwitchCompatOrMaterialCode"
+        message="Use `SwitchCompat` from AppCompat or `SwitchMaterial` from Material library"
+        errorLine1="        val switchCloudFallback = dialogView.findViewById&lt;android.widget.Switch>(R.id.switchCloudFallback)"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="706"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="UseSwitchCompatOrMaterialXml"
+        message="Use `SwitchCompat` from AppCompat or `SwitchMaterial` from Material library"
+        errorLine1="    &lt;Switch"
+        errorLine2="    ^">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="37"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.google.mediapipe:tasks-vision than 0.10.14 is available: 1.0.0"
+        errorLine1="    implementation(&quot;com.google.mediapipe:tasks-vision:0.10.14&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="114"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
+        errorLine1="    implementation(&quot;androidx.core:core-ktx:1.12.0&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="115"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.appcompat:appcompat than 1.6.1 is available: 1.7.1"
+        errorLine1="    implementation(&quot;androidx.appcompat:appcompat:1.6.1&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="116"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of com.google.android.material:material than 1.11.0 is available: 1.14.0"
+        errorLine1="    implementation(&quot;com.google.android.material:material:1.11.0&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="117"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.constraintlayout:constraintlayout than 2.1.4 is available: 2.2.1"
+        errorLine1="    implementation(&quot;androidx.constraintlayout:constraintlayout:2.1.4&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="118"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.work:work-runtime-ktx than 2.9.0 is available: 2.11.2"
+        errorLine1="    implementation(&quot;androidx.work:work-runtime-ktx:2.9.0&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="135"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.camera:camera-core than 1.3.1 is available: 1.6.1"
+        errorLine1="    implementation(&quot;androidx.camera:camera-core:$cameraxVersion&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="145"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.camera:camera-camera2 than 1.3.1 is available: 1.6.1"
+        errorLine1="    implementation(&quot;androidx.camera:camera-camera2:$cameraxVersion&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="146"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.camera:camera-lifecycle than 1.3.1 is available: 1.6.1"
+        errorLine1="    implementation(&quot;androidx.camera:camera-lifecycle:$cameraxVersion&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="147"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.lifecycle:lifecycle-process than 2.6.2 is available: 2.11.0"
+        errorLine1="    implementation(&quot;androidx.lifecycle:lifecycle-process:2.6.2&quot;)"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="148"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.camera:camera-view than 1.3.1 is available: 1.6.1"
+        errorLine1="    implementation(&quot;androidx.camera:camera-view:$cameraxVersion&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="149"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.8.1 is available: 1.9.0"
+        errorLine1="    implementation(&quot;org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion&quot;)"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="151"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.8.1 is available: 1.9.0"
+        errorLine1="    testImplementation(&quot;org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="155"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test:core-ktx than 1.5.0 is available: 1.7.0"
+        errorLine1="    testImplementation(&quot;androidx.test:core-ktx:1.5.0&quot;)"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="158"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0"
+        errorLine1="    testImplementation(&quot;androidx.test.ext:junit:1.1.5&quot;)"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="159"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0"
+        errorLine1="    androidTestImplementation(&quot;androidx.test.ext:junit:1.1.5&quot;)"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="161"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0"
+        errorLine1="    androidTestImplementation(&quot;androidx.test.espresso:espresso-core:3.5.1&quot;)"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="162"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="GradleDependency"
+        message="A newer version of androidx.test:rules than 1.5.0 is available: 1.7.0"
+        errorLine1="    androidTestImplementation(&quot;androidx.test:rules:1.5.0&quot;)"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="163"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="DiscouragedApi"
+        message="Should not restrict activity to fixed orientation. This may not be suitable for different form factors, causing the app to be letterboxed."
+        errorLine1="            android:screenOrientation=&quot;reverseLandscape&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="113"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="DiscouragedApi"
+        message="Should not restrict activity to fixed orientation. This may not be suitable for different form factors, causing the app to be letterboxed."
+        errorLine1="            android:screenOrientation=&quot;reverseLandscape&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="149"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="PermissionImpliesUnsupportedChromeOsHardware"
+        message="Permission exists without corresponding hardware `&lt;uses-feature android:name=&quot;android.hardware.camera&quot; required=&quot;false&quot;>` tag"
+        errorLine1="    &lt;uses-permission android:name=&quot;android.permission.CAMERA&quot; />"
+        errorLine2="     ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="47"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="NotifyDataSetChanged"
+        message="It will always be more efficient to use more specific change events if you can. Rely on `notifyDataSetChanged` as a last resort."
+        errorLine1="        notifyDataSetChanged()"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/ChatAdapter.kt"
+            line="68"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 34"
+        errorLine1="        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="205"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 34"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/CockpitVisionService.kt"
+            line="219"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 34"
+        errorLine1="    private val deviceContext: Context = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {"
+        errorLine2="                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/FaceProfileManager.kt"
+            line="16"
+            column="46"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 34"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/service/VehicleAgentService.kt"
+            line="62"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; SDK_INT is always >= 34"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/WakeWordService.kt"
+            line="145"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="StaticFieldLeak"
+        message="Do not place Android context classes in static fields (static reference to `ProcessCameraProvider` which has field `mContext` pointing to `Context`); this is a memory leak"
+        errorLine1="    /** Retained so [stopCamera] can unbind the CameraX use cases and actually free the camera. */"
+        errorLine2="    ^">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/hardware/CabinCameraManager.kt"
+            line="39"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="DisableBaselineAlignment"
+        message="Set `android:baselineAligned=&quot;false&quot;` on this element for better performance"
+        errorLine1="        &lt;LinearLayout"
+        errorLine2="         ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="137"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="NestedWeights"
+        message="Nested weights are bad for performance"
+        errorLine1="                    android:layout_weight=&quot;1&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="443"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `#121212` with a theme that also paints a background (inferred theme is `@style/Theme.MaterialComponents.DayNight.DarkActionBar`)"
+        errorLine1="    android:background=&quot;#121212&quot;>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_cockpit_awareness.xml"
+            line="7"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `#000000` with a theme that also paints a background (inferred theme is `@style/Theme.MaterialComponents.DayNight.DarkActionBar`)"
+        errorLine1="    android:background=&quot;#000000&quot;>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="8"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `#E602050A` with a theme that also paints a background (inferred theme is `@style/Theme.MaterialComponents.DayNight.DarkActionBar`)"
+        errorLine1="    android:background=&quot;#E602050A&quot;>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="7"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="Overdraw"
+        message="Possible overdraw: Root element paints background `#2A2A2A` with a theme that also paints a background (inferred theme is `@style/Theme.MaterialComponents.DayNight.DarkActionBar`)"
+        errorLine1="    android:background=&quot;#2A2A2A&quot;>"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="5"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.xml.accessibility_service_config` appears to be unused"
+        errorLine1="&lt;accessibility-service xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/xml/accessibility_service_config.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_ai_gradient_circle` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot; android:shape=&quot;oval&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_ai_gradient_circle.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_assistant_popup` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_assistant_popup.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_beveled_glass` appears to be unused"
+        errorLine1="&lt;layer-list xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_beveled_glass.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_glass_pane` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_glass_pane.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_input_capsule` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_input_capsule.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_input_pill` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_input_pill.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_m3_surface_horizon` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_m3_surface_horizon.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_sdv_horizon` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_sdv_horizon.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_send_button` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_send_button.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.bg_send_capsule` appears to be unused"
+        errorLine1="&lt;shape xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/bg_send_capsule.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_local_ai_brain` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_local_ai_brain.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.drawable.ic_mic_premium` appears to be unused"
+        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
+        errorLine2="^">
+        <location
+            file="src/main/res/drawable/ic_mic_premium.xml"
+            line="1"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.accessibility_service_description` appears to be unused"
+        errorLine1="    &lt;string name=&quot;accessibility_service_description&quot;>Enables the Vehicle Edge Assistant to use the microphone in the background to listen for your wake word, bypassing Android 11 background privacy restrictions.&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UselessParent"
+        message="This `LinearLayout` layout or its `LinearLayout` parent is unnecessary; transfer the `background` attribute to the other view"
+        errorLine1="    &lt;LinearLayout"
+        errorLine2="     ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_cabin_sense.xml"
+            line="9"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="UselessParent"
+        message="This `LinearLayout` layout or its `LinearLayout` parent is unnecessary; transfer the `background` attribute to the other view"
+        errorLine1="    &lt;LinearLayout"
+        errorLine2="     ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_driver_safety.xml"
+            line="9"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="UselessParent"
+        message="This `LinearLayout` layout or its `LinearLayout` parent is unnecessary; transfer the `background` attribute to the other view"
+        errorLine1="    &lt;LinearLayout"
+        errorLine2="     ~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_health_monitor.xml"
+            line="9"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="TooManyViews"
+        message="`activity_main.xml` has more than 80 views, bad for performance"
+        errorLine1="                &lt;com.google.android.material.card.MaterialCardView"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="683"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="IconLauncherShape"
+        message="Launcher icons should not fill every pixel of their square region; see the design guide for details">
+        <location
+            file="src/main/res/drawable/ic_ai_assistant.png"/>
+    </issue>
+
+    <issue
+        id="IconLocation"
+        message="Found bitmap drawable `res/drawable/ic_ai_assistant.png` in densityless folder">
+        <location
+            file="src/main/res/drawable/ic_ai_assistant.png"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="                &lt;EditText"
+        errorLine2="                 ~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="465"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="31"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="31"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="92"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="101"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="83"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="126"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="100"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="TextFields"
+        message="This text field does not specify an `inputType`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="103"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="SmallSp"
+        message="Avoid using sizes smaller than `11sp`: `10sp`"
+        errorLine1="            android:textSize=&quot;10sp&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="35"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="SmallSp"
+        message="Avoid using sizes smaller than `11sp`: `10sp`"
+        errorLine1="            android:textSize=&quot;10sp&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="49"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="SmallSp"
+        message="Avoid using sizes smaller than `11sp`: `10sp`"
+        errorLine1="                android:textSize=&quot;10sp&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="113"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="                &lt;EditText"
+        errorLine2="                 ~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="211"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="                &lt;EditText"
+        errorLine2="                 ~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="266"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="                &lt;EditText"
+        errorLine2="                 ~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="465"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="            &lt;EditText"
+        errorLine2="             ~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="858"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="31"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="31"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="92"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="101"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="83"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="126"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="100"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="103"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etSpeed&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;numberDecimal&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="23"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etKvCache&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;number&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="46"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etAutoFlush&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;number&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="49"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etLocationOverride&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;text&quot; android:hint=&quot;Used when source is Manual, or as GPS fallback&quot; android:textColorHint=&quot;#888888&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="83"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etMechanicName&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;text&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="96"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etMechanicNumber&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;phone&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="99"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etDiningPref&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;text&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="102"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etSpeakingRate&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;numberDecimal&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="115"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etPitch&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;numberDecimal|numberSigned&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="118"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etVolume&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;numberDecimal|numberSigned&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="121"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etEmotion&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;text&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="124"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etEmphasis&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;text&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="127"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etPauses&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;number&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="130"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etBreath&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;number&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="133"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etIntensity&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;numberDecimal&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="136"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="Autofill"
+        message="Missing `autofillHints` attribute"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etReverb&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;text&quot; />"
+        errorLine2="     ~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="139"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="    &lt;ImageView"
+        errorLine2="     ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_cockpit_awareness.xml"
+            line="9"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView android:id=&quot;@+id/localAiIcon&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="30"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageButton android:id=&quot;@+id/btnMic&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="36"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView android:id=&quot;@+id/localAiIcon&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="30"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageButton android:id=&quot;@+id/btnMic&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="36"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="19"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageButton android:id=&quot;@+id/btnMic&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="97"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="20"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="            &lt;ImageButton"
+        errorLine2="             ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="83"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="    &lt;ImageView"
+        errorLine2="     ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="9"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="    &lt;ImageButton"
+        errorLine2="     ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="71"
+            column="6"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="30"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="            &lt;ImageButton"
+        errorLine2="             ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="100"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="29"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageButton"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="88"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageView"
+        errorLine2="         ~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="31"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="ContentDescription"
+        message="Missing `contentDescription` attribute on image"
+        errorLine1="        &lt;ImageButton"
+        errorLine2="         ~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="66"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="31"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="31"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="92"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="101"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="83"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="126"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="100"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="        &lt;EditText android:id=&quot;@+id/etInput&quot; android:layout_width=&quot;1dp&quot; android:layout_height=&quot;1dp&quot; android:visibility=&quot;gone&quot; />"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="103"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etSpeed&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;numberDecimal&quot; />"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="23"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etKvCache&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;number&quot; />"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="46"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="LabelFor"
+        message="Missing accessibility label: provide either a view with an `android:labelFor` that references this view or provide an `android:hint`"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etAutoFlush&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;number&quot; />"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="49"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="                modelInfoTag.text = &quot;${LocalLLMActivity.currentCloudModelName} ☁️&quot;"
+        errorLine2="                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="175"
+            column="37"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                activeBackendTag.text = &quot;Backend: Cloud&quot;"
+        errorLine2="                                         ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="185"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="                activeBackendTag.text = &quot;Backend: ${LLMManager.activeBackendString}&quot;"
+        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="187"
+            column="41"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                activeBackendTag.text = &quot;Backend: ${LLMManager.activeBackendString}&quot;"
+        errorLine2="                                         ~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="187"
+            column="42"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                statusText.text = &quot;Listening...&quot;"
+        errorLine2="                                   ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="247"
+            column="36"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="                            responseText.text = &quot;\&quot;${state.partialText}\&quot;&quot;"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="285"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="                            responseText.text = &quot;\&quot;${state.userQuery}\&quot;&quot;"
+        errorLine2="                                                ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="297"
+            column="49"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            statusText.text = &quot;Initializing Model...&quot;"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="409"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                    statusText.text = &quot;Assistant unavailable — open the app to check the model.&quot;"
+        errorLine2="                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="422"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="                statusText.text = &quot;$baseText$dots&quot;"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/AssistantSession.kt"
+            line="550"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        tvMood?.text = &quot;Mood: $mood&quot;"
+        errorLine2="                       ~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/CabinSenseFragment.kt"
+            line="26"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        tvMood?.text = &quot;Mood: $mood&quot;"
+        errorLine2="                        ~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/CabinSenseFragment.kt"
+            line="26"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        tvGesture?.text = &quot;Gesture: $gesture&quot;"
+        errorLine2="                          ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/CabinSenseFragment.kt"
+            line="27"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        tvGesture?.text = &quot;Gesture: $gesture&quot;"
+        errorLine2="                           ~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/CabinSenseFragment.kt"
+            line="27"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        tvSimScore?.text = &quot;Similarity: &quot; + String.format(&quot;%.2f&quot;, similarity)"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/DriverSafetyFragment.kt"
+            line="83"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        tvSimScore?.text = &quot;Similarity: &quot; + String.format(&quot;%.2f&quot;, similarity)"
+        errorLine2="                            ~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/DriverSafetyFragment.kt"
+            line="83"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            tvIdentity?.text = &quot;Identity: Verified ($userName)&quot;"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/DriverSafetyFragment.kt"
+            line="85"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            tvIdentity?.text = &quot;Identity: Verified ($userName)&quot;"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/DriverSafetyFragment.kt"
+            line="85"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            tvIdentity?.text = &quot;Identity: Unknown&quot;"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/DriverSafetyFragment.kt"
+            line="88"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            tvIdentity?.text = &quot;Identity: Analyzing...&quot;"
+        errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/DriverSafetyFragment.kt"
+            line="91"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        tvBpm?.text = &quot;BPM: $bpm&quot;"
+        errorLine2="                      ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/HealthMonitorFragment.kt"
+            line="26"
+            column="23"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        tvBpm?.text = &quot;BPM: $bpm&quot;"
+        errorLine2="                       ~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/HealthMonitorFragment.kt"
+            line="26"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="        tvStress?.text = &quot;Stress: $stress&quot;"
+        errorLine2="                         ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/HealthMonitorFragment.kt"
+            line="27"
+            column="26"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        tvStress?.text = &quot;Stress: $stress&quot;"
+        errorLine2="                          ~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/vision/HealthMonitorFragment.kt"
+            line="27"
+            column="27"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                        tvApiKeyLabel.text = &quot;Anthropic API Key:&quot;"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="502"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                        tvApiKeyLabel.text = &quot;Anthropic API Key:&quot;"
+        errorLine2="                                              ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="502"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                        tvApiKeyLabel.text = &quot;Gemini API Key:&quot;"
+        errorLine2="                                              ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="505"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                        tvApiKeyLabel.text = &quot;Gemini API Key:&quot;"
+        errorLine2="                                              ~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="505"
+            column="47"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            btnSyncTime.text = &quot;Syncing...&quot;"
+        errorLine2="                                ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="567"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="                        btnSyncTime.text = &quot;Sync Time&quot;"
+        errorLine2="                                            ~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="597"
+            column="45"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            tvResolvedLocation.text = &quot;Resolved: $preview&quot;"
+        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="760"
+            column="39"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            tvResolvedLocation.text = &quot;Resolved: $preview&quot;"
+        errorLine2="                                       ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="760"
+            column="40"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            dashTemp?.text = &quot;🌡️ Temp: ${VehicleManager.getRealTemperature()}°F&quot;"
+        errorLine2="                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="877"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            dashTemp?.text = &quot;🌡️ Temp: ${VehicleManager.getRealTemperature()}°F&quot;"
+        errorLine2="                              ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="877"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            dashSpeed?.text = &quot;🏎️ Speed: ${VehicleManager.getRealSpeed()}mph&quot;"
+        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="878"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            dashSpeed?.text = &quot;🏎️ Speed: ${VehicleManager.getRealSpeed()}mph&quot;"
+        errorLine2="                               ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="878"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            dashSpeed?.text = &quot;🏎️ Speed: ${VehicleManager.getRealSpeed()}mph&quot;"
+        errorLine2="                                                                          ~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="878"
+            column="75"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            dashHeater?.text = &quot;💺 Heater: ${if (seatHeaterLevel > 0) &quot;Level $seatHeaterLevel&quot; else &quot;Off&quot;}&quot;"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="879"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            dashHeater?.text = &quot;💺 Heater: ${if (seatHeaterLevel > 0) &quot;Level $seatHeaterLevel&quot; else &quot;Off&quot;}&quot;"
+        errorLine2="                                ~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="879"
+            column="33"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            tvActiveModel.text = &quot;Active Model: $currentCloudModelName *&quot;"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="942"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            tvActiveModel.text = &quot;Active Model: $currentCloudModelName *&quot;"
+        errorLine2="                                  ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="942"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="Do not concatenate text displayed with `setText`. Use resource string with placeholders."
+        errorLine1="            tvActiveModel.text = &quot;Active Model: $loadedModelName *&quot;"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="946"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            tvActiveModel.text = &quot;Active Model: $loadedModelName *&quot;"
+        errorLine2="                                  ~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="946"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            tvActiveModel.text = &quot;Active Model: None&quot;"
+        errorLine2="                                  ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="949"
+            column="35"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="            btnLoadModel.text = &quot;Connect to Cloud&quot;"
+        errorLine2="                                 ~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="1018"
+            column="34"/>
+    </issue>
+
+    <issue
+        id="SetTextI18n"
+        message="String literal in `setText` can not be translated. Use Android resources instead."
+        errorLine1="        btnLoadModel.text = &quot;Load Model&quot;"
+        errorLine2="                             ~~~~~~~~~~">
+        <location
+            file="src/main/java/com/tcs/vehicleassistant/LocalLLMActivity.kt"
+            line="1023"
+            column="30"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Close&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Close&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_cockpit_awareness.xml"
+            line="33"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;🌡️ Temp: 72°F&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;🌡️ Temp: 72°F&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="23"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;🏎️ Speed: 65mph&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;🏎️ Speed: 65mph&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="33"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;💺 Heater: Off&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;💺 Heater: Off&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="43"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;🌐 Net: Off&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;🌐 Net: Off&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="53"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;[Sync]&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;[Sync]&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="65"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;[Settings]&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;[Settings]&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="77"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;[Offline Voices]&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;[Offline Voices]&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="89"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;👁️ Cockpit AI&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;👁️ Cockpit AI&quot; />"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="105"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Live Inference&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Live Inference&quot; />"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="120"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Automotive Experiences&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Automotive Experiences&quot; />"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="125"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;System Prompt&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;System Prompt&quot; />"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="129"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Model:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Model:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="168"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Active Model: None&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;Active Model: None&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="185"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Cloud API Key:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Cloud API Key:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="206"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Enter API Key&quot;, should use `@string` resource"
+        errorLine1="                    android:hint=&quot;Enter API Key&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="216"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Backend:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Backend:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="236"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Wake Word:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Wake Word:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="261"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;hey auto&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;hey auto&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="271"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Enable&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Enable&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="281"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Enable Agentic Loop:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Enable Agentic Loop:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="300"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;On&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;On&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="309"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Enable Companion Mode:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Enable Companion Mode:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="327"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;On&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;On&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="336"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Animation Style:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Animation Style:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="353"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;UI Layout Style:&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;UI Layout Style:&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="378"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Load Model&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Load Model&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="405"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Download&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Download&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="416"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Voice Input&quot;, should use `@string` resource"
+        errorLine1="                    android:contentDescription=&quot;Voice Input&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="463"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Type a message...&quot;, should use `@string` resource"
+        errorLine1="                    android:hint=&quot;Type a message...&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="472"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Send&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Send&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="486"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Stop&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Stop&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="497"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Clear&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Clear&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="507"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Premium Automotive Experiences&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Premium Automotive Experiences&quot;"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="528"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Contextual Navigation &amp; POI&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Contextual Navigation &amp;amp; POI&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="550"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;I&apos;m running low on gas and my kids are hungry. Find the nearest rest stop or family restaurant along my current route on I-5.&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;I&apos;m running low on gas and my kids are hungry. Find the nearest rest stop or family restaurant along my current route on I-5.&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="557"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="567"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Advanced Vehicle Diagnostics&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Advanced Vehicle Diagnostics&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="587"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;The check engine light just came on, and the dashboard says OBD Code P0420. Is it safe to drive 50 more miles?&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;The check engine light just came on, and the dashboard says OBD Code P0420. Is it safe to drive 50 more miles?&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="594"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="604"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Smart Cabin Control&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Smart Cabin Control&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="624"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;I&apos;m freezing and the sun is glaring right into my eyes. Provide the exact JSON commands to adjust the HVAC and sunshades.&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;I&apos;m freezing and the sun is glaring right into my eyes. Provide the exact JSON commands to adjust the HVAC and sunshades.&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="631"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="641"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Driver Safety &amp; Monitoring&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Driver Safety &amp;amp; Monitoring&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="661"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;Sensors indicate the driver is falling asleep! Output EXACTLY this JSON: {\&quot;action\&quot;: \&quot;sound_alarm\&quot;} and provide a short, urgent voice message.&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;Sensors indicate the driver is falling asleep! Output EXACTLY this JSON: {\&amp;quot;action\&amp;quot;: \&amp;quot;sound_alarm\&amp;quot;} and provide a short, urgent voice message.&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="668"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Emergency Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Emergency Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="678"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Media &amp; Entertainment Control&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Media &amp;amp; Entertainment Control&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="698"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;Play some relaxing jazz music and turn the volume down a bit.&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;Play some relaxing jazz music and turn the volume down a bit.&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="705"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="715"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Communication &amp; Productivity&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Communication &amp;amp; Productivity&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="735"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;Read my last text message and reply that I am driving and will be there in 15 minutes.&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;Read my last text message and reply that I am driving and will be there in 15 minutes.&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="742"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="752"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Ambient Environment&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Ambient Environment&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="772"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;Roll down all the windows and set the ambient lighting to a calming blue.&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;Roll down all the windows and set the ambient lighting to a calming blue.&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="779"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="789"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Digital Owner&apos;s Manual&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Digital Owner&apos;s Manual&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="809"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;&quot;How do I enable adaptive cruise control on the highway?&quot;&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;&amp;quot;How do I enable adaptive cruise control on the highway?&amp;quot;&quot;"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="816"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Execute Scenario&quot;, should use `@string` resource"
+        errorLine1="                            android:text=&quot;Execute Scenario&quot; />"
+        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="826"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Core AI Directives&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;Core AI Directives&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="844"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;This prompt controls how the AI interprets commands and formats tool usage. Be careful when editing, as removing tool definitions or rules may break vehicle functionality.&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;This prompt controls how the AI interprets commands and formats tool usage. Be careful when editing, as removing tool definitions or rules may break vehicle functionality.&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="853"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Reset to Default&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Reset to Default&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="886"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Save Prompt&quot;, should use `@string` resource"
+        errorLine1="                    android:text=&quot;Save Prompt&quot; />"
+        errorLine2="                    ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/activity_main.xml"
+            line="897"
+            column="21"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;VEHICLE EDGE AI ASSISTANT&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;VEHICLE EDGE AI ASSISTANT&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="52"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Backend: CPU&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Backend: CPU&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="66"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Gemini Nano LiteRT&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Gemini Nano LiteRT&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay.xml"
+            line="82"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;VEHICLE EDGE ASSISTANT&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;VEHICLE EDGE ASSISTANT&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_beveled.xml"
+            line="52"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;VEHICLE EDGE&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;VEHICLE EDGE&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_cinematic.xml"
+            line="34"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;VEHICLE EDGE // SYSTEM: ONLINE&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;VEHICLE EDGE // SYSTEM: ONLINE&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="33"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;[AWAITING INPUT]&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;[AWAITING INPUT]&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_hud.xml"
+            line="94"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;VEHICLE EDGE ASSISTANT&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;VEHICLE EDGE ASSISTANT&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_immersive.xml"
+            line="26"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;VEHICLE EDGE ASSISTANT&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;VEHICLE EDGE ASSISTANT&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="47"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;LOCAL EDGE PROCESSING&quot;, should use `@string` resource"
+        errorLine1="                android:text=&quot;LOCAL EDGE PROCESSING&quot;"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_pill.xml"
+            line="111"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;EDGE AI&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;EDGE AI&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_side.xml"
+            line="45"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;EDGE AI&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;EDGE AI&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/assistant_overlay_top.xml"
+            line="47"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Telemetry Settings&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Telemetry Settings&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="16"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Speed (mph)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Speed (mph)&quot; android:textColor=&quot;#DDDDDD&quot; />"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="22"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;AI Settings&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;AI Settings&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="30"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Enable Cloud Fallback&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Enable Cloud Fallback&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="41"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Max KV Cache Tokens (Requires Reload)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Max KV Cache Tokens (Requires Reload)&quot; android:textColor=&quot;#DDDDDD&quot; />"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="45"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Auto Flush Interval (Tests)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Auto Flush Interval (Tests)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="48"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Demo &amp; Location&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Demo &amp;amp; Location&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="54"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Demo Preset&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Demo Preset&quot; android:textColor=&quot;#DDDDDD&quot; />"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="61"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Location Source&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Location Source&quot; android:textColor=&quot;#DDDDDD&quot; />"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="64"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Apply Selected Preset&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Apply Selected Preset&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="79"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Manual Coordinates (lon, lat)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Manual Coordinates (lon, lat)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="82"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Used when source is Manual, or as GPS fallback&quot;, should use `@string` resource"
+        errorLine1="    &lt;EditText android:id=&quot;@+id/etLocationOverride&quot; android:layout_width=&quot;match_parent&quot; android:layout_height=&quot;wrap_content&quot; android:textColor=&quot;#FFFFFF&quot; android:inputType=&quot;text&quot; android:hint=&quot;Used when source is Manual, or as GPS fallback&quot; android:textColorHint=&quot;#888888&quot; />"
+        errorLine2="                                                                                                                                                                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="83"
+            column="178"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Contact Mappings&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Contact Mappings&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="88"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Mechanic Contact Name&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Mechanic Contact Name&quot; android:textColor=&quot;#DDDDDD&quot; />"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="95"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Mechanic Phone Number&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Mechanic Phone Number&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="98"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Dining / Diet Preference&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Dining / Diet Preference&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="101"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Voice AI Settings&quot;, should use `@string` resource"
+        errorLine1="        android:text=&quot;Voice AI Settings&quot;"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="107"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Speaking Rate / Tempo (0.9 - 1.05)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Speaking Rate / Tempo (0.9 - 1.05)&quot; android:textColor=&quot;#DDDDDD&quot; />"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="114"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Pitch (-1.5 to +0.5)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Pitch (-1.5 to +0.5)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="117"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Volume / Gain (-2.0 to -0.5 dB)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Volume / Gain (-2.0 to -0.5 dB)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="120"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Style / Emotion Label (e.g. empathetic)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Style / Emotion Label (e.g. empathetic)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="123"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Emphasis (e.g. moderate)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Emphasis (e.g. moderate)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="126"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Pauses (ms)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Pauses (ms)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="129"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Breath / Filler (ms)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Breath / Filler (ms)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="132"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Intensity (0.0 - 1.0)&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Intensity (0.0 - 1.0)&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="135"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Reverb / FX&quot;, should use `@string` resource"
+        errorLine1="    &lt;TextView android:layout_width=&quot;wrap_content&quot; android:layout_height=&quot;wrap_content&quot; android:text=&quot;Reverb / FX&quot; android:textColor=&quot;#DDDDDD&quot; android:layout_marginTop=&quot;8dp&quot;/>"
+        errorLine2="                                                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/dialog_telemetry_settings.xml"
+            line="138"
+            column="88"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;CABIN SENSE&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;CABIN SENSE&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_cabin_sense.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Mood: Neutral&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Mood: Neutral&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_cabin_sense.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Gesture: None&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Gesture: None&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_cabin_sense.xml"
+            line="39"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;DRIVER SAFETY &amp; ID&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;DRIVER SAFETY &amp;amp; ID&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_driver_safety.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Identity: Analyzing...&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Identity: Analyzing...&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_driver_safety.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Similarity: N/A&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Similarity: N/A&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_driver_safety.xml"
+            line="40"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Save Driver Face&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Save Driver Face&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_driver_safety.xml"
+            line="49"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;HEALTH MONITOR&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;HEALTH MONITOR&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_health_monitor.xml"
+            line="20"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;BPM: --&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;BPM: --&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_health_monitor.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="HardcodedText"
+        message="Hardcoded string &quot;Stress: Low&quot;, should use `@string` resource"
+        errorLine1="            android:text=&quot;Stress: Low&quot;"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/layout/fragment_health_monitor.xml"
+            line="40"
+            column="13"/>
+    </issue>
+
+</issues>

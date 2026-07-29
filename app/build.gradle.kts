@@ -8,9 +8,12 @@ if (localPropertiesFile.exists()) {
 }
 val geminiApiKey: String = localProperties.getProperty("GEMINI_API_KEY", "")
 
+val coroutinesVersion = "1.8.1"
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("jacoco")
 }
 
 android {
@@ -48,10 +51,12 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("platform")
+            enableUnitTestCoverage = true
         }
         release {
             signingConfig = signingConfigs.getByName("platform")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -59,15 +64,34 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions {
-        jvmTarget = "1.8"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
     buildFeatures {
         viewBinding = true
         buildConfig = true
+    }
+
+    lint {
+        // A regression that Lint can see should fail the build rather than scroll past in a log.
+        abortOnError = true
+        checkDependencies = true
+        // Pre-existing findings are recorded in the baseline; new ones break the build.
+        baseline = file("lint-baseline.xml")
+        sarifReport = true
+    }
+
+    testOptions {
+        unitTests {
+            // Android framework stubs throw by default, which makes plain-logic tests unusable.
+            isReturnDefaultValues = true
+            isIncludeAndroidResources = true
+        }
     }
     packaging {
         jniLibs {
@@ -78,6 +102,11 @@ android {
         }
     }
     useLibrary("android.car")
+}
+
+jacoco {
+    // Pinned to the version AGP 8.3 bundles; anything newer is silently downgraded.
+    toolVersion = "0.8.8"
 }
 
 dependencies {
@@ -119,9 +148,48 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-process:2.6.2")
     implementation("androidx.camera:camera-view:$cameraxVersion")
 
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
+
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20210307")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
+    testImplementation("io.mockk:mockk:1.13.11")
+    testImplementation("org.robolectric:robolectric:4.12.2")
+    testImplementation("androidx.test:core-ktx:1.5.0")
+    testImplementation("androidx.test.ext:junit:1.1.5")
+
     androidTestImplementation("androidx.test.ext:junit:1.1.5")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("androidx.test:rules:1.5.0")
+    androidTestImplementation("io.mockk:mockk-android:1.13.11")
+}
+
+/**
+ * Coverage report for the JVM unit tests. Generated classes, DI wiring and the Android-only
+ * surfaces we cannot exercise off-device are excluded so the number reflects testable logic.
+ */
+tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
+    group = "verification"
+    description = "Generates a JaCoCo coverage report for the debug unit tests."
+    dependsOn("testDebugUnitTest")
+
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+    }
+
+    val excludes = listOf(
+        "**/R.class", "**/R$*.class", "**/BuildConfig.*", "**/Manifest*.*",
+        "**/*_Impl*.*", "**/databinding/**", "**/*ViewBinding*.*"
+    )
+    classDirectories.setFrom(
+        files(
+            fileTree("${layout.buildDirectory.get()}/tmp/kotlin-classes/debug") { exclude(excludes) },
+            fileTree("${layout.buildDirectory.get()}/intermediates/javac/debug/classes") { exclude(excludes) }
+        )
+    )
+    sourceDirectories.setFrom(files("src/main/java"))
+    executionData.setFrom(
+        fileTree(layout.buildDirectory) { include("**/*.exec", "**/*.ec") }
+    )
 }
