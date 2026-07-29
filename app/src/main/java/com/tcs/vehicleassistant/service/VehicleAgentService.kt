@@ -42,6 +42,11 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_RELOAD_TTS && ::audioManager.isInitialized) {
+            audioManager.reloadTtsFromPrefs()
+            android.util.Log.i(TAG, "Reloaded cabin TTS from prefs")
+        }
+
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.agent_notification_title))
             .setContentText(getString(R.string.agent_notification_text))
@@ -98,9 +103,10 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
         }
     }
 
-    private companion object {
+    companion object {
         const val TAG = "VehicleAgentService"
         const val CHANNEL_ID = "AgenticServiceChannel"
         const val NOTIFICATION_ID = 1
+        const val ACTION_RELOAD_TTS = "com.tcs.vehicleassistant.RELOAD_TTS"
     }
 }

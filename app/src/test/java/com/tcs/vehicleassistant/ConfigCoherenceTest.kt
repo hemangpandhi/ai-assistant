@@ -20,6 +20,10 @@ class ConfigCoherenceTest {
     fun `the no-speech timeout outlasts the trailing-silence window`() {
         // Otherwise capture gives up before it can detect the end of a real utterance.
         assertTrue(
+            "NO_SPEECH_TIMEOUT_MS must exceed TRAILING_SILENCE_MS",
+            AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS > AssistantConfig.Audio.TRAILING_SILENCE_MS
+        )
+        assertTrue(
             "NO_SPEECH_TIMEOUT_FRAMES must exceed TRAILING_SILENCE_FRAMES",
             AssistantConfig.Audio.NO_SPEECH_TIMEOUT_FRAMES > AssistantConfig.Audio.TRAILING_SILENCE_FRAMES
         )
@@ -27,8 +31,22 @@ class ConfigCoherenceTest {
 
     @Test
     fun `silence thresholds are positive so the capture loop always terminates`() {
+        assertTrue(AssistantConfig.Audio.TRAILING_SILENCE_MS > 0)
+        assertTrue(AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS > 0)
         assertTrue(AssistantConfig.Audio.TRAILING_SILENCE_FRAMES > 0)
         assertTrue(AssistantConfig.Audio.NO_SPEECH_TIMEOUT_FRAMES > 0)
+    }
+
+    @Test
+    fun `vad end-of-speech is snappier than one second for cabin commands`() {
+        // A 1.0s Silero minSilenceDuration was dominating voice E2E on Pixel Tablet.
+        assertTrue(AssistantConfig.Audio.VAD_MIN_SILENCE_DURATION_SEC in 0.2f..0.6f)
+        assertTrue(
+            "VAD silence should track the trailing-silence budget",
+            AssistantConfig.Audio.VAD_MIN_SILENCE_DURATION_SEC * 1000f <=
+                AssistantConfig.Audio.TRAILING_SILENCE_MS + 50f
+        )
+        assertTrue(AssistantConfig.Audio.VAD_MIN_SPEECH_DURATION_SEC in 0.05f..0.5f)
     }
 
     @Test
@@ -40,6 +58,10 @@ class ConfigCoherenceTest {
         assertTrue(
             "retry budget ${retryBudgetMs}ms must exceed handoff delay ${AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS}ms",
             retryBudgetMs > AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS
+        )
+        assertTrue(
+            "handoff delay should stay under half a second for voice E2E",
+            AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS in 50L..500L
         )
     }
 
@@ -80,6 +102,13 @@ class ConfigCoherenceTest {
         assertTrue(
             AssistantConfig.Session.LLM_READY_POLL_MS < AssistantConfig.Session.LLM_READY_TIMEOUT_MS
         )
+    }
+
+    @Test
+    fun `end-to-end cabin budget is at most one second and forces the direct path`() {
+        // Gemma prefill alone is ~1.5s on Pixel Tablet; this budget is only achievable via
+        // DirectToolResolver against the skills registry.
+        assertTrue(AssistantConfig.Session.END_TO_END_BUDGET_MS in 100L..1_000L)
     }
 
     @Test
@@ -147,9 +176,32 @@ class ConfigCoherenceTest {
             AssistantConfig.Prefs.AGENTIC_LOOP,
             AssistantConfig.Prefs.CLOUD_FALLBACK,
             AssistantConfig.Prefs.RESOLVED_BACKEND,
-            AssistantConfig.Prefs.KERNEL_CACHE_MODEL
+            AssistantConfig.Prefs.KERNEL_CACHE_MODEL,
+            AssistantConfig.Prefs.TTS_VOICE_ID,
+            AssistantConfig.Prefs.TTS_SPEAKER_ID,
+            AssistantConfig.Prefs.VOICE_RATE,
+            AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,
         )
         assertEquals("duplicate preference keys", keys.size, keys.distinct().size)
+    }
+
+    @Test
+    fun `Gallery-aligned sampler defaults are sane`() {
+        assertEquals(64, AssistantConfig.Llm.SAMPLER_TOP_K)
+        assertEquals(0.95, AssistantConfig.Llm.SAMPLER_TOP_P, 0.0001)
+        assertEquals(1.0, AssistantConfig.Llm.SAMPLER_TEMPERATURE, 0.0001)
+        assertTrue(AssistantConfig.Llm.MAX_NUM_TOKENS in 1024..4096)
+        assertTrue(AssistantConfig.Llm.BENCHMARK_PREFILL_TOKENS > 0)
+        assertTrue(AssistantConfig.Llm.BENCHMARK_DECODE_TOKENS > 0)
+    }
+
+    @Test
+    fun `default edge model is Gemma 4 E2B`() {
+        assertEquals("gemma-4-E2B-it.litertlm", AssistantConfig.Llm.DEFAULT_MODEL_FILENAME)
+        assertTrue(
+            AssistantConfig.Llm.DEFAULT_MODEL_PATH.endsWith(AssistantConfig.Llm.DEFAULT_MODEL_FILENAME)
+        )
+        assertTrue(AssistantConfig.Llm.DEFAULT_MODEL_PATH.startsWith("/data/local/tmp/llm/"))
     }
 
     @Test

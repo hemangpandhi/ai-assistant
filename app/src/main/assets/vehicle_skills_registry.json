@@ -105,14 +105,10 @@
       "handler_key": "setTemperature",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "temperature",
-        "degrees",
-        "hotter",
-        "colder",
-        "warmer",
-        "cooler",
+        "set temperature",
         "set temp",
-        "climate"
+        "temperature to",
+        "set cabin temp"
       ],
       "offline_capable": true,
       "success_message": "I've adjusted the cabin temperature.",
@@ -121,12 +117,10 @@
       "aliases": [
         "setTemp",
         "set_temp",
-        "adjustTemperature",
-        "changeTemperature",
-        "setcabintemp",
-        "setTempTo"
+        "setcabintemp"
       ],
-      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Do NOT use this tool for relative commands like 'increase temperature', 'decrease temperature', 'warmer', or 'cooler' unless a specific target number is provided. Use increaseTemperature or decreaseTemperature instead."
+      "instruction": "Sets the temperature to a specific value. If the user says a specific number like 72, you MUST pass that exact number as VAL. Do NOT use this tool for relative commands like 'increase temperature', 'decrease temperature', 'warmer', or 'cooler' unless a specific target number is provided. Use increaseTemperature or decreaseTemperature instead.",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>increaseTemperature()</TOOL>",
@@ -135,11 +129,13 @@
       "instruction": "Increases overall cabin temperature by 2 degrees. Use this for general commands like 'increase temperature' or 'warmer'.",
       "keywords": [
         "increase temperature",
+        "raise temperature",
         "warmer",
         "hotter",
         "raise temp",
         "turn up heat",
-        "warm up"
+        "warm up",
+        "heat up"
       ],
       "offline_capable": true,
       "success_message": "I'm warming it up for you!",
@@ -152,7 +148,8 @@
         "turnUpHeat",
         "warmUp",
         "heatUp"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>decreaseTemperature()</TOOL>",
@@ -161,14 +158,17 @@
       "instruction": "Decreases overall cabin temperature by 2 degrees. Use this for general commands like 'decrease temperature', 'cooler', or 'feeling hot'.",
       "keywords": [
         "decrease temperature",
+        "lower temperature",
         "cooler",
         "colder",
         "lower temp",
+        "cool down",
+        "too hot",
         "feeling hot",
         "i am hot",
-        "i'm hot",
-        "too hot",
-        "boiling"
+        "i m hot",
+        "im hot",
+        "i am feeling hot"
       ],
       "offline_capable": true,
       "success_message": "Cooling it down — you should feel better soon.",
@@ -180,7 +180,8 @@
         "lowerTemp",
         "coolDown",
         "turnDownHeat"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>setFanSpeed(LEVEL)</TOOL>",
@@ -188,14 +189,15 @@
       "handler_type": "CUSTOM_KOTLIN",
       "instruction": "Sets fan to a specific level (1-7). If the user asks for 'maximum', set LEVEL to 7. If they ask for 'minimum', set LEVEL to 1.",
       "keywords": [
-        "fan",
-        "speed",
-        "blower",
-        "set fan"
+        "set fan",
+        "fan speed",
+        "fan to",
+        "set fan speed"
       ],
       "offline_capable": true,
       "success_message": "I've adjusted the fan speed.",
-      "requires_vehicle_state": true
+      "requires_vehicle_state": true,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>increaseFanSpeed()</TOOL>",
@@ -204,13 +206,14 @@
       "keywords": [
         "increase fan",
         "fan up",
-        "blow harder",
         "more fan",
-        "higher fan"
+        "higher fan",
+        "blow harder"
       ],
       "offline_capable": true,
       "success_message": "Cranking up the fan for you!",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>decreaseFanSpeed()</TOOL>",
@@ -219,13 +222,14 @@
       "keywords": [
         "decrease fan",
         "fan down",
-        "blow softer",
         "less fan",
-        "lower fan"
+        "lower fan",
+        "blow softer"
       ],
       "offline_capable": true,
       "success_message": "Dialed the fan back a notch.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>setAirflowDirection(direction)</TOOL>",
@@ -256,21 +260,19 @@
       "success_message": "AC is on — you should feel that soon.",
       "keywords": [
         "turn on ac",
+        "ac on",
         "start ac",
         "activate ac",
-        "ac on",
-        "turn on air conditioning",
-        "hot",
-        "warm",
-        "boiling",
-        "sweating"
+        "air conditioning on",
+        "turn on air conditioning"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "instruction": "ONLY use this tool if the user explicitly asks to turn on the AC, or if they complain about being too hot/warm. It cools the cabin.",
       "name": "turnOnAC",
-      "handler_key": "turnOnAC"
+      "handler_key": "turnOnAC",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOffAC()</TOOL>",
@@ -282,9 +284,10 @@
       "success_message": "I've turned off the AC.",
       "keywords": [
         "turn off ac",
+        "ac off",
         "stop ac",
         "deactivate ac",
-        "ac off",
+        "air conditioning off",
         "turn off air conditioning"
       ],
       "offline_capable": true,
@@ -292,7 +295,8 @@
       "requires_vehicle_state": true,
       "instruction": "ONLY use this tool if the user explicitly asks to turn OFF the AC, or if they complain about being too cold. DO NOT suggest turning off the AC if the user says they are hot!",
       "name": "turnOffAC",
-      "handler_key": "turnOffAC"
+      "handler_key": "turnOffAC",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOnAutoClimate()</TOOL>",
@@ -388,15 +392,16 @@
       "success_message": "I've turned on the climate control system.",
       "keywords": [
         "turn on hvac",
-        "start climate control",
-        "power on climate",
+        "hvac on",
+        "climate on",
         "turn on climate"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOnHvacPower",
-      "handler_key": "turnOnHvacPower"
+      "handler_key": "turnOnHvacPower",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOffHvacPower()</TOOL>",
@@ -408,15 +413,16 @@
       "success_message": "I've turned off the climate control system.",
       "keywords": [
         "turn off hvac",
-        "stop climate control",
-        "power off climate",
+        "hvac off",
+        "climate off",
         "turn off climate"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOffHvacPower",
-      "handler_key": "turnOffHvacPower"
+      "handler_key": "turnOffHvacPower",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOnDefroster()</TOOL>",
@@ -427,9 +433,13 @@
       "value_to_write": "true",
       "success_message": "Defroster's on — your view should clear up.",
       "keywords": [
+        "defrost",
+        "defroster on",
+        "front defrost",
+        "front defroster",
+        "turn on defroster",
         "turn on front defroster",
-        "defrost front windshield",
-        "clear front window"
+        "clear windshield"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
@@ -441,7 +451,8 @@
         "enableDefroster"
       ],
       "name": "turnOnDefroster",
-      "handler_key": "turnOnDefroster"
+      "handler_key": "turnOnDefroster",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOffDefroster()</TOOL>",
@@ -452,15 +463,17 @@
       "value_to_write": "false",
       "success_message": "Deactivating front defroster.",
       "keywords": [
-        "turn off front defroster",
-        "stop defrosting front",
-        "front defroster off"
+        "defrost off",
+        "defroster off",
+        "turn off defroster",
+        "stop defrost"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOffDefroster",
-      "handler_key": "turnOffDefroster"
+      "handler_key": "turnOffDefroster",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOnRearDefroster()</TOOL>",
@@ -505,13 +518,16 @@
       "handler_key": "openWindowsSlightly",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "open windows slightly",
+        "open windows",
+        "open the windows",
         "crack the windows",
-        "little bit open"
+        "crack windows",
+        "windows down"
       ],
       "offline_capable": true,
       "success_message": "I've opened the windows slightly.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>closeAllWindows()</TOOL>",
@@ -519,12 +535,14 @@
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "close windows",
-        "shut all windows",
-        "secure windows"
+        "close the windows",
+        "roll up windows",
+        "windows up"
       ],
       "offline_capable": true,
       "success_message": "I've closed all the windows.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOnCabinLight()</TOOL>",
@@ -574,17 +592,11 @@
       "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
       "success_message": "Seat heater's on — hope that warms you up!",
       "keywords": [
-        "warm seat",
-        "heated seat",
         "seat heater",
-        "warm up my seat",
-        "cold",
-        "freezing",
-        "chilly",
-        "paining",
-        "back pain",
-        "back hurts",
-        "sore back"
+        "seat heat",
+        "seat warmer",
+        "heat my seat",
+        "warm my seat"
       ],
       "offline_capable": true,
       "requires_vehicle_state": true,
@@ -592,7 +604,8 @@
         "seatHeater",
         "heatSeat",
         "setHeatSeat"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>setSeatMassager(LEVEL)</TOOL>",
@@ -1197,18 +1210,11 @@
       "handler_key": "playMusic",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "listen",
-        "spotify",
         "play",
-        "artist",
-        "song",
-        "music",
-        "album",
-        "playback",
+        "play music",
+        "play song",
+        "play some music",
         "put on",
-        "radio",
-        "tune",
-        "spotify playlist",
         "turn on music",
         "start playing"
       ],
@@ -1216,14 +1222,15 @@
       "requires_agentic_loop": false,
       "success_message": "Great choice — putting that on for you!",
       "requires_vehicle_state": false,
-      "instruction": "Plays music. Output <TOOL>playMusic(SONG)</TOOL> replacing SONG with the requested music. If no song is specified, output <TOOL>playMusic(music)</TOOL>.",
+      "instruction": "Plays music. Output <TOOL>playMusic(SONG)</TOOL> replacing SONG with the artist or track name only (e.g. playMusic(arijit singh) for 'play arijit singh music'). If no song/artist is specified, output <TOOL>playMusic(music)</TOOL>. Always name the requested music in your spoken reply.",
       "aliases": [
         "play",
         "playAudio",
         "playSong",
         "startMusic",
         "playTrack"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>pauseMusic()</TOOL>",
@@ -1232,8 +1239,9 @@
       "instruction": "CRITICAL: If the user asks to pause or halt the music/audio, you MUST execute this tool.",
       "keywords": [
         "pause music",
-        "halt music",
-        "pause"
+        "pause the music",
+        "pause playback",
+        "pause song"
       ],
       "offline_capable": true,
       "success_message": "I've paused the music.",
@@ -1241,7 +1249,8 @@
       "aliases": [
         "pause",
         "pauseAudio"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>stopMusic()</TOOL>",
@@ -1250,18 +1259,17 @@
       "instruction": "CRITICAL: If the user asks to stop the music/audio, you MUST execute this tool.",
       "keywords": [
         "stop music",
-        "stop",
         "turn off music",
-        "kill the music",
-        "shut off the music",
-        "mute music"
+        "music off",
+        "kill the music"
       ],
       "offline_capable": true,
       "success_message": "I've stopped the music.",
       "requires_vehicle_state": false,
       "aliases": [
         "stopMusic"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>nextTrack()</TOOL>",
@@ -1269,16 +1277,16 @@
       "handler_type": "CUSTOM_KOTLIN",
       "instruction": "CRITICAL: If the user says 'next song', 'skip', or asks to play the next track, you MUST execute this tool. Do not just say you will do it.",
       "keywords": [
-        "next song",
         "next track",
-        "next",
-        "skip track",
-        "skip",
-        "forward"
+        "next song",
+        "skip song",
+        "skip track"
       ],
       "offline_capable": true,
       "success_message": "I've skipped to the next track.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true,
+      "aliases": []
     },
     {
       "prompt_string": "<TOOL>prevTrack()</TOOL>",
@@ -1286,35 +1294,31 @@
       "handler_type": "CUSTOM_KOTLIN",
       "instruction": "CRITICAL: If the user says 'previous song', 'go back', or asks to play the last track, you MUST execute this tool. Do not just say you will do it.",
       "keywords": [
-        "previous song",
         "previous track",
-        "previous",
-        "back track",
-        "go back",
-        "rewind",
-        "back"
+        "previous song",
+        "last track",
+        "go back track"
       ],
       "offline_capable": true,
       "success_message": "I've gone back to the previous track.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true,
+      "aliases": []
     },
     {
       "prompt_string": "<TOOL>setVolumeLevel(VAL)</TOOL>",
       "handler_key": "setVolumeLevel",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "increase volume",
-        "turn up the volume",
-        "louder",
-        "raise volume",
-        "decrease volume",
-        "turn down the volume",
-        "quieter",
-        "lower volume",
-        "softer",
+        "volume up",
+        "volume down",
         "set volume",
-        "change volume",
-        "volume"
+        "increase volume",
+        "decrease volume",
+        "louder",
+        "quieter",
+        "turn it up",
+        "turn it down"
       ],
       "aliases": [
         "setVolume",
@@ -1326,7 +1330,8 @@
       "offline_capable": true,
       "success_message": "I've adjusted the volume.",
       "requires_vehicle_state": false,
-      "instruction": "Sets or adjusts the media volume. If no specific amount is given, pass 'UP' or 'DOWN'. VAL can be a percentage (MUST include '%', e.g., '50%', '30%', '+20%', '-10%') or an absolute hardware index (e.g. '2' out of 15 max). Also supports 'MAX'."
+      "instruction": "Sets or adjusts the media volume. If no specific amount is given, pass 'UP' or 'DOWN'. VAL can be a percentage (MUST include '%', e.g., '50%', '30%', '+20%', '-10%') or an absolute hardware index (e.g. '2' out of 15 max). Also supports 'MAX'.",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>callContact(NAME)</TOOL>",
@@ -1442,15 +1447,13 @@
       "handler_type": "CUSTOM_KOTLIN",
       "instruction": "You MUST replace 'PLACE_NAME' with the actual destination. Example: <TOOL>startNavigationTo(\"Tokyo Tower\")</TOOL>. Alias navigate(Destination) also works at execution time.",
       "keywords": [
-        "drive to",
-        "navigate to",
-        "navigate me",
         "navigate me to",
-        "route to",
-        "directions",
+        "navigate to",
         "take me to",
+        "drive to",
         "go to",
-        "navigate"
+        "directions to",
+        "route to"
       ],
       "requires_vehicle_state": true,
       "aliases": [
@@ -1461,7 +1464,8 @@
         "goTo",
         "nav",
         "startNavigation"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>openTrunk()</TOOL>",
@@ -1704,12 +1708,21 @@
       "keywords": [
         "feeling cold",
         "i am cold",
-        "it's freezing",
-        "shivering"
+        "i m cold",
+        "im cold",
+        "i am feeling cold",
+        "feeling chilly",
+        "too cold",
+        "it s freezing",
+        "its freezing",
+        "shivering",
+        "i m freezing",
+        "im freezing"
       ],
       "offline_capable": true,
-      "success_message": "Would you like me to turn on the seat heater?",
-      "requires_vehicle_state": false
+      "success_message": "That sounds uncomfortable — would you like me to turn on the seat heater?",
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>call(NUMBER)</TOOL>",
@@ -1772,6 +1785,190 @@
     "prewarm_query": "control climate music volume track navigation windows sightseeing food charging",
     "sliding_window_max_chars": 3000,
     "max_relevant_tools": 4,
-    "max_prompt_tools": 8
+    "max_prompt_tools": 8,
+    "direct_execution": {
+      "enabled": true,
+      "min_keyword_chars": 5,
+      "max_query_words": 12,
+      "max_query_chars": 100,
+      "min_keyword_margin": 3
+    },
+    "context_policies": {
+      "enabled": true,
+      "rules": [
+        {
+          "id": "volume_already_loud",
+          "priority": 10,
+          "applies_to": ["setVolumeLevel"],
+          "when": {
+            "arg_matches": ["up", "increase", "+", "louder", "max"],
+            "media_playing": true,
+            "sensors": [
+              { "source": "media_volume_pct", "op": ">=", "value": 85 }
+            ]
+          },
+          "action": "confirm",
+          "message": "It's already quite loud ({media_volume_pct}%). Increase anyway?"
+        },
+        {
+          "id": "volume_already_max",
+          "priority": 5,
+          "applies_to": ["setVolumeLevel"],
+          "when": {
+            "arg_matches": ["up", "increase", "+", "louder", "max"],
+            "sensors": [
+              { "source": "media_volume_pct", "op": ">=", "value": 100 }
+            ]
+          },
+          "action": "block",
+          "message": "Volume is already at maximum ({media_volume_pct}%)."
+        },
+        {
+          "id": "fan_already_max",
+          "priority": 10,
+          "applies_to": ["increaseFanSpeed"],
+          "when": {
+            "sensors": [
+              { "source": "fan_level", "op": ">=", "value": 7 }
+            ]
+          },
+          "action": "block",
+          "message": "The fan is already at maximum (level {fan_level})."
+        },
+        {
+          "id": "seat_heater_already_on",
+          "priority": 10,
+          "applies_to": ["setSeatHeater"],
+          "when": {
+            "arg_matches": ["1", "2", "3", "on"],
+            "sensors": [
+              { "source": "seat_heater_level", "op": ">=", "value": 2 }
+            ]
+          },
+          "action": "block",
+          "message": "The seat heater is already on (level {seat_heater_level})."
+        },
+        {
+          "id": "open_windows_while_moving",
+          "priority": 10,
+          "applies_to": ["openWindowsSlightly", "openWindows"],
+          "when": {
+            "sensors": [
+              { "source": "speed_mph", "op": ">=", "value": 40 }
+            ]
+          },
+          "action": "confirm",
+          "message": "You're going about {speed_mph} mph — open the windows anyway?"
+        },
+        {
+          "id": "set_windows_open_while_moving",
+          "priority": 10,
+          "applies_to": ["setAllWindowsPosition", "setWindowPosition"],
+          "when": {
+            "arg_matches": ["25", "50", "75", "100", "open"],
+            "sensors": [
+              { "source": "speed_mph", "op": ">=", "value": 40 }
+            ]
+          },
+          "action": "confirm",
+          "message": "You're going about {speed_mph} mph — open the windows anyway?"
+        },
+        {
+          "id": "windows_already_open",
+          "priority": 20,
+          "applies_to": ["openWindowsSlightly"],
+          "when": {
+            "sensors": [
+              { "source": "window_open_pct", "op": ">=", "value": 20 }
+            ]
+          },
+          "action": "block",
+          "message": "Windows are already open ({window_open_pct}%)."
+        },
+        {
+          "id": "windows_already_closed",
+          "priority": 20,
+          "applies_to": ["closeAllWindows"],
+          "when": {
+            "sensors": [
+              { "source": "window_open_pct", "op": "<=", "value": 0 }
+            ]
+          },
+          "action": "block",
+          "message": "Windows are already closed."
+        },
+        {
+          "id": "auto_climate_already_on",
+          "priority": 15,
+          "applies_to": ["turnOnAutoClimate"],
+          "when": {
+            "sensors": [
+              { "source": "hvac_auto_on", "op": "==", "value": 1 }
+            ]
+          },
+          "action": "block",
+          "message": "Auto climate is already on."
+        },
+        {
+          "id": "unlock_doors_while_moving",
+          "priority": 8,
+          "applies_to": ["unlockDoors"],
+          "when": {
+            "sensors": [
+              { "source": "is_parked", "op": "==", "value": 0 },
+              { "source": "speed_mph", "op": ">=", "value": 5 }
+            ]
+          },
+          "action": "confirm",
+          "message": "You're still moving ({speed_mph} mph). Unlock the doors anyway?"
+        },
+        {
+          "id": "open_trunk_while_moving",
+          "priority": 5,
+          "applies_to": ["openTrunk"],
+          "when": {
+            "sensors": [
+              { "source": "speed_mph", "op": ">=", "value": 5 }
+            ]
+          },
+          "action": "block",
+          "message": "I won't open the trunk while you're moving ({speed_mph} mph)."
+        },
+        {
+          "id": "low_fuel_navigation",
+          "priority": 12,
+          "applies_to": ["startNavigationTo"],
+          "when": {
+            "sensors": [
+              { "source": "fuel_level_pct", "op": "<=", "value": 15 }
+            ]
+          },
+          "action": "confirm",
+          "message": "Fuel is low ({fuel_level_pct}%) near {city}. Start navigation anyway?"
+        },
+        {
+          "id": "already_navigating_same_dest",
+          "priority": 9,
+          "applies_to": ["startNavigationTo"],
+          "when": {
+            "nav_active": true,
+            "nav_dest_matches_arg": true
+          },
+          "action": "confirm",
+          "message": "You're already navigating to {nav_active_dest}. Restart that route?"
+        },
+        {
+          "id": "reroute_while_navigating",
+          "priority": 11,
+          "applies_to": ["startNavigationTo"],
+          "when": {
+            "nav_active": true,
+            "nav_dest_differs_arg": true
+          },
+          "action": "confirm",
+          "message": "You're headed to {nav_active_dest}. Switch destination?"
+        }
+      ]
+    }
   }
 }

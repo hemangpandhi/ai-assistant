@@ -21,6 +21,34 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 } else {
                     rawArg
                 }
+
+                // Artist focus only for person-like queries; genres/moods stay generic search.
+                val genreOrMood = listOf(
+                    "rock", "jazz", "pop", "classical", "classic", "hip hop", "hip-hop", "rap",
+                    "blues", "country", "metal", "edm", "dance", "lofi", "lo-fi", "ambient",
+                    "bollywood", "soundtrack", "instrumental", "podcast",
+                )
+                val looksLikeGenre = genreOrMood.any { token ->
+                    query.equals(token, ignoreCase = true) ||
+                        query.contains(token, ignoreCase = true)
+                }
+                val looksLikeArtist = !looksLikeGenre &&
+                    !query.contains(" - ") &&
+                    query.split(' ').size in 1..4 &&
+                    !query.equals("popular music", ignoreCase = true) &&
+                    !query.endsWith(" music", ignoreCase = true) &&
+                    !query.endsWith(" songs", ignoreCase = true)
+
+                val searchExtras = android.os.Bundle().apply {
+                    if (looksLikeArtist) {
+                        putString(MediaStore.EXTRA_MEDIA_FOCUS, MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE)
+                        putString(MediaStore.EXTRA_MEDIA_ARTIST, query)
+                    } else {
+                        putString(MediaStore.EXTRA_MEDIA_FOCUS, MediaStore.Audio.Media.ENTRY_CONTENT_TYPE)
+                        putString(MediaStore.EXTRA_MEDIA_TITLE, query)
+                    }
+                    putString(android.app.SearchManager.QUERY, query)
+                }
                 
                 var success = false
                 try {
@@ -28,17 +56,17 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     var spotifyController = controllers.find { it.packageName.contains("spotify", ignoreCase = true) }
                     
                     if (spotifyController != null) {
-                        spotifyController.transportControls.playFromSearch(query, null)
+                        Log.i(TAG, "playFromSearch via Spotify query='$query' artistFocus=$looksLikeArtist")
+                        spotifyController.transportControls.playFromSearch(query, searchExtras)
                         success = true
                     } else if (controllers.isNotEmpty()) {
-                        // Fallback to any active media session
-                        controllers[0].transportControls.playFromSearch(query, null)
+                        Log.i(TAG, "playFromSearch via ${controllers[0].packageName} query='$query'")
+                        controllers[0].transportControls.playFromSearch(query, searchExtras)
                         success = true
                     } else {
                         // Fallback: Launch intent silently if possible, or normally if no active sessions exist
                         val searchIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
-                        searchIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
-                        searchIntent.putExtra(android.app.SearchManager.QUERY, query)
+                        searchIntent.putExtras(searchExtras)
                         searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         
                         if (searchIntent.resolveActivity(context.packageManager) != null) {
@@ -61,8 +89,7 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     Log.e(TAG, "MediaSession search failed, using fallback intent", e)
                     try {
                         val searchIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
-                        searchIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
-                        searchIntent.putExtra(android.app.SearchManager.QUERY, query)
+                        searchIntent.putExtras(searchExtras)
                         searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                         
                         if (searchIntent.resolveActivity(context.packageManager) != null) {
@@ -81,7 +108,11 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     }
                 }
                 if (success) {
-                    val msg = "Great choice — putting on $query for you!"
+                    val msg = if (query.equals("popular music", ignoreCase = true)) {
+                        "Great choice — putting some music on for you!"
+                    } else {
+                        "Great choice — putting on $query for you!"
+                    }
                     ToolExecutionResult(true, msg)
                 } else {
                     ToolExecutionResult(false, "System Error: Could not start media.")

@@ -3,12 +3,17 @@ package com.tcs.vehicleassistant
 import android.content.Context
 import android.util.Log
 import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Capabilities
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
 import com.google.ai.edge.litertlm.ConversationConfig
 import com.google.ai.edge.litertlm.Engine
 import com.google.ai.edge.litertlm.EngineConfig
 import com.google.ai.edge.litertlm.ExperimentalApi
 import com.google.ai.edge.litertlm.ExperimentalFlags
+import com.google.ai.edge.litertlm.SamplerConfig
+import com.google.ai.edge.litertlm.benchmark
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.core.DeviceCapabilities
 import com.tcs.vehicleassistant.core.KernelCacheManager
@@ -43,6 +48,11 @@ object LLMManager {
     /** True when the active backend differs from what the user asked for, after a fallback. */
     @Volatile
     var didFallBackFromRequestedBackend = false
+        private set
+
+    /** True when the last successful [startEngine] enabled speculative decoding / MTP. */
+    @Volatile
+    var speculativeDecodingActive = false
         private set
 
     var lastVehicleState = ""
@@ -115,7 +125,7 @@ object LLMManager {
         }
 
         withContext(Dispatchers.IO) {
-            val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
+            val explicitGemma = File(AssistantConfig.Llm.DEFAULT_MODEL_PATH)
             val internalFiles = context.filesDir?.listFiles()?.toList() ?: emptyList()
             val externalFiles = context.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
             val tmpFiles = File("/data/local/tmp/llm/").listFiles()?.toList() ?: emptyList()
@@ -124,10 +134,12 @@ object LLMManager {
             }
 
             // Strictly lock exclusively to Gemma 4 E2B model
-            val modelFile = if (explicitGemma.exists() && explicitGemma.canRead()) {
-                explicitGemma
-            } else {
-                allModelFiles.find { it.name.contains("gemma", ignoreCase = true) } ?: explicitGemma
+            val modelFile = when {
+                explicitGemma.exists() && explicitGemma.canRead() -> explicitGemma
+                else -> allModelFiles.find {
+                    it.name.equals(AssistantConfig.Llm.DEFAULT_MODEL_FILENAME, ignoreCase = true)
+                } ?: allModelFiles.find { it.name.contains("gemma", ignoreCase = true) }
+                    ?: explicitGemma
             }
 
             val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
@@ -229,7 +241,8 @@ object LLMManager {
                 Log.i(
                     TAG,
                     "Engine ready: model=$modelPath backend=$initializedBackend " +
-                        "requested=$requestedBackend kernelCacheWarm=${KernelCacheManager.isWarm(context)} " +
+                        "requested=$requestedBackend speculative=$speculativeDecodingActive " +
+                        "kernelCacheWarm=${KernelCacheManager.isWarm(context)} " +
                         "kernelCacheBytes=${KernelCacheManager.sizeBytes(context)}"
                 )
 
@@ -264,10 +277,21 @@ object LLMManager {
         // Context.cacheDir is evictable, which forced a full kernel recompile on every cold start.
         val cacheDir = KernelCacheManager.prepare(context, modelPath, backendName)
 
-        Log.d(TAG, "Starting LiteRT engine model=$modelPath backend=$backendName cacheDir=$cacheDir")
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        val wantSpeculative = prefs.getBoolean(AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING, false)
+        val enableSpeculative = wantSpeculative &&
+            backendName != AssistantConfig.Backend.NPU &&
+            modelSupportsSpeculativeDecoding(modelPath)
 
-        // Speculative decoding / multi-token prediction is unstable for this model+runtime pairing.
-        ExperimentalFlags.enableSpeculativeDecoding = false
+        Log.d(
+            TAG,
+            "Starting LiteRT engine model=$modelPath backend=$backendName cacheDir=$cacheDir " +
+                "speculativeWanted=$wantSpeculative speculative=$enableSpeculative"
+        )
+
+        // Gallery: set ExperimentalFlags only around Engine construction + initialize(), then clear.
+        ExperimentalFlags.enableSpeculativeDecoding = enableSpeculative
+        speculativeDecodingActive = false
 
         val engineConfig = EngineConfig(
             modelPath = modelPath,
@@ -279,6 +303,7 @@ object LLMManager {
         val created = Engine(engineConfig)
         try {
             created.initialize()
+            speculativeDecodingActive = enableSpeculative
         } catch (e: Throwable) {
             try {
                 created.close()
@@ -286,8 +311,98 @@ object LLMManager {
                 Log.w(TAG, "Failed to close engine after failed initialize", closeError)
             }
             throw if (e is Exception) e else Exception(e)
+        } finally {
+            ExperimentalFlags.enableSpeculativeDecoding = false
         }
         engine = created
+    }
+
+    /** Capability probe matching Gallery's [Capabilities.hasSpeculativeDecodingSupport] gate. */
+    private fun modelSupportsSpeculativeDecoding(modelPath: String): Boolean {
+        return try {
+            Capabilities(modelPath).use { it.hasSpeculativeDecodingSupport() }
+        } catch (e: Exception) {
+            Log.w(TAG, "Speculative-decoding capability probe failed for $modelPath", e)
+            false
+        }
+    }
+
+    /**
+     * Gallery-aligned conversation options: sampler on GPU/CPU, stable system instruction.
+     * Query-specific tools still ride on each user turn via [AgentOrchestrator].
+     */
+    private fun buildConversationConfig(): ConversationConfig {
+        val sampler = if (activeBackendString == AssistantConfig.Backend.NPU) {
+            null
+        } else {
+            SamplerConfig(
+                topK = AssistantConfig.Llm.SAMPLER_TOP_K,
+                topP = AssistantConfig.Llm.SAMPLER_TOP_P,
+                temperature = AssistantConfig.Llm.SAMPLER_TEMPERATURE,
+            )
+        }
+        // Compact identity in ConversationConfig (Gallery pattern). Full rules + tools remain in
+        // the first-turn / per-turn reinject path so query-scoped tool lists stay correct.
+        val systemInstruction = Contents.of(
+            Content.Text(
+                "You are the in-vehicle AI co-pilot with live cabin, media, and navigation tools. " +
+                    capabilityReminder()
+            )
+        )
+        return ConversationConfig(
+            systemInstruction = systemInstruction,
+            samplerConfig = sampler,
+        )
+    }
+
+    /**
+     * Runs LiteRT's official [benchmark] API (prefill/decode tok/s + TTFT). Blocks for tens of
+     * seconds — call off the UI thread. Does not disturb the live [engine].
+     */
+    @OptIn(ExperimentalApi::class)
+    suspend fun runOfficialBenchmark(
+        context: Context,
+        prefillTokens: Int = AssistantConfig.Llm.BENCHMARK_PREFILL_TOKENS,
+        decodeTokens: Int = AssistantConfig.Llm.BENCHMARK_DECODE_TOKENS,
+    ): String = withContext(Dispatchers.IO) {
+        val modelPath = currentModelPath.ifBlank {
+            context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+                .getString(AssistantConfig.Prefs.SELECTED_MODEL, null)
+                .orEmpty()
+        }
+        if (modelPath.isBlank() || !File(modelPath).canRead()) {
+            return@withContext "Benchmark skipped: no readable model path"
+        }
+        val backendName = activeBackendString.takeIf { it != "Unknown" }
+            ?: AssistantConfig.Backend.GPU
+        val backend = when (backendName) {
+            AssistantConfig.Backend.NPU -> Backend.NPU()
+            AssistantConfig.Backend.CPU -> Backend.CPU(threadCount = DeviceCapabilities.cpuCoreCount())
+            else -> Backend.GPU()
+        }
+        val cacheDir = File(context.cacheDir, "benchmark_${System.currentTimeMillis()}").also { it.mkdirs() }
+        try {
+            val info = benchmark(
+                modelPath = modelPath,
+                backend = backend,
+                prefillTokens = prefillTokens,
+                decodeTokens = decodeTokens,
+                cacheDir = cacheDir.absolutePath,
+            )
+            val summary =
+                "init=${"%.2f".format(info.initTimeInSecond)}s " +
+                    "TTFT=${"%.2f".format(info.timeToFirstTokenInSecond)}s " +
+                    "prefill=${"%.1f".format(info.lastPrefillTokensPerSecond)} tok/s " +
+                    "decode=${"%.1f".format(info.lastDecodeTokensPerSecond)} tok/s " +
+                    "(prefillTokens=${info.lastPrefillTokenCount}, decodeTokens=${info.lastDecodeTokenCount})"
+            Log.i(TAG, "LiteRT benchmark ($backendName): $summary")
+            summary
+        } catch (e: Exception) {
+            Log.e(TAG, "LiteRT benchmark failed", e)
+            "Benchmark failed: ${e.message}"
+        } finally {
+            cacheDir.deleteRecursively()
+        }
     }
 
     /** Closes the engine and conversation. Caller must hold [initMutex] and have drained inferences. */
@@ -459,9 +574,13 @@ object LLMManager {
             lastAiResponse = ""
 
             try {
-                conversation = engine?.createConversation(ConversationConfig())
+                conversation = engine?.createConversation(buildConversationConfig())
                 isFirstMessage = true
-                Log.d(TAG, "Conversation reset. isFirstMessage=true.")
+                Log.d(
+                    TAG,
+                    "Conversation reset. isFirstMessage=true backend=$activeBackendString " +
+                        "speculativeWas=$speculativeDecodingActive"
+                )
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to reset conversation", e)
                 return false
@@ -497,6 +616,7 @@ object LLMManager {
                 isPrewarmed = false
                 lastAiResponse = ""
                 activeInferences = 0
+                speculativeDecodingActive = false
                 Log.i(TAG, "LLM model unloaded from memory to save resources.")
             }
             return true

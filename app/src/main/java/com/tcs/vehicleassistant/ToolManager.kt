@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.ContextGuard
+import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.core.ToolRetriever
 import org.json.JSONObject
 
@@ -17,6 +19,22 @@ class ToolManager {
             "stopMusic", "playMusic", "pauseMusic", "nextTrack",
             "increaseTemperature", "decreaseTemperature", "setSeatHeater"
         )
+
+        /**
+         * Short single-token aliases that are real spoken verbs (needed so "play arijit singh music"
+         * matches). Longer camelCase API aliases and dangerous prefix words like "navigate"/"nav"
+         * stay execution-only and are NOT merged into DirectTool keywords.
+         */
+        private val SPEAKABLE_SHORT_ALIASES = setOf("play", "pause")
+
+        /** True when an alias is safe to use as a DirectTool utterance keyword. */
+        fun isSpeakableDirectKeyword(alias: String): Boolean {
+            val a = alias.trim().lowercase()
+            if (a.isEmpty()) return false
+            if (a.contains(' ')) return true
+            if (a in SPEAKABLE_SHORT_ALIASES) return true
+            return false
+        }
 
         /** Plausible cabin temperature setpoints in Fahrenheit. */
         private val TEMPERATURE_VALUE = Regex("""\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b""")
@@ -56,7 +74,9 @@ class ToolManager {
         val confirmationMessage: String? = null,
         val offlineCapable: Boolean = false,
         val requiresVehicleState: Boolean = false,
-        val requiresAgenticLoop: Boolean = false
+        val requiresAgenticLoop: Boolean = false,
+        /** When true, [DirectToolResolver] may execute this tool without invoking the LLM. */
+        val directExecutable: Boolean = false,
     )
 
     data class SystemInstruction(
@@ -93,6 +113,10 @@ class ToolManager {
     var maxPromptTools: Int = MAX_PROMPT_TOOLS
         private set
 
+    /** Policy for registry-driven direct execution; overridable from `config.direct_execution`. */
+    var directExecutionPolicy: DirectToolResolver.Policy = DirectToolResolver.Policy()
+        private set
+
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
@@ -114,6 +138,17 @@ class ToolManager {
                 if (config.has("max_prompt_tools")) {
                     maxPromptTools = config.getInt("max_prompt_tools").coerceAtLeast(1)
                 }
+                if (config.has("direct_execution")) {
+                    val de = config.getJSONObject("direct_execution")
+                    directExecutionPolicy = DirectToolResolver.Policy(
+                        enabled = de.optBoolean("enabled", true),
+                        minKeywordChars = de.optInt("min_keyword_chars", 5).coerceAtLeast(3),
+                        maxQueryWords = de.optInt("max_query_words", 12).coerceAtLeast(3),
+                        maxQueryChars = de.optInt("max_query_chars", 100).coerceAtLeast(20),
+                        minKeywordMargin = de.optInt("min_keyword_margin", 3).coerceAtLeast(0),
+                    )
+                }
+                ContextGuard.loadFromConfig(config)
             }
 
             systemInstructions = parseSystemInstructions(jsonObject)
@@ -151,8 +186,10 @@ class ToolManager {
                         for (j in 0 until arr.length()) {
                             val alias = arr.getString(j).lowercase()
                             aliasesList.add(alias)
-                            // Merge aliases directly into keywords for instant fast-path RAG matching!
-                            if (!keywordsList.contains(alias)) {
+                            // Only merge speakable utterance aliases into DirectTool keywords.
+                            // CamelCase API aliases (navigateTo → navigateto) are not user speech and
+                            // previously caused wrong matches (e.g. short "navigate" → "me to …").
+                            if (isSpeakableDirectKeyword(alias) && !keywordsList.contains(alias)) {
                                 keywordsList.add(alias)
                             }
                         }
@@ -191,7 +228,8 @@ class ToolManager {
                         confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null,
                         offlineCapable = offlineCapable,
                         requiresVehicleState = requiresVehicleState,
-                        requiresAgenticLoop = if (toolObj.has("requires_agentic_loop")) toolObj.getBoolean("requires_agentic_loop") else false
+                        requiresAgenticLoop = if (toolObj.has("requires_agentic_loop")) toolObj.getBoolean("requires_agentic_loop") else false,
+                        directExecutable = toolObj.optBoolean("direct_executable", false),
                     )
                     Log.i(TAG, "Registered Tool: $commandName ($handlerType) -> $promptString")
                 }
@@ -315,6 +353,34 @@ class ToolManager {
     }
     
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
+
+    /**
+     * Registry-driven sub-second path: if [userQuery] uniquely matches a `direct_executable` tool
+     * with high keyword confidence, return an executable hit. Otherwise null and the caller should
+     * use the LLM.
+     */
+    fun resolveDirectHit(userQuery: String): DirectToolResolver.Hit? {
+        if (!isInitialized || userQuery.isBlank()) return null
+        val specs = activeTools.map { (id, tool) ->
+            DirectToolResolver.ToolSpec(
+                id = id,
+                handlerKey = tool.handlerKey ?: id,
+                promptString = tool.promptString,
+                keywords = tool.keywords.orEmpty(),
+                successMessage = tool.successMessage,
+                requiresConfirmation = tool.requiresConfirmation,
+                requiresAgenticLoop = tool.requiresAgenticLoop,
+                directExecutable = tool.directExecutable,
+            )
+        }
+        return when (val outcome = DirectToolResolver.resolve(userQuery, specs, directExecutionPolicy)) {
+            is DirectToolResolver.Outcome.Execute -> outcome.hit
+            is DirectToolResolver.Outcome.Skip -> {
+                Log.d(TAG, "Direct execution skipped: ${outcome.rejection.reason} for '$userQuery'")
+                null
+            }
+        }
+    }
 
     /**
      * Renders the tool block for the LLM system prompt: one line per tool plus an explicit

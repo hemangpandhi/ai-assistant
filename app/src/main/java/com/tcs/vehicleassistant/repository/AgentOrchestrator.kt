@@ -8,6 +8,8 @@ import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.CabinSnapshotReader
+import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.llm.ILLMProvider
 import com.tcs.vehicleassistant.utils.FollowUpRouter
 import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
@@ -153,18 +155,73 @@ class AgentOrchestrator(
         val trimmedQuery = query.trim()
         val lowerQuery = trimmedQuery.lowercase().replace(Regex("[^a-z ]"), "").trim()
         
-        // Ghost Voice Filter: Aggressively ignore silence hallucinations from Whisper
+        // Ghost Voice Filter: ignore silence hallucinations from Whisper.
+        // Affirmatives ("yes"/"ok") must stay available for FollowUpRouter and ContextGuard confirms.
         val ignoredHallucinations = setOf(
-            "you", "thank you", "bye", "am", "i", "what", "blank audio", "thanks for watching", "a", "yeah", "yes", "ok"
+            "you", "thank you", "bye", "am", "i", "what", "blank audio", "thanks for watching", "a"
         )
+
+        // ContextGuard / OEM confirmation: honor "yes" without waiting on LiteRT.
+        if (pendingConfirmationTool != null && !trimmedQuery.startsWith("[")) {
+            if (MemoryManager.isAffirmative(trimmedQuery)) {
+                val toolToExecute = pendingConfirmationTool!!
+                pendingConfirmationTool = null
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                beginTurn()
+                _state.value = OrchestratorState.Thinking(trimmedQuery)
+                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                scope.launch {
+                    completeDirectToolTurn(
+                        query = trimmedQuery,
+                        toolCall = toolToExecute,
+                        preferredSpoken = null,
+                        pathLabel = "ContextGuardConfirm",
+                    )
+                }
+                return
+            }
+            val declined = trimmedQuery.lowercase().let { q ->
+                q == "no" || q == "nope" || q.startsWith("no ") || q.contains("don't") ||
+                    q.contains("do not") || q.contains("cancel") || q.contains("never mind")
+            }
+            if (declined) {
+                pendingConfirmationTool = null
+                LatencyLogger.reset()
+                beginTurn()
+                scope.launch {
+                    finishGuardedTurn(
+                        message = "Okay, I won't change that.",
+                        pathLabel = "ContextGuardConfirm",
+                        toolCall = "cancelled",
+                        policyId = "user_declined",
+                        asQuestion = false,
+                    )
+                }
+                return
+            }
+        }
         
         // Let it pass if it's an internal system event (starts with '[')
         if (!trimmedQuery.startsWith("[")) {
-            if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
+            if (MemoryManager.isAffirmative(trimmedQuery)) {
+                // keep
+            } else if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
                 _events.tryEmit(OrchestratorEvent.FinishSession)
                 resetState()
                 return
             }
+        }
+
+        // Registry-driven direct path (sub-1s): never wait on LiteRT init or prefill.
+        LatencyLogger.reset()
+        LatencyLogger.log("Orchestrator", "Query received")
+        if (pendingConfirmationTool == null && tryHandleDirectRegistryHit(trimmedQuery)) {
+            return
+        }
+
+        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(trimmedQuery)) {
+            return
         }
 
         if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
@@ -181,10 +238,6 @@ class AgentOrchestrator(
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                 }
             }
-            return
-        }
-
-        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
             return
         }
 
@@ -275,6 +328,36 @@ class AgentOrchestrator(
         EmergencyAlarmManager.stop()
     }
 
+    private fun tryHandleDirectRegistryHit(query: String): Boolean {
+        val toolManager = try {
+            org.koin.java.KoinJavaComponent.getKoin().get<ToolManager>()
+        } catch (e: Exception) {
+            return false
+        }
+        if (!toolManager.isInitialized) {
+            toolManager.initialize(context.applicationContext)
+        }
+        val hit = toolManager.resolveDirectHit(query) ?: return false
+
+        beginTurn()
+        _state.value = OrchestratorState.Thinking(query)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        LatencyLogger.log(
+            "DirectTool",
+            "Matched ${hit.toolCall} via '${hit.matchedKeyword}' (${hit.reason})",
+        )
+
+        scope.launch {
+            completeDirectToolTurn(
+                query = query,
+                toolCall = hit.toolCall,
+                preferredSpoken = hit.spokenResponse,
+                pathLabel = "DirectTool",
+            )
+        }
+        return true
+    }
+
     private fun tryHandleDirectFollowUp(query: String): Boolean {
         if (pendingConfirmationTool != null) return false
         val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false
@@ -282,43 +365,159 @@ class AgentOrchestrator(
         beginTurn()
         _state.value = OrchestratorState.Thinking(query)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        LatencyLogger.log("FollowUp", "Matched $toolCall")
 
         scope.launch {
-            MemoryManager.captureLongTermFacts(context, query)
-            MemoryManager.addTurn("User", query)
-
             if (toolCall.startsWith("handleDrowsyDriving") || FollowUpRouter.isDrowsyDriverQuery(query)) {
                 EmergencyAlarmManager.start(context)
             }
 
-            val feedback = executeToolCall(toolCall) ?: "Action completed."
-            val finalMsg = when {
+            val preferred = when {
                 toolCall.startsWith("handleDrowsyDriving") ->
                     "Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert."
                 toolCall.startsWith("stopMusic") -> "No problem, I've stopped the music for you right away."
-                toolCall.startsWith("playMusic") -> "Great choice — playing music for you right away!"
+                toolCall.startsWith("playMusic") -> {
+                    val song = toolCall.substringAfter("(").substringBefore(")").trim()
+                        .removeSurrounding("\"")
+                    if (song.isNotBlank() && !song.equals("music", ignoreCase = true)) {
+                        "Great choice — putting on $song for you!"
+                    } else {
+                        "Great choice — putting some music on for you!"
+                    }
+                }
                 toolCall.startsWith("increaseTemperature") -> "I'm warming up the cabin for you right away!"
                 toolCall.startsWith("decreaseTemperature") -> "I'm cooling down the cabin for you right away!"
-                toolCall.startsWith("startNavigationTo") -> feedback
-                toolCall.startsWith("searchNearby") -> feedback
-                else -> feedback
+                else -> null
             }
 
-            MemoryManager.addTurn("Assistant", finalMsg)
-            LLMManager.lastAiResponse = finalMsg
-            _state.value = OrchestratorState.Speaking(finalMsg)
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-            isQueryProcessed = true
-
-            if (finalMsg.isNotBlank()) {
-                audioManager.speak(finalMsg, "SENTENCE_0")
-                val isQuestion = finalMsg.trim().endsWith("?") ||
-                    finalMsg.contains("which one", ignoreCase = true)
-                val finalUtterance = if (isQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL"
-                audioManager.playSilentUtterance(10, finalUtterance)
-            }
+            completeDirectToolTurn(
+                query = query,
+                toolCall = toolCall,
+                preferredSpoken = preferred,
+                pathLabel = "FollowUp",
+            )
         }
         return true
+    }
+
+    /**
+     * Shared completion for DirectTool / FollowUp: ContextGuard → execute (or confirm/block),
+     * surface a short reply, speak it, and log whether the E2E budget was met.
+     */
+    private suspend fun completeDirectToolTurn(
+        query: String,
+        toolCall: String,
+        preferredSpoken: String?,
+        pathLabel: String,
+    ) {
+        MemoryManager.captureLongTermFacts(context, query)
+        MemoryManager.addTurn("User", query)
+
+        when (val decision = evaluateContextGuard(toolCall)) {
+            is ContextGuard.Decision.Confirm -> {
+                pendingConfirmationTool = decision.originalToolCall
+                finishGuardedTurn(
+                    message = decision.message,
+                    pathLabel = pathLabel,
+                    toolCall = toolCall,
+                    policyId = decision.policyId,
+                    asQuestion = true,
+                )
+                return
+            }
+            is ContextGuard.Decision.Block -> {
+                finishGuardedTurn(
+                    message = decision.message,
+                    pathLabel = pathLabel,
+                    toolCall = toolCall,
+                    policyId = decision.policyId,
+                    asQuestion = false,
+                )
+                return
+            }
+            is ContextGuard.Decision.Escalate -> {
+                finishGuardedTurn(
+                    message = decision.message,
+                    pathLabel = pathLabel,
+                    toolCall = toolCall,
+                    policyId = decision.policyId,
+                    asQuestion = true,
+                )
+                return
+            }
+            is ContextGuard.Decision.Allow -> Unit
+        }
+
+        val feedback = executeToolCall(toolCall) ?: "Action completed."
+        // Prefer live handler feedback (destinations, setpoints, artist names) over static
+        // registry success_message / DirectTool "Done." placeholders.
+        val finalMsg = when {
+            feedback.isNotBlank() &&
+                !feedback.startsWith("System Error", ignoreCase = true) &&
+                !feedback.equals("Action completed.", ignoreCase = true) -> feedback
+            !preferredSpoken.isNullOrBlank() &&
+                !preferredSpoken.equals("Done.", ignoreCase = true) -> preferredSpoken
+            feedback.isNotBlank() -> feedback
+            !preferredSpoken.isNullOrBlank() -> preferredSpoken
+            else -> "Okay."
+        }
+
+        MemoryManager.addTurn("Assistant", finalMsg)
+        LLMManager.lastAiResponse = finalMsg
+        _state.value = OrchestratorState.Speaking(finalMsg)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        isQueryProcessed = true
+
+        val elapsed = LatencyLogger.getTotalTime()
+        val budget = AssistantConfig.Session.END_TO_END_BUDGET_MS
+        val met = elapsed in 0..budget
+        LatencyLogger.log(
+            pathLabel,
+            "E2E ${elapsed}ms (budget ${budget}ms, ${if (met) "MET" else "MISS"}) tool=$toolCall",
+        )
+
+        if (finalMsg.isNotBlank()) {
+            audioManager.speak(finalMsg, "SENTENCE_0")
+            val isQuestion = finalMsg.trim().endsWith("?") ||
+                finalMsg.contains("which one", ignoreCase = true)
+            val finalUtterance = if (isQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL"
+            audioManager.playSilentUtterance(10, finalUtterance)
+        }
+    }
+
+    private suspend fun finishGuardedTurn(
+        message: String,
+        pathLabel: String,
+        toolCall: String,
+        policyId: String?,
+        asQuestion: Boolean,
+    ) {
+        MemoryManager.addTurn("Assistant", message)
+        LLMManager.lastAiResponse = message
+        _state.value = OrchestratorState.Speaking(message)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        isQueryProcessed = true
+        LatencyLogger.log(
+            pathLabel,
+            "ContextGuard policy=$policyId tool=$toolCall msg=$message",
+        )
+        if (message.isNotBlank()) {
+            audioManager.speak(message, "SENTENCE_0")
+            audioManager.playSilentUtterance(
+                10,
+                if (asQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL",
+            )
+        }
+    }
+
+    private fun evaluateContextGuard(toolCall: String): ContextGuard.Decision {
+        return try {
+            val snapshot = CabinSnapshotReader.capture(context.applicationContext)
+            ContextGuard.evaluate(toolCall, snapshot)
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "ContextGuard snapshot failed; allowing $toolCall", e)
+            ContextGuard.Decision.Allow()
+        }
     }
 
     private suspend fun processQuery(
@@ -375,8 +574,7 @@ class AgentOrchestrator(
         var interceptedQuery = query
 
         if (pendingConfirmationTool != null) {
-            val q = query.lowercase()
-            if (q.contains("yes") || q.contains("yeah") || q.contains("sure") || q.contains("do it") || q.contains("ok")) {
+            if (MemoryManager.isAffirmative(query)) {
                 val toolToExecute = pendingConfirmationTool!!
                 pendingConfirmationTool = null
                 val feedback = executeToolCall(toolToExecute)
@@ -599,7 +797,15 @@ class AgentOrchestrator(
                                 val job = scope.async(Dispatchers.IO) {
                                     audioManager.waitUntilFinishedSpeaking()
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
-                                        executeToolCall(toolCall)
+                                        when (val decision = evaluateContextGuard(toolCall)) {
+                                            is ContextGuard.Decision.Confirm -> {
+                                                pendingConfirmationTool = decision.originalToolCall
+                                                decision.message
+                                            }
+                                            is ContextGuard.Decision.Block -> decision.message
+                                            is ContextGuard.Decision.Escalate -> decision.message
+                                            is ContextGuard.Decision.Allow -> executeToolCall(toolCall)
+                                        }
                                     } ?: "System Error: Tool execution timed out."
                                 }
                                 pendingTools.add(job)

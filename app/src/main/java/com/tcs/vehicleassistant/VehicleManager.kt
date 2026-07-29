@@ -57,26 +57,36 @@ object VehicleManager {
      * Convention matches the registry instruction: 0 = fully closed, higher = more open.
      */
     fun getWindowClosureStatus(): String {
-        val manager = carPropertyManager ?: return "I can't read the window sensors right now."
+        val pct = getMaxWindowOpenPct()
+        return when {
+            pct < 0 -> "I can't read the window sensors right now."
+            pct == 0 -> "I've checked the sensors. All windows are currently closed."
+            else -> "Some windows are open (up to $pct%)."
+        }
+    }
+
+    /**
+     * Highest window openness across areas (0–100). Returns -1 when sensors are unavailable.
+     */
+    fun getMaxWindowOpenPct(): Int {
+        val manager = carPropertyManager ?: return -1
         return try {
-            val config = manager.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS)
-                ?: return "This vehicle image does not expose window position sensors."
-            val openAreas = mutableListOf<String>()
+            val config = manager.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS) ?: return -1
+            var maxOpen = 0
+            var sawAny = false
             for (areaId in config.areaIds) {
                 val pos = try {
                     manager.getIntProperty(VehiclePropertyIds.WINDOW_POS, areaId)
                 } catch (_: Exception) {
                     continue
                 }
-                if (pos > 0) openAreas.add("area $areaId at $pos%")
+                sawAny = true
+                if (pos > maxOpen) maxOpen = pos
             }
-            when {
-                openAreas.isEmpty() -> "I've checked the sensors. All windows are currently closed."
-                else -> "Some windows are open (${openAreas.joinToString(", ")})."
-            }
+            if (sawAny) maxOpen.coerceIn(0, 100) else -1
         } catch (e: Exception) {
             Log.w("VehicleManager", "Failed to read WINDOW_POS", e)
-            "I couldn't read the window sensors."
+            -1
         }
     }
     

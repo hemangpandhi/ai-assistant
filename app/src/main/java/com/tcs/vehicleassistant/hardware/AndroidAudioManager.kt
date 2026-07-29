@@ -4,7 +4,10 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.util.Log
+import com.tcs.vehicleassistant.LatencyLogger
 import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.TtsVoiceCatalog
 import kotlinx.coroutines.*
 import com.k2fsa.sherpa.onnx.*
 
@@ -15,7 +18,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     private var offlineTts: OfflineTts? = null
-    
+    @Volatile private var ttsSpeakerId: Int = 0
+    @Volatile private var ttsSpeed: Float = 1.0f
+    @Volatile private var loadedVoiceId: String = TtsVoiceCatalog.BUNDLED_AMY_ID
+
     // TTS callbacks
     private var onTtsStart: ((String) -> Unit)? = null
     private var onTtsDone: ((String) -> Unit)? = null
@@ -57,35 +63,93 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         return outDir.absolutePath
     }
 
+    private fun readVoicePrefs() {
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        ttsSpeed = prefs.getFloat(AssistantConfig.Prefs.VOICE_RATE, 1.0f).coerceIn(0.5f, 2.0f)
+        ttsSpeakerId = prefs.getInt(AssistantConfig.Prefs.TTS_SPEAKER_ID, 0).coerceAtLeast(0)
+    }
+
+    private fun buildOfflineTts(): OfflineTts {
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        val voice = TtsVoiceCatalog.findById(context, prefs.getString(AssistantConfig.Prefs.TTS_VOICE_ID, null))
+        val espeakDataPath = copyEspeakData()
+        val vitsConfig = OfflineTtsVitsModelConfig(
+            model = voice.modelPath,
+            tokens = voice.tokensPath,
+            lexicon = "",
+            dataDir = espeakDataPath,
+            dictDir = "",
+            noiseScale = 0.667f,
+            noiseScaleW = 0.8f,
+            lengthScale = 1.0f
+        )
+        val modelConfig = OfflineTtsModelConfig(
+            vits = vitsConfig,
+            numThreads = 1,
+            debug = false,
+            provider = "cpu"
+        )
+        val config = OfflineTtsConfig(
+            model = modelConfig,
+            ruleFsts = "",
+            maxNumSentences = 1
+        )
+        loadedVoiceId = voice.id
+        Log.i(TAG, "Loading TTS voice id=${voice.id} assets=${voice.fromAssets} catalogSpeakers=${voice.numSpeakers} speed=$ttsSpeed")
+        val tts = if (voice.fromAssets) {
+            OfflineTts(context.assets, config)
+        } else {
+            OfflineTts(assetManager = null, config = config)
+        }
+        val speakers = tts.numSpeakers().coerceAtLeast(1)
+        ttsSpeakerId = ttsSpeakerId.coerceIn(0, speakers - 1)
+        return tts
+    }
+
     override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
         try {
-            val espeakDataPath = copyEspeakData()
-            val vitsConfig = OfflineTtsVitsModelConfig(
-                model = "sherpa-onnx-tts/en_US-amy-low.onnx",
-                tokens = "sherpa-onnx-tts/tokens.txt",
-                lexicon = "",
-                dataDir = espeakDataPath,
-                dictDir = "",
-                noiseScale = 0.667f,
-                noiseScaleW = 0.8f,
-                lengthScale = 1.0f
-            )
-            val modelConfig = OfflineTtsModelConfig(
-                vits = vitsConfig, 
-                numThreads = 1, 
-                debug = false, 
-                provider = "cpu"
-            )
-            val config = OfflineTtsConfig(
-                model = modelConfig, 
-                ruleFsts = "", 
-                maxNumSentences = 1
-            )
-            offlineTts = OfflineTts(context.assets, config)
+            readVoicePrefs()
+            offlineTts = buildOfflineTts()
             onSuccess()
         } catch (e: Exception) {
-            e.printStackTrace()
-            onError()
+            Log.e(TAG, "Failed to initialize offline TTS", e)
+            // Fall back to bundled Amy if a sideloaded voice is broken.
+            try {
+                val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+                prefs.edit().putString(AssistantConfig.Prefs.TTS_VOICE_ID, TtsVoiceCatalog.BUNDLED_AMY_ID).apply()
+                offlineTts = buildOfflineTts()
+                onSuccess()
+            } catch (fallback: Exception) {
+                Log.e(TAG, "Bundled Amy TTS also failed", fallback)
+                onError()
+            }
+        }
+    }
+
+    override fun reloadTtsFromPrefs() {
+        ttsChannel.trySend {
+            try {
+                readVoicePrefs()
+                offlineTts?.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to release previous TTS", e)
+            }
+            offlineTts = null
+            try {
+                offlineTts = buildOfflineTts()
+                Log.i(TAG, "Reloaded TTS voice=$loadedVoiceId sid=$ttsSpeakerId speed=$ttsSpeed")
+            } catch (e: Exception) {
+                Log.e(TAG, "TTS reload failed; restoring Amy", e)
+                try {
+                    val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+                    prefs.edit().putString(AssistantConfig.Prefs.TTS_VOICE_ID, TtsVoiceCatalog.BUNDLED_AMY_ID).apply()
+                    offlineTts = buildOfflineTts()
+                } catch (fallback: Exception) {
+                    Log.e(TAG, "TTS Amy fallback failed", fallback)
+                    offlineTts = null
+                    onTtsError?.invoke("Cabin voice failed to load. Check TTS settings.")
+                }
+            }
         }
     }
 
@@ -165,8 +229,8 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
             val sileroConfig = SileroVadModelConfig(
                 model = "silero_vad.onnx",
                 threshold = 0.5f,
-                minSilenceDuration = 1.0f,
-                minSpeechDuration = 0.25f,
+                minSilenceDuration = AssistantConfig.Audio.VAD_MIN_SILENCE_DURATION_SEC,
+                minSpeechDuration = AssistantConfig.Audio.VAD_MIN_SPEECH_DURATION_SEC,
                 windowSize = 512,
                 maxSpeechDuration = 15.0f
             )
@@ -192,6 +256,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     override fun startListening() {
         if (isListening) return
+        // Ensure any prior capture loop fully released AudioRecord before we open a new one.
+        listeningJob?.cancel()
+        listeningJob = null
         isListening = true
 
         listeningJob = listeningScope.launch {
@@ -258,6 +325,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 
                 var hasSpoken = false
                 var silenceFrames = 0
+                var silenceStartedAtMs = 0L
+                var noSpeechStartedAtMs = 0L
+                val listenStartedAtMs = System.currentTimeMillis()
                 val audioBuffer = mutableListOf<Float>()
                 sherpaVad?.reset()
                 
@@ -270,21 +340,27 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
                         // Feed float samples to Silero Neural VAD
                         val vad = sherpaVad
+                        val now = System.currentTimeMillis()
                         if (vad != null) {
                             vad.acceptWaveform(floatSamples)
                             val isSpeech = vad.isSpeechDetected()
                             if (isSpeech) {
                                 silenceFrames = 0
+                                silenceStartedAtMs = 0L
                                 noSpeechFrames = 0
+                                noSpeechStartedAtMs = 0L
                                 if (!hasSpoken) {
                                     hasSpoken = true
+                                    LatencyLogger.log("STT", "Beginning of speech")
                                     withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
                                 }
                             } else {
                                 if (hasSpoken) {
                                     silenceFrames++
+                                    if (silenceStartedAtMs == 0L) silenceStartedAtMs = now
                                 } else {
                                     noSpeechFrames++
+                                    if (noSpeechStartedAtMs == 0L) noSpeechStartedAtMs = now
                                 }
                             }
                         } else {
@@ -297,36 +373,56 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                             val rms = Math.sqrt(sumSquares / readSize)
                             if (rms > 200.0) {
                                 silenceFrames = 0
+                                silenceStartedAtMs = 0L
                                 noSpeechFrames = 0
+                                noSpeechStartedAtMs = 0L
                                 if (!hasSpoken) {
                                     hasSpoken = true
+                                    LatencyLogger.log("STT", "Beginning of speech")
                                     withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }
                                 }
                             } else if (hasSpoken) {
                                 silenceFrames++
+                                if (silenceStartedAtMs == 0L) silenceStartedAtMs = now
                             } else {
                                 noSpeechFrames++
+                                if (noSpeechStartedAtMs == 0L) noSpeechStartedAtMs = now
                             }
                         }
                         
                         // Close the utterance when the VAD reports end-of-segment, when trailing
-                        // silence exceeds the threshold, or when the user never spoke at all — the
-                        // last case is what stops the mic loop hanging open on silence.
+                        // silence exceeds the wall-clock budget, or when the user never spoke.
                         val isSegmentFinished = sherpaVad?.empty() == false
-                        val trailingSilenceElapsed = silenceFrames > AssistantConfig.Audio.TRAILING_SILENCE_FRAMES
-                        val noSpeechTimeout = noSpeechFrames > AssistantConfig.Audio.NO_SPEECH_TIMEOUT_FRAMES
+                        val trailingSilenceElapsed = silenceStartedAtMs > 0L &&
+                            (now - silenceStartedAtMs) >= AssistantConfig.Audio.TRAILING_SILENCE_MS
+                        val noSpeechTimeout = noSpeechStartedAtMs > 0L &&
+                            (now - noSpeechStartedAtMs) >= AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS
                         if ((hasSpoken && (isSegmentFinished || trailingSilenceElapsed)) || noSpeechTimeout) {
+                            val eosReason = when {
+                                noSpeechTimeout -> "no_speech_timeout"
+                                isSegmentFinished -> "vad_segment"
+                                else -> "trailing_silence_ms"
+                            }
+                            LatencyLogger.log(
+                                "STT",
+                                "End of speech ($eosReason) listen=${now - listenStartedAtMs}ms",
+                            )
                             withContext(Dispatchers.Main) {
                                 onSttEndOfSpeech?.invoke()
                             }
                             
                             val stream = sherpaRecognizer?.createStream()
                             if (stream != null && hasSpoken) {
+                                val decodeStarted = System.currentTimeMillis()
                                 val floatArray = audioBuffer.toFloatArray()
                                 stream.acceptWaveform(floatArray, 16000)
                                 sherpaRecognizer?.decode(stream)
                                 val result = sherpaRecognizer?.getResult(stream)?.text?.trim() ?: ""
                                 stream.release()
+                                LatencyLogger.log(
+                                    "STT",
+                                    "Transcript ready in ${System.currentTimeMillis() - decodeStarted}ms result='${result.take(48)}'",
+                                )
                                 android.util.Log.d("AndroidAudioManager", "STT result='$result'")
                                 
                                 withContext(Dispatchers.Main) {
@@ -441,7 +537,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
                 for (sentence in sentences) {
                     if (!isActive) break
-                    val audio = offlineTts?.generate(sentence, sid = 0, speed = 1.0f) ?: continue
+                    val audio = offlineTts?.generate(sentence, sid = ttsSpeakerId, speed = ttsSpeed) ?: continue
                     val samples = audio.samples
                     val sampleRate = audio.sampleRate
                     

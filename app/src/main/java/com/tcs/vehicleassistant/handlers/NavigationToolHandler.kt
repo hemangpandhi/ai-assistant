@@ -2,6 +2,7 @@
 
 package com.tcs.vehicleassistant.handlers
 import com.tcs.vehicleassistant.LocationManager
+import com.tcs.vehicleassistant.core.NavSessionState
 
 import android.content.Context
 import android.content.Intent
@@ -50,6 +51,7 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                         }
                     }
                 }
+                NavSessionState.setActive(spokenDest)
                 ToolExecutionResult(true, "Getting you on the road to $spokenDest — hang tight.")
             }
             "searchNearby" -> {

@@ -45,7 +45,14 @@ object MemoryManager {
 
     fun isAffirmative(query: String): Boolean {
         val q = query.lowercase().trim()
-        return q in setOf("yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead", "please", "yup")
+            .trimEnd('.', '!', ',', '?')
+            .trim()
+        if (q in setOf("yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead", "please", "yup")) {
+            return true
+        }
+        // ASR often appends politeness: "yes please", "yeah sure", "ok go ahead"
+        val affirmStarts = listOf("yes ", "yeah ", "yep ", "yup ", "sure ", "ok ", "okay ")
+        return affirmStarts.any { q.startsWith(it) } && q.split(' ').size <= 4
     }
 
     fun isFollowUpQuery(query: String, previousResponse: String = ""): Boolean {

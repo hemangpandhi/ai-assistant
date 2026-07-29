@@ -31,6 +31,21 @@ object AssistantConfig {
 
         /** Model path the OpenCL kernel cache was built for, used to invalidate stale kernels. */
         const val KERNEL_CACHE_MODEL = "kernel_cache_model"
+
+        /** Selected Piper/Sherpa cabin TTS voice id from [TtsVoiceCatalog]. */
+        const val TTS_VOICE_ID = "tts_voice_id"
+
+        /** Speaker id for multi-speaker Piper models (LibriTTS-R, VCTK, …). */
+        const val TTS_SPEAKER_ID = "tts_speaker_id"
+
+        /** Speaking rate applied to Sherpa OfflineTts.generate(speed=…). */
+        const val VOICE_RATE = "voice_rate"
+
+        /**
+         * When true, LiteRT enables speculative decoding / MTP at Engine init if the model
+         * reports support (Gallery-style; default off for stability).
+         */
+        const val ENABLE_SPECULATIVE_DECODING = "enable_speculative_decoding"
     }
 
     object Backend {
@@ -48,7 +63,29 @@ object AssistantConfig {
     }
 
     object Llm {
+        /**
+         * Default edge model (Gemma 4 E2B IT generic). [LLMManager.autoInitialize] and settings
+         * both lock to this filename so cold start / voice / text skip a manual "Load Model" step.
+         */
+        const val DEFAULT_MODEL_FILENAME = "gemma-4-E2B-it.litertlm"
+
+        /** Sideload path used by deploy scripts and [LLMManager.autoInitialize]. */
+        const val DEFAULT_MODEL_PATH = "/data/local/tmp/llm/$DEFAULT_MODEL_FILENAME"
+
+        /**
+         * KV-cache budget (input+output). Gallery's Gemma 4 default is 4000; we stay at 3072 to
+         * limit RAM/prefill cost on tablet AAOS. Do not raise without measuring OOM / TTFT.
+         */
         const val MAX_NUM_TOKENS = 3072
+
+        /** Gallery / LiteRT-LM chat sampler defaults (GPU/CPU). NPU leaves sampler null. */
+        const val SAMPLER_TOP_K = 64
+        const val SAMPLER_TOP_P = 0.95
+        const val SAMPLER_TEMPERATURE = 1.0
+
+        /** Official LiteRT benchmark defaults (diagnostics only). */
+        const val BENCHMARK_PREFILL_TOKENS = 256
+        const val BENCHMARK_DECODE_TOKENS = 256
 
         /** Directory holding LiteRT serialized inference contexts / compiled OpenCL kernels. */
         const val KERNEL_CACHE_DIR = "litertlm_kernel_cache"
@@ -99,18 +136,45 @@ object AssistantConfig {
     object Audio {
         const val SAMPLE_RATE_HZ = 16_000
 
-        /** Consecutive non-speech frames after speech before the utterance is closed. */
-        const val TRAILING_SILENCE_FRAMES = 10
+        /**
+         * How long after the last voiced frame we treat the utterance as finished.
+         * Measured in wall-clock ms (not AudioRecord reads) so it stays stable across devices
+         * whose min buffer size differs. 400ms is snappy for cabin commands without clipping
+         * short pauses inside a phrase.
+         */
+        const val TRAILING_SILENCE_MS = 400L
 
-        /** Consecutive non-speech frames with no speech at all before giving up (~5s). */
+        /**
+         * @deprecated Prefer [TRAILING_SILENCE_MS]. Kept as an approximate frame budget for
+         * coherence tests and the RMS fallback path when VAD is unavailable.
+         */
+        const val TRAILING_SILENCE_FRAMES = 5
+
+        /** Give up if the user never speaks (~5s). */
+        const val NO_SPEECH_TIMEOUT_MS = 5_000L
+
+        /** Approximate frame budget mirroring [NO_SPEECH_TIMEOUT_MS] for the RMS fallback. */
         const val NO_SPEECH_TIMEOUT_FRAMES = 50
 
         /** AudioRecord acquisition retries, covering handoff from the wake-word process. */
         const val AUDIO_RECORD_MAX_ATTEMPTS = 5
         const val AUDIO_RECORD_RETRY_DELAY_MS = 150L
 
-        /** Grace period for the wake-word process to release the microphone. */
-        const val MIC_HANDOFF_DELAY_MS = 400L
+        /**
+         * Grace period for the wake-word process to release the microphone. Retries in
+         * [com.tcs.vehicleassistant.hardware.AndroidAudioManager] cover residual contention, so this
+         * can stay short.
+         */
+        const val MIC_HANDOFF_DELAY_MS = 200L
+
+        /**
+         * Silero VAD: required silence before a speech segment is closed. Was 1.0s and dominated
+         * voice E2E; 0.4s matches [TRAILING_SILENCE_MS] for cabin-command turn-taking.
+         */
+        const val VAD_MIN_SILENCE_DURATION_SEC = 0.4f
+
+        /** Silero VAD: ignore clicks shorter than this. */
+        const val VAD_MIN_SPEECH_DURATION_SEC = 0.2f
 
         /**
          * Ceiling on how long a caller waits for queued speech to drain. The wait is a marker task
@@ -168,6 +232,13 @@ object AssistantConfig {
         const val LLM_READY_TIMEOUT_MS = 240_000L
         const val LLM_READY_POLL_MS = 250L
         const val TYPEWRITER_STEP_MS = 15L
+
+        /**
+         * Target wall time from an already-recognized user query to tool actuation + first spoken
+         * / displayed reply. Full Gemma prefill exceeds this (~1.5s), so high-confidence cabin
+         * commands use [com.tcs.vehicleassistant.core.DirectToolResolver] against the skills registry.
+         */
+        const val END_TO_END_BUDGET_MS = 1_000L
     }
 
     /** Screens at least this wide are treated as tablet/large-format head units. */

@@ -45,7 +45,9 @@ object FollowUpRouter {
 
         if (MemoryManager.isAffirmative(query)) {
             when {
-                last.contains("seat heater") -> return "setSeatHeater(2)"
+                last.contains("seat heater") || last.contains("seat heat") ||
+                    last.contains("heated seat") || last.contains("warm your seat") ||
+                    last.contains("warm the seat") -> return "setSeatHeater(2)"
                 last.contains("gas station") || last.contains("charging station") ||
                     last.contains("find a nearby") || last.contains("find nearby") -> {
                     return if (last.contains("charg")) "searchNearby(charging)" else "searchNearby(gas)"
