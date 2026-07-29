@@ -122,10 +122,10 @@ object LLMManager {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
                 // Cap max tokens to 4096 to prevent GPU Out-of-Memory (OOM) crashes that cause CPU fallback
-                var maxTokens = prefs.getInt("max_tokens", 4096)
-                if (maxTokens > 4096 || maxTokens < 4096) {
-                    maxTokens = 4096
-                    prefs.edit().putInt("max_tokens", 4096).apply()
+                var maxTokens = prefs.getInt("max_tokens", 1024)
+                if (maxTokens > 1024 || maxTokens < 1024) {
+                    maxTokens = 1024
+                    prefs.edit().putInt("max_tokens", 1024).apply()
                 }
                 
                 try {
