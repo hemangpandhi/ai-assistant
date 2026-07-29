@@ -88,42 +88,41 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                 }
             }
             "pauseMusic", "stopMusic" -> {
+                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+                
+                // 1. Dispatch MediaSessionManager controller commands
                 try {
                     val controllers = mediaSessionManager.getActiveSessions(null)
-                    if (controllers.isNotEmpty()) {
-                        for (controller in controllers) {
-                            // Many apps ignore stop(), always use pause() for both pause and stop intents
-                            controller.transportControls.pause()
-                        }
-                    } else {
-                        throw Exception("No active sessions found for pause")
+                    for (controller in controllers) {
+                        try { controller.transportControls.pause() } catch (e: Exception) {}
+                        try { controller.transportControls.stop() } catch (e: Exception) {}
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to pause media via MediaSessionManager, using fallback", e)
-                    try {
-                        // Use KEYCODE_MEDIA_PAUSE for both, as KEYCODE_MEDIA_STOP is often ignored
-                        val keycode = android.view.KeyEvent.KEYCODE_MEDIA_PAUSE
-                        
-                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, keycode))
-                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, keycode))
-
-                        // Fallback 2: Generic music service command (Supported by Spotify, AOSP Music, etc.)
-                        val cmdIntent = Intent("com.android.music.musicservicecommand")
-                        cmdIntent.putExtra("command", "pause")
-                        context.sendBroadcast(cmdIntent)
-
-                        // Fallback 3: Explicitly target Spotify if installed
-                        val spotifyIntent = Intent("com.spotify.mobile.android.ui.widget.PLAY")
-                        spotifyIntent.setPackage("com.spotify.music")
-                        spotifyIntent.action = "com.spotify.mobile.android.ui.widget.PAUSE"
-                        context.sendBroadcast(spotifyIntent)
-
-                    } catch (ex: Exception) {
-                        Log.e(TAG, "Fallback media broadcast failed", ex)
-                        return ToolExecutionResult(false, "System Error: Could not control media playback.")
-                    }
+                    Log.e(TAG, "Failed to stop media via MediaSessionManager", e)
                 }
+
+                // 2. Dispatch hardware key events (KEYCODE_MEDIA_PAUSE, KEYCODE_MEDIA_STOP, KEYCODE_MEDIA_PLAY_PAUSE)
+                try {
+                    val keycodes = intArrayOf(
+                        android.view.KeyEvent.KEYCODE_MEDIA_PAUSE,
+                        android.view.KeyEvent.KEYCODE_MEDIA_STOP,
+                        android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                    )
+                    for (code in keycodes) {
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
+                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to dispatch media key events", e)
+                }
+
+                // 3. Broadcast android music service pause intent
+                try {
+                    val cmdIntent = Intent("com.android.music.musicservicecommand")
+                    cmdIntent.putExtra("command", "pause")
+                    context.sendBroadcast(cmdIntent)
+                } catch (e: Exception) {}
+
                 val feedback = if (handlerKey == "stopMusic") "Music stopped." else "Music paused."
                 ToolExecutionResult(true, feedback)
             }
