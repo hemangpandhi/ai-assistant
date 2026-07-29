@@ -101,12 +101,11 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     Log.e(TAG, "Failed to stop media via MediaSessionManager", e)
                 }
 
-                // 2. Dispatch hardware key events (KEYCODE_MEDIA_PAUSE, KEYCODE_MEDIA_STOP, KEYCODE_MEDIA_PLAY_PAUSE)
+                // 2. Dispatch explicit hardware pause and stop key events (do NOT send PLAY_PAUSE toggle!)
                 try {
                     val keycodes = intArrayOf(
                         android.view.KeyEvent.KEYCODE_MEDIA_PAUSE,
-                        android.view.KeyEvent.KEYCODE_MEDIA_STOP,
-                        android.view.KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE
+                        android.view.KeyEvent.KEYCODE_MEDIA_STOP
                     )
                     for (code in keycodes) {
                         audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))
