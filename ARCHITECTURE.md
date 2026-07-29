@@ -172,7 +172,7 @@ flowchart TD
     %% Flow Mapping
     MIC -->|Audio Stream| STT
     MIC -->|Continuous Stream| VOSK
-    VOSK -->|"Hey Auto" Trigger| SESSION
+    VOSK -->|"Hey Nissan" / Configured Trigger| SESSION
     STT -->|Transcribed Text| SESSION
     TXT -->|Raw String| ACT
     
