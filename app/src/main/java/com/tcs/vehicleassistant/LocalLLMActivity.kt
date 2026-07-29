@@ -49,6 +49,10 @@ class LocalLLMActivity : AppCompatActivity() {
         var isCloudModelActive = false
         var currentCloudModelName = ""
 
+        /** Defaults for the debug-only model sideload hook; expects `adb reverse tcp:8080 tcp:8080`. */
+        private const val DEFAULT_SIDELOAD_URL = "http://localhost:8080/Qwen2.5.litertlm"
+        private const val DEFAULT_SIDELOAD_FILE = "Qwen2.5.litertlm"
+
         fun loadRuntimePrefs(context: Context) {
             DemoSettingsPresets.ensureDefaults(context)
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -161,34 +165,9 @@ class LocalLLMActivity : AppCompatActivity() {
         generateButton = findViewById(R.id.generateButton)
         voiceButton = findViewById(R.id.voiceButton)
 
-        // EMERGENCY SELINUX BYPASS: Allow ADB to trigger a native file copy via ContentProvider
-        val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
-                if (intent.action == "COPY_MODEL") {
-                    Thread {
-                        try {
-                            android.util.Log.i("LLMManager", "Downloading model natively from localhost to bypass SELinux...")
-                            val url = java.net.URL("http://localhost:8080/Qwen2.5.litertlm")
-                            url.openStream().use { input ->
-                                java.io.File(context.filesDir, "Qwen2.5.litertlm").outputStream().use { output ->
-                                    input.copyTo(output)
-                                }
-                            }
-                            android.util.Log.i("LLMManager", "Copy complete! File generated natively.")
-                        } catch (e: Exception) {
-                            android.util.Log.e("LLMManager", "Failed to copy", e)
-                        }
-                    }.start()
-                }
-            }
-        }
-        val copyFilter = android.content.IntentFilter("COPY_MODEL")
-        copyFilter.addDataScheme("content")
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(receiver, copyFilter, android.content.Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(receiver, copyFilter)
-        }
+        com.tcs.vehicleassistant.core.DebugBroadcasts.register(
+            this, sideloadModelReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_SIDELOAD_MODEL
+        )
 
         chatRecyclerView = findViewById(R.id.chatRecyclerView)
         tabLayout = findViewById(R.id.tabLayout)
@@ -690,14 +669,12 @@ class LocalLLMActivity : AppCompatActivity() {
             }
         })
 
-        val filter = IntentFilter("com.tcs.vehicleassistant.DIAGNOSTICS_DUMP")
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(diagnosticReceiver, filter, Context.RECEIVER_EXPORTED)
-            registerReceiver(testQueryReceiver, IntentFilter("com.tcs.vehicleassistant.TEST_QUERY"), Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(diagnosticReceiver, filter)
-            registerReceiver(testQueryReceiver, IntentFilter("com.tcs.vehicleassistant.TEST_QUERY"))
-        }
+        com.tcs.vehicleassistant.core.DebugBroadcasts.register(
+            this, diagnosticReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_DIAGNOSTICS_DUMP
+        )
+        com.tcs.vehicleassistant.core.DebugBroadcasts.register(
+            this, testQueryReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_TEST_QUERY
+        )
     }
 
     private fun applyVoiceSettings() {
@@ -1025,8 +1002,9 @@ class LocalLLMActivity : AppCompatActivity() {
             Log.e("LocalLLMActivity", "Failed to cleanup VehicleManager", e)
         }
         super.onDestroy()
-        try { unregisterReceiver(diagnosticReceiver) } catch (e: Exception) {}
-        try { unregisterReceiver(testQueryReceiver) } catch (e: Exception) {}
+        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, diagnosticReceiver)
+        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, testQueryReceiver)
+        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, sideloadModelReceiver)
     }
 
     private fun checkModelExists() {
@@ -1440,6 +1418,29 @@ class LocalLLMActivity : AppCompatActivity() {
                 android.util.Log.i("AutomatedTest", "Received automated test query: $query")
                 generateText(query)
             }
+        }
+    }
+
+    /**
+     * Pulls a `.litertlm` model from a host-side HTTP server reachable over `adb reverse`, which is
+     * the only way to get a multi-gigabyte file into this app's private storage on a device where
+     * SELinux blocks `adb push` into `/data/data`. Debug builds only.
+     */
+    private val sideloadModelReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val url = intent.getStringExtra("url") ?: DEFAULT_SIDELOAD_URL
+            val fileName = intent.getStringExtra("file") ?: DEFAULT_SIDELOAD_FILE
+            Thread {
+                try {
+                    Log.i("LLMManager", "Sideloading model from $url")
+                    java.net.URL(url).openStream().use { input ->
+                        java.io.File(context.filesDir, fileName).outputStream().use(input::copyTo)
+                    }
+                    Log.i("LLMManager", "Sideload of $fileName complete.")
+                } catch (e: Exception) {
+                    Log.e("LLMManager", "Sideload of $fileName failed", e)
+                }
+            }.start()
         }
     }
 }

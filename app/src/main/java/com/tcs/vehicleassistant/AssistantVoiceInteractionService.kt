@@ -7,6 +7,7 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.service.voice.VoiceInteractionService
 import android.service.voice.VoiceInteractionSession
+import com.tcs.vehicleassistant.core.AssistantConfig
 
 class AssistantVoiceInteractionService : VoiceInteractionService() {
 
@@ -29,7 +30,7 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == "com.tcs.vehicleassistant.WAKE_WORD_DETECTED") {
+            if (intent.action == AssistantConfig.WakeWordAction.DETECTED_BROADCAST) {
                 triggerSession(context)
             }
         }
@@ -38,12 +39,13 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
     override fun onCreate() {
         super.onCreate()
         instance = this
-        val filter = IntentFilter("com.tcs.vehicleassistant.WAKE_WORD_DETECTED")
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(receiver, filter)
-        }
+        // Only this app broadcasts the wake-word event, across its own process boundary, so the
+        // receiver must stay unexported: an exported one would let any app open the assistant.
+        registerReceiver(
+            receiver,
+            IntentFilter(AssistantConfig.WakeWordAction.DETECTED_BROADCAST),
+            Context.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onReady() {
@@ -58,6 +60,11 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
         super.onShutdown()
         try {
             unregisterReceiver(receiver)
-        } catch (e: Exception) {}
+        } catch (e: IllegalArgumentException) {
+            // Never registered; nothing to detach.
+        }
+        // Clearing the static handle keeps a destroyed service from leaking and stops
+        // triggerSession() from calling showSession() on a dead instance.
+        if (instance === this) instance = null
     }
 }
