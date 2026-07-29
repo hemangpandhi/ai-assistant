@@ -7,7 +7,7 @@ import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
 
 class CloudLLMProvider(
-    private val featureFlags: AssistantFeatureFlags,
+    private val featureFlags: AssistantFeatureFlags? = null,
 ) : ILLMProvider {
     private var isInitialized = false
 

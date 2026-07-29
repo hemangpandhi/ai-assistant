@@ -20,7 +20,8 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
     private var onTtsDone: ((String) -> Unit)? = null
     private var onTtsError: ((String) -> Unit)? = null
     private var onTtsRangeStart: ((String, Int, Int, Int) -> Unit)? = null
-
+    
+    // STT callbacks (full lifecycle)
     private var onSttReadyForSpeech: (() -> Unit)? = null
     private var onSttBeginningOfSpeech: (() -> Unit)? = null
     private var onSttEndOfSpeech: (() -> Unit)? = null
@@ -195,26 +196,31 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
                 dictDir = "",
                 noiseScale = 0.667f,
                 noiseScaleW = 0.8f,
-                lengthScale = 1.0f,
+                lengthScale = 1.0f
             )
             val modelConfig = OfflineTtsModelConfig(
-                vits = vitsConfig,
-                numThreads = 1,
-                debug = false,
-                provider = "cpu",
+                vits = vitsConfig, 
+                numThreads = 1, 
+                debug = false, 
+                provider = "cpu"
             )
             val config = OfflineTtsConfig(
-                model = modelConfig,
-                ruleFsts = "",
-                maxNumSentences = 1,
+                model = modelConfig, 
+                ruleFsts = "", 
+                maxNumSentences = 1
             )
-            offlineTts = OfflineTts(appContext.assets, config)
+            offlineTts = OfflineTts(context.assets, config)
             onSuccess()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to init Sherpa TTS", e)
+            e.printStackTrace()
             onError()
         }
     }
+
+    private var isListening = false
+    private var sherpaRecognizer: OfflineRecognizer? = null
+    private var audioRecord: android.media.AudioRecord? = null
+    private var listeningJob: Job? = null
 
     private fun initSpeechRecognizer() {
         if (sherpaRecognizer != null) return
@@ -224,7 +230,7 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
                 decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
                 language = "en",
                 task = "transcribe",
-                tailPaddings = -1,
+                tailPaddings = -1
             )
             val modelConfig = OfflineModelConfig(
                 whisper = whisperConfig,
@@ -232,40 +238,20 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
                 numThreads = 4,
                 debug = false,
                 provider = "cpu",
-                modelType = "whisper",
+                modelType = "whisper"
             )
             val featConfig = FeatureConfig(
                 sampleRate = 16000,
-                featureDim = 80,
+                featureDim = 80
             )
             val config = OfflineRecognizerConfig(
                 featConfig = featConfig,
-                modelConfig = modelConfig,
+                modelConfig = modelConfig
             )
-            sherpaRecognizer = OfflineRecognizer(appContext.assets, config)
+            sherpaRecognizer = OfflineRecognizer(context.assets, config)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to init Sherpa-ONNX Whisper: ${e.message}", e)
+            android.util.Log.e("AndroidAudioManager", "Failed to init Sherpa-ONNX: ${e.message}", e)
         }
-    }
-
-    override fun ensureWarmRecognizer() {
-        val run = Runnable { initSpeechRecognizer() }
-        if (Looper.myLooper() == Looper.getMainLooper()) run.run() else mainHandler.post(run)
-    }
-
-    override fun isActivelyListening(): Boolean =
-        isListening || startPending
-
-    override fun isReadyListening(): Boolean =
-        isListening && hasSignaledReady
-
-    override fun setEndpointingProfile(profile: EndpointingProfile) {
-        endpointingProfile = profile
-    }
-
-    private fun silenceLimitFrames(profile: EndpointingProfile): Int {
-        // ~80ms per AudioRecord read iteration on typical devices.
-        return ((profile.completeSilenceMs / 80L).toInt()).coerceIn(6, 30)
     }
 
     override fun startListening() {
@@ -493,6 +479,7 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
                     val shortSamples = ShortArray(samples.size)
                     for (i in samples.indices) {
                         var v = samples[i]
+                        // Sherpa-ONNX returns floats in [-1.0, 1.0]. Convert to 16-bit PCM.
                         if (v > 1.0f || v < -1.0f) {
                             if (v > 32767f) v = 32767f
                             if (v < -32768f) v = -32768f
@@ -553,18 +540,13 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
         offlineTts = null
 
         destroySpeechRecognizer()
-        try {
-            globalAudioTrack?.release()
-        } catch (_: Exception) {
-        }
-        globalAudioTrack = null
     }
 
     override fun setUtteranceListener(
         onStart: (String) -> Unit,
         onDone: (String) -> Unit,
         onError: (String) -> Unit,
-        onRangeStart: (String, Int, Int, Int) -> Unit,
+        onRangeStart: (String, Int, Int, Int) -> Unit
     ) {
         this.onTtsStart = onStart
         this.onTtsDone = onDone
@@ -579,7 +561,7 @@ class AndroidAudioManager(private val context: Context) : SessionAudioPort {
         onResult: (String) -> Unit,
         onEmptyResult: () -> Unit,
         onError: (Int) -> Unit,
-        onPartial: (String) -> Unit,
+        onPartial: (String) -> Unit
     ) {
         this.onSttReadyForSpeech = onReadyForSpeech
         this.onSttBeginningOfSpeech = onBeginningOfSpeech

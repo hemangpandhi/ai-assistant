@@ -5,9 +5,9 @@ import android.content.Intent
 import android.os.Build
 import android.util.Log
 import com.assistant.ui.assistant.api.AssistantDebugLog
-import com.tcs.vehicleassistant.WakeWordService
-import com.tcs.vehicleassistant.controller.AssistantViewModel
+import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
 import com.tcs.vehicleassistant.service.VehicleAgentService
+import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -71,7 +71,7 @@ object MicCaptureCoordinator {
         AssistantDebugLog.d(TAG, "preArm begin ($reason) token=$token")
 
         runCatching {
-            val stop = Intent(app, WakeWordService::class.java).apply {
+            val stop = Intent(app, UiUxWakeWordService::class.java).apply {
                 action = "ACTION_STOP_LISTENING"
             }
             app.startService(stop)
@@ -91,9 +91,9 @@ object MicCaptureCoordinator {
         armJob?.cancel()
         armJob = scope.launch {
             try {
-                val released = WakeWordService.awaitMicReleased(timeoutMs = 900L)
-                AssistantDebugLog.d(TAG, "wake mic released=$released holding=${WakeWordService.isHoldingMic}")
-                if (!released && WakeWordService.isHoldingMic) {
+                val released = UiUxWakeWordService.awaitMicReleased(timeoutMs = 900L)
+                AssistantDebugLog.d(TAG, "wake mic released=$released holding=${UiUxWakeWordService.isHoldingMic}")
+                if (!released && UiUxWakeWordService.isHoldingMic) {
                     AssistantDebugLog.w(TAG, "preArm — wake still holding, continue warm anyway")
                 }
                 delay(60L)
@@ -117,7 +117,7 @@ object MicCaptureCoordinator {
         try {
             val koin = getKoin()
             val audio = koin.get<SessionAudioPort>()
-            val vm = koin.get<AssistantViewModel>()
+            val vm = koin.get<UiUxAssistantViewModel>()
             com.assistant.ui.assistant.api.AssistantRuntime.backend
                 ?.asMicController()
                 ?.attachSession(vm, audio)

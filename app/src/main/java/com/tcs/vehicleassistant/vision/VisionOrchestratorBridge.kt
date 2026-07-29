@@ -7,11 +7,14 @@ import android.util.Log
 import com.tcs.vehicleassistant.MediaActionBridge
 import com.tcs.vehicleassistant.VehicleManager
 import com.tcs.vehicleassistant.core.AgentRuntime
-import com.tcs.vehicleassistant.repository.AgentOrchestrator
+import com.tcs.vehicleassistant.repository.UiUxAgentOrchestrator
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-class VisionOrchestratorBridge(private val context: Context, private val orchestrator: AgentOrchestrator) {
+class VisionOrchestratorBridge(
+    private val context: Context,
+    private val orchestrator: UiUxAgentOrchestrator,
+) {
 
     private val mediaBridge = MediaActionBridge(context)
 

@@ -9,7 +9,7 @@ class ToolCallParserTest {
     @Test
     fun extractCompleteToolCalls_parsesClosedTags() {
         val text = "Sure. <TOOL>setTemperature(72)</TOOL> Done."
-        val calls = ToolCallParser.extractCompleteToolCalls(text)
+        val calls = StreamingToolCallParser.extractCompleteToolCalls(text)
         assertEquals(1, calls.size)
         assertEquals("setTemperature", calls[0].toolName)
         assertEquals("72", calls[0].args)
@@ -19,14 +19,14 @@ class ToolCallParserTest {
     @Test
     fun extractCompleteToolCalls_ignoresIncompleteTag() {
         val text = "Working on it. <TOOL>playMusic("
-        val calls = ToolCallParser.extractCompleteToolCalls(text)
+        val calls = StreamingToolCallParser.extractCompleteToolCalls(text)
         assertTrue(calls.isEmpty())
     }
 
     @Test
     fun extractCompleteToolCalls_multipleEagerTags() {
         val text = "<TOOL>setHvacPower(true)</TOOL> and <TOOL>playMusic()</TOOL>"
-        val calls = ToolCallParser.extractCompleteToolCalls(text)
+        val calls = StreamingToolCallParser.extractCompleteToolCalls(text)
         assertEquals(2, calls.size)
         assertEquals("setHvacPower(true)", calls[0].invocation)
         assertEquals("playMusic()", calls[1].invocation)

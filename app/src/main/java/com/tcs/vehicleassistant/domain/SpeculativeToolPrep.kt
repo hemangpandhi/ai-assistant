@@ -21,7 +21,8 @@ object SpeculativeToolPrep {
             clear()
             return
         }
-        val tool = FollowUpRouter.resolveDirectTool(q, LLMManager.lastAiResponse)
+        val tool = DirectCabinCommandRouter.resolve(q)
+            ?: FollowUpRouter.resolveDirectTool(q, LLMManager.lastAiResponse)
         if (tool != null) {
             candidateTool = tool
             candidatePartial = q
@@ -34,7 +35,8 @@ object SpeculativeToolPrep {
      * Never executes on partial — call only from the final-commit path.
      */
     fun resolveForFinal(finalQuery: String): String? {
-        val fresh = FollowUpRouter.resolveDirectTool(finalQuery, LLMManager.lastAiResponse)
+        val fresh = DirectCabinCommandRouter.resolve(finalQuery)
+            ?: FollowUpRouter.resolveDirectTool(finalQuery, LLMManager.lastAiResponse)
         val speculative = candidateTool
         val partial = candidatePartial
         clear()

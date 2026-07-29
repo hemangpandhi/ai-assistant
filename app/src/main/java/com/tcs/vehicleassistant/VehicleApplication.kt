@@ -4,6 +4,7 @@ import android.app.Application
 import com.tcs.vehicleassistant.assistant.AssistantRuntimeBootstrap
 import com.tcs.vehicleassistant.di.appModule
 import com.tcs.vehicleassistant.di.uiUxModule
+import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin

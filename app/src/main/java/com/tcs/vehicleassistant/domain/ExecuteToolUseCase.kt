@@ -3,7 +3,7 @@ package com.tcs.vehicleassistant.domain
 import android.content.Context
 import android.content.Intent
 import com.tcs.vehicleassistant.ToolManager
-import com.tcs.vehicleassistant.utils.ToolCallParser
+import com.tcs.vehicleassistant.utils.StreamingToolCallParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -21,7 +21,7 @@ class ExecuteToolUseCase(
         val deferred: kotlinx.coroutines.Deferred<String?>?,
     )
 
-    fun parseComplete(raw: String) = ToolCallParser.extractCompleteToolCalls(raw)
+    fun parseComplete(raw: String) = StreamingToolCallParser.extractCompleteToolCalls(raw)
 
     fun schedule(
         scope: CoroutineScope,

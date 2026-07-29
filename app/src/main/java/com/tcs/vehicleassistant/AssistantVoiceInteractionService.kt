@@ -8,6 +8,8 @@ import android.os.Bundle
 import android.service.voice.VoiceInteractionService
 import android.service.voice.VoiceInteractionSession
 import com.assistant.ui.assistant.ui.immersive.AssistantComposePrewarmer
+import com.tcs.vehicleassistant.assistant.AssistantUiProfile
+import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 import kotlin.concurrent.thread
 
 class AssistantVoiceInteractionService : VoiceInteractionService() {
@@ -18,10 +20,12 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
         fun triggerSession(context: Context? = null, fromHotword: Boolean = false) {
             android.util.Log.d("WakeWord", "triggerSession called. instance is $instance hotword=$fromHotword")
             val ctx = context ?: instance
+            if (ctx != null) AssistantUiProfile.install(ctx)
+            val composeUi = ctx != null && AssistantUiProfile.isCompose()
             // Pre-arm command STT before the overlay appears (icon path; hotword already arms).
-            if (ctx != null && !fromHotword) {
+            if (ctx != null && composeUi && !fromHotword) {
                 com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(ctx, reason = "assist-icon")
-            } else if (ctx != null && fromHotword) {
+            } else if (ctx != null && composeUi && fromHotword) {
                 // Hotword path usually pre-armed in WakeWordService; ensure if race lost.
                 com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.preArm(ctx, reason = "hotword-session")
             }
@@ -74,7 +78,12 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
         android.os.Handler(mainLooper).post {
             AssistantComposePrewarmer.warm(this)
             try {
-                val wake = Intent(this, WakeWordService::class.java)
+                AssistantUiProfile.install(this)
+                val wake = if (AssistantUiProfile.isCompose()) {
+                    Intent(this, UiUxWakeWordService::class.java)
+                } else {
+                    Intent(this, WakeWordService::class.java)
+                }
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                     startForegroundService(wake)
                 } else {

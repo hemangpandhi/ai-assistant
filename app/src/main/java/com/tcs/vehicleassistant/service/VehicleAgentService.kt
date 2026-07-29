@@ -10,9 +10,11 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.R
+import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.controller.AssistantViewModel
+import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
 import com.tcs.vehicleassistant.core.AgentRuntime
-import com.tcs.vehicleassistant.hardware.AndroidAudioManager
+import com.tcs.vehicleassistant.hardware.SessionAndroidAudioManager
 import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import com.tcs.vehicleassistant.llm.LlmEngine
 import kotlinx.coroutines.launch
@@ -22,8 +24,9 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
 
     private val binder = LocalBinder()
 
-    lateinit var audioManager: AndroidAudioManager
+    lateinit var audioManager: SessionAndroidAudioManager
     lateinit var viewModel: AssistantViewModel
+    lateinit var uiUxViewModel: UiUxAssistantViewModel
     private lateinit var llmEngine: LlmEngine
 
     inner class LocalBinder : Binder() {
@@ -35,8 +38,13 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
         AgentRuntime.resetForService()
         createNotificationChannel()
 
-        audioManager = getKoin().get<SessionAudioPort>() as AndroidAudioManager
-        viewModel = getKoin().get()
+        audioManager = getKoin().get<SessionAudioPort>() as SessionAndroidAudioManager
+        AssistantUiProfile.install(this)
+        if (AssistantUiProfile.isCompose()) {
+            uiUxViewModel = getKoin().get()
+        } else {
+            viewModel = AssistantViewModel(this, audioManager)
+        }
         llmEngine = getKoin().get()
 
         audioManager.initialize(
