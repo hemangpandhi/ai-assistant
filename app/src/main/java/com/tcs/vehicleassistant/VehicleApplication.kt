@@ -5,6 +5,9 @@ import com.tcs.vehicleassistant.di.appModule
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.core.context.startKoin
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class VehicleApplication : Application() {
     override fun onCreate() {
