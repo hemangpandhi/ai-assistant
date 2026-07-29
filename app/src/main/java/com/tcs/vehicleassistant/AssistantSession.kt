@@ -362,8 +362,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         super.onShow(args, showFlags)
 
         if (isSessionVisible) {
-            android.util.Log.d("AssistantSession", "Assistant re-triggered while active. Tearing down complete session.")
-            teardownSession()
+            android.util.Log.d("AssistantSession", "Assistant re-triggered while active. Keeping active session visible.")
             return
         }
         isSessionVisible = true
