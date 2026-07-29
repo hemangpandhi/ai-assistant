@@ -357,13 +357,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
-        AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
-        sessionUiVisible = true
-        // Cancel stale hide→wake restart so Vosk cannot reclaim the mic mid-STT.
-        wakeRestartJob?.cancel()
-        wakeRestartJob = null
-        dismissController.start()
-        idleController.start()
 
         if (isSessionVisible) {
             android.util.Log.d("AssistantSession", "Assistant re-triggered while active. Tearing down complete session.")
