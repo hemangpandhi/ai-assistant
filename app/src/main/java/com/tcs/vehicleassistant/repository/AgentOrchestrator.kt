@@ -585,7 +585,7 @@ class AgentOrchestrator(
                         finalDisplayMsg = if (toolFeedbacks.isNotEmpty()) {
                             toolFeedbacks.joinToString(" ")
                         } else {
-                            "On it — give me just a moment."
+                            "Done!"
                         }
                         // Speak it since it wasn't spoken earlier
                         audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
