@@ -197,10 +197,22 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                     onSttReadyForSpeech?.invoke()
                 }
                 
-                val bufferSize = android.media.AudioRecord.getMinBufferSize(16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT) * 2
-                audioRecord = android.media.AudioRecord(android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION, 16000, android.media.AudioFormat.CHANNEL_IN_MONO, android.media.AudioFormat.ENCODING_PCM_16BIT, bufferSize)
+                var audioRecordAttempts = 0
+                while (audioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED && audioRecordAttempts < 5) {
+                    if (audioRecordAttempts > 0) delay(150)
+                    try { audioRecord?.release() } catch (_: Exception) {}
+                    audioRecord = android.media.AudioRecord(
+                        android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                        16000,
+                        android.media.AudioFormat.CHANNEL_IN_MONO,
+                        android.media.AudioFormat.ENCODING_PCM_16BIT,
+                        bufferSize
+                    )
+                    audioRecordAttempts++
+                }
                 
                 if (audioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {
+                    android.util.Log.e("AndroidAudioManager", "Failed to initialize AudioRecord after $audioRecordAttempts attempts.")
                     withContext(Dispatchers.Main) {
                         isListening = false
                         onSttError?.invoke(0)
