@@ -6,8 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
 import com.tcs.vehicleassistant.domain.SpeculativeToolPrep
-import com.tcs.vehicleassistant.hardware.EndpointingProfile
+import com.tcs.vehicleassistant.hardware.EndpointingProfileSelector
 import com.tcs.vehicleassistant.hardware.SessionAudioPort
+import com.tcs.vehicleassistant.hardware.SpeechRecognitionErrors
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import com.tcs.vehicleassistant.repository.OrchestratorEvent
 import com.tcs.vehicleassistant.repository.OrchestratorState
@@ -79,12 +80,8 @@ class AssistantViewModel(
             onError = { errorCode ->
                 SpeculativeToolPrep.clear()
                 com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
-                val softMiss =
-                    errorCode == android.speech.SpeechRecognizer.ERROR_NO_MATCH ||
-                        errorCode == android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT
-                val recoverable =
-                    errorCode == android.speech.SpeechRecognizer.ERROR_CLIENT ||
-                        errorCode == android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY
+                val softMiss = SpeechRecognitionErrors.isSoftMiss(errorCode)
+                val recoverable = SpeechRecognitionErrors.isRecoverable(errorCode)
                 when {
                     softMiss -> {
                         _liveTranscript.value = ""
@@ -114,7 +111,7 @@ class AssistantViewModel(
                         }
                     }
                     else -> {
-                        val errorMsg = mapSpeechError(errorCode)
+                        val errorMsg = SpeechRecognitionErrors.userMessage(errorCode)
                         _uiState.value = AssistantUiState.Error(errorMsg)
                         viewModelScope.launch {
                             delay(2000)
@@ -126,7 +123,7 @@ class AssistantViewModel(
             onPartial = { partialText ->
                 if (partialText.isNotBlank()) {
                     SpeculativeToolPrep.onPartial(partialText)
-                    audioManager.setEndpointingProfile(endpointingForPartial(partialText))
+                    audioManager.setEndpointingProfile(EndpointingProfileSelector.forPartial(partialText))
                     _liveTranscript.value = partialText
                     _events.tryEmit(ViewModelEvent.SetInputText(partialText))
                 }
@@ -203,36 +200,6 @@ class AssistantViewModel(
 
     override fun onCleared() {
         super.onCleared()
-    }
-
-    private fun endpointingForPartial(partial: String): EndpointingProfile {
-        val q = partial.trim().lowercase()
-        if (SpeculativeToolPrep.looksLikeCommand(partial)) {
-            return EndpointingProfile.ShortCommand
-        }
-        if (q.startsWith("what ") || q.startsWith("why ") || q.startsWith("how ") ||
-            q.startsWith("where ") || q.startsWith("when ") || q.startsWith("who ") ||
-            q.contains("tell me") || q.contains("explain")
-        ) {
-            return EndpointingProfile.OpenQuestion
-        }
-        return EndpointingProfile.Default
-    }
-
-    private fun mapSpeechError(errorCode: Int): String {
-        val label = com.tcs.vehicleassistant.hardware.AndroidAudioManager.sttErrorLabel(errorCode)
-        return when (errorCode) {
-            android.speech.SpeechRecognizer.ERROR_AUDIO -> "Audio recording error ($errorCode)"
-            android.speech.SpeechRecognizer.ERROR_CLIENT -> "Client side error ($errorCode/$label)"
-            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions ($errorCode)"
-            android.speech.SpeechRecognizer.ERROR_NETWORK -> "Network error ($errorCode)"
-            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout ($errorCode)"
-            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "No recognition result matched ($errorCode)"
-            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "RecognitionService busy ($errorCode)"
-            android.speech.SpeechRecognizer.ERROR_SERVER -> "Error from server ($errorCode)"
-            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input ($errorCode)"
-            else -> "Unknown recognition error ($errorCode/$label)"
-        }
     }
 }
 

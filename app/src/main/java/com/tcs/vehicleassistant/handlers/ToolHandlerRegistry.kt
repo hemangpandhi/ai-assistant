@@ -1,21 +1,25 @@
 package com.tcs.vehicleassistant.handlers
 
 import com.tcs.vehicleassistant.ToolManager
+import com.tcs.vehicleassistant.handlers.hvac.HvacToolAliases
 
 object ToolHandlerRegistry {
-    val hvacHandlers = setOf(
+    /** Core HVAC keys (canonical). Aliases are merged via [HvacToolAliases]. */
+    private val coreHvacHandlers = setOf(
         "setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature",
         "setDriverTemperature", "setPassengerTemperature", "increasePassengerTemperature",
         "decreasePassengerTemperature", "increaseDriverTemperature", "decreaseDriverTemperature",
         "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager",
         "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster",
-        "turnOnAC", "turnOnAc", "turnOffAC", "turnOffAc",
-        "turnOnAutoClimate", "turnOnAutoHvac", "turnOffAutoClimate", "turnOffAutoHvac",
-        "turnOnHvacPower", "turnOnHvac", "turnOffHvacPower", "turnOffHvac",
+        "turnOnAC", "turnOffAC",
+        "turnOnAutoClimate", "turnOffAutoClimate",
+        "turnOnHvacPower", "turnOffHvacPower",
         "handleFeelingCold", "enableFreshAirIntake", "protectFromPollutedAir", "defogWindshield",
         "movePassengerSeatForward",
-        "turnOnRecirculation", "turnOnAirRecirculation", "turnOffRecirculation", "turnOffAirRecirculation",
+        "turnOnRecirculation", "turnOffRecirculation",
     )
+
+    val hvacHandlers: Set<String> = HvacToolAliases.expand(coreHvacHandlers)
     val mediaHandlers = setOf("playMusic", "pauseMusic", "stopMusic", "nextTrack", "prevTrack", "adjustBgmForSituation", "setVolumeLevel")
     val navHandlers = setOf("startNavigationTo", "searchNearby", "search", "suggestNearbyPlaces", "provideLaneLevelGuidance", "suggestAlternateRoute")
     val commHandlers = setOf("call", "bookRestaurant", "queryMemory", "callContact", "sendText")
@@ -26,9 +30,11 @@ object ToolHandlerRegistry {
     val evHandlers = setOf("suggestOptimizedChargingRate", "optimizeEnergyForRange", "explainLowRange")
 
     fun getHandler(handlerKey: String, toolDefinition: ToolManager.ToolDefinition): ToolHandler? {
-
+        // ui_ux extension seam — canonicalize HVAC aliases before dispatch
+        val key = HvacToolAliases.canonicalize(handlerKey)
         return when {
-            hvacHandlers.contains(handlerKey) -> HVACToolHandler(handlerKey, toolDefinition)
+            hvacHandlers.contains(handlerKey) || coreHvacHandlers.contains(key) ->
+                HVACToolHandler(key, toolDefinition)
             mediaHandlers.contains(handlerKey) -> MediaToolHandler(handlerKey)
             navHandlers.contains(handlerKey) -> NavigationToolHandler(handlerKey)
             commHandlers.contains(handlerKey) -> CommunicationToolHandler(handlerKey)

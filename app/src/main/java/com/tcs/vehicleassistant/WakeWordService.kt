@@ -18,7 +18,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.vosk.Model
 import org.vosk.Recognizer
-import kotlin.math.abs
 
 /**
  * Always-on wake-word listener with duty-cycled Vosk processing when the cabin is quiet.
@@ -33,10 +32,6 @@ class WakeWordService : Service() {
     companion object {
         var sharedModel: Model? = null
         private const val TAG = "WakeWord"
-        /** PCM samples below this are treated as silence for duty-cycling. */
-        private const val SILENCE_THRESHOLD = 180
-        /** When silent, run recognizer on 1 of every N buffers. */
-        private const val SILENT_DUTY_SKIP = 4
 
         /**
          * True while Vosk holds [android.media.AudioRecord].
@@ -181,32 +176,19 @@ class WakeWordService : Service() {
                 customAudioRecord?.startRecording()
                 val holdGen = beginMicHold()
                 val buffer = ShortArray(bufferSize)
+                val dutyCycle = com.tcs.vehicleassistant.wakeword.WakeWordDutyCycle()
 
                 var loopCount = 0
-                var silentBuffers = 0
                 try {
                     while (isRecording) {
                         val readSize = customAudioRecord?.read(buffer, 0, buffer.size) ?: 0
                         if (readSize > 0) {
                             loopCount++
-                            var maxAmplitude = 0
-                            for (i in 0 until readSize) {
-                                val a = abs(buffer[i].toInt())
-                                if (a > maxAmplitude) maxAmplitude = a
-                            }
+                            val decision = dutyCycle.inspect(buffer, readSize)
                             if (loopCount % 20 == 0) {
-                                Log.d(TAG, "Audio buffer max amplitude: $maxAmplitude")
+                                Log.d(TAG, "Audio buffer max amplitude: ${decision.maxAmplitude}")
                             }
-
-                            // Duty-cycle: when parked-quiet, skip most Vosk acceptWaveForm calls.
-                            if (maxAmplitude < SILENCE_THRESHOLD) {
-                                silentBuffers++
-                                if (silentBuffers % SILENT_DUTY_SKIP != 0) {
-                                    continue
-                                }
-                            } else {
-                                silentBuffers = 0
-                            }
+                            if (!decision.shouldRecognize) continue
 
                             if (customRecognizer?.acceptWaveForm(buffer, readSize) == true) {
                                 val result = customRecognizer?.result
@@ -316,30 +298,10 @@ class WakeWordService : Service() {
         if (lowerHypothesis.contains("text") || lowerHypothesis.contains("partial")) {
             Log.d(TAG, "Vosk heard: $hypothesis")
         }
-        val isMatch = lowerHypothesis.contains(wakeWord) ||
-            lowerHypothesis.contains("hey nissan") ||
-            lowerHypothesis.contains("nissan") ||
-            lowerHypothesis.contains("hey nice") ||
-            lowerHypothesis.contains("hey me") ||
-            lowerHypothesis.contains("hey listen") ||
-            lowerHypothesis.contains("hey lisa") ||
-            lowerHypothesis.contains("hey mason") ||
-            lowerHypothesis.contains("hey nathan") ||
-            lowerHypothesis.contains("hey missing") ||
-            lowerHypothesis.contains("hey auto") ||
-            lowerHypothesis.contains("hey otto") ||
-            lowerHypothesis.contains("hey out") ||
-            lowerHypothesis.contains("hey miss") ||
-            lowerHypothesis.contains("hey reason") ||
-            lowerHypothesis.contains("hey recent") ||
-            lowerHypothesis.contains("hey decent") ||
-            lowerHypothesis.contains("hey sam") ||
-            lowerHypothesis.contains("hey sun") ||
-            lowerHypothesis.contains("hey son") ||
-            lowerHypothesis.contains("hey i have a hot") ||
-            lowerHypothesis.contains("haney") ||
-            lowerHypothesis.contains("nisa") ||
-            lowerHypothesis.contains("haney sir")
+        val isMatch = com.tcs.vehicleassistant.wakeword.WakePhraseMatcher.matches(
+            hypothesis,
+            wakeWord,
+        )
 
         if (isMatch) {
             Log.d(TAG, "Wake word detected: $wakeWord")

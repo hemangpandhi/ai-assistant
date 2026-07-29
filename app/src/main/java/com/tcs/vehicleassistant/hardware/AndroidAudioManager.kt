@@ -35,20 +35,8 @@ import kotlinx.coroutines.withContext
 class AndroidAudioManager(private val context: Context) : SessionAudioPort {
 
     companion object {
-        /** Human-readable SpeechRecognizer / sherpa error codes for logs and UI. */
-        fun sttErrorLabel(error: Int): String = when (error) {
-            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "ERROR_NETWORK_TIMEOUT"
-            android.speech.SpeechRecognizer.ERROR_NETWORK -> "ERROR_NETWORK"
-            android.speech.SpeechRecognizer.ERROR_AUDIO -> "ERROR_AUDIO"
-            android.speech.SpeechRecognizer.ERROR_SERVER -> "ERROR_SERVER"
-            android.speech.SpeechRecognizer.ERROR_CLIENT -> "ERROR_CLIENT"
-            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "ERROR_SPEECH_TIMEOUT"
-            android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "ERROR_NO_MATCH"
-            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "ERROR_RECOGNIZER_BUSY"
-            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "ERROR_INSUFFICIENT_PERMISSIONS"
-            0 -> "SHERPA_ERROR"
-            else -> "ERROR_$error"
-        }
+        /** @deprecated Prefer [SpeechRecognitionErrors.label]. */
+        fun sttErrorLabel(error: Int): String = SpeechRecognitionErrors.label(error)
     }
 
     private val appContext = context.applicationContext

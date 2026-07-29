@@ -12,6 +12,9 @@ import com.tcs.vehicleassistant.utils.FollowUpRouter
 import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
 import com.tcs.vehicleassistant.utils.ToolCallParser
 import com.tcs.vehicleassistant.utils.MoodTagParser
+import com.tcs.vehicleassistant.domain.StreamingStateCoalescer
+import com.tcs.vehicleassistant.domain.TtsTurnIds
+import com.tcs.vehicleassistant.llm.LlmQueryReadinessGate
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -67,10 +70,11 @@ class AgentOrchestrator(
     private var pendingIntentToLaunch: Intent? = null
     private val lastResponseBuilder = StringBuilder()
 
-    /** Coalesce Streaming UI emits (~30fps) so Compose is not flooded per token. */
-    @Volatile private var pendingStreamDisplay: String? = null
-    @Volatile private var lastStreamEmitMs = 0L
-    private val streamEmitLock = Any()
+    private val streamCoalescer = StreamingStateCoalescer(
+        emit = { text -> _state.value = OrchestratorState.Streaming(text) },
+    )
+    private val ttsTurnIds = TtsTurnIds()
+    private val readinessGate = LlmQueryReadinessGate(context, featureFlags)
 
     @Volatile var ttsSpokenLength = 0
         private set
@@ -80,12 +84,8 @@ class AgentOrchestrator(
     private val currentPendingTools: MutableList<Deferred<String?>>
         get() = toolLoop.pendingTools
 
-    private var pendingPrewarmQuery: Pair<String, Int>? = null
-    private var prewarmWaitJob: Job? = null
     /** Active understand/act job — cancelled on barge-in. */
     private var queryJob: Job? = null
-    /** Invalidates late TTS onDone/onError after barge-in / new query / stopSpeaking. */
-    @Volatile private var ttsTurnGeneration: Int = 0
 
     private var pendingConfirmationTool: String?
         get() = toolLoop.pendingConfirmationTool
@@ -97,51 +97,18 @@ class AgentOrchestrator(
             }
         }
 
-    private fun nextTtsFinalId(kind: String): String = "${kind}_$ttsTurnGeneration"
+    private fun nextTtsFinalId(kind: String): String = ttsTurnIds.id(kind)
 
-    private fun matchTtsFinal(utteranceId: String): String? {
-        val kind = when {
-            utteranceId.startsWith("QUESTION_FINAL") -> "QUESTION_FINAL"
-            utteranceId.startsWith("STATEMENT_FINAL_TOOL") -> "STATEMENT_FINAL_TOOL"
-            utteranceId.startsWith("STATEMENT_FINAL") -> "STATEMENT_FINAL"
-            else -> return null
-        }
-        val gen = utteranceId.substringAfterLast('_').toIntOrNull()
-        if (gen != null && gen != ttsTurnGeneration) {
-            android.util.Log.d(
-                "AgentOrchestrator",
-                "ignore stale TTS final $utteranceId current=$ttsTurnGeneration",
-            )
-            return null
-        }
-        return kind
-    }
+    private fun matchTtsFinal(utteranceId: String): String? = ttsTurnIds.match(utteranceId)
 
     private fun emitStreamingUi(displayMsg: String, force: Boolean = false) {
-        synchronized(streamEmitLock) {
-            pendingStreamDisplay = displayMsg
-            val now = System.currentTimeMillis()
-            if (force || now - lastStreamEmitMs >= STREAM_UI_COALESCE_MS) {
-                lastStreamEmitMs = now
-                pendingStreamDisplay = null
-                _state.value = OrchestratorState.Streaming(displayMsg)
-            }
-        }
+        streamCoalescer.offer(displayMsg, force)
     }
 
     private fun flushPendingStreamingUi() {
-        synchronized(streamEmitLock) {
-            pendingStreamDisplay?.let {
-                pendingStreamDisplay = null
-                lastStreamEmitMs = System.currentTimeMillis()
-                _state.value = OrchestratorState.Streaming(it)
-            }
-        }
+        streamCoalescer.flush()
     }
 
-    companion object {
-        private const val STREAM_UI_COALESCE_MS = 32L
-    }
     init {
         audioManager.setUtteranceListener(
             onStart = { utteranceId ->
@@ -175,17 +142,17 @@ class AgentOrchestrator(
      * Capture stays armed; caller re-submits the new final when ready.
      */
     fun cancelInFlight() {
-        ttsTurnGeneration++
+        ttsTurnIds.advance()
         queryJob?.cancel()
         queryJob = null
         timeoutJob?.cancel()
-        prewarmWaitJob?.cancel()
-        pendingPrewarmQuery = null
+        readinessGate.cancel()
         currentPendingTools.clear()
         toolLoop.clearPending()
         pendingConfirmationTool = null
         pendingIntentToLaunch = null
         com.tcs.vehicleassistant.domain.SpeculativeToolPrep.clear()
+        streamCoalescer.reset()
         runCatching { audioManager.stopSpeaking() }
         speechPresenter.reset()
         isQueryProcessed = true
@@ -199,7 +166,7 @@ class AgentOrchestrator(
 
     fun handleQuery(query: String, retryCount: Int = 0) {
         // Supersede any prior turn (two-phase / barge-in).
-        ttsTurnGeneration++
+        ttsTurnIds.advance()
         queryJob?.cancel()
         queryJob = null
 
@@ -210,58 +177,27 @@ class AgentOrchestrator(
         }
 
         // Wait out prewarm / cold start so voice finals still reach the LLM
-        // (ui-ux fix: previously dropped after STT painted the transcript).
-        if (LLMManager.isPrewarming ||
-            (!featureFlags.isCloudActive && !LLMManager.isReady())
-        ) {
-            pendingPrewarmQuery = query to retryCount
-            _state.value = OrchestratorState.Thinking
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-            if (retryCount == 0) {
-                _events.tryEmit(
-                    OrchestratorEvent.ShowToast("Model is warming up — one moment…"),
-                )
-            }
-            if (prewarmWaitJob?.isActive != true) {
-                prewarmWaitJob = scope.launch {
-                    try {
-                        if (!featureFlags.isCloudActive && !LLMManager.isReady()) {
-                            val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
-                                .inject(org.koin.core.qualifier.named("edge"))
-                            edgeProvider.initialize(context, force = false)
-                        }
-                        var waits = 0
-                        while (
-                            waits < 40 &&
-                            (LLMManager.isPrewarming ||
-                                (!featureFlags.isCloudActive && !LLMManager.isReady()))
-                        ) {
-                            delay(250)
-                            waits++
-                        }
-                        val queued = pendingPrewarmQuery
-                        pendingPrewarmQuery = null
-                        if (LLMManager.isPrewarming ||
-                            (!featureFlags.isCloudActive && !LLMManager.isReady())
-                        ) {
-                            _state.value = OrchestratorState.Error(
-                                "Model not ready yet. Try again in a moment.",
-                            )
-                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                            return@launch
-                        }
-                        if (queued != null) {
-                            handleQuery(queued.first, queued.second)
-                        }
-                    } catch (e: Exception) {
-                        pendingPrewarmQuery = null
-                        _state.value = OrchestratorState.Error(
-                            "Model not loaded. Open the app to load a model.",
+        // (ui_ux extension seam — LlmQueryReadinessGate).
+        if (readinessGate.deferIfNeeded(
+                query = query,
+                retryCount = retryCount,
+                scope = scope,
+                onWaiting = { showToast ->
+                    _state.value = OrchestratorState.Thinking
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                    if (showToast) {
+                        _events.tryEmit(
+                            OrchestratorEvent.ShowToast("Model is warming up — one moment…"),
                         )
-                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                     }
-                }
-            }
+                },
+                onReady = { q, retries -> handleQuery(q, retries) },
+                onFailure = { message ->
+                    _state.value = OrchestratorState.Error(message)
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                },
+            )
+        ) {
             return
         }
 
@@ -343,7 +279,7 @@ class AgentOrchestrator(
         queryJob?.cancel()
         queryJob = null
         timeoutJob?.cancel()
-        prewarmWaitJob?.cancel()
+        readinessGate.cancel()
         EmergencyAlarmManager.stop()
         // Shared AgentRuntime.scope is owned by VehicleAgentService — do not cancel it here.
     }

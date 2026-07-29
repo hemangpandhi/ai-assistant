@@ -153,36 +153,36 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                 val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat(), "passenger")
                 if (success) ToolExecutionResult(true, "I've set the passenger's temperature to $value degrees.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            // Registry keys + remote (dev/refactor) aliases
-            "turnOnAC", "turnOnAc" -> {
+            // Registry keys (aliases canonicalized by HvacToolAliases before construction)
+            "turnOnAC" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AC_ON, 0, "true", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "The AC is now on.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOffAC", "turnOffAc" -> {
+            "turnOffAC" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AC_ON, 0, "false", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "I've turned off the AC.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOnAutoClimate", "turnOnAutoHvac" -> {
+            "turnOnAutoClimate" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AUTO_ON, 0, "true", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "Auto climate control is activated.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOffAutoClimate", "turnOffAutoHvac" -> {
+            "turnOffAutoClimate" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AUTO_ON, 0, "false", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "Auto climate control is now off.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOnHvacPower", "turnOnHvac" -> {
+            "turnOnHvacPower" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_POWER_ON, 0, "true", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "I've turned on the climate control system.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOffHvacPower", "turnOffHvac" -> {
+            "turnOffHvacPower" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_POWER_ON, 0, "false", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "I've turned off the climate control system.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOnRecirculation", "turnOnAirRecirculation" -> {
+            "turnOnRecirculation" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_RECIRC_ON, 0, "true", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "Air recirculation is on.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOffRecirculation", "turnOffAirRecirculation" -> {
+            "turnOffRecirculation" -> {
                 val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_RECIRC_ON, 0, "false", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "Air recirculation is off, bringing in fresh air.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }

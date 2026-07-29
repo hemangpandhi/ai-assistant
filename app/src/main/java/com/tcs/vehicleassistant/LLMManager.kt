@@ -18,11 +18,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import com.tcs.vehicleassistant.llm.EngineStatus
-import java.io.File
+import com.tcs.vehicleassistant.llm.EngineStatusStore
+import com.tcs.vehicleassistant.llm.LlmModelLocator
+import kotlinx.coroutines.flow.StateFlow
 
 object LLMManager {
     @Volatile
@@ -47,8 +46,9 @@ object LLMManager {
     var isPrewarming = false
         private set
 
-    private val _engineStatus = MutableStateFlow<EngineStatus>(EngineStatus.Cold)
-    val engineStatus: StateFlow<EngineStatus> = _engineStatus.asStateFlow()
+    private val statusStore = EngineStatusStore()
+    private val modelLocator = LlmModelLocator()
+    val engineStatus: StateFlow<EngineStatus> = statusStore.status
 
     var lastVehicleState = ""
 
@@ -63,13 +63,13 @@ object LLMManager {
     fun isInferenceReady(): Boolean = isReady() && !isPrewarming && engineStatus.value is EngineStatus.Ready
 
     private fun refreshEngineStatus() {
-        _engineStatus.value = when {
-            isInitializing -> EngineStatus.Loading
-            isPrewarming -> EngineStatus.Prewarming
-            engine != null && conversation != null -> EngineStatus.Ready
-            engine == null && currentModelPath.isEmpty() -> EngineStatus.Cold
-            else -> EngineStatus.Unloaded
-        }
+        statusStore.update(
+            initializing = isInitializing,
+            prewarming = isPrewarming,
+            engineLoaded = engine != null,
+            conversationLoaded = conversation != null,
+            modelPath = currentModelPath,
+        )
     }
     interface InitCallback {
         fun onSuccess()
@@ -84,43 +84,13 @@ object LLMManager {
         appContext = context.applicationContext
 
         withContext(Dispatchers.IO) {
-            val internalDir = context.filesDir
-            val externalDir = context.getExternalFilesDir(null)
-            val explicitModel = File("/data/local/tmp/llm/model.litertlm")
-            val explicitQwen = File("/data/local/tmp/llm/Qwen2.5.litertlm")
-            val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
-            
-            val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
-                .flatMap { it.toList() }
-                .toMutableList()
-                
-            if (explicitQwen.exists() && explicitQwen.canRead()) {
-                allFiles.add(0, explicitQwen)
-            }
-            if (explicitModel.exists() && explicitModel.canRead()) {
-                allFiles.add(explicitModel)
-            }
-            if (explicitGemma.exists() && explicitGemma.canRead()) {
-                allFiles.add(explicitGemma)
-            }
-
-            val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
             val savedModelPath = prefs.getString("selected_model", null)
             val savedBackendChoice = prefs.getString("backend_choice", "Auto") ?: "Auto"
-            
-            var modelFile: File? = null
-            if (savedModelPath != null && !savedModelPath.endsWith("model.litertlm")) {
-                modelFile = File(savedModelPath)
-            }
-            if (modelFile == null || !modelFile.exists()) {
-                modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.find { it.name.contains("qwen", ignoreCase = true) }
-                    ?: models.firstOrNull()
-            }
+            // ui_ux extension seam — model discovery lives in LlmModelLocator
+            val modelFile = modelLocator.locate(context, savedModelPath)
 
-            if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
+            if (modelFile != null) {
                 initialize(context, modelFile.absolutePath, force, if (backendChoice != "Auto") backendChoice else savedBackendChoice, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
