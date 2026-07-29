@@ -55,12 +55,14 @@ class EdgeLLMProvider : ILLMProvider {
             return
         }
 
-        // Use the prewarmed stateful conversation to avoid high TTFT
-        // LLMManager.resetConversation() // REMOVED to keep KV cache
-
-        // The system prompt was already injected during prewarm.
-        // We only need to wrap the latest user prompt with Gemma chat template tags.
-        val promptToUse = "<start_of_turn>user\n$prompt<end_of_turn>\n<start_of_turn>model\n"
+        // The system prompt and model-specific wrappers (<start_of_turn>) are already injected 
+        // by AgentOrchestrator for Gemma. But for Llama, it only outputs JSON, so we must wrap it here.
+        val isLlama = LLMManager.currentModelPath?.contains("llama", ignoreCase = true) == true || LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true
+        val promptToUse = if (isLlama) {
+            "<|start_header_id|>user<|end_header_id|>\n\n$prompt<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
+        } else {
+            prompt
+        }
 
         val responseBuilder = StringBuilder()
         val streamStart = System.currentTimeMillis()

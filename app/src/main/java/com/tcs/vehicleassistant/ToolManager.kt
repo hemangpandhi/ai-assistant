@@ -236,8 +236,9 @@ class ToolManager {
                 tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
             }.toMutableList()
         }
-
+        
         val combinedTools = (contextTools + exactMatches).distinct()
+        
         if (combinedTools.isNotEmpty()) {
             return combinedTools
         }
@@ -254,7 +255,9 @@ class ToolManager {
             return exactMatches.distinct()
         }
         
-        // Slow path: Semantic Search (remote: only userQuery; top 4 to avoid prompt bloat)
+        // Slow path: Semantic Search (2000ms+)
+        // ONLY use the userQuery for semantic search to avoid massive latency spikes from embedding history!
+        // Top 4 is enough. Injecting 8 tools causes the LLM's memory buffer to overflow!
         val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
         return semanticSearchManager.search(userQuery, 4)
     }
@@ -283,11 +286,7 @@ class ToolManager {
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
     fun getLlmToolsPrompt(userQuery: String = "", conversationalContext: String = ""): String {
-        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) {
-            getRelevantTools(userQuery, conversationalContext).take(8)
-        } else {
-            activeTools.values.take(8).toList()
-        }
+        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) getRelevantTools(userQuery, conversationalContext).take(8) else activeTools.values.take(8).toList()
         if (relevantTools.isEmpty()) return ""
         
         val sb = StringBuilder()
@@ -300,7 +299,7 @@ class ToolManager {
                 sb.append(": $cleanDesc")
             }
             sb.append("\n")
-
+            
             val match = Regex("(?i)<TOOL>([a-zA-Z0-9_]+)\\(").find(tool.promptString)
             if (match != null) {
                 toolNames.add(match.groupValues[1])
@@ -376,7 +375,7 @@ class ToolManager {
                 
                 val startToolTime = System.currentTimeMillis()
                 
-                // Hardware confirmation logic with Emulator workaround (from dev/refactor)
+                // Hardware confirmation logic with Emulator workaround
                 val isAospEmulator = propId == 289410577 || propId == 354419973 || propId == 289410578
                 val success = if (isAospEmulator) {
                     VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)

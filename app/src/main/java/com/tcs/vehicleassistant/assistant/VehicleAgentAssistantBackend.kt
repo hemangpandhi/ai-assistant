@@ -12,7 +12,7 @@ import com.assistant.ui.assistant.api.AssistantSpeechInput
 import com.assistant.ui.assistant.api.AssistantStartReason
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
-import com.tcs.vehicleassistant.controller.ViewModelEvent
+import com.tcs.vehicleassistant.controller.UiUxViewModelEvent
 import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 import kotlinx.coroutines.CoroutineScope
@@ -119,12 +119,12 @@ class VehicleAgentAssistantBackend(
             }
             vm.events.collect { event ->
                 when (event) {
-                    is ViewModelEvent.StartListening -> {
+                    is UiUxViewModelEvent.StartListening -> {
                         AssistantDebugLog.d(TAG, "event StartListening")
                         // Soft re-arm — do not destroy a healthy recognizer (force only on ERROR_CLIENT).
                         scheduleStartMic(reason = "orchestrator", delayMs = MIC_REARM_MS, force = false)
                     }
-                    is ViewModelEvent.SetInputText -> {
+                    is UiUxViewModelEvent.SetInputText -> {
                         // liveTranscript collector is primary; keep as fallback for late subscribers.
                         if (event.text.isNotBlank()) {
                             // Do not clear micArmed here — partials arrive while STT is still live.
@@ -139,7 +139,7 @@ class VehicleAgentAssistantBackend(
                             setPipelineMood(AssistantMoodId.Listening)
                         }
                     }
-                    is ViewModelEvent.FinishSession -> {
+                    is UiUxViewModelEvent.FinishSession -> {
                         micArmed = false
                         com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                         AssistantDebugLog.d(TAG, "event FinishSession → re-arm mic")
@@ -152,7 +152,7 @@ class VehicleAgentAssistantBackend(
                         )
                         scheduleStartMic(reason = "finish-retry", delayMs = MIC_REARM_MS, force = false)
                     }
-                    is ViewModelEvent.AffectiveMood -> {
+                    is UiUxViewModelEvent.AffectiveMood -> {
                         setAffectiveMood(event.mood)
                     }
                     else -> Unit

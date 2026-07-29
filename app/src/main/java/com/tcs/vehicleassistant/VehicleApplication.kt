@@ -16,14 +16,13 @@ class VehicleApplication : Application() {
         startKoin {
             androidLogger()
             androidContext(this@VehicleApplication)
-            // ui_ux extension seam — keep appModule close to refactor; additive bindings here
+            // ui_ux extension seam
             modules(appModule, uiUxModule)
         }
 
         DemoSettingsPresets.ensureDefaults(this)
-        // So main-process STT can observe the `:wakeword` mic-hold marker.
+        // ui_ux extension seam
         UiUxWakeWordService.bindHoldContext(this)
-        // Production agent backend (mic / hotword / LLM / TTS).
         AssistantRuntimeBootstrap.install(this, useDemoBackend = false)
     }
 }

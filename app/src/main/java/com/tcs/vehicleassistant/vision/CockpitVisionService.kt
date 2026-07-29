@@ -1,6 +1,6 @@
 package com.tcs.vehicleassistant.vision
 
-import com.tcs.vehicleassistant.repository.UiUxAgentOrchestrator
+import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import com.tcs.vehicleassistant.VehicleManager
 import org.koin.android.ext.android.inject
 
@@ -15,6 +15,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.R
+import com.tcs.vehicleassistant.repository.OrchestratorState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -60,7 +61,7 @@ class CockpitVisionService : Service() {
         super.onCreate()
         startForegroundServiceNotification()
 
-        val orchestrator: UiUxAgentOrchestrator by inject()
+        val orchestrator: AgentOrchestrator by inject()
         visionBridge = VisionOrchestratorBridge(this, orchestrator)
         faceIdentityProcessor = FaceIdentityProcessor(this)
         faceProfileManager = FaceProfileManager(this)
@@ -90,15 +91,6 @@ class CockpitVisionService : Service() {
     }
 
     private fun startStream(url: String) {
-        val flags = com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags(this)
-        if (!flags.proactiveVisionEnabled) {
-            android.util.Log.i(
-                "CockpitVisionService",
-                "Proactive vision disabled; skipping camera start",
-            )
-            return
-        }
-
         streamManager?.stop()
         com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = null
 

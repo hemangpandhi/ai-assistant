@@ -121,6 +121,11 @@
         <service android:name=".service.VehicleAgentService"
                  android:foregroundServiceType="dataSync"
                  android:exported="false" />
+
+        <!-- ui_ux extension seam -->
+        <service android:name=".service.UiUxVehicleAgentService"
+                 android:foregroundServiceType="dataSync"
+                 android:exported="false" />
                  
         <service android:name=".WakeWordService"
                  android:process=":wakeword"

@@ -5,12 +5,15 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * Reactive [EngineStatus] owner (UI/UX extension).
- * [com.tcs.vehicleassistant.LLMManager] mutates lifecycle flags and calls [update].
+ * Reactive [EngineStatus] owner for the UI/UX engine adapter.
  */
 class EngineStatusStore {
     private val _status = MutableStateFlow<EngineStatus>(EngineStatus.Cold)
     val status: StateFlow<EngineStatus> = _status.asStateFlow()
+
+    fun set(status: EngineStatus) {
+        _status.value = status
+    }
 
     fun update(
         initializing: Boolean,

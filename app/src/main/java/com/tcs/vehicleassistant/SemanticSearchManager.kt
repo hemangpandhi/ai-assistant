@@ -29,8 +29,9 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
             embedder = TextEmbedder.createFromOptions(context, options)
             */
             isInitialized = true
-            // MediaPipe TextEmbedder disabled (JNI clash). Keyword routing is the production path.
-            Log.i(TAG, "SemanticSearchManager initialized (keyword-only / no embedder).")
+            Log.i(TAG, "SemanticSearchManager initialized (Fallback mode).")
+            
+            // Wait for ToolManager to be initialized to build cache, but we'll build it lazily or explicitly
         } catch (e: Throwable) {
             Log.e(TAG, "Failed to initialize SemanticSearchManager", e)
         }
@@ -66,14 +67,9 @@ class SemanticSearchManager(private val toolManager: ToolManager) {
     }
 
     fun search(query: String, topK: Int = 10): List<ToolManager.ToolDefinition> {
-        if (!isInitialized) return emptyList()
-
-        val queryVector = embedText(query.lowercase())
-        // Embedder disabled / unavailable: never dump full registry (prompt bloat).
-        if (queryVector == null) {
-            Log.d(TAG, "search fallback empty (no embeddings) for: ${query.take(40)}")
-            return emptyList()
-        }
+        if (!isInitialized) return toolManager.getAllTools().values.take(topK).toList()
+        
+        val queryVector = embedText(query.lowercase()) ?: return toolManager.getAllTools().values.take(topK).toList()
         
         val scoredTools = mutableListOf<Pair<ToolManager.ToolDefinition, Float>>()
         

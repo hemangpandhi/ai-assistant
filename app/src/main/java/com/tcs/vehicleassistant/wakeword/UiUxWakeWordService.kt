@@ -321,7 +321,7 @@ class UiUxWakeWordService : Service() {
                 this@UiUxWakeWordService,
                 reason = "hotword",
             )
-            AssistantVoiceInteractionService.triggerSession(this@UiUxWakeWordService, fromHotword = true)
+            AssistantVoiceInteractionService.triggerSession(this@UiUxWakeWordService)
         }
     }
 

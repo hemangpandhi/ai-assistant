@@ -37,63 +37,7 @@ object CabinCameraManager {
     private var cacheDir: java.io.File? = null
 
     fun startCamera(context: Context, lifecycleOwner: LifecycleOwner) {
-        cacheDir = context.cacheDir
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)
-        cameraExecutor = Executors.newSingleThreadExecutor()
-
-        // Setup FaceLandmarker
-        val baseOptions = BaseOptions.builder()
-            .setModelAssetPath("face_landmarker.task")
-            .build()
-            
-        val options = FaceLandmarker.FaceLandmarkerOptions.builder()
-            .setBaseOptions(baseOptions)
-            .setRunningMode(RunningMode.IMAGE) // Using IMAGE mode for simpler sync processing
-            .setNumFaces(5) // Support up to 5 people in the cabin
-            .setOutputFaceBlendshapes(true)
-            .build()
-            
-        try {
-            faceLandmarker = FaceLandmarker.createFromOptions(context, options)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize FaceLandmarker", e)
-        }
-
-        cameraProviderFuture.addListener({
-            try {
-                val cameraProvider = cameraProviderFuture.get()
-                
-                val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as android.view.WindowManager
-                val display = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
-                    context.display
-                } else {
-                    @Suppress("DEPRECATION")
-                    windowManager.defaultDisplay
-                }
-                val rotation = display?.rotation ?: android.view.Surface.ROTATION_0
-
-                // Set up ImageAnalysis
-                val imageAnalysis = ImageAnalysis.Builder()
-                    .setTargetResolution(android.util.Size(1280, 720))
-                    .setTargetRotation(rotation)
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .build()
-
-                imageAnalysis.setAnalyzer(cameraExecutor!!) { imageProxy ->
-                    processImageProxy(imageProxy)
-                }
-
-                // Use Front Camera for the driver
-                val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
-
-                cameraProvider.unbindAll()
-                cameraProvider.bindToLifecycle(
-                    lifecycleOwner, cameraSelector, imageAnalysis
-                )
-            } catch (e: Exception) {
-                Log.e(TAG, "Use case binding failed", e)
-            }
-        }, ContextCompat.getMainExecutor(context))
+        Log.d(TAG, "Skipped CabinCameraManager background camera start to preserve AAOS system camera service stability.")
     }
 
     private fun processImageProxy(imageProxy: ImageProxy) {
@@ -177,10 +121,9 @@ object CabinCameraManager {
         val imageBytes = out.toByteArray()
         val rawBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size) ?: return null
         
-        // Hardcode rotation to 270 degrees because the tablet's sensor is mounted sideways
-        // when placed in landscape mode on the dashboard.
-        val rotation = 270f
-        Log.d(TAG, "Raw Image: ${image.width}x${image.height}, applying 270 degree rotation")
+        // Use dynamic rotation provided by CameraX
+        val rotation = image.imageInfo.rotationDegrees.toFloat()
+        Log.d(TAG, "Raw Image: ${image.width}x${image.height}, applying $rotation degree rotation")
         
         val matrix = android.graphics.Matrix()
         matrix.postRotate(rotation)

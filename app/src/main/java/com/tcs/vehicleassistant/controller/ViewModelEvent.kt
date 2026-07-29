@@ -9,7 +9,7 @@ import android.content.Intent
  * Note: TTS operations (speak, playSilentUtterance) are handled directly by the
  * ViewModel via IAudioManager and do NOT flow through events.
  */
-abstract class ViewModelEvent {
+sealed class ViewModelEvent {
     /** Launch an intent after TTS finishes (e.g. Google Maps navigation). */
     data class LaunchIntent(val intent: Intent) : ViewModelEvent()
     
@@ -25,11 +25,6 @@ abstract class ViewModelEvent {
     /** Enable/disable input controls. */
     data class SetInputEnabled(val enabled: Boolean) : ViewModelEvent()
     
-    /** Sets the text in the input box / live transcript. */
+    /** Sets the text in the input box. */
     data class SetInputText(val text: String) : ViewModelEvent()
-
-    /** LLM or heuristic affective face mood (happy/sad/…). */
-    data class AffectiveMood(
-        val mood: com.assistant.ui.assistant.api.AssistantMoodId,
-    ) : ViewModelEvent()
 }
