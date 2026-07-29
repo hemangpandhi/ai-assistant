@@ -92,6 +92,23 @@ class AgentOrchestrator(
     }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
+        val trimmedQuery = query.trim()
+        val lowerQuery = trimmedQuery.lowercase().replace(Regex("[^a-z ]"), "").trim()
+        
+        // Ghost Voice Filter: Aggressively ignore silence hallucinations from Whisper
+        val ignoredHallucinations = setOf(
+            "you", "thank you", "bye", "am", "i", "what", "blank audio", "thanks for watching", "a", "yeah", "yes", "ok"
+        )
+        
+        // Let it pass if it's an internal system event (starts with '[')
+        if (!trimmedQuery.startsWith("[")) {
+            if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
+                _events.tryEmit(OrchestratorEvent.FinishSession)
+                resetState()
+                return
+            }
+        }
+
         if (LLMManager.isPrewarming) {
             _events.tryEmit(OrchestratorEvent.ShowToast("Model is prewarming, please wait a moment..."))
             _state.value = OrchestratorState.Idle
