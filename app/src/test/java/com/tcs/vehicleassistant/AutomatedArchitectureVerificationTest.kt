@@ -11,15 +11,15 @@ class AutomatedArchitectureVerificationTest {
 
     @Test
     fun testLayer1_WakeWordMatching_StrictGrammar() {
-        val configuredWord = "hey nissan"
-        val textMatchClean = "hey nissan"
+        val configuredWord = "hey assistant"
+        val textMatchClean = "hey assistant"
         
-        val isMatch = textMatchClean.contains("hey nissan") || textMatchClean.contains(configuredWord)
-        assertTrue("Wake word matching must accept 'hey nissan'", isMatch)
+        val isMatch = textMatchClean.contains("hey assistant") || textMatchClean.contains(configuredWord)
+        assertTrue("Wake word matching must accept 'hey assistant'", isMatch)
 
-        val falsePositiveSingleWord = "nissan"
-        val isFalseMatch = falsePositiveSingleWord.contains("hey nissan")
-        assertFalse("Single word 'nissan' must NOT trigger wake word", isFalseMatch)
+        val falsePositiveSingleWord = "assistant"
+        val isFalseMatch = falsePositiveSingleWord.contains("hey assistant")
+        assertFalse("Single word 'assistant' must NOT trigger wake word", isFalseMatch)
     }
 
     @Test

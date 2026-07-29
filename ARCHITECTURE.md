@@ -8,7 +8,7 @@ This document outlines the complete architecture, components, technologies, and 
 
 | Technology Layer | Framework / Library | Primary Role | Implementation File |
 |---|---|---|---|
-| **Hotword Detection** | **Vosk Offline KWS** | Continuous offline acoustic wake word detection (`"Hey Nissan"` / configured setting) | [WakeWordService.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/WakeWordService.kt) |
+| **Hotword Detection** | **Vosk Offline KWS** | Continuous offline acoustic wake word detection (`"Hey Assistant"` / configured setting) | [WakeWordService.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/WakeWordService.kt) |
 | **Speech-to-Text (STT)** | **Sherpa-ONNX + Silero Neural VAD** | Real-time offline voice activity detection and speech recognition | [AndroidAudioManager.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/hardware/AndroidAudioManager.kt) |
 | **On-Device LLM** | **Google LiteRT (Flatbuffers)** | Hardware-accelerated (GPU / NPU / CPU) model execution for Gemma 4 E2B | [LLMManager.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/LLMManager.kt) & [EdgeLLMProvider.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/llm/EdgeLLMProvider.kt) |
 | **Cloud Fallback LLM** | **Google Gemini / Anthropic APIs** | Cloud LLM provider fallback for complex multi-step queries | [CloudLLMProvider.kt](file:///home/tcs/AI_Assistant/ai-sample/app/src/main/java/com/tcs/vehicleassistant/llm/CloudLLMProvider.kt) |
@@ -145,7 +145,7 @@ flowchart TD
         MIC([🎙️ Microphone])
         TXT([⌨️ Keyboard])
         STT["🎤 Sherpa-ONNX STT + Silero VAD<br/>(AndroidAudioManager)"]:::aospAPI
-        VOSK["🗣️ Vosk KWS Engine<br/>(WakeWordService - Hey Nissan)"]:::sysApp
+        VOSK["🗣️ Vosk KWS Engine<br/>(WakeWordService - Hey Assistant)"]:::sysApp
     end
 
     subgraph AppUI ["2. View Layer (Ephemeral UI)"]
@@ -191,7 +191,7 @@ flowchart TD
     %% Flow Mapping
     MIC -->|Audio Stream| STT
     MIC -->|Continuous Stream| VOSK
-    VOSK -->|"Hey Nissan" / Configured Trigger| SESSION
+    VOSK -->|"Hey Assistant" / Configured Trigger| SESSION
     STT -->|Transcribed Text| SESSION
     TXT -->|Raw String| ACT
     
@@ -251,7 +251,7 @@ flowchart TD
 
 ### 1. Offline Wake Word Detection: `WakeWordService.kt`
 - **Engine**: Offline Vosk Keyword Spotting (KWS).
-- **Grammar & Matching**: Strictly configured for `"hey nissan"` or the user's custom setting wake word. Standalone single-word grammars (like `"nissan"`) are eliminated to prevent false triggers from background room noise.
+- **Grammar & Matching**: Strictly configured for `"hey assistant"` or the user's custom setting wake word. Standalone single-word grammars are eliminated to prevent false triggers from background room noise.
 - **Regex JSON Extraction**: Parses Vosk's JSON stream (`"(?:text|partial)"\s*:\s*"([^"]+)"`) to ensure clean text validation.
 
 ### 2. Speech-to-Text & Mic Hardware Hand-off: `AndroidAudioManager.kt`
