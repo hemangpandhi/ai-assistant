@@ -94,6 +94,17 @@ data class CabinSnapshot(
             val g = gear.trim().lowercase()
             return g == "park" || g == "p" || g.startsWith("park")
         }
+
+        /**
+         * Normalize VHAL fuel readings: NaN/negative → unknown (-1); 0–1 fraction → percent;
+         * otherwise clamp to 0–100.
+         */
+        fun normalizeFuelLevelPct(fuelRaw: Float): Int = when {
+            fuelRaw.isNaN() -> -1
+            fuelRaw < 0f -> -1
+            fuelRaw in 0f..1f -> Math.round(fuelRaw * 100f)
+            else -> Math.round(fuelRaw).coerceIn(0, 100)
+        }
     }
 }
 
@@ -121,13 +132,7 @@ object CabinSnapshotReader {
 
         val gear = VehicleManager.getGearSelection()
         val fuelRaw = VehicleManager.getFuelLevel()
-        val fuelPct = when {
-            fuelRaw.isNaN() -> -1
-            fuelRaw < 0f -> -1
-            // Some images report 0–1 fraction; others 0–100.
-            fuelRaw in 0f..1f -> Math.round(fuelRaw * 100f)
-            else -> Math.round(fuelRaw).coerceIn(0, 100)
-        }
+        val fuelPct = CabinSnapshot.normalizeFuelLevelPct(fuelRaw)
 
         val (lon, lat) = try {
             LocationManager.getCoordinates(context)

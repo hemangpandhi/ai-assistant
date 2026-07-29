@@ -6,6 +6,7 @@ import com.tcs.vehicleassistant.core.CabinSnapshotReader
 import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.core.NavSessionState
 import com.tcs.vehicleassistant.support.RegistryTestSupport
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -113,12 +114,41 @@ class ContextGuardInstrumentedTest {
     }
 
     @Test
+    fun confirmDecision_messageIsQuestionAndReEvalStillConfirms() {
+        // Orchestrator must skipGuard on user "yes"; this locks that re-eval alone would loop.
+        val loud = CabinSnapshot(
+            mediaVolumePct = 92,
+            mediaPlaying = true,
+            fanLevel = 2,
+            cabinTempF = 70,
+            seatHeaterLevel = 0,
+            acOn = true,
+            hvacPowerOn = true,
+            defrostOn = false,
+            speedMph = 0,
+            gear = "Park",
+            isParked = true,
+            city = "Tokyo",
+        )
+        val first = ContextGuard.evaluate("setVolumeLevel(up)", loud)
+        assertTrue(first is ContextGuard.Decision.Confirm)
+        val second = ContextGuard.evaluate("setVolumeLevel(up)", loud)
+        assertTrue(
+            "unchanged cabin must still Confirm — orchestrator skipGuard is required",
+            second is ContextGuard.Decision.Confirm,
+        )
+        val msg = (first as ContextGuard.Decision.Confirm).message
+        assertTrue(msg.contains("?") || msg.contains("loud", ignoreCase = true) || msg.contains("92"))
+        assertTrue(com.tcs.vehicleassistant.core.ConfirmationPolicy.isAffirmative("yes please"))
+        assertFalse(com.tcs.vehicleassistant.core.ConfirmationPolicy.isAffirmative("please"))
+    }
+
+    @Test
     fun liveSnapshotReadable() {
         val snap = CabinSnapshotReader.capture(RegistryTestSupport.appContext())
         assertNotNull(snap)
         assertTrue(snap.mediaVolumePct in 0..100)
         assertTrue(snap.fanLevel >= 0)
-        // Tier-1 fields should be populated (city may be demo preset on tablet).
         assertTrue(snap.city == null || snap.city!!.isNotBlank())
         assertTrue(snap.fuelLevelPct == -1 || snap.fuelLevelPct in 0..100)
         assertTrue(snap.windowOpenPct == -1 || snap.windowOpenPct in 0..100)

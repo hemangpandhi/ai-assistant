@@ -9,6 +9,7 @@ import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.core.CabinSnapshotReader
+import com.tcs.vehicleassistant.core.ConfirmationPolicy
 import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.llm.ILLMProvider
 import com.tcs.vehicleassistant.utils.FollowUpRouter
@@ -161,44 +162,53 @@ class AgentOrchestrator(
             "you", "thank you", "bye", "am", "i", "what", "blank audio", "thanks for watching", "a"
         )
 
-        // ContextGuard / OEM confirmation: honor "yes" without waiting on LiteRT.
+        // ContextGuard / OEM confirmation: honor yes/decline without waiting on LiteRT.
         if (pendingConfirmationTool != null && !trimmedQuery.startsWith("[")) {
-            if (MemoryManager.isAffirmative(trimmedQuery)) {
-                val toolToExecute = pendingConfirmationTool!!
-                pendingConfirmationTool = null
-                LatencyLogger.reset()
-                LatencyLogger.log("Orchestrator", "Query received")
-                beginTurn()
-                _state.value = OrchestratorState.Thinking(trimmedQuery)
-                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-                scope.launch {
-                    completeDirectToolTurn(
-                        query = trimmedQuery,
-                        toolCall = toolToExecute,
-                        preferredSpoken = null,
-                        pathLabel = "ContextGuardConfirm",
+            when (ConfirmationPolicy.classify(trimmedQuery)) {
+                ConfirmationPolicy.Reply.DECLINE -> {
+                    pendingConfirmationTool = null
+                    LatencyLogger.reset()
+                    beginTurn()
+                    scope.launch {
+                        finishGuardedTurn(
+                            message = "Okay, I won't change that.",
+                            pathLabel = "ContextGuardConfirm",
+                            toolCall = "cancelled",
+                            policyId = "user_declined",
+                            asQuestion = false,
+                        )
+                    }
+                    return
+                }
+                ConfirmationPolicy.Reply.AFFIRM -> {
+                    val toolToExecute = pendingConfirmationTool!!
+                    pendingConfirmationTool = null
+                    LatencyLogger.reset()
+                    LatencyLogger.log("Orchestrator", "Query received")
+                    beginTurn()
+                    _state.value = OrchestratorState.Thinking(trimmedQuery)
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                    scope.launch {
+                        // skipGuard: user already confirmed; re-evaluating Confirm would loop forever.
+                        // Hard Block is still re-checked inside completeDirectToolTurn.
+                        completeDirectToolTurn(
+                            query = trimmedQuery,
+                            toolCall = toolToExecute,
+                            preferredSpoken = null,
+                            pathLabel = "ContextGuardConfirm",
+                            skipGuard = true,
+                        )
+                    }
+                    return
+                }
+                ConfirmationPolicy.Reply.OTHER -> {
+                    // Drop stale confirm so a new cabin command can DirectTool / LLM normally.
+                    pendingConfirmationTool = null
+                    LatencyLogger.log(
+                        "Orchestrator",
+                        "Pending ContextGuard confirm superseded by: $trimmedQuery",
                     )
                 }
-                return
-            }
-            val declined = trimmedQuery.lowercase().let { q ->
-                q == "no" || q == "nope" || q.startsWith("no ") || q.contains("don't") ||
-                    q.contains("do not") || q.contains("cancel") || q.contains("never mind")
-            }
-            if (declined) {
-                pendingConfirmationTool = null
-                LatencyLogger.reset()
-                beginTurn()
-                scope.launch {
-                    finishGuardedTurn(
-                        message = "Okay, I won't change that.",
-                        pathLabel = "ContextGuardConfirm",
-                        toolCall = "cancelled",
-                        policyId = "user_declined",
-                        asQuestion = false,
-                    )
-                }
-                return
             }
         }
         
@@ -403,27 +413,35 @@ class AgentOrchestrator(
     /**
      * Shared completion for DirectTool / FollowUp: ContextGuard → execute (or confirm/block),
      * surface a short reply, speak it, and log whether the E2E budget was met.
+     *
+     * @param skipGuard when true (user already confirmed a ContextGuard prompt), do not ask Confirm
+     * again. Hard [ContextGuard.Decision.Block] is still honored for safety.
      */
     private suspend fun completeDirectToolTurn(
         query: String,
         toolCall: String,
         preferredSpoken: String?,
         pathLabel: String,
+        skipGuard: Boolean = false,
     ) {
         MemoryManager.captureLongTermFacts(context, query)
         MemoryManager.addTurn("User", query)
 
         when (val decision = evaluateContextGuard(toolCall)) {
             is ContextGuard.Decision.Confirm -> {
-                pendingConfirmationTool = decision.originalToolCall
-                finishGuardedTurn(
-                    message = decision.message,
-                    pathLabel = pathLabel,
-                    toolCall = toolCall,
-                    policyId = decision.policyId,
-                    asQuestion = true,
-                )
-                return
+                if (skipGuard) {
+                    // Already confirmed — fall through to execute.
+                } else {
+                    pendingConfirmationTool = decision.originalToolCall
+                    finishGuardedTurn(
+                        message = decision.message,
+                        pathLabel = pathLabel,
+                        toolCall = toolCall,
+                        policyId = decision.policyId,
+                        asQuestion = true,
+                    )
+                    return
+                }
             }
             is ContextGuard.Decision.Block -> {
                 finishGuardedTurn(
@@ -436,14 +454,18 @@ class AgentOrchestrator(
                 return
             }
             is ContextGuard.Decision.Escalate -> {
-                finishGuardedTurn(
-                    message = decision.message,
-                    pathLabel = pathLabel,
-                    toolCall = toolCall,
-                    policyId = decision.policyId,
-                    asQuestion = true,
-                )
-                return
+                if (skipGuard) {
+                    // Already confirmed — treat as allow this turn.
+                } else {
+                    finishGuardedTurn(
+                        message = decision.message,
+                        pathLabel = pathLabel,
+                        toolCall = toolCall,
+                        policyId = decision.policyId,
+                        asQuestion = true,
+                    )
+                    return
+                }
             }
             is ContextGuard.Decision.Allow -> Unit
         }
@@ -574,7 +596,11 @@ class AgentOrchestrator(
         var interceptedQuery = query
 
         if (pendingConfirmationTool != null) {
-            if (MemoryManager.isAffirmative(query)) {
+            if (MemoryManager.isDecline(query)) {
+                pendingConfirmationTool = null
+                interceptedQuery = "System: Action aborted by user. User originally said: $query"
+            } else if (MemoryManager.isAffirmative(query)) {
+                // Already confirmed — execute without re-entering ContextGuard.
                 val toolToExecute = pendingConfirmationTool!!
                 pendingConfirmationTool = null
                 val feedback = executeToolCall(toolToExecute)

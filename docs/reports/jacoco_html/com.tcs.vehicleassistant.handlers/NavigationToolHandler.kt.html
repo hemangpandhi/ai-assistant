@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>NavigationToolHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">NavigationToolHandler.kt</span></div><h1>NavigationToolHandler.kt</h1><pre class="source lang-java linenums">
+
+package com.tcs.vehicleassistant.handlers
+import com.tcs.vehicleassistant.LocationManager
+import com.tcs.vehicleassistant.core.NavSessionState
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.util.Log
+
+<span class="nc" id="L12">class NavigationToolHandler(override val handlerKey: String) : ToolHandler {</span>
+<span class="nc" id="L13">    private val TAG = &quot;NavigationToolHandler&quot;</span>
+
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -&gt; Unit)?): ToolExecutionResult {
+<span class="nc bnc" id="L16" title="All 7 branches missed.">        return when (handlerKey) {</span>
+            &quot;startNavigationTo&quot; -&gt; {
+<span class="nc" id="L18">                val dest = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;)</span>
+<span class="nc" id="L19">                val spokenDest = dest.trim().replace(&quot;\&quot;&quot;, &quot;&quot;)</span>
+                
+<span class="nc" id="L21">                var queryParam = spokenDest</span>
+<span class="nc bnc" id="L22" title="All 2 branches missed.">                if (spokenDest.matches(Regex(&quot;-?\\d+\\.\\d+,-?\\d+\\.\\d+&quot;))) {</span>
+<span class="nc" id="L23">                    queryParam = spokenDest // Direct coordinates</span>
+<span class="nc bnc" id="L24" title="All 2 branches missed.">                } else if (spokenDest.lowercase() == &quot;home&quot;) {</span>
+<span class="nc" id="L25">                    val prefs = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L26" title="All 2 branches missed.">                    queryParam = prefs.getString(&quot;home_address&quot;, &quot;Home&quot;) ?: &quot;Home&quot;</span>
+<span class="nc bnc" id="L27" title="All 2 branches missed.">                } else if (spokenDest.lowercase() == &quot;work&quot;) {</span>
+<span class="nc" id="L28">                    val prefs = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">                    queryParam = prefs.getString(&quot;work_address&quot;, &quot;Work&quot;) ?: &quot;Work&quot;</span>
+                }
+
+<span class="nc" id="L32">                val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;google.navigation:q=${Uri.encode(queryParam)}&quot;))</span>
+<span class="nc" id="L33">                geoIntent.setPackage(&quot;com.google.android.apps.maps&quot;)</span>
+<span class="nc" id="L34">                geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP</span>
+                
+<span class="nc" id="L36">                try {</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)</span>
+<span class="nc" id="L38">                } catch (e: Exception) {</span>
+<span class="nc" id="L39">                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;google.navigation:q=${Uri.encode(queryParam)}&quot;))</span>
+<span class="nc" id="L40">                    fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP</span>
+<span class="nc" id="L41">                    try {</span>
+<span class="nc bnc" id="L42" title="All 2 branches missed.">                        if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)</span>
+<span class="nc" id="L43">                    } catch (e2: Exception) {</span>
+<span class="nc" id="L44">                        val browserIntent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;https://www.google.com/maps/dir/?api=1&amp;destination=${Uri.encode(queryParam)}&quot;))</span>
+<span class="nc" id="L45">                        browserIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+<span class="nc" id="L46">                        try {</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                            if (intentHandler != null) intentHandler(browserIntent) else context.startActivity(browserIntent)</span>
+<span class="nc" id="L48">                        } catch (e3: Exception) {</span>
+<span class="nc" id="L49">                            Log.e(TAG, &quot;No map or browser app found for navigation&quot;)</span>
+<span class="nc" id="L50">                            return ToolExecutionResult(false, &quot;I couldn't open navigation because no map or browser app is installed.&quot;)</span>
+                        }
+                    }
+                }
+<span class="nc" id="L54">                NavSessionState.setActive(spokenDest)</span>
+<span class="nc" id="L55">                ToolExecutionResult(true, &quot;Getting you on the road to $spokenDest — hang tight.&quot;)</span>
+            }
+            &quot;searchNearby&quot; -&gt; {
+<span class="nc" id="L58">                val amenity = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).lowercase().trim()</span>
+<span class="nc" id="L59">                var overpassQuery = &quot;node[\&quot;amenity\&quot;~\&quot;$amenity\&quot;,i]&quot;</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">                if (amenity.contains(&quot;italian&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;][\&quot;cuisine\&quot;~\&quot;italian\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L61" title="All 2 branches missed.">                else if (amenity.contains(&quot;mexican&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;][\&quot;cuisine\&quot;~\&quot;mexican\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                else if (amenity.contains(&quot;chinese&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;][\&quot;cuisine\&quot;~\&quot;chinese\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">                else if (amenity.contains(&quot;pizza&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;][\&quot;cuisine\&quot;~\&quot;pizza\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L64" title="All 6 branches missed.">                else if (amenity.contains(&quot;burger&quot;) || amenity.contains(&quot;fast food&quot;) || amenity.contains(&quot;american&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;fast_food\&quot;][\&quot;cuisine\&quot;~\&quot;burger|american\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L65" title="All 4 branches missed.">                else if (amenity.contains(&quot;sushi&quot;) || amenity.contains(&quot;japanese&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;][\&quot;cuisine\&quot;~\&quot;japanese|sushi\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                else if (amenity.contains(&quot;indian&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;][\&quot;cuisine\&quot;~\&quot;indian\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">                else if (amenity.contains(&quot;thai&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;][\&quot;cuisine\&quot;~\&quot;thai\&quot;,i]&quot; }</span>
+<span class="nc bnc" id="L68" title="All 4 branches missed.">                else if (amenity.contains(&quot;gas&quot;) || amenity.contains(&quot;fuel&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;fuel\&quot;]&quot; }</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">                else if (amenity.contains(&quot;charging&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;charging_station\&quot;]&quot; }</span>
+<span class="nc bnc" id="L70" title="All 4 branches missed.">                else if (amenity.contains(&quot;food&quot;) || amenity.contains(&quot;restaurant&quot;)) { overpassQuery = &quot;node[\&quot;amenity\&quot;=\&quot;restaurant\&quot;]&quot; }</span>
+                
+<span class="nc" id="L72">                val bbox = LocationManager.getBbox(context)</span>
+
+<span class="nc" id="L74">                val fullQuery = &quot;[out:json][timeout:10];$overpassQuery($bbox);out 10;&quot;</span>
+<span class="nc" id="L75">                try {</span>
+<span class="nc" id="L76">                    val encodedQuery = java.net.URLEncoder.encode(fullQuery, &quot;UTF-8&quot;)</span>
+<span class="nc" id="L77">                    val url = java.net.URL(&quot;https://overpass-api.de/api/interpreter?data=$encodedQuery&quot;)</span>
+<span class="nc" id="L78">                    val connection = url.openConnection() as java.net.HttpURLConnection</span>
+<span class="nc" id="L79">                    connection.connectTimeout = 10000</span>
+<span class="nc" id="L80">                    connection.readTimeout = 10000</span>
+<span class="nc" id="L81">                    connection.setRequestProperty(&quot;User-Agent&quot;, &quot;GeminiNanoSample/1.0&quot;)</span>
+<span class="nc" id="L82">                    connection.requestMethod = &quot;GET&quot;</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">                    if (connection.responseCode == 200) {</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                        val response = connection.inputStream.bufferedReader().use { it.readText() }</span>
+<span class="nc" id="L85">                        val jsonObj = org.json.JSONObject(response)</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">                        val elements = jsonObj.optJSONArray(&quot;elements&quot;) ?: org.json.JSONArray()</span>
+<span class="nc" id="L87">                        val places = mutableListOf&lt;String&gt;()</span>
+<span class="nc" id="L88">                        val placesWithCoords = mutableListOf&lt;Pair&lt;String, String&gt;&gt;()</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                        for (i in 0 until elements.length()) {</span>
+<span class="nc" id="L90">                            val element = elements.getJSONObject(i)</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                            val tags = element.optJSONObject(&quot;tags&quot;) ?: continue</span>
+<span class="nc" id="L92">                            var name = tags.optString(&quot;name&quot;, tags.optString(&quot;name:en&quot;, &quot;&quot;)).trim()</span>
+<span class="nc" id="L93">                            val brand = tags.optString(&quot;brand&quot;, tags.optString(&quot;brand:en&quot;, &quot;&quot;)).trim()</span>
+<span class="nc" id="L94">                            val lat = element.optDouble(&quot;lat&quot;)</span>
+<span class="nc" id="L95">                            val lon = element.optDouble(&quot;lon&quot;)</span>
+<span class="nc bnc" id="L96" title="All 8 branches missed.">                            if (name.isEmpty() &amp;&amp; brand.isNotEmpty()) name = brand</span>
+<span class="nc bnc" id="L97" title="All 6 branches missed.">                            if (name.isNotEmpty() &amp;&amp; !places.contains(name)) {</span>
+<span class="nc" id="L98">                                places.add(name)</span>
+<span class="nc" id="L99">                                placesWithCoords.add(Pair(name, &quot;$lat,$lon&quot;))</span>
+<span class="nc bnc" id="L100" title="All 2 branches missed.">                                if (places.size &gt;= 3) break</span>
+                            }
+                        }
+<span class="nc bnc" id="L103" title="All 4 branches missed.">                        if (places.isEmpty() &amp;&amp; elements.length() &gt; 0) {</span>
+<span class="nc" id="L104">                            val firstLat = elements.getJSONObject(0).optDouble(&quot;lat&quot;)</span>
+<span class="nc" id="L105">                            val firstLon = elements.getJSONObject(0).optDouble(&quot;lon&quot;)</span>
+<span class="nc" id="L106">                            places.add(&quot;Local $amenity&quot;)</span>
+<span class="nc" id="L107">                            placesWithCoords.add(Pair(&quot;Local $amenity&quot;, &quot;$firstLat,$firstLon&quot;))</span>
+                        }
+<span class="nc bnc" id="L109" title="All 4 branches missed.">                        if (places.isNotEmpty()) {</span>
+<span class="nc" id="L110">                            val placesStr = places.mapIndexed { index, name -&gt; &quot;${index + 1}. $name&quot; }.joinToString(&quot;, &quot;)</span>
+<span class="nc" id="L111">                            ToolExecutionResult(true, &quot;I found these options nearby: $placesStr. Which one would you like to navigate to?&quot;)</span>
+                        } else {
+<span class="nc" id="L113">                            ToolExecutionResult(true, &quot;I couldn't find any $amenity nearby.&quot;)</span>
+                        }
+                    } else {
+<span class="nc" id="L116">                        ToolExecutionResult(false, &quot;Failed to search for $amenity due to network error.&quot;)</span>
+                    }
+<span class="nc" id="L118">                } catch (e: Exception) {</span>
+<span class="nc" id="L119">                    ToolExecutionResult(false, &quot;Failed to search for $amenity due to network error.&quot;)</span>
+                }
+            }
+            &quot;search&quot; -&gt; {
+<span class="nc" id="L123">                val query = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;)</span>
+<span class="nc" id="L124">                val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;geo:0,0?q=${Uri.encode(query)}&quot;))</span>
+<span class="nc" id="L125">                geoIntent.setPackage(&quot;com.google.android.apps.maps&quot;)</span>
+<span class="nc" id="L126">                geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP</span>
+<span class="nc" id="L127">                try {</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)</span>
+<span class="nc" id="L129">                } catch (e: Exception) {</span>
+<span class="nc" id="L130">                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;geo:0,0?q=${Uri.encode(query)}&quot;))</span>
+<span class="nc" id="L131">                    fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP</span>
+<span class="nc" id="L132">                    try {</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                        if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)</span>
+<span class="nc" id="L134">                    } catch (e2: Exception) {</span>
+<span class="nc" id="L135">                        Log.e(TAG, &quot;No map app found for search&quot;)</span>
+<span class="nc" id="L136">                        return ToolExecutionResult(false, &quot;I couldn't open the map because no map app is installed.&quot;)</span>
+                    }
+                }
+<span class="nc" id="L139">                ToolExecutionResult(true, &quot;I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?&quot;)</span>
+            }
+            &quot;suggestNearbyPlaces&quot; -&gt; {
+                // Real path: Overpass tourism/attraction search (same network stack as searchNearby).
+<span class="nc" id="L143">                val bbox = LocationManager.getBbox(context)</span>
+<span class="nc" id="L144">                val overpassQuery = &quot;node[\&quot;tourism\&quot;~\&quot;attraction|museum|viewpoint|gallery\&quot;,i]&quot;</span>
+<span class="nc" id="L145">                val fullQuery = &quot;[out:json][timeout:10];($overpassQuery($bbox);node[\&quot;amenity\&quot;=\&quot;place_of_worship\&quot;]($bbox););out 10;&quot;</span>
+<span class="nc" id="L146">                try {</span>
+<span class="nc" id="L147">                    val encodedQuery = java.net.URLEncoder.encode(fullQuery, &quot;UTF-8&quot;)</span>
+<span class="nc" id="L148">                    val url = java.net.URL(&quot;https://overpass-api.de/api/interpreter?data=$encodedQuery&quot;)</span>
+<span class="nc" id="L149">                    val connection = url.openConnection() as java.net.HttpURLConnection</span>
+<span class="nc" id="L150">                    connection.connectTimeout = 10000</span>
+<span class="nc" id="L151">                    connection.readTimeout = 10000</span>
+<span class="nc" id="L152">                    connection.setRequestProperty(&quot;User-Agent&quot;, &quot;GeminiNanoSample/1.0&quot;)</span>
+<span class="nc" id="L153">                    connection.requestMethod = &quot;GET&quot;</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                    if (connection.responseCode == 200) {</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                        val response = connection.inputStream.bufferedReader().use { it.readText() }</span>
+<span class="nc" id="L156">                        val jsonObj = org.json.JSONObject(response)</span>
+<span class="nc bnc" id="L157" title="All 2 branches missed.">                        val elements = jsonObj.optJSONArray(&quot;elements&quot;) ?: org.json.JSONArray()</span>
+<span class="nc" id="L158">                        val places = mutableListOf&lt;String&gt;()</span>
+<span class="nc bnc" id="L159" title="All 2 branches missed.">                        for (i in 0 until elements.length()) {</span>
+<span class="nc" id="L160">                            val element = elements.getJSONObject(i)</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                            val tags = element.optJSONObject(&quot;tags&quot;) ?: continue</span>
+<span class="nc" id="L162">                            val name = tags.optString(&quot;name&quot;, tags.optString(&quot;name:en&quot;, &quot;&quot;)).trim()</span>
+<span class="nc bnc" id="L163" title="All 6 branches missed.">                            if (name.isNotEmpty() &amp;&amp; name !in places) {</span>
+<span class="nc" id="L164">                                places.add(name)</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">                                if (places.size &gt;= 3) break</span>
+                            }
+                        }
+<span class="nc bnc" id="L168" title="All 4 branches missed.">                        if (places.isNotEmpty()) {</span>
+<span class="nc" id="L169">                            val placesStr = places.mapIndexed { index, name -&gt; &quot;${index + 1}. $name&quot; }.joinToString(&quot;, &quot;)</span>
+<span class="nc" id="L170">                            ToolExecutionResult(</span>
+<span class="nc" id="L171">                                true,</span>
+<span class="nc" id="L172">                                &quot;I found these options nearby: $placesStr. Which one would you like to visit?&quot;,</span>
+                            )
+                        } else {
+<span class="nc" id="L175">                            ToolExecutionResult(</span>
+<span class="nc" id="L176">                                true,</span>
+<span class="nc" id="L177">                                &quot;I couldn't find named attractions nearby right now. Try asking for a restaurant, museum, or park.&quot;,</span>
+                            )
+                        }
+                    } else {
+<span class="nc" id="L181">                        ToolExecutionResult(false, &quot;Failed to search nearby places due to a network error.&quot;)</span>
+                    }
+<span class="nc" id="L183">                } catch (e: Exception) {</span>
+<span class="nc" id="L184">                    ToolExecutionResult(false, &quot;Failed to search nearby places due to a network error.&quot;)</span>
+                }
+            }
+            &quot;provideLaneLevelGuidance&quot; -&gt; {
+<span class="nc" id="L188">                ToolExecutionResult(true, &quot;You should stay in the left two lanes for your upcoming turn.&quot;)</span>
+            }
+            &quot;suggestAlternateRoute&quot; -&gt; {
+<span class="nc" id="L191">                ToolExecutionResult(true, &quot;I've found an alternate route that saves 5 minutes. I've updated the navigation.&quot;)</span>
+            }
+<span class="nc" id="L193">            else -&gt; ToolExecutionResult(false, &quot;System Error: Navigation Handler not recognized.&quot;)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

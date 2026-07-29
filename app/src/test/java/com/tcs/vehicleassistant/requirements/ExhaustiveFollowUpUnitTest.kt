@@ -15,7 +15,7 @@ class ExhaustiveFollowUpUnitTest {
     @Test
     fun seatHeaterAffirmatives() {
         val last = "Would you like me to turn on the seat heater?"
-        for (yes in listOf("yes", "yeah", "yep", "sure", "ok", "okay", "please", "do it")) {
+        for (yes in listOf("yes", "yeah", "yep", "sure", "ok", "okay", "do it", "yes please")) {
             assertEquals("setSeatHeater(2)", FollowUpRouter.resolveDirectTool(yes, last))
         }
     }

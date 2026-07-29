@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CabinSnapshot.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.core</a> &gt; <span class="el_source">CabinSnapshot.kt</span></div><h1>CabinSnapshot.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.core
+
+import android.content.Context
+import android.media.AudioManager
+import android.media.session.MediaSessionManager
+import com.tcs.vehicleassistant.LocationManager
+import com.tcs.vehicleassistant.VehicleManager
+
+/**
+ * Fact-only cabin/media/geo snapshot used by [ContextGuard]. Values come from VHAL /
+ * AudioManager / MediaSession / LocationManager / [NavSessionState] — never from the LLM.
+ */
+<span class="fc" id="L13">data class CabinSnapshot(</span>
+<span class="pc" id="L14">    val mediaVolumePct: Int,</span>
+<span class="fc" id="L15">    val mediaPlaying: Boolean,</span>
+<span class="pc" id="L16">    val fanLevel: Int,</span>
+<span class="pc" id="L17">    val fanMax: Int = DEFAULT_FAN_MAX,</span>
+<span class="pc" id="L18">    val cabinTempF: Int,</span>
+<span class="pc" id="L19">    val seatHeaterLevel: Int,</span>
+<span class="pc" id="L20">    val seatHeaterMax: Int = DEFAULT_SEAT_HEATER_MAX,</span>
+<span class="pc" id="L21">    val acOn: Boolean,</span>
+<span class="pc" id="L22">    val hvacPowerOn: Boolean,</span>
+<span class="pc" id="L23">    val hvacAutoOn: Boolean = false,</span>
+<span class="pc" id="L24">    val defrostOn: Boolean,</span>
+<span class="pc" id="L25">    val speedMph: Int,</span>
+<span class="pc" id="L26">    val gear: String,</span>
+    /** True when gear reports Park (or P). */
+<span class="pc" id="L28">    val isParked: Boolean = gearLooksParked(gear),</span>
+    /** Fuel level 0–100; -1 if unknown. */
+<span class="pc" id="L30">    val fuelLevelPct: Int = -1,</span>
+    /** Best-effort window openness 0–100; -1 if unknown. */
+<span class="pc" id="L32">    val windowOpenPct: Int = -1,</span>
+<span class="fc" id="L33">    val navActiveDest: String? = null,</span>
+<span class="pc" id="L34">    val city: String? = null,</span>
+<span class="pc" id="L35">    val latitude: Double? = null,</span>
+<span class="pc" id="L36">    val longitude: Double? = null,</span>
+<span class="fc" id="L37">) {</span>
+<span class="pc bpc" id="L38" title="1 of 6 branches missed.">    val navActive: Boolean get() = !navActiveDest.isNullOrBlank()</span>
+
+<span class="pc bpc" id="L40" title="7 of 19 branches missed.">    fun sensor(name: String): Double? = when (name.lowercase()) {</span>
+<span class="fc" id="L41">        &quot;media_volume_pct&quot;, &quot;volume_pct&quot;, &quot;volume&quot; -&gt; mediaVolumePct.toDouble()</span>
+<span class="pc bpc" id="L42" title="1 of 2 branches missed.">        &quot;media_playing&quot;, &quot;playing&quot; -&gt; if (mediaPlaying) 1.0 else 0.0</span>
+<span class="fc" id="L43">        &quot;fan_level&quot;, &quot;fan&quot; -&gt; fanLevel.toDouble()</span>
+<span class="nc" id="L44">        &quot;fan_max&quot; -&gt; fanMax.toDouble()</span>
+<span class="nc" id="L45">        &quot;cabin_temp_f&quot;, &quot;cabin_temp&quot;, &quot;temp_f&quot; -&gt; cabinTempF.toDouble()</span>
+<span class="fc" id="L46">        &quot;seat_heater_level&quot;, &quot;seat_heater&quot; -&gt; seatHeaterLevel.toDouble()</span>
+<span class="nc" id="L47">        &quot;seat_heater_max&quot; -&gt; seatHeaterMax.toDouble()</span>
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        &quot;ac_on&quot; -&gt; if (acOn) 1.0 else 0.0</span>
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        &quot;hvac_power_on&quot; -&gt; if (hvacPowerOn) 1.0 else 0.0</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">        &quot;hvac_auto_on&quot; -&gt; if (hvacAutoOn) 1.0 else 0.0</span>
+<span class="nc bnc" id="L51" title="All 2 branches missed.">        &quot;defrost_on&quot; -&gt; if (defrostOn) 1.0 else 0.0</span>
+<span class="fc" id="L52">        &quot;speed_mph&quot;, &quot;speed&quot; -&gt; speedMph.toDouble()</span>
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        &quot;is_parked&quot;, &quot;parked&quot; -&gt; if (isParked) 1.0 else 0.0</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        &quot;fuel_level_pct&quot;, &quot;fuel_pct&quot;, &quot;fuel&quot; -&gt; if (fuelLevelPct &gt;= 0) fuelLevelPct.toDouble() else null</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        &quot;window_open_pct&quot; -&gt; if (windowOpenPct &gt;= 0) windowOpenPct.toDouble() else null</span>
+<span class="pc bpc" id="L56" title="1 of 2 branches missed.">        &quot;nav_active&quot; -&gt; if (navActive) 1.0 else 0.0</span>
+<span class="fc" id="L57">        &quot;latitude&quot;, &quot;lat&quot; -&gt; latitude</span>
+<span class="nc" id="L58">        &quot;longitude&quot;, &quot;lon&quot;, &quot;lng&quot; -&gt; longitude</span>
+<span class="fc" id="L59">        else -&gt; null</span>
+<span class="fc" id="L60">    }</span>
+
+    fun interpolate(template: String): String {
+<span class="fc" id="L63">        var out = template</span>
+<span class="fc" id="L64">        val values = mapOf(</span>
+<span class="fc" id="L65">            &quot;media_volume_pct&quot; to mediaVolumePct.toString(),</span>
+<span class="fc" id="L66">            &quot;volume_pct&quot; to mediaVolumePct.toString(),</span>
+<span class="fc" id="L67">            &quot;fan_level&quot; to fanLevel.toString(),</span>
+<span class="fc" id="L68">            &quot;fan_max&quot; to fanMax.toString(),</span>
+<span class="fc" id="L69">            &quot;cabin_temp_f&quot; to cabinTempF.toString(),</span>
+<span class="fc" id="L70">            &quot;seat_heater_level&quot; to seatHeaterLevel.toString(),</span>
+<span class="fc" id="L71">            &quot;speed_mph&quot; to speedMph.toString(),</span>
+<span class="fc" id="L72">            &quot;gear&quot; to gear,</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">            &quot;is_parked&quot; to if (isParked) &quot;yes&quot; else &quot;no&quot;,</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">            &quot;fuel_level_pct&quot; to if (fuelLevelPct &gt;= 0) fuelLevelPct.toString() else &quot;unknown&quot;,</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">            &quot;window_open_pct&quot; to if (windowOpenPct &gt;= 0) windowOpenPct.toString() else &quot;unknown&quot;,</span>
+<span class="fc bfc" id="L76" title="All 2 branches covered.">            &quot;media_playing&quot; to if (mediaPlaying) &quot;yes&quot; else &quot;no&quot;,</span>
+<span class="fc bfc" id="L77" title="All 2 branches covered.">            &quot;hvac_auto_on&quot; to if (hvacAutoOn) &quot;on&quot; else &quot;off&quot;,</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">            &quot;nav_active_dest&quot; to (navActiveDest ?: &quot;none&quot;),</span>
+<span class="pc bpc" id="L79" title="1 of 2 branches missed.">            &quot;city&quot; to (city ?: &quot;unknown&quot;),</span>
+<span class="pc bpc" id="L80" title="1 of 4 branches missed.">            &quot;latitude&quot; to (latitude?.toString() ?: &quot;unknown&quot;),</span>
+<span class="pc bpc" id="L81" title="1 of 4 branches missed.">            &quot;longitude&quot; to (longitude?.toString() ?: &quot;unknown&quot;),</span>
+        )
+<span class="fc bfc" id="L83" title="All 2 branches covered.">        for ((k, v) in values) {</span>
+<span class="fc" id="L84">            out = out.replace(&quot;{$k}&quot;, v, ignoreCase = true)</span>
+        }
+<span class="fc" id="L86">        return out</span>
+    }
+
+    companion object {
+        const val DEFAULT_FAN_MAX = 7
+        const val DEFAULT_SEAT_HEATER_MAX = 3
+
+        fun gearLooksParked(gear: String): Boolean {
+<span class="fc" id="L94">            val g = gear.trim().lowercase()</span>
+<span class="fc bfc" id="L95" title="All 6 branches covered.">            return g == &quot;park&quot; || g == &quot;p&quot; || g.startsWith(&quot;park&quot;)</span>
+        }
+
+        /**
+         * Normalize VHAL fuel readings: NaN/negative → unknown (-1); 0–1 fraction → percent;
+         * otherwise clamp to 0–100.
+         */
+<span class="fc" id="L102">        fun normalizeFuelLevelPct(fuelRaw: Float): Int = when {</span>
+<span class="fc bfc" id="L103" title="All 2 branches covered.">            fuelRaw.isNaN() -&gt; -1</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">            fuelRaw &lt; 0f -&gt; -1</span>
+<span class="pc bpc" id="L105" title="1 of 6 branches missed.">            fuelRaw in 0f..1f -&gt; Math.round(fuelRaw * 100f)</span>
+<span class="fc" id="L106">            else -&gt; Math.round(fuelRaw).coerceIn(0, 100)</span>
+<span class="fc" id="L107">        }</span>
+    }
+}
+
+object CabinSnapshotReader {
+
+    fun capture(context: Context): CabinSnapshot {
+<span class="nc" id="L114">        val audio = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager</span>
+<span class="nc" id="L115">        val maxVol = audio.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)</span>
+<span class="nc" id="L116">        val curVol = audio.getStreamVolume(AudioManager.STREAM_MUSIC).coerceIn(0, maxVol)</span>
+<span class="nc" id="L117">        val pct = Math.round((curVol.toFloat() / maxVol) * 100f)</span>
+
+<span class="nc" id="L119">        val playing = try {</span>
+<span class="nc" id="L120">            val msm = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager</span>
+<span class="nc" id="L121">            msm.getActiveSessions(null).any { controller -&gt;</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">                val state = controller.playbackState?.state</span>
+<span class="nc bnc" id="L123" title="All 4 branches missed.">                state == android.media.session.PlaybackState.STATE_PLAYING ||</span>
+<span class="nc bnc" id="L124" title="All 4 branches missed.">                    state == android.media.session.PlaybackState.STATE_BUFFERING</span>
+            }
+<span class="nc" id="L126">        } catch (_: SecurityException) {</span>
+            // MEDIA_CONTENT_CONTROL may be missing on some images — treat as unknown/not playing.
+<span class="nc" id="L128">            false</span>
+<span class="nc" id="L129">        } catch (_: Exception) {</span>
+<span class="nc" id="L130">            false</span>
+        }
+
+<span class="nc" id="L133">        val gear = VehicleManager.getGearSelection()</span>
+<span class="nc" id="L134">        val fuelRaw = VehicleManager.getFuelLevel()</span>
+<span class="nc" id="L135">        val fuelPct = CabinSnapshot.normalizeFuelLevelPct(fuelRaw)</span>
+
+<span class="nc" id="L137">        val (lon, lat) = try {</span>
+<span class="nc" id="L138">            LocationManager.getCoordinates(context)</span>
+<span class="nc" id="L139">        } catch (_: Exception) {</span>
+<span class="nc" id="L140">            Pair(Double.NaN, Double.NaN)</span>
+        }
+<span class="nc" id="L142">        val city = try {</span>
+<span class="nc bnc" id="L143" title="All 4 branches missed.">            LocationManager.getCurrentCity(context).takeIf { it.isNotBlank() }</span>
+<span class="nc" id="L144">        } catch (_: Exception) {</span>
+<span class="nc" id="L145">            null</span>
+        }
+
+<span class="nc" id="L148">        return CabinSnapshot(</span>
+<span class="nc" id="L149">            mediaVolumePct = pct,</span>
+<span class="nc" id="L150">            mediaPlaying = playing,</span>
+<span class="nc" id="L151">            fanLevel = VehicleManager.getRealFanSpeed().coerceAtLeast(0),</span>
+<span class="nc" id="L152">            cabinTempF = VehicleManager.getRealTemperature(),</span>
+<span class="nc" id="L153">            seatHeaterLevel = VehicleManager.getRealSeatHeaterLevel().coerceAtLeast(0),</span>
+<span class="nc" id="L154">            acOn = VehicleManager.isHvacAcOn,</span>
+<span class="nc" id="L155">            hvacPowerOn = VehicleManager.isHvacPowerOn,</span>
+<span class="nc" id="L156">            hvacAutoOn = VehicleManager.isHvacAutoOn,</span>
+<span class="nc" id="L157">            defrostOn = VehicleManager.isDefrosterOn,</span>
+<span class="nc" id="L158">            speedMph = VehicleManager.getRealSpeed(),</span>
+<span class="nc" id="L159">            gear = gear,</span>
+<span class="nc" id="L160">            isParked = CabinSnapshot.gearLooksParked(gear),</span>
+<span class="nc" id="L161">            fuelLevelPct = fuelPct,</span>
+<span class="nc" id="L162">            windowOpenPct = VehicleManager.getMaxWindowOpenPct(),</span>
+<span class="nc" id="L163">            navActiveDest = NavSessionState.activeDest,</span>
+<span class="nc" id="L164">            city = city,</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">            latitude = lat.takeUnless { it.isNaN() },</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">            longitude = lon.takeUnless { it.isNaN() },</span>
+        )
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

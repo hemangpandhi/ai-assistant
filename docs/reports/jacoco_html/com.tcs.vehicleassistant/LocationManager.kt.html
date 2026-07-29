@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LocationManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">LocationManager.kt</span></div><h1>LocationManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import android.location.Location
+import android.util.Log
+import androidx.core.content.ContextCompat
+import java.util.Locale
+
+object LocationManager {
+    private const val TAG = &quot;VehicleLocationManager&quot;
+
+    const val PREF_LOCATION_SOURCE = &quot;location_source&quot;
+    const val PREF_DEMO_PRESET = &quot;demo_preset&quot;
+    const val PREF_LOCATION_OVERRIDE = &quot;location_override&quot;
+    const val PREF_DEMO_CITY = &quot;demo_city_name&quot;
+    const val PREF_LAST_DEVICE_LOCATION = &quot;last_device_location&quot;
+
+<span class="nc" id="L20">    enum class Source(val prefValue: String, val label: String) {</span>
+<span class="nc" id="L21">        DEVICE(&quot;device&quot;, &quot;Device GPS (fallback to preset)&quot;),</span>
+<span class="nc" id="L22">        MANUAL(&quot;manual&quot;, &quot;Manual coordinates&quot;),</span>
+<span class="nc" id="L23">        PRESET(&quot;preset&quot;, &quot;Demo preset only&quot;);</span>
+
+        companion object {
+            fun fromPref(value: String?): Source =
+<span class="nc bnc" id="L27" title="All 6 branches missed.">                entries.find { it.prefValue == value } ?: DEVICE</span>
+        }
+    }
+
+    fun getCoordinates(context: Context): Pair&lt;Double, Double&gt; {
+<span class="nc" id="L32">        val prefs = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L33" title="All 3 branches missed.">        return when (Source.fromPref(prefs.getString(PREF_LOCATION_SOURCE, Source.DEVICE.prefValue))) {</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">            Source.MANUAL -&gt; parseCoordinates(prefs.getString(PREF_LOCATION_OVERRIDE, null))</span>
+<span class="nc" id="L35">                ?: DemoSettingsPresets.getSelected(context).coordinates</span>
+<span class="nc" id="L36">            Source.PRESET -&gt; DemoSettingsPresets.getSelected(context).coordinates</span>
+<span class="nc bnc" id="L37" title="All 4 branches missed.">            Source.DEVICE -&gt; getDeviceCoordinates(context)</span>
+<span class="nc" id="L38">                ?: parseCoordinates(prefs.getString(PREF_LOCATION_OVERRIDE, null))</span>
+<span class="nc" id="L39">                ?: DemoSettingsPresets.getSelected(context).coordinates</span>
+        }
+    }
+
+    fun getBbox(context: Context): String {
+<span class="nc" id="L44">        val (lon, lat) = getCoordinates(context)</span>
+<span class="nc" id="L45">        return &quot;${lat - 0.1},${lon - 0.1},${lat + 0.1},${lon + 0.1}&quot;</span>
+    }
+
+    fun getCoordinatesString(context: Context): String {
+<span class="nc" id="L49">        val (lon, lat) = getCoordinates(context)</span>
+<span class="nc" id="L50">        return String.format(Locale.US, &quot;%.4f, %.4f&quot;, lon, lat)</span>
+    }
+
+    fun getCurrentCity(context: Context): String {
+<span class="nc" id="L54">        val prefs = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L55">        val source = Source.fromPref(prefs.getString(PREF_LOCATION_SOURCE, null))</span>
+
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (source == Source.DEVICE) {</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            reverseGeocodeCity(context)?.let { return it }</span>
+        }
+
+<span class="nc bnc" id="L61" title="All 8 branches missed.">        prefs.getString(PREF_DEMO_CITY, null)?.takeIf { it.isNotBlank() }?.let { return it }</span>
+<span class="nc" id="L62">        return DemoSettingsPresets.getSelected(context).cityName</span>
+    }
+
+    fun getLocationStatus(context: Context): String {
+<span class="nc" id="L66">        val source = Source.fromPref(</span>
+<span class="nc" id="L67">            context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L68">                .getString(PREF_LOCATION_SOURCE, Source.DEVICE.prefValue)</span>
+        )
+<span class="nc" id="L70">        val city = getCurrentCity(context)</span>
+<span class="nc" id="L71">        val coords = getCoordinatesString(context)</span>
+<span class="nc" id="L72">        return &quot;$city ($coords) via ${source.label}&quot;</span>
+    }
+
+    private fun getDeviceCoordinates(context: Context): Pair&lt;Double, Double&gt;? {
+<span class="nc bnc" id="L76" title="All 2 branches missed.">        val hasFine = ContextCompat.checkSelfPermission(</span>
+<span class="nc" id="L77">            context, Manifest.permission.ACCESS_FINE_LOCATION</span>
+        ) == PackageManager.PERMISSION_GRANTED
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        val hasCoarse = ContextCompat.checkSelfPermission(</span>
+<span class="nc" id="L80">            context, Manifest.permission.ACCESS_COARSE_LOCATION</span>
+        ) == PackageManager.PERMISSION_GRANTED
+<span class="nc bnc" id="L82" title="All 4 branches missed.">        if (!hasFine &amp;&amp; !hasCoarse) return readCachedDeviceCoordinates(context)</span>
+
+<span class="nc" id="L84">        return try {</span>
+<span class="nc" id="L85">            val lm = context.getSystemService(Context.LOCATION_SERVICE) as android.location.LocationManager</span>
+<span class="nc" id="L86">            val providers = listOf(</span>
+<span class="nc" id="L87">                android.location.LocationManager.GPS_PROVIDER,</span>
+<span class="nc" id="L88">                android.location.LocationManager.NETWORK_PROVIDER,</span>
+<span class="nc" id="L89">                android.location.LocationManager.PASSIVE_PROVIDER</span>
+            )
+<span class="nc" id="L91">            var best: Location? = null</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            for (provider in providers) {</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">                if (!lm.isProviderEnabled(provider)) continue</span>
+<span class="nc" id="L94">                val loc = try {</span>
+<span class="nc" id="L95">                    lm.getLastKnownLocation(provider)</span>
+<span class="nc" id="L96">                } catch (_: SecurityException) {</span>
+<span class="nc" id="L97">                    null</span>
+                }
+<span class="nc bnc" id="L99" title="All 6 branches missed.">                if (loc != null &amp;&amp; (best == null || loc.time &gt; best.time)) {</span>
+<span class="nc" id="L100">                    best = loc</span>
+                }
+            }
+<span class="nc bnc" id="L103" title="All 2 branches missed.">            if (best != null) {</span>
+<span class="nc" id="L104">                val coords = Pair(best.longitude, best.latitude)</span>
+<span class="nc" id="L105">                cacheDeviceCoordinates(context, coords)</span>
+<span class="nc" id="L106">                coords</span>
+            } else {
+<span class="nc" id="L108">                readCachedDeviceCoordinates(context)</span>
+            }
+<span class="nc" id="L110">        } catch (e: Exception) {</span>
+<span class="nc" id="L111">            Log.w(TAG, &quot;Device location unavailable&quot;, e)</span>
+<span class="nc" id="L112">            readCachedDeviceCoordinates(context)</span>
+        }
+    }
+
+    private fun cacheDeviceCoordinates(context: Context, coords: Pair&lt;Double, Double&gt;) {
+<span class="nc" id="L117">        context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE).edit()</span>
+<span class="nc" id="L118">            .putString(PREF_LAST_DEVICE_LOCATION, &quot;${coords.first}, ${coords.second}&quot;)</span>
+<span class="nc" id="L119">            .apply()</span>
+<span class="nc" id="L120">    }</span>
+
+    private fun readCachedDeviceCoordinates(context: Context): Pair&lt;Double, Double&gt;? =
+<span class="nc" id="L123">        parseCoordinates(</span>
+<span class="nc" id="L124">            context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L125">                .getString(PREF_LAST_DEVICE_LOCATION, null)</span>
+<span class="nc" id="L126">        )</span>
+
+    private fun reverseGeocodeCity(context: Context): String? {
+<span class="nc bnc" id="L129" title="All 2 branches missed.">        val coords = getDeviceCoordinates(context) ?: return null</span>
+<span class="nc" id="L130">        return try {</span>
+<span class="nc" id="L131">            val geocoder = android.location.Geocoder(context, Locale.getDefault())</span>
+<span class="nc" id="L132">            @Suppress(&quot;DEPRECATION&quot;)</span>
+<span class="nc" id="L133">            val results = geocoder.getFromLocation(coords.second, coords.first, 1)</span>
+<span class="nc bnc" id="L134" title="All 8 branches missed.">            results?.firstOrNull()?.locality</span>
+<span class="nc bnc" id="L135" title="All 4 branches missed.">                ?: results?.firstOrNull()?.subAdminArea</span>
+<span class="nc bnc" id="L136" title="All 4 branches missed.">                ?: results?.firstOrNull()?.adminArea</span>
+<span class="nc" id="L137">        } catch (e: Exception) {</span>
+<span class="nc" id="L138">            Log.w(TAG, &quot;Reverse geocode failed&quot;, e)</span>
+<span class="nc" id="L139">            null</span>
+        }
+    }
+
+    private fun parseCoordinates(raw: String?): Pair&lt;Double, Double&gt;? {
+<span class="nc bnc" id="L144" title="All 8 branches missed.">        if (raw.isNullOrBlank() || !raw.contains(&quot;,&quot;)) return null</span>
+<span class="nc" id="L145">        val parts = raw.split(&quot;,&quot;)</span>
+<span class="nc bnc" id="L146" title="All 2 branches missed.">        if (parts.size &lt; 2) return null</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        val lon = parts[0].trim().toDoubleOrNull() ?: return null</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">        val lat = parts[1].trim().toDoubleOrNull() ?: return null</span>
+<span class="nc" id="L149">        return Pair(lon, lat)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

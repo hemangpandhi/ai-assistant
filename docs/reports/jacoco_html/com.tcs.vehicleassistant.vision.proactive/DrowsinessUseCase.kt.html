@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DrowsinessUseCase.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision.proactive</a> &gt; <span class="el_source">DrowsinessUseCase.kt</span></div><h1>DrowsinessUseCase.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision.proactive
+
+import android.util.Log
+
+<span class="nc" id="L5">class DrowsinessUseCase : IProactiveUseCase {</span>
+<span class="nc" id="L6">    override val name = &quot;Drowsiness Alert&quot;</span>
+<span class="nc" id="L7">    override val priority = PriorityLevel.CRITICAL_SAFETY</span>
+    
+    private var lastTrigger = 0L
+<span class="nc" id="L10">    private val DEBOUNCE_MS = 120_000L // 2 minutes</span>
+
+    override fun evaluate(context: CabinContext): TriggerResult? {
+<span class="nc bnc" id="L13" title="All 2 branches missed.">        val isSleeping = context.gestureFeedback?.isSleeping ?: return null</span>
+<span class="nc" id="L14">        val now = context.timestamp</span>
+
+<span class="nc bnc" id="L16" title="All 2 branches missed.">        if (isSleeping) {</span>
+<span class="nc bnc" id="L17" title="All 2 branches missed.">            if (now - lastTrigger &gt; DEBOUNCE_MS) {</span>
+<span class="nc" id="L18">                lastTrigger = now</span>
+<span class="nc" id="L19">                Log.e(&quot;VisionOrchestrator&quot;, &quot;CRITICAL: Driver is falling asleep!&quot;)</span>
+<span class="nc" id="L20">                val prompt = &quot;[CRITICAL SYSTEM EVENT: The driver appears to be falling asleep at the wheel. Immediately interrupt and warn them loudly. Proactively say EXACTLY: 'Warning, you appear to be falling asleep. Please pull over immediately. Would you like me to navigate to the nearest coffee shop or rest stop?']&quot;</span>
+<span class="nc" id="L21">                return TriggerResult(prompt, priority)</span>
+            }
+        }
+<span class="nc" id="L24">        return null</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

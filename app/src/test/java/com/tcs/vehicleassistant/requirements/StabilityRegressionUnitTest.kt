@@ -84,6 +84,11 @@ class StabilityRegressionUnitTest {
         assertTrue(MemoryManager.isAffirmative("Yes!"))
         assertTrue(MemoryManager.isAffirmative("yes please"))
         assertTrue(MemoryManager.isAffirmative("yeah sure"))
+        assertTrue(MemoryManager.isDecline("no thanks"))
+        assertTrue(MemoryManager.isDecline("not now"))
+        assertTrue(MemoryManager.isDecline("yes no"))
+        assertFalse(MemoryManager.isAffirmative("yes no"))
+        assertFalse(MemoryManager.isAffirmative("please"))
         assertEquals(
             "setSeatHeater(2)",
             FollowUpRouter.resolveDirectTool("yes please", "Would you like me to turn on the seat heater?"),
@@ -92,6 +97,18 @@ class StabilityRegressionUnitTest {
             "setSeatHeater(2)",
             FollowUpRouter.resolveDirectTool("yes.", "I can warm your seat for you?"),
         )
+    }
+
+    @Test
+    fun contextGuardConfirmSkipGuardContract() {
+        // Documented contract: after Confirm, affirmative execute must skip ContextGuard
+        // (AgentOrchestrator.completeDirectToolTurn(skipGuard=true)). Re-evaluating the same
+        // cabin snapshot would return Confirm again and re-ask forever.
+        assertTrue(
+            "confirm replies must stay affirmative for ContextGuard yes-path",
+            MemoryManager.isAffirmative("yes"),
+        )
+        assertTrue(MemoryManager.isDecline("cancel"))
     }
 
     @Test

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChatAdapter.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">ChatAdapter.kt</span></div><h1>ChatAdapter.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.graphics.Color
+import android.view.Gravity
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.card.MaterialCardView
+
+<span class="nc" id="L13">class ChatAdapter(private val messages: MutableList&lt;ChatMessage&gt;) : RecyclerView.Adapter&lt;ChatAdapter.ChatViewHolder&gt;() {</span>
+
+<span class="nc" id="L15">    class ChatViewHolder(view: View) : RecyclerView.ViewHolder(view) {</span>
+<span class="nc" id="L16">        val root: LinearLayout = view.findViewById(R.id.chatRoot)</span>
+<span class="nc" id="L17">        val card: MaterialCardView = view.findViewById(R.id.bubbleCard)</span>
+<span class="nc" id="L18">        val messageText: TextView = view.findViewById(R.id.messageText)</span>
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChatViewHolder {
+<span class="nc" id="L22">        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_chat_message, parent, false)</span>
+<span class="nc" id="L23">        return ChatViewHolder(view)</span>
+    }
+
+    override fun onBindViewHolder(holder: ChatViewHolder, position: Int) {
+<span class="nc" id="L27">        val msg = messages[position]</span>
+<span class="nc" id="L28">        holder.messageText.text = msg.text</span>
+
+<span class="nc bnc" id="L30" title="All 2 branches missed.">        if (msg.isUser) {</span>
+<span class="nc" id="L31">            holder.root.gravity = Gravity.END</span>
+<span class="nc" id="L32">            holder.card.setCardBackgroundColor(Color.parseColor(&quot;#BB86FC&quot;))</span>
+<span class="nc" id="L33">            holder.messageText.setTextColor(Color.BLACK)</span>
+        } else {
+<span class="nc" id="L35">            holder.root.gravity = Gravity.START</span>
+<span class="nc" id="L36">            holder.card.setCardBackgroundColor(Color.parseColor(&quot;#2A2A2A&quot;))</span>
+<span class="nc" id="L37">            holder.messageText.setTextColor(Color.WHITE)</span>
+        }
+<span class="nc" id="L39">    }</span>
+
+<span class="nc" id="L41">    override fun getItemCount() = messages.size</span>
+
+    fun addMessage(msg: ChatMessage) {
+<span class="nc" id="L44">        messages.add(msg)</span>
+<span class="nc" id="L45">        notifyItemInserted(messages.size - 1)</span>
+<span class="nc" id="L46">    }</span>
+    
+    fun replaceLastMessage(fullText: String) {
+<span class="nc bnc" id="L49" title="All 4 branches missed.">        if (messages.isNotEmpty()) {</span>
+<span class="nc" id="L50">            messages.last().let {</span>
+<span class="nc" id="L51">                messages[messages.size - 1] = it.copy(text = fullText)</span>
+<span class="nc" id="L52">                notifyItemChanged(messages.size - 1)</span>
+<span class="nc" id="L53">            }</span>
+        }
+<span class="nc" id="L55">    }</span>
+    
+    fun updateLastMessage(text: String) {
+<span class="nc bnc" id="L58" title="All 4 branches missed.">        if (messages.isNotEmpty()) {</span>
+<span class="nc" id="L59">            messages.last().let {</span>
+<span class="nc" id="L60">                messages[messages.size - 1] = it.copy(text = it.text + text)</span>
+<span class="nc" id="L61">                notifyItemChanged(messages.size - 1)</span>
+<span class="nc" id="L62">            }</span>
+        }
+<span class="nc" id="L64">    }</span>
+    
+    fun clearMessages() {
+<span class="nc" id="L67">        messages.clear()</span>
+<span class="nc" id="L68">        notifyDataSetChanged()</span>
+<span class="nc" id="L69">    }</span>
+    
+    fun getLastMessageText(): String? {
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        return messages.lastOrNull()?.text</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

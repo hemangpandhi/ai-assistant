@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HVACToolHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">HVACToolHandler.kt</span></div><h1>HVACToolHandler.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import android.car.VehiclePropertyIds
+import com.tcs.vehicleassistant.ToolManager
+import com.tcs.vehicleassistant.VehicleManager
+
+<span class="nc" id="L10">class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolManager.ToolDefinition? = null) : ToolHandler {</span>
+<span class="nc" id="L11">    private val TAG = &quot;HVACToolHandler&quot;</span>
+
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -&gt; Unit)?): ToolExecutionResult {
+<span class="nc bnc" id="L14" title="All 33 branches missed.">        return when (handlerKey) {</span>
+            &quot;increaseTemperature&quot; -&gt; {
+<span class="nc" id="L16">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).lowercase().trim()</span>
+<span class="nc bnc" id="L17" title="All 6 branches missed.">                val value = Math.abs(Regex(&quot;-?\\d+(\\.\\d+)?&quot;).find(argStr)?.value?.toDoubleOrNull() ?: 2.0)</span>
+<span class="nc bnc" id="L18" title="All 4 branches missed.">                val zone = if (argStr.contains(&quot;driver&quot;)) &quot;driver&quot; else if (argStr.contains(&quot;passenger&quot;)) &quot;passenger&quot; else &quot;all&quot;</span>
+<span class="nc" id="L19">                val currentTemp = VehicleManager.getRealTemperature(zone).toDouble()</span>
+<span class="nc" id="L20">                val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat(), zone)</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;There we go — warming things up for you.&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change. Want me to try again?&quot;)</span>
+            }
+            &quot;decreaseTemperature&quot; -&gt; {
+<span class="nc" id="L24">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).lowercase().trim()</span>
+<span class="nc bnc" id="L25" title="All 6 branches missed.">                val value = Math.abs(Regex(&quot;-?\\d+(\\.\\d+)?&quot;).find(argStr)?.value?.toDoubleOrNull() ?: 2.0)</span>
+<span class="nc bnc" id="L26" title="All 4 branches missed.">                val zone = if (argStr.contains(&quot;driver&quot;)) &quot;driver&quot; else if (argStr.contains(&quot;passenger&quot;)) &quot;passenger&quot; else &quot;all&quot;</span>
+<span class="nc" id="L27">                val currentTemp = VehicleManager.getRealTemperature(zone).toDouble()</span>
+<span class="nc" id="L28">                val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat(), zone)</span>
+<span class="nc bnc" id="L29" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Cooling it down — you should feel better soon.&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change. Want me to try again?&quot;)</span>
+            }
+            &quot;increaseDriverTemperature&quot; -&gt; {
+<span class="nc" id="L32">                val value = 2.0</span>
+<span class="nc" id="L33">                val currentTemp = VehicleManager.getRealTemperature(&quot;driver&quot;).toDouble()</span>
+<span class="nc" id="L34">                val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat(), &quot;driver&quot;)</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've increased the driver's temperature by $value degrees.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;decreaseDriverTemperature&quot; -&gt; {
+<span class="nc" id="L38">                val value = 2.0</span>
+<span class="nc" id="L39">                val currentTemp = VehicleManager.getRealTemperature(&quot;driver&quot;).toDouble()</span>
+<span class="nc" id="L40">                val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat(), &quot;driver&quot;)</span>
+<span class="nc bnc" id="L41" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've decreased the driver's temperature by $value degrees.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;increasePassengerTemperature&quot; -&gt; {
+<span class="nc" id="L44">                val value = 2.0</span>
+<span class="nc" id="L45">                val currentTemp = VehicleManager.getRealTemperature(&quot;passenger&quot;).toDouble()</span>
+<span class="nc" id="L46">                val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp + value).toFloat(), &quot;passenger&quot;)</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've increased the passenger's temperature by $value degrees.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;decreasePassengerTemperature&quot; -&gt; {
+<span class="nc" id="L50">                val value = 2.0</span>
+<span class="nc" id="L51">                val currentTemp = VehicleManager.getRealTemperature(&quot;passenger&quot;).toDouble()</span>
+<span class="nc" id="L52">                val success = VehicleManager.writeTemperatureToVhalVerified((currentTemp - value).toFloat(), &quot;passenger&quot;)</span>
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've decreased the passenger's temperature by $value degrees.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;setTemperature&quot; -&gt; {
+<span class="nc bnc" id="L56" title="All 2 branches missed.">                val value = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).toDoubleOrNull() ?: 72.0</span>
+<span class="nc" id="L57">                val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat())</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Done — I've set it to ${value.toInt()} degrees for you.&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change.&quot;)</span>
+            }
+            &quot;increaseFanSpeed&quot; -&gt; {
+<span class="nc" id="L61">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;)</span>
+<span class="nc bnc" id="L62" title="All 6 branches missed.">                val value = Math.abs(Regex(&quot;\\d+&quot;).find(argStr)?.value?.toIntOrNull() ?: 1)</span>
+<span class="nc" id="L63">                val currentSpeed = VehicleManager.getRealFanSpeed()</span>
+<span class="nc" id="L64">                val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed + value)</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Cranking up the fan for you!&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change.&quot;)</span>
+            }
+            &quot;decreaseFanSpeed&quot; -&gt; {
+<span class="nc" id="L68">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;)</span>
+<span class="nc bnc" id="L69" title="All 6 branches missed.">                val value = Math.abs(Regex(&quot;\\d+&quot;).find(argStr)?.value?.toIntOrNull() ?: 1)</span>
+<span class="nc" id="L70">                val currentSpeed = VehicleManager.getRealFanSpeed()</span>
+<span class="nc" id="L71">                val success = VehicleManager.writeFanSpeedToVhalVerified(currentSpeed - value)</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Dialed the fan back a notch.&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change.&quot;)</span>
+            }
+            &quot;setFanSpeed&quot; -&gt; {
+<span class="nc" id="L75">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).lowercase().trim()</span>
+<span class="nc" id="L76">                var value = argStr.toIntOrNull()</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                if (value == null) {</span>
+<span class="nc bnc" id="L78" title="All 10 branches missed.">                    value = if (argStr.contains(&quot;max&quot;) || argStr.contains(&quot;high&quot;) || argStr.contains(&quot;full&quot;)) 99 else if (argStr.contains(&quot;min&quot;) || argStr.contains(&quot;low&quot;)) 1 else 3</span>
+                }
+<span class="nc" id="L80">                val success = VehicleManager.writeFanSpeedToVhalVerified(value)</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've set the fan speed to level $value.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;setAirflowDirection&quot; -&gt; {
+<span class="nc" id="L84">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).lowercase().trim()</span>
+<span class="nc" id="L85">                var valueToWrite = 1 // FACE</span>
+<span class="nc" id="L86">                when {</span>
+<span class="nc bnc" id="L87" title="All 4 branches missed.">                    argStr.contains(&quot;face and floor&quot;) || argStr.contains(&quot;both&quot;) -&gt; valueToWrite = 3 // FACE_AND_FLOOR</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">                    argStr.contains(&quot;defrost and floor&quot;) -&gt; valueToWrite = 6 // DEFROST_AND_FLOOR</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                    argStr.contains(&quot;defrost&quot;) -&gt; valueToWrite = 4 // DEFROST</span>
+<span class="nc bnc" id="L90" title="All 4 branches missed.">                    argStr.contains(&quot;floor&quot;) || argStr.contains(&quot;feet&quot;) -&gt; valueToWrite = 2 // FLOOR</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                    argStr.contains(&quot;face&quot;) -&gt; valueToWrite = 1 // FACE</span>
+                }
+<span class="nc" id="L93">                val success = VehicleManager.writeAirflowDirectionToVhalVerified(valueToWrite)</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Adjusting the airflow — you should feel it soon.&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change.&quot;)</span>
+            }
+            &quot;setSeatHeater&quot; -&gt; {
+<span class="nc" id="L97">                var areaId = 0</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">                var value = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).toIntOrNull() ?: 2</span>
+<span class="nc" id="L99">                value = value.coerceIn(0, 2)</span>
+<span class="nc" id="L100">                val success = VehicleManager.writeSeatHeaterToVhalVerified(value)</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Seat heater's on — hope that warms you up!&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change.&quot;)</span>
+            }
+            &quot;setSeatMassager&quot; -&gt; {
+<span class="nc" id="L104">                var areaId = 0</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">                val value = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).toIntOrNull() ?: 3</span>
+<span class="nc" id="L106">                val success = VehicleManager.writeSeatMassagerToVhalVerified(value)</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Massage is on — hope that helps your back.&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOnDefroster&quot; -&gt; {
+<span class="nc" id="L110">                val success = VehicleManager.writeDefrosterToVhalVerified(true)</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Defroster's on — your view should clear up.&quot;) else ToolExecutionResult(false, &quot;I tried, but the car didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOffDefroster&quot; -&gt; {
+<span class="nc" id="L114">                val success = VehicleManager.writeDefrosterToVhalVerified(false)</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've turned off the defroster.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOnRearDefroster&quot; -&gt; {
+<span class="nc" id="L118">                val success = VehicleManager.writeRearDefrosterToVhalVerified(true)</span>
+<span class="nc bnc" id="L119" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've turned on the rear defroster.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOffRearDefroster&quot; -&gt; {
+<span class="nc" id="L122">                val success = VehicleManager.writeRearDefrosterToVhalVerified(false)</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've turned off the rear defroster.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;handleFeelingCold&quot; -&gt; {
+<span class="nc" id="L126">                ToolExecutionResult(true, &quot;Would you like me to turn on the seat heater?&quot;)</span>
+            }
+            &quot;enableFreshAirIntake&quot; -&gt; {
+<span class="nc" id="L129">                VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_RECIRC_ON, 0, &quot;false&quot;, &quot;BOOLEAN&quot;) // HVAC_RECIRC_ON false</span>
+<span class="nc" id="L130">                VehicleManager.writeWindowPositionToVhalVerified(20) // Open windows slightly</span>
+<span class="nc" id="L131">                ToolExecutionResult(true, &quot;I've turned off recirculation and opened the windows slightly for fresh air.&quot;)</span>
+            }
+            &quot;protectFromPollutedAir&quot; -&gt; {
+<span class="nc" id="L134">                VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_RECIRC_ON, 0, &quot;true&quot;, &quot;BOOLEAN&quot;) // HVAC_RECIRC_ON true</span>
+<span class="nc" id="L135">                VehicleManager.writeWindowPositionToVhalVerified(0) // Close windows (0 = fully closed)</span>
+<span class="nc" id="L136">                ToolExecutionResult(true, &quot;I've closed the windows and enabled air recirculation to protect you from pollution.&quot;)</span>
+            }
+            &quot;defogWindshield&quot; -&gt; {
+<span class="nc" id="L139">                VehicleManager.writeDefrosterToVhalVerified(true)</span>
+<span class="nc" id="L140">                VehicleManager.writeFanSpeedToVhalVerified(7)</span>
+<span class="nc" id="L141">                ToolExecutionResult(true, &quot;Clearing your windshield — safety first.&quot;)</span>
+            }
+            &quot;movePassengerSeatForward&quot; -&gt; {
+<span class="nc" id="L144">                ToolExecutionResult(true, &quot;I have moved the passenger seat forward.&quot;)</span>
+            }
+            &quot;setDriverTemperature&quot; -&gt; {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">                val value = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).toDoubleOrNull() ?: 72.0</span>
+<span class="nc" id="L148">                val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat(), &quot;driver&quot;)</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've set the driver's temperature to $value degrees.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;setPassengerTemperature&quot; -&gt; {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">                val value = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).toDoubleOrNull() ?: 72.0</span>
+<span class="nc" id="L153">                val success = VehicleManager.writeTemperatureToVhalVerified(value.toFloat(), &quot;passenger&quot;)</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've set the passenger's temperature to $value degrees.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOnAC&quot;, &quot;turnOnAc&quot; -&gt; {
+<span class="nc" id="L157">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AC_ON, 0, &quot;true&quot;, &quot;BOOLEAN&quot;)</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;The AC is now on.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOffAc&quot; -&gt; {
+<span class="nc" id="L161">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AC_ON, 0, &quot;false&quot;, &quot;BOOLEAN&quot;)</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've turned off the AC.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOnAutoHvac&quot; -&gt; {
+<span class="nc" id="L165">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AUTO_ON, 0, &quot;true&quot;, &quot;BOOLEAN&quot;) // HVAC_AUTO_ON</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Auto climate control is activated.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOffAutoHvac&quot; -&gt; {
+<span class="nc" id="L169">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AUTO_ON, 0, &quot;false&quot;, &quot;BOOLEAN&quot;)</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Auto climate control is now off.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOnHvac&quot; -&gt; {
+<span class="nc" id="L173">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_POWER_ON, 0, &quot;true&quot;, &quot;BOOLEAN&quot;) // HVAC_POWER_ON</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've turned on the climate control system.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOffHvac&quot; -&gt; {
+<span class="nc" id="L177">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_POWER_ON, 0, &quot;false&quot;, &quot;BOOLEAN&quot;)</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;I've turned off the climate control system.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOnAirRecirculation&quot; -&gt; {
+<span class="nc" id="L181">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_RECIRC_ON, 0, &quot;true&quot;, &quot;BOOLEAN&quot;) // HVAC_RECIRC_ON true</span>
+<span class="nc bnc" id="L182" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Air recirculation is on.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+            &quot;turnOffAirRecirculation&quot; -&gt; {
+<span class="nc" id="L185">                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_RECIRC_ON, 0, &quot;false&quot;, &quot;BOOLEAN&quot;) // HVAC_RECIRC_ON false</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                if (success) ToolExecutionResult(true, &quot;Air recirculation is off, bringing in fresh air.&quot;) else ToolExecutionResult(false, &quot;I sent the command, but the vehicle hardware didn't confirm the change.&quot;)</span>
+            }
+<span class="nc" id="L188">            else -&gt; ToolExecutionResult(false, &quot;I don't know how to handle the command $handlerKey for HVAC.&quot;)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

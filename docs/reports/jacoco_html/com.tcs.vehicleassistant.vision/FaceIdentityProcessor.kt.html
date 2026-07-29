@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FaceIdentityProcessor.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">FaceIdentityProcessor.kt</span></div><h1>FaceIdentityProcessor.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.util.Log
+import org.tensorflow.lite.Interpreter
+import java.io.FileInputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.MappedByteBuffer
+import java.nio.channels.FileChannel
+
+<span class="nc" id="L13">class FaceIdentityProcessor(private val context: Context) {</span>
+    private var interpreter: Interpreter? = null
+    
+    // MobileFaceNet typically takes 112x112 RGB images
+<span class="nc" id="L17">    private val INPUT_IMAGE_SIZE = 112</span>
+<span class="nc" id="L18">    private val EMBEDDING_SIZE = 128</span>
+
+<span class="nc" id="L20">    init {</span>
+<span class="nc" id="L21">        try {</span>
+<span class="nc" id="L22">            val modelBuffer = loadModelFile(context, &quot;mobilefacenet.tflite&quot;)</span>
+<span class="nc" id="L23">            val options = Interpreter.Options().apply {</span>
+<span class="nc" id="L24">                numThreads = 2</span>
+<span class="nc" id="L25">            }</span>
+<span class="nc" id="L26">            interpreter = Interpreter(modelBuffer, options)</span>
+<span class="nc" id="L27">            Log.d(&quot;FaceIdentity&quot;, &quot;Successfully loaded FaceNet model&quot;)</span>
+<span class="nc" id="L28">        } catch (e: Exception) {</span>
+<span class="nc" id="L29">            Log.e(&quot;FaceIdentity&quot;, &quot;Failed to load FaceNet model: ${e.message}&quot;)</span>
+<span class="nc" id="L30">            interpreter = null</span>
+        }
+<span class="nc" id="L32">    }</span>
+
+    private fun loadModelFile(context: Context, modelName: String): MappedByteBuffer {
+<span class="nc" id="L35">        val fileDescriptor = context.assets.openFd(modelName)</span>
+<span class="nc" id="L36">        val inputStream = FileInputStream(fileDescriptor.fileDescriptor)</span>
+<span class="nc" id="L37">        val fileChannel = inputStream.channel</span>
+<span class="nc" id="L38">        val startOffset = fileDescriptor.startOffset</span>
+<span class="nc" id="L39">        val declaredLength = fileDescriptor.declaredLength</span>
+<span class="nc" id="L40">        return fileChannel.map(FileChannel.MapMode.READ_ONLY, startOffset, declaredLength)</span>
+    }
+
+    /**
+     * Extracts a 128D embedding from the cropped face bitmap.
+     * The input bitmap MUST be cropped tightly around the face and sized to 112x112.
+     */
+    fun extractEmbedding(faceBitmap: Bitmap): FloatArray? {
+<span class="nc bnc" id="L48" title="All 2 branches missed.">        if (interpreter == null) {</span>
+<span class="nc" id="L49">            Log.w(&quot;FaceIdentity&quot;, &quot;Interpreter not initialized. Returning dummy embedding.&quot;)</span>
+<span class="nc bnc" id="L50" title="All 2 branches missed.">            return FloatArray(EMBEDDING_SIZE) { 0.1f } // Fallback if model missing</span>
+        }
+
+<span class="nc" id="L53">        try {</span>
+<span class="nc" id="L54">            val scaledBitmap = Bitmap.createScaledBitmap(faceBitmap, INPUT_IMAGE_SIZE, INPUT_IMAGE_SIZE, true)</span>
+<span class="nc" id="L55">            val inputBuffer = convertBitmapToByteBuffer(scaledBitmap)</span>
+<span class="nc bnc" id="L56" title="All 2 branches missed.">            val outputBuffer = Array(1) { FloatArray(EMBEDDING_SIZE) }</span>
+
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            interpreter?.run(inputBuffer, outputBuffer)</span>
+            
+<span class="nc" id="L60">            return normalize(outputBuffer[0])</span>
+<span class="nc" id="L61">        } catch (e: Exception) {</span>
+<span class="nc" id="L62">            Log.e(&quot;FaceIdentity&quot;, &quot;Error extracting embedding: ${e.message}&quot;)</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            return FloatArray(EMBEDDING_SIZE) { 0.1f }</span>
+        }
+    }
+
+    private fun convertBitmapToByteBuffer(bitmap: Bitmap): ByteBuffer {
+<span class="nc" id="L68">        val byteBuffer = ByteBuffer.allocateDirect(1 * INPUT_IMAGE_SIZE * INPUT_IMAGE_SIZE * 3 * 4)</span>
+<span class="nc" id="L69">        byteBuffer.order(ByteOrder.nativeOrder())</span>
+        
+<span class="nc" id="L71">        val intValues = IntArray(INPUT_IMAGE_SIZE * INPUT_IMAGE_SIZE)</span>
+<span class="nc" id="L72">        bitmap.getPixels(intValues, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)</span>
+        
+<span class="nc" id="L74">        var pixel = 0</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">        for (i in 0 until INPUT_IMAGE_SIZE) {</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            for (j in 0 until INPUT_IMAGE_SIZE) {</span>
+<span class="nc" id="L77">                val value = intValues[pixel++]</span>
+                
+                // MobileFaceNet preprocessing (normalize to -1 .. 1)
+<span class="nc" id="L80">                byteBuffer.putFloat((((value shr 16) and 0xFF) - 127.5f) / 128.0f)</span>
+<span class="nc" id="L81">                byteBuffer.putFloat((((value shr 8) and 0xFF) - 127.5f) / 128.0f)</span>
+<span class="nc" id="L82">                byteBuffer.putFloat(((value and 0xFF) - 127.5f) / 128.0f)</span>
+            }
+        }
+<span class="nc" id="L85">        return byteBuffer</span>
+    }
+
+    private fun normalize(embedding: FloatArray): FloatArray {
+<span class="nc" id="L89">        var sum = 0f</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        for (value in embedding) {</span>
+<span class="nc" id="L91">            sum += value * value</span>
+        }
+<span class="nc" id="L93">        val norm = Math.sqrt(sum.toDouble()).toFloat()</span>
+<span class="nc bnc" id="L94" title="All 2 branches missed.">        for (i in embedding.indices) {</span>
+<span class="nc" id="L95">            embedding[i] /= norm</span>
+        }
+<span class="nc" id="L97">        return embedding</span>
+    }
+
+    fun computeSimilarity(emb1: FloatArray, emb2: FloatArray): Float {
+<span class="nc" id="L101">        var dotProduct = 0f</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">        for (i in emb1.indices) {</span>
+<span class="nc" id="L103">            dotProduct += emb1[i] * emb2[i]</span>
+        }
+<span class="nc" id="L105">        return dotProduct // Cosine similarity since they are normalized</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

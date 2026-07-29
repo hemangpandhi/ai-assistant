@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SmartContextInjector.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">SmartContextInjector.kt</span></div><h1>SmartContextInjector.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.content.Context
+
+object SmartContextInjector {
+
+    /**
+     * Analyzes the user's query against the keywords in the vehicle_skills_registry.
+     * Returns a highly condensed state string containing ONLY the vehicle domains relevant to the matched tools.
+     */
+    fun getInjectedContext(query: String, context: Context): String {
+<span class="nc" id="L12">        val q = query.lowercase()</span>
+<span class="nc" id="L13">        val parts = mutableListOf&lt;String&gt;()</span>
+        
+<span class="nc" id="L15">        var requiresClimateState = false</span>
+<span class="nc" id="L16">        var requiresLocationState = false</span>
+<span class="nc" id="L17">        var requiresSystemState = false</span>
+
+        // Dynamically evaluate domains based on tool keywords from the registry
+<span class="nc bnc" id="L20" title="All 2 branches missed.">        for (tool in org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().getAllTools().values) {</span>
+<span class="nc bnc" id="L21" title="All 4 branches missed.">            val matches = tool.keywords?.any { kw -&gt; q.contains(kw.lowercase()) } == true</span>
+<span class="nc bnc" id="L22" title="All 2 branches missed.">            if (matches) {</span>
+<span class="nc bnc" id="L23" title="All 2 branches missed.">                val key = tool.handlerKey ?: &quot;&quot;</span>
+                
+                // Map matched tool to Domain using ToolHandlerRegistry architectural routing!
+<span class="nc bnc" id="L26" title="All 2 branches missed.">                if (com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.hvacHandlers.contains(key)) {</span>
+<span class="nc" id="L27">                    requiresClimateState = true</span>
+                }
+                
+<span class="nc bnc" id="L30" title="All 4 branches missed.">                if (com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.navHandlers.contains(key) || key == &quot;getWeather&quot;) {</span>
+<span class="nc" id="L31">                    requiresLocationState = true</span>
+                }
+                
+<span class="nc bnc" id="L34" title="All 2 branches missed.">                if (key == &quot;checkVehicleState&quot;) {</span>
+<span class="nc" id="L35">                    requiresSystemState = true</span>
+                }
+            }
+        }
+
+        // 1. Climate Domain
+<span class="nc bnc" id="L41" title="All 2 branches missed.">        if (requiresClimateState) {</span>
+<span class="nc" id="L42">            val driverTemp = VehicleManager.getRealTemperature(&quot;driver&quot;)</span>
+<span class="nc" id="L43">            val passTemp = VehicleManager.getRealTemperature(&quot;passenger&quot;)</span>
+<span class="nc" id="L44">            val heater = VehicleManager.getRealSeatHeaterLevel()</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">            val ac = if (VehicleManager.isHvacAcOn) &quot;ON&quot; else &quot;OFF&quot;</span>
+<span class="nc bnc" id="L46" title="All 2 branches missed.">            val pwr = if (VehicleManager.isHvacPowerOn) &quot;ON&quot; else &quot;OFF&quot;</span>
+<span class="nc" id="L47">            val fan = VehicleManager.getRealFanSpeed()</span>
+<span class="nc" id="L48">            parts.add(&quot;DriverTemp=${driverTemp}F, PassTemp=${passTemp}F, SeatHeat=$heater, AC=$ac, Fan=$fan, HVAC=$pwr&quot;)</span>
+        }
+
+        // 2. Location Domain
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (requiresLocationState) {</span>
+<span class="nc" id="L53">            parts.add(&quot;City=${LocationManager.getCurrentCity(context)}&quot;)</span>
+        }
+        
+        // 3. Custom Properties Domain
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        if (requiresSystemState) {</span>
+<span class="nc" id="L58">            val customProps = VehicleManager.getCustomPropertiesString()</span>
+<span class="nc bnc" id="L59" title="All 4 branches missed.">            if (customProps.isNotEmpty()) {</span>
+<span class="nc" id="L60">                parts.add(&quot;Props=[$customProps]&quot;)</span>
+            }
+        }
+
+        // 4. Cabin Camera Domain (Always injected for Contextual Empathy)
+<span class="nc" id="L65">        val mood = com.tcs.vehicleassistant.hardware.CabinCameraManager.currentMood</span>
+<span class="nc" id="L66">        val occupants = com.tcs.vehicleassistant.hardware.CabinCameraManager.occupantCount</span>
+        
+        // 5. Time and Media
+<span class="nc" id="L69">        val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)</span>
+<span class="nc" id="L70">        val timeOfDay = when (hour) {</span>
+<span class="nc bnc" id="L71" title="All 6 branches missed.">            in 5..11 -&gt; &quot;Morning&quot;</span>
+<span class="nc bnc" id="L72" title="All 6 branches missed.">            in 12..16 -&gt; &quot;Afternoon&quot;</span>
+<span class="nc bnc" id="L73" title="All 6 branches missed.">            in 17..20 -&gt; &quot;Evening&quot;</span>
+<span class="nc" id="L74">            else -&gt; &quot;Night&quot;</span>
+        }
+<span class="nc" id="L76">        val mediaState = &quot;Unknown&quot; // Placeholder for actual media state</span>
+        
+<span class="nc" id="L78">        parts.add(&quot;DriverMood=$mood, Occupants=$occupants, Time=$timeOfDay, Media=$mediaState&quot;)</span>
+
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (parts.isEmpty()) return &quot;&quot;</span>
+        
+<span class="nc" id="L82">        return parts.joinToString(&quot; | &quot;)</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

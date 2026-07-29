@@ -257,4 +257,28 @@ class DirectToolResolverTest {
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("handleFeelingCold()", hit.toolCall)
     }
+
+    @Test
+    fun weatherCityPlaceholder_fillsHereOrCity() {
+        val weather = DirectToolResolver.ToolSpec(
+            id = "getWeather",
+            handlerKey = "getWeather",
+            promptString = "<TOOL>getWeather(CITY)</TOOL>",
+            keywords = listOf("what is the weather", "weather in", "weather"),
+            successMessage = "Opening weather.",
+            requiresConfirmation = false,
+            requiresAgenticLoop = false,
+            directExecutable = true,
+        )
+        val bare = (DirectToolResolver.resolve("what is the weather", listOf(weather))
+            as DirectToolResolver.Outcome.Execute).hit
+        assertEquals("getWeather(here)", bare.toolCall)
+        val tokyo = (DirectToolResolver.resolve("weather in Tokyo", listOf(weather))
+            as DirectToolResolver.Outcome.Execute).hit
+        assertEquals("getWeather(tokyo)", tokyo.toolCall)
+        assertTrue(
+            DirectToolResolver.resolve("What's the weather?", listOf(weather))
+                is DirectToolResolver.Outcome.Execute,
+        )
+    }
 }

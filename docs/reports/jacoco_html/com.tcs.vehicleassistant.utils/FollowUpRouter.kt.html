@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FollowUpRouter.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.utils</a> &gt; <span class="el_source">FollowUpRouter.kt</span></div><h1>FollowUpRouter.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.utils
+
+import com.tcs.vehicleassistant.MemoryManager
+
+/**
+ * Resolves short follow-up utterances into direct tool calls using the last assistant turn.
+ */
+object FollowUpRouter {
+
+    fun extractNumberedOptions(assistantText: String): List&lt;String&gt; {
+<span class="fc" id="L11">        val map = linkedMapOf&lt;Int, String&gt;()</span>
+<span class="fc" id="L12">        val patterns = listOf(</span>
+<span class="fc" id="L13">            Regex(&quot;&quot;&quot;(?:^|[:,;\n\s])\s*(\d+)\.\s*([^,\n;.]+)&quot;&quot;&quot;),</span>
+<span class="fc" id="L14">            Regex(&quot;&quot;&quot;(?:^|[:,;\n\s])\s*(\d+)\)\s*([^,\n;.]+)&quot;&quot;&quot;)</span>
+        )
+<span class="fc bfc" id="L16" title="All 2 branches covered.">        for (pattern in patterns) {</span>
+<span class="fc bfc" id="L17" title="All 2 branches covered.">            for (match in pattern.findAll(assistantText)) {</span>
+<span class="pc bpc" id="L18" title="1 of 2 branches missed.">                val num = match.groupValues[1].toIntOrNull() ?: continue</span>
+<span class="fc" id="L19">                val name = match.groupValues[2].trim().trimEnd('.', '!', '?', ',')</span>
+<span class="pc bpc" id="L20" title="2 of 4 branches missed.">                if (name.isNotBlank()) map[num] = name</span>
+            }
+        }
+<span class="fc bfc" id="L23" title="All 2 branches covered.">        if (map.isEmpty()) return emptyList()</span>
+<span class="pc bpc" id="L24" title="1 of 2 branches missed.">        val max = map.keys.maxOrNull() ?: return emptyList()</span>
+<span class="fc" id="L25">        return (1..max).mapNotNull { map[it] }</span>
+    }
+
+    fun resolveListPickIndex(query: String): Int? {
+<span class="fc" id="L29">        val q = query.lowercase().trim()</span>
+<span class="fc" id="L30">        when {</span>
+<span class="pc bpc" id="L31" title="2 of 6 branches missed.">            q.contains(&quot;third&quot;) || q.contains(&quot;number three&quot;) || q.contains(&quot;3rd&quot;) -&gt; return 3</span>
+<span class="pc bpc" id="L32" title="2 of 6 branches missed.">            q.contains(&quot;second&quot;) || q.contains(&quot;number two&quot;) || q.contains(&quot;2nd&quot;) -&gt; return 2</span>
+<span class="pc bpc" id="L33" title="2 of 6 branches missed.">            q.contains(&quot;first&quot;) || q.contains(&quot;number one&quot;) || q.contains(&quot;1st&quot;) -&gt; return 1</span>
+        }
+<span class="pc bpc" id="L35" title="4 of 8 branches missed.">        Regex(&quot;&quot;&quot;\b(\d+)\b&quot;&quot;&quot;).find(q)?.groupValues?.getOrNull(1)?.toIntOrNull()?.let { return it }</span>
+<span class="nc" id="L36">        return null</span>
+    }
+
+    /**
+     * Returns a tool call to execute immediately, or null if the LLM should handle the turn.
+     */
+    fun resolveDirectTool(query: String, lastAssistantMessage: String): String? {
+<span class="fc" id="L43">        val q = query.lowercase().trim()</span>
+<span class="fc" id="L44">        val last = lastAssistantMessage.lowercase()</span>
+
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        if (MemoryManager.isAffirmative(query)) {</span>
+<span class="fc" id="L47">            when {</span>
+<span class="pc bpc" id="L48" title="1 of 4 branches missed.">                last.contains(&quot;seat heater&quot;) || last.contains(&quot;seat heat&quot;) ||</span>
+<span class="pc bpc" id="L49" title="1 of 4 branches missed.">                    last.contains(&quot;heated seat&quot;) || last.contains(&quot;warm your seat&quot;) ||</span>
+<span class="pc bpc" id="L50" title="1 of 2 branches missed.">                    last.contains(&quot;warm the seat&quot;) -&gt; return &quot;setSeatHeater(2)&quot;</span>
+<span class="pc bpc" id="L51" title="3 of 4 branches missed.">                last.contains(&quot;gas station&quot;) || last.contains(&quot;charging station&quot;) ||</span>
+<span class="nc bnc" id="L52" title="All 4 branches missed.">                    last.contains(&quot;find a nearby&quot;) || last.contains(&quot;find nearby&quot;) -&gt; {</span>
+<span class="pc bpc" id="L53" title="1 of 2 branches missed.">                    return if (last.contains(&quot;charg&quot;)) &quot;searchNearby(charging)&quot; else &quot;searchNearby(gas)&quot;</span>
+                }
+<span class="nc bnc" id="L55" title="All 6 branches missed.">                last.contains(&quot;navigate to&quot;) &amp;&amp; extractNumberedOptions(lastAssistantMessage).isNotEmpty() -&gt; {</span>
+<span class="nc" id="L56">                    val options = extractNumberedOptions(lastAssistantMessage)</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">                    return options.firstOrNull()?.let { navigationTool(it) }</span>
+                }
+            }
+        }
+
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (MemoryManager.isFollowUpQuery(query)) {</span>
+<span class="fc" id="L63">            val options = extractNumberedOptions(lastAssistantMessage)</span>
+<span class="fc bfc" id="L64" title="All 4 branches covered.">            if (options.isNotEmpty()) {</span>
+<span class="pc bpc" id="L65" title="1 of 2 branches missed.">                val pickIndex = resolveListPickIndex(query) ?: return null</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">                val destination = options.getOrNull(pickIndex - 1) ?: return null</span>
+<span class="fc" id="L67">                return navigationTool(destination)</span>
+            }
+
+<span class="pc bpc" id="L70" title="3 of 6 branches missed.">            if (last.contains(&quot;navigate&quot;) || last.contains(&quot;which one&quot;) || last.contains(&quot;would you like to visit&quot;)) {</span>
+<span class="nc" id="L71">                val namedDest = extractNamedDestinationFromQuery(query)</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                if (namedDest != null) return navigationTool(namedDest)</span>
+            }
+        }
+
+<span class="fc bfc" id="L76" title="All 2 branches covered.">        if (isDrowsyDriverQuery(q)) {</span>
+<span class="fc" id="L77">            return &quot;handleDrowsyDriving()&quot;</span>
+        }
+
+<span class="fc" id="L80">        return null</span>
+    }
+
+    fun isDrowsyDriverQuery(queryLower: String): Boolean {
+<span class="fc" id="L84">        val q = queryLower.lowercase()</span>
+<span class="fc bfc" id="L85" title="All 4 branches covered.">        return q.contains(&quot;falling asleep&quot;) || q.contains(&quot;driver is asleep&quot;) ||</span>
+<span class="fc bfc" id="L86" title="All 4 branches covered.">            q.contains(&quot;getting sleepy&quot;) || q.contains(&quot;feel drowsy&quot;) ||</span>
+<span class="pc bpc" id="L87" title="1 of 4 branches missed.">            q.contains(&quot;sound_alarm&quot;) || q.contains(&quot;drowsy driving&quot;)</span>
+    }
+
+    fun responseRequestsAlarm(response: String): Boolean {
+<span class="nc bnc" id="L91" title="All 2 branches missed.">        return response.contains(&quot;sound_alarm&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            response.contains(&quot;\&quot;action\&quot;:\&quot;sound_alarm\&quot;&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">            response.contains(&quot;\&quot;action\&quot;: \&quot;sound_alarm\&quot;&quot;, ignoreCase = true)</span>
+    }
+
+    private fun extractNamedDestinationFromQuery(query: String): String? {
+<span class="nc" id="L97">        val q = query.trim()</span>
+<span class="nc" id="L98">        val patterns = listOf(</span>
+<span class="nc" id="L99">            Regex(&quot;&quot;&quot;take me to (?:the )?(.+)&quot;&quot;&quot;, RegexOption.IGNORE_CASE),</span>
+<span class="nc" id="L100">            Regex(&quot;&quot;&quot;navigate to (?:the )?(.+)&quot;&quot;&quot;, RegexOption.IGNORE_CASE),</span>
+<span class="nc" id="L101">            Regex(&quot;&quot;&quot;go to (?:the )?(.+)&quot;&quot;&quot;, RegexOption.IGNORE_CASE),</span>
+<span class="nc" id="L102">            Regex(&quot;&quot;&quot;the (.+)&quot;&quot;&quot;, RegexOption.IGNORE_CASE)</span>
+        )
+<span class="nc bnc" id="L104" title="All 2 branches missed.">        for (pattern in patterns) {</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            val match = pattern.find(q) ?: continue</span>
+<span class="nc" id="L106">            val dest = match.groupValues[1].trim().trimEnd('.', '!', '?')</span>
+<span class="nc bnc" id="L107" title="All 8 branches missed.">            if (dest.length in 3..80 &amp;&amp; !dest.equals(&quot;one&quot;, ignoreCase = true)) return dest</span>
+        }
+<span class="nc" id="L109">        return null</span>
+    }
+
+    private fun navigationTool(destination: String): String {
+<span class="fc" id="L113">        val escaped = destination.replace(&quot;\&quot;&quot;, &quot;\\\&quot;&quot;)</span>
+<span class="fc" id="L114">        return &quot;startNavigationTo(\&quot;$escaped\&quot;)&quot;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

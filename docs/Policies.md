@@ -366,13 +366,11 @@ Both must pass.
 
 1. Rule returns `confirm` → orchestrator speaks interpolated `message` (as a question turn).
 2. Stores `pendingConfirmationTool` = original tool call string (e.g. `setVolumeLevel(up)`).
-3. While pending is set, DirectTool registry hits and FollowUp direct resolution are skipped so the yes/no path stays clear.
-4. **Affirmative** (`MemoryManager.isAffirmative`):  
-   exact or short phrases such as `yes`, `yeah`, `yep`, `yup`, `sure`, `ok`, `okay`, `do it`, `go ahead`, `please`, or short “yes …” / “ok …” prefixes (≤ 4 words).  
-   Pending is cleared and the stashed tool is executed (DirectTool confirm path re-enters the guarded turn; LLM path can execute the stashed call directly).
-5. **Decline**: `no`, `nope`, starts with `no `, or contains `don't` / `do not` / `cancel` / `never mind`.  
-   Pending cleared; assistant speaks `Okay, I won't change that.`
-6. Other utterances while pending: DirectTool/FollowUp short-circuits stay off; LLM path may treat non-affirmative as abort of the pending action.
+3. Next utterance is classified by `ConfirmationPolicy` / `MemoryManager.isAffirmative` / `isDecline`:
+   - **AFFIRM** (`yes`, `ok`, `yes please`, … — **not** bare `please`): clear pending and execute with `skipGuard=true` so Confirm does **not** re-ask under unchanged cabin state. Hard **BLOCK** is still re-checked.
+   - **DECLINE** (`no`, `cancel`, `never mind`, `don't do that`, …): clear pending; speak `Okay, I won't change that.`
+   - **OTHER** (e.g. `raise temperature`): clear pending (supersede) and handle as a fresh DirectTool / LLM command.
+4. LLM tool-loop confirms execute the stashed tool directly when the user affirms in that path.6. Other utterances while pending: DirectTool/FollowUp short-circuits stay off; LLM path may treat non-affirmative as abort of the pending action.
 
 ### Block
 

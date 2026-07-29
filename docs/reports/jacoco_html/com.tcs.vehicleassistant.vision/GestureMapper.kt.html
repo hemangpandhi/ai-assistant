@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GestureMapper.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">GestureMapper.kt</span></div><h1>GestureMapper.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.content.Context
+import android.content.SharedPreferences
+
+<span class="nc" id="L6">class GestureMapper(context: Context) {</span>
+<span class="nc" id="L7">    private val prefs: SharedPreferences = context.getSharedPreferences(&quot;GestureMappings&quot;, Context.MODE_PRIVATE)</span>
+
+    // Default Mappings
+<span class="nc" id="L10">    private val defaults = mapOf(</span>
+<span class="nc" id="L11">        &quot;Open_Palm&quot; to &quot;PAUSE&quot;,</span>
+<span class="nc" id="L12">        &quot;Closed_Fist&quot; to &quot;PLAY&quot;,</span>
+<span class="nc" id="L13">        &quot;Thumb_Up&quot; to &quot;VOLUME_UP&quot;,</span>
+<span class="nc" id="L14">        &quot;Thumb_Down&quot; to &quot;VOLUME_DOWN&quot;,</span>
+<span class="nc" id="L15">        &quot;Pointing_Up&quot; to &quot;HOME&quot;,</span>
+<span class="nc" id="L16">        &quot;Pointing_Down&quot; to &quot;VOLUME_DOWN&quot;,</span>
+<span class="nc" id="L17">        &quot;Victory&quot; to &quot;PLAY&quot;, // Changed to Play as alternate</span>
+<span class="nc" id="L18">        &quot;ILoveYou&quot; to &quot;FAVORITE&quot;,</span>
+<span class="nc" id="L19">        &quot;Pinch&quot; to &quot;MUTE&quot;,</span>
+<span class="nc" id="L20">        &quot;Two_Fingers_Up&quot; to &quot;PLAY&quot;,</span>
+<span class="nc" id="L21">        &quot;Two_Fingers_Left&quot; to &quot;PREVIOUS&quot;,</span>
+<span class="nc" id="L22">        &quot;Two_Fingers_Right&quot; to &quot;NEXT&quot;,</span>
+<span class="nc" id="L23">        &quot;Swipe_Left&quot; to &quot;PREVIOUS&quot;,</span>
+<span class="nc" id="L24">        &quot;Swipe_Right&quot; to &quot;NEXT&quot;</span>
+    )
+
+    fun getAction(gesture: String): String {
+<span class="nc bnc" id="L28" title="All 4 branches missed.">        val action = prefs.getString(gesture, defaults[gesture] ?: &quot;NONE&quot;) ?: &quot;NONE&quot;</span>
+        // android.util.Log.d(&quot;GestureMapper&quot;, &quot;Lookup: $gesture -&gt; $action&quot;) 
+<span class="nc" id="L30">        return action</span>
+    }
+
+    fun setAction(gesture: String, action: String) {
+<span class="nc" id="L34">        android.util.Log.d(&quot;GestureMapper&quot;, &quot;Saving: $gesture -&gt; $action&quot;)</span>
+<span class="nc" id="L35">        prefs.edit().putString(gesture, action).apply()</span>
+<span class="nc" id="L36">    }</span>
+
+    fun getAllGestures(): List&lt;String&gt; {
+<span class="nc" id="L39">        return defaults.keys.toList()</span>
+    }
+    
+    companion object {
+<span class="nc" id="L43">        val AVAILABLE_ACTIONS = listOf(</span>
+<span class="nc" id="L44">            &quot;NONE&quot;, &quot;PLAY&quot;, &quot;PAUSE&quot;, &quot;NEXT&quot;, &quot;PREVIOUS&quot;, </span>
+<span class="nc" id="L45">            &quot;VOLUME_UP&quot;, &quot;VOLUME_DOWN&quot;, &quot;MUTE&quot;, </span>
+<span class="nc" id="L46">            &quot;HOME&quot;, &quot;FAVORITE&quot;</span>
+        )
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

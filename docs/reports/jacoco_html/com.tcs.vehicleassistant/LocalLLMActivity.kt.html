@@ -1,0 +1,1658 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LocalLLMActivity.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">LocalLLMActivity.kt</span></div><h1>LocalLLMActivity.kt</h1><pre class="source lang-java linenums">
+package com.tcs.vehicleassistant
+import android.content.IntentFilter
+import android.content.BroadcastReceiver
+
+import android.Manifest
+import android.car.Car
+import android.car.VehiclePropertyIds
+import android.car.hardware.property.CarPropertyManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
+import android.speech.tts.TextToSpeech
+import android.util.Log
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.EditText
+import android.widget.Spinner
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.floatingactionbutton.FloatingActionButton
+
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.util.Locale
+import com.tcs.vehicleassistant.repository.InAppOrchestratorBridge
+import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
+
+<span class="nc" id="L46">class LocalLLMActivity : AppCompatActivity() {</span>
+    companion object {
+<span class="nc" id="L48">        var isTestRunning = false</span>
+<span class="nc" id="L49">        var isCloudModelActive = false</span>
+<span class="nc" id="L50">        var currentCloudModelName = &quot;&quot;</span>
+
+        /** Defaults for the debug-only model sideload hook; expects `adb reverse tcp:8080 tcp:8080`. */
+        private const val DEFAULT_SIDELOAD_URL = &quot;http://localhost:8080/Qwen2.5.litertlm&quot;
+        private const val DEFAULT_SIDELOAD_FILE = &quot;Qwen2.5.litertlm&quot;
+
+        fun loadRuntimePrefs(context: Context) {
+<span class="nc" id="L57">            DemoSettingsPresets.ensureDefaults(context)</span>
+<span class="nc" id="L58">            val prefs = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L59">            isCloudModelActive = prefs.getBoolean(&quot;cloud_model_active&quot;, false)</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            currentCloudModelName = prefs.getString(&quot;cloud_model_name&quot;, &quot;&quot;) ?: &quot;&quot;</span>
+<span class="nc" id="L61">        }</span>
+
+        fun saveCloudMode(context: Context, active: Boolean, modelName: String) {
+<span class="nc" id="L64">            isCloudModelActive = active</span>
+<span class="nc" id="L65">            currentCloudModelName = modelName</span>
+<span class="nc" id="L66">            context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE).edit()</span>
+<span class="nc" id="L67">                .putBoolean(&quot;cloud_model_active&quot;, active)</span>
+<span class="nc" id="L68">                .putString(&quot;cloud_model_name&quot;, modelName)</span>
+<span class="nc" id="L69">                .apply()</span>
+<span class="nc" id="L70">        }</span>
+    }
+
+    private lateinit var inputText: EditText
+    private lateinit var generateButton: Button
+    private lateinit var voiceButton: FloatingActionButton
+    private lateinit var chatRecyclerView: RecyclerView
+    private lateinit var chatAdapter: ChatAdapter
+    private lateinit var tabLayout: com.google.android.material.tabs.TabLayout
+    private lateinit var tabInference: android.widget.LinearLayout
+    private lateinit var tabUseCases: android.widget.ScrollView
+    private lateinit var tabSystemPrompt: android.widget.LinearLayout
+    private lateinit var etSystemPrompt: android.widget.EditText
+    private lateinit var btnSavePrompt: com.google.android.material.button.MaterialButton
+    private lateinit var btnResetPrompt: com.google.android.material.button.MaterialButton
+
+    private lateinit var btnPremiumUseCase1: Button
+    private lateinit var btnPremiumUseCase2: Button
+    private lateinit var btnPremiumUseCase3: Button
+    private lateinit var btnPremiumUseCase4: Button
+    private lateinit var btnPremiumUseCase5: Button
+    private lateinit var btnPremiumUseCase6: Button
+    private lateinit var btnPremiumUseCase7: Button
+    private lateinit var btnPremiumUseCase8: Button
+    private lateinit var btnDownloadModel: Button
+    private lateinit var btnLoadModel: Button
+    private lateinit var progressBar: android.widget.ProgressBar
+    private lateinit var modelSpinner: Spinner
+    private lateinit var spinnerBackend: Spinner
+    private lateinit var stopButton: Button
+    private lateinit var clearButton: Button
+    private lateinit var etWakeWord: EditText
+    private lateinit var switchWakeWord: com.google.android.material.switchmaterial.SwitchMaterial
+    private lateinit var llApiKeyContainer: android.widget.LinearLayout
+    private lateinit var tvApiKeyLabel: android.widget.TextView
+    private lateinit var etApiKey: android.widget.EditText
+    private lateinit var tvActiveModel: android.widget.TextView
+
+
+    
+    private lateinit var tts: TextToSpeech
+    private lateinit var localAudioManager: com.tcs.vehicleassistant.hardware.IAudioManager
+
+
+<span class="nc" id="L114">    data class LlmModel(val name: String, val filename: String, val url: String, val size: String, val automotiveContext: String)</span>
+<span class="nc" id="L115">    private val supportedModels = listOf(</span>
+<span class="nc" id="L116">        LlmModel(&quot;SmolLM 135M Instruct&quot;, &quot;SmolLM-135M-Instruct.task&quot;, &quot;https://huggingface.co/litert-community/SmolLM-135M-Instruct/resolve/main/SmolLM-135M-Instruct_multi-prefill-seq_q8_ekv1280.task&quot;, &quot;150MB&quot;, &quot;Entry-Level&quot;),</span>
+<span class="nc" id="L117">        LlmModel(&quot;TinyLlama-1.1B&quot;, &quot;TinyLlama-1.1B-Chat-v1.0.task&quot;, &quot;https://huggingface.co/litert-community/TinyLlama-1.1B-Chat-v1.0/resolve/main/TinyLlama-1.1B-Chat-v1.0_multi-prefill-seq_q8_ekv1280.task&quot;, &quot;1.1GB&quot;, &quot;Entry-Level&quot;),</span>
+<span class="nc" id="L118">        LlmModel(&quot;Qwen2.5 1.5B (Customized)&quot;, &quot;model.litertlm&quot;, &quot;&quot;, &quot;1.7GB&quot;, &quot;Mid-Range&quot;),</span>
+<span class="nc" id="L119">        LlmModel(&quot;Qwen2.5 1.5B Instruct&quot;, &quot;Qwen2.5.litertlm&quot;, &quot;https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm&quot;, &quot;1.6GB&quot;, &quot;Mid-Range&quot;),</span>
+<span class="nc" id="L120">        LlmModel(&quot;Gemma 2B INT4&quot;, &quot;gemma-2b-it-gpu-int4.bin&quot;, &quot;&quot;, &quot;1.8GB&quot;, &quot;Mid-Range&quot;),</span>
+<span class="nc" id="L121">        LlmModel(&quot;Gemma 4-E2B IT (Generic)&quot;, &quot;gemma-4-E2B-it.litertlm&quot;, &quot;https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it.litertlm&quot;, &quot;2.5GB&quot;, &quot;Mid-Range&quot;),</span>
+<span class="nc" id="L122">        LlmModel(&quot;Gemma 4-E2B IT (Qualcomm SA8255)&quot;, &quot;gemma-4-E2B-it_qualcomm_qcs8275.litertlm&quot;, &quot;https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_qualcomm_qcs8275.litertlm&quot;, &quot;2.5GB&quot;, &quot;Premium Automotive&quot;),</span>
+<span class="nc" id="L123">        LlmModel(&quot;Phi-4-mini&quot;, &quot;Phi-4-mini-instruct.litertlm&quot;, &quot;https://huggingface.co/litert-community/Phi-4-mini-instruct/resolve/main/Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm&quot;, &quot;3.8GB&quot;, &quot;Premium&quot;),</span>
+<span class="nc" id="L124">        LlmModel(&quot;Llama 3.2 3B Instruct&quot;, &quot;Llama-3.2-3B-Instruct.litertlm&quot;, &quot;https://huggingface.co/litert-community/Llama-3.2-3B-Instruct/resolve/main/Llama-3.2-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm&quot;, &quot;3.2GB&quot;, &quot;Premium&quot;),</span>
+<span class="nc" id="L125">        LlmModel(&quot;Qwen2.5 3B Instruct&quot;, &quot;Qwen2.5-3B-Instruct.litertlm&quot;, &quot;https://huggingface.co/litert-community/Qwen2.5-3B-Instruct/resolve/main/Qwen2.5-3B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm&quot;, &quot;3.1GB&quot;, &quot;Premium&quot;),</span>
+<span class="nc" id="L126">        LlmModel(&quot;Gemma 4-E2B IT (Google Tensor G5)&quot;, &quot;gemma-4-E2B-it_Google_Tensor_G5.litertlm&quot;, &quot;https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it_Google_Tensor_G5.litertlm&quot;, &quot;3.6GB&quot;, &quot;Premium Pixel&quot;),</span>
+<span class="nc" id="L127">        LlmModel(&quot;Llama Handoff Minimal&quot;, &quot;handoff_litert_runtime_minimal.litertlm&quot;, &quot;&quot;, &quot;3.6GB&quot;, &quot;Premium&quot;),</span>
+<span class="nc" id="L128">        LlmModel(&quot;Claude 3.5 Sonnet (Cloud)&quot;, &quot;claude-3-5-sonnet&quot;, &quot;api&quot;, &quot;Cloud&quot;, &quot;Premium&quot;),</span>
+<span class="nc" id="L129">        LlmModel(&quot;Gemini 2.5 Flash (Cloud)&quot;, &quot;gemini-2.5-flash&quot;, &quot;api&quot;, &quot;Cloud&quot;, &quot;Premium&quot;)</span>
+    )
+    
+    private val defaultModelIndex: Int
+<span class="nc" id="L133">        get() = supportedModels.indexOfFirst {</span>
+<span class="nc" id="L134">            it.filename == com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME</span>
+<span class="nc" id="L135">        }.coerceAtLeast(0)</span>
+
+<span class="nc" id="L137">    var currentModel = supportedModels[</span>
+<span class="nc" id="L138">        supportedModels.indexOfFirst {</span>
+<span class="nc" id="L139">            it.filename == com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME</span>
+<span class="nc" id="L140">        }.coerceAtLeast(0)</span>
+    ]
+    
+    // Companion object merged above
+
+<span class="nc" id="L145">    private var MODEL_PATH = &quot;&quot;</span>
+    private var isGenerating = false
+    private var isVoiceMode = false
+    private var alarmJob: Job? = null
+    private var timeoutJob: Job? = null
+<span class="nc" id="L150">    private var lastResponseBuilder = java.lang.StringBuilder()</span>
+    private var orchestratorBridge: InAppOrchestratorBridge? = null
+    
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+<span class="nc" id="L155">        super.onCreate(savedInstanceState)</span>
+<span class="nc" id="L156">        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE</span>
+
+<span class="nc" id="L158">        loadRuntimePrefs(this)</span>
+<span class="nc" id="L159">        VehicleManager.initialize(this)</span>
+
+<span class="nc" id="L161">        lifecycleScope.launch(Dispatchers.IO) {</span>
+<span class="nc" id="L162">            try {</span>
+<span class="nc" id="L163">                Log.i(&quot;Soniqo&quot;, &quot;Starting Soniqo model download/verification...&quot;)</span>
+<span class="nc" id="L164">                audio.soniqo.speech.ModelManager.ensureModels(this@LocalLLMActivity)</span>
+<span class="nc" id="L165">                Log.i(&quot;Soniqo&quot;, &quot;Soniqo models are ready!&quot;)</span>
+<span class="nc" id="L166">            } catch (e: Exception) {</span>
+<span class="nc" id="L167">                Log.e(&quot;Soniqo&quot;, &quot;Failed to ensure Soniqo models: ${e.message}&quot;)</span>
+            }
+<span class="nc" id="L169">        }</span>
+        
+<span class="nc" id="L171">        setContentView(R.layout.activity_main)</span>
+
+<span class="nc" id="L173">        inputText = findViewById(R.id.inputText)</span>
+<span class="nc" id="L174">        generateButton = findViewById(R.id.generateButton)</span>
+<span class="nc" id="L175">        voiceButton = findViewById(R.id.voiceButton)</span>
+
+<span class="nc" id="L177">        com.tcs.vehicleassistant.core.DebugBroadcasts.register(</span>
+<span class="nc" id="L178">            this, sideloadModelReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_SIDELOAD_MODEL</span>
+        )
+
+<span class="nc" id="L181">        chatRecyclerView = findViewById(R.id.chatRecyclerView)</span>
+<span class="nc" id="L182">        tabLayout = findViewById(R.id.tabLayout)</span>
+<span class="nc" id="L183">        tabInference = findViewById&lt;android.widget.LinearLayout&gt;(R.id.tabInference)</span>
+<span class="nc" id="L184">        tabUseCases = findViewById&lt;android.widget.ScrollView&gt;(R.id.tabUseCases)</span>
+<span class="nc" id="L185">        tabSystemPrompt = findViewById&lt;android.widget.LinearLayout&gt;(R.id.tabSystemPrompt)</span>
+<span class="nc" id="L186">        etSystemPrompt = findViewById(R.id.etSystemPrompt)</span>
+<span class="nc" id="L187">        btnSavePrompt = findViewById(R.id.btnSavePrompt)</span>
+<span class="nc" id="L188">        btnResetPrompt = findViewById(R.id.btnResetPrompt)</span>
+
+<span class="nc" id="L190">        btnPremiumUseCase1 = findViewById(R.id.btnPremiumUseCase1)</span>
+<span class="nc" id="L191">        btnPremiumUseCase2 = findViewById(R.id.btnPremiumUseCase2)</span>
+<span class="nc" id="L192">        btnPremiumUseCase3 = findViewById(R.id.btnPremiumUseCase3)</span>
+<span class="nc" id="L193">        btnPremiumUseCase4 = findViewById(R.id.btnPremiumUseCase4)</span>
+<span class="nc" id="L194">        btnPremiumUseCase5 = findViewById(R.id.btnPremiumUseCase5)</span>
+<span class="nc" id="L195">        btnPremiumUseCase6 = findViewById(R.id.btnPremiumUseCase6)</span>
+<span class="nc" id="L196">        btnPremiumUseCase7 = findViewById(R.id.btnPremiumUseCase7)</span>
+<span class="nc" id="L197">        btnPremiumUseCase8 = findViewById(R.id.btnPremiumUseCase8)</span>
+<span class="nc" id="L198">        btnDownloadModel = findViewById(R.id.btnDownloadModel)</span>
+<span class="nc" id="L199">        btnLoadModel = findViewById(R.id.btnLoadModel)</span>
+<span class="nc" id="L200">        progressBar = findViewById(R.id.progressBar)</span>
+<span class="nc" id="L201">        modelSpinner = findViewById(R.id.modelSpinner)</span>
+<span class="nc" id="L202">        spinnerBackend = findViewById(R.id.spinnerBackend)</span>
+<span class="nc" id="L203">        val spinnerAnimationStyle = findViewById&lt;Spinner&gt;(R.id.spinnerAnimationStyle)</span>
+<span class="nc" id="L204">        val spinnerUILayout = findViewById&lt;Spinner&gt;(R.id.spinnerUILayout)</span>
+        
+<span class="nc" id="L206">        val backendOptions = arrayOf(&quot;Auto&quot;, &quot;NPU&quot;, &quot;GPU&quot;, &quot;CPU&quot;)</span>
+<span class="nc" id="L207">        val backendAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, backendOptions)</span>
+<span class="nc" id="L208">        spinnerBackend.adapter = backendAdapter</span>
+<span class="nc" id="L209">        stopButton = findViewById(R.id.stopButton)</span>
+<span class="nc" id="L210">        clearButton = findViewById(R.id.clearButton)</span>
+<span class="nc" id="L211">        etWakeWord = findViewById(R.id.etWakeWord)</span>
+<span class="nc" id="L212">        switchWakeWord = findViewById(R.id.switchWakeWord)</span>
+<span class="nc" id="L213">        val switchAgenticLoop = findViewById&lt;com.google.android.material.switchmaterial.SwitchMaterial&gt;(R.id.switchAgenticLoop)</span>
+<span class="nc" id="L214">        llApiKeyContainer = findViewById(R.id.llApiKeyContainer)</span>
+<span class="nc" id="L215">        tvApiKeyLabel = findViewById(R.id.tvApiKeyLabel)</span>
+<span class="nc" id="L216">        etApiKey = findViewById(R.id.etApiKey)</span>
+<span class="nc" id="L217">        tvActiveModel = findViewById(R.id.tvActiveModel)</span>
+        
+<span class="nc" id="L219">        val cloudPrefs = getSharedPreferences(&quot;llm_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">        AnthropicManager.apiKey = cloudPrefs.getString(&quot;anthropic_api_key&quot;, &quot;&quot;) ?: &quot;&quot;</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        GeminiManager.apiKey = cloudPrefs.getString(&quot;gemini_api_key&quot;, &quot;&quot;) ?: &quot;&quot;</span>
+        
+<span class="nc bnc" id="L223" title="All 8 branches missed.">        if (GeminiManager.apiKey.isEmpty() &amp;&amp; BuildConfig.GEMINI_API_KEY.isNotEmpty()) {</span>
+<span class="nc" id="L224">            GeminiManager.apiKey = BuildConfig.GEMINI_API_KEY</span>
+        }
+        
+<span class="nc" id="L227">        etApiKey.addTextChangedListener(object : android.text.TextWatcher {</span>
+            override fun afterTextChanged(s: android.text.Editable?) {
+<span class="nc" id="L229">                val key = s.toString()</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">                if (currentModel.name.contains(&quot;Claude&quot;)) {</span>
+<span class="nc" id="L231">                    AnthropicManager.apiKey = key</span>
+<span class="nc" id="L232">                    cloudPrefs.edit().putString(&quot;anthropic_api_key&quot;, key).apply()</span>
+<span class="nc bnc" id="L233" title="All 2 branches missed.">                } else if (currentModel.name.contains(&quot;Gemini&quot;)) {</span>
+<span class="nc" id="L234">                    GeminiManager.apiKey = key</span>
+<span class="nc" id="L235">                    cloudPrefs.edit().putString(&quot;gemini_api_key&quot;, key).apply()</span>
+                }
+<span class="nc" id="L237">            }</span>
+<span class="nc" id="L238">            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}</span>
+<span class="nc" id="L239">            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}</span>
+        })
+
+        // Re-use test logic when intent action matches
+<span class="nc" id="L243">        val prefs = getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, MODE_PRIVATE)</span>
+<span class="nc" id="L244">        val defaultModelFile = java.io.File(com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH)</span>
+<span class="nc" id="L245">        val savedModelPath = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL, &quot;&quot;)</span>
+<span class="nc" id="L246">        when {</span>
+<span class="nc bnc" id="L247" title="All 6 branches missed.">            !savedModelPath.isNullOrEmpty() &amp;&amp;</span>
+<span class="nc bnc" id="L248" title="All 2 branches missed.">                savedModelPath.endsWith(com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME) -&gt; {</span>
+<span class="nc" id="L249">                MODEL_PATH = savedModelPath</span>
+            }
+<span class="nc bnc" id="L251" title="All 4 branches missed.">            defaultModelFile.exists() &amp;&amp; defaultModelFile.canRead() -&gt; {</span>
+<span class="nc" id="L252">                MODEL_PATH = defaultModelFile.absolutePath</span>
+<span class="nc" id="L253">                prefs.edit()</span>
+<span class="nc" id="L254">                    .putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL, MODEL_PATH)</span>
+<span class="nc" id="L255">                    .apply()</span>
+            }
+<span class="nc bnc" id="L257" title="All 6 branches missed.">            !savedModelPath.isNullOrEmpty() -&gt; MODEL_PATH = savedModelPath</span>
+        }
+
+        // Setup Animation Style Spinner
+<span class="nc" id="L261">        val animationOptions = arrayOf(</span>
+<span class="nc" id="L262">            &quot;Google Assistant (4 Dots)&quot;,</span>
+<span class="nc" id="L263">            &quot;Polestar Holographic Waveform&quot;,</span>
+<span class="nc" id="L264">            &quot;Pulsing Aura&quot;,</span>
+<span class="nc" id="L265">            &quot;Minimalist Edge Bar&quot;,</span>
+<span class="nc" id="L266">            &quot;Dual-Tone Symmetrical EQ&quot;,</span>
+<span class="nc" id="L267">            &quot;Zero-G Orb (Holographic)&quot;,</span>
+<span class="nc" id="L268">            &quot;Levitating Core (Magnetic)&quot;,</span>
+<span class="nc" id="L269">            &quot;Photo-Optimized Fluid Ribbon (Google)&quot;</span>
+        )
+<span class="nc" id="L271">        val animAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, animationOptions)</span>
+<span class="nc" id="L272">        spinnerAnimationStyle.adapter = animAdapter</span>
+<span class="nc" id="L273">        val savedAnimStyle = prefs.getInt(&quot;anim_style_pref&quot;, 1) // Default to Polestar (1)</span>
+<span class="nc" id="L274">        spinnerAnimationStyle.setSelection(savedAnimStyle)</span>
+        
+<span class="nc" id="L276">        spinnerAnimationStyle.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {</span>
+            override fun onItemSelected(parent: android.widget.AdapterView&lt;*&gt;?, view: android.view.View?, position: Int, id: Long) {
+<span class="nc" id="L278">                prefs.edit().putInt(&quot;anim_style_pref&quot;, position).apply()</span>
+<span class="nc" id="L279">            }</span>
+<span class="nc" id="L280">            override fun onNothingSelected(parent: android.widget.AdapterView&lt;*&gt;?) {}</span>
+        }
+        
+        // Setup UI Layout Style Spinner
+<span class="nc" id="L284">        val uiLayoutOptions = arrayOf(</span>
+<span class="nc" id="L285">            &quot;Wide Dashboard Strip (Polestar)&quot;,</span>
+<span class="nc" id="L286">            &quot;Floating Center Pill (Google)&quot;,</span>
+<span class="nc" id="L287">            &quot;Driver-Side Vertical Panel&quot;,</span>
+<span class="nc" id="L288">            &quot;Slim Top Banner&quot;,</span>
+<span class="nc" id="L289">            &quot;Full-Screen Immersive Canvas&quot;,</span>
+<span class="nc" id="L290">            &quot;Holographic Cyberpunk HUD&quot;,</span>
+<span class="nc" id="L291">            &quot;Beveled Glass Island (Lucid)&quot;,</span>
+<span class="nc" id="L292">            &quot;Cinematic Letterbox (Concept)&quot;</span>
+        )
+<span class="nc" id="L294">        val layoutAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, uiLayoutOptions)</span>
+<span class="nc" id="L295">        spinnerUILayout.adapter = layoutAdapter</span>
+<span class="nc" id="L296">        val savedLayout = prefs.getInt(&quot;ui_layout_pref&quot;, 0) // Default to Polestar</span>
+<span class="nc" id="L297">        spinnerUILayout.setSelection(savedLayout)</span>
+
+<span class="nc" id="L299">        spinnerUILayout.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {</span>
+            override fun onItemSelected(parent: android.widget.AdapterView&lt;*&gt;?, view: android.view.View?, position: Int, id: Long) {
+<span class="nc" id="L301">                prefs.edit().putInt(&quot;ui_layout_pref&quot;, position).apply()</span>
+<span class="nc" id="L302">            }</span>
+<span class="nc" id="L303">            override fun onNothingSelected(parent: android.widget.AdapterView&lt;*&gt;?) {}</span>
+        }
+        
+<span class="nc bnc" id="L306" title="All 4 branches missed.">        if (intent.action == &quot;com.tcs.vehicleassistant.RUN_TESTS&quot; &amp;&amp; !isTestRunning) {</span>
+<span class="nc bnc" id="L307" title="All 4 branches missed.">            val internalFiles = applicationContext.filesDir.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc bnc" id="L308" title="All 6 branches missed.">            val externalFiles = applicationContext.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc" id="L309">            val llmDir = java.io.File(&quot;/data/local/tmp/llm/&quot;)</span>
+<span class="nc" id="L310">            val tmpDir = java.io.File(&quot;/data/local/tmp/&quot;)</span>
+<span class="nc bnc" id="L311" title="All 4 branches missed.">            val tmpFiles = llmDir.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc bnc" id="L312" title="All 4 branches missed.">            val rootTmpFiles = tmpDir.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc" id="L313">            val allFiles = internalFiles + externalFiles + tmpFiles + rootTmpFiles</span>
+<span class="nc bnc" id="L314" title="All 6 branches missed.">            val models = allFiles.filter { it.name.endsWith(&quot;.bin&quot;) || it.name.endsWith(&quot;.task&quot;) || it.name.endsWith(&quot;.litertlm&quot;) }</span>
+<span class="nc" id="L315">            android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Found models: ${models.joinToString { it.absolutePath }}&quot;)</span>
+            
+<span class="nc" id="L317">            lifecycleScope.launch {</span>
+<span class="nc" id="L318">                initLlm()</span>
+<span class="nc" id="L319">            }</span>
+<span class="nc" id="L320">            isTestRunning = true</span>
+<span class="nc" id="L321">            android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Starting automated test suite...&quot;)</span>
+<span class="nc" id="L322">            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {</span>
+<span class="nc" id="L323">                runAutomatedTests()</span>
+<span class="nc" id="L324">                isTestRunning = false</span>
+<span class="nc" id="L325">            }</span>
+        }
+        
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        if (intent.action == &quot;com.tcs.vehicleassistant.DUMP_TEST_RESULTS&quot;) {</span>
+<span class="nc" id="L329">            val file = java.io.File(getExternalFilesDir(null), &quot;test_results.md&quot;)</span>
+<span class="nc bnc" id="L330" title="All 2 branches missed.">            if (file.exists()) {</span>
+<span class="nc" id="L331">                val lines = file.readLines()</span>
+<span class="nc" id="L332">                android.util.Log.i(&quot;AutomatedTest&quot;, &quot;--- BEGIN TEST RESULTS ---&quot;)</span>
+<span class="nc bnc" id="L333" title="All 2 branches missed.">                for (line in lines) {</span>
+<span class="nc" id="L334">                    android.util.Log.i(&quot;AutomatedTest&quot;, line)</span>
+                }
+<span class="nc" id="L336">                android.util.Log.i(&quot;AutomatedTest&quot;, &quot;--- END TEST RESULTS ---&quot;)</span>
+            } else {
+<span class="nc" id="L338">                android.util.Log.e(&quot;AutomatedTest&quot;, &quot;test_results.md does not exist!&quot;)</span>
+            }
+        }
+
+<span class="nc bnc" id="L342" title="All 2 branches missed.">        supportActionBar?.title = &quot;MediaPipe Local LLM&quot;</span>
+        
+<span class="nc bnc" id="L344" title="All 2 branches missed.">        if (intent.getBooleanExtra(&quot;auto_trigger_mic&quot;, false)) {</span>
+<span class="nc" id="L345">            android.util.Log.d(&quot;AutomatedTest&quot;, &quot;auto_trigger_mic is true, clicking voice button.&quot;)</span>
+<span class="nc" id="L346">            voiceButton.postDelayed({ voiceButton.performClick() }, 500)</span>
+        }
+        
+<span class="nc" id="L349">        chatAdapter = ChatAdapter(mutableListOf())</span>
+<span class="nc" id="L350">        chatRecyclerView.layoutManager = LinearLayoutManager(this).apply {</span>
+<span class="nc" id="L351">            stackFromEnd = true</span>
+<span class="nc" id="L352">        }</span>
+<span class="nc" id="L353">        chatRecyclerView.adapter = chatAdapter</span>
+
+        // Setup Internet Status Monitor
+<span class="nc" id="L356">        val connectivityManager = getSystemService(android.content.Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager</span>
+<span class="nc" id="L357">        val dashInternet = findViewById&lt;android.widget.TextView&gt;(R.id.dashInternet)</span>
+<span class="nc" id="L358">        val updateInternetUI = { isOnline: Boolean -&gt;</span>
+<span class="nc" id="L359">            runOnUiThread {</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                dashInternet.text = if (isOnline) &quot;🌐 Net: Online&quot; else &quot;🌐 Net: Offline&quot;</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">                dashInternet.setTextColor(android.graphics.Color.parseColor(if (isOnline) &quot;#03DAC6&quot; else &quot;#CF6679&quot;))</span>
+<span class="nc" id="L362">            }</span>
+<span class="nc" id="L363">        }</span>
+        
+<span class="nc" id="L365">        val activeNetwork = connectivityManager.activeNetwork</span>
+<span class="nc" id="L366">        val capabilities = connectivityManager.getNetworkCapabilities(activeNetwork)</span>
+<span class="nc bnc" id="L367" title="All 4 branches missed.">        updateInternetUI(capabilities?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true)</span>
+        
+<span class="nc" id="L369">        connectivityManager.registerNetworkCallback(</span>
+<span class="nc" id="L370">            android.net.NetworkRequest.Builder().addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET).build(),</span>
+<span class="nc" id="L371">            object : android.net.ConnectivityManager.NetworkCallback() {</span>
+                override fun onCapabilitiesChanged(network: android.net.Network, networkCapabilities: android.net.NetworkCapabilities) {
+<span class="nc" id="L373">                    val isOnline = networkCapabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED)</span>
+<span class="nc" id="L374">                    updateInternetUI(isOnline)</span>
+<span class="nc" id="L375">                }</span>
+<span class="nc" id="L376">                override fun onLost(network: android.net.Network) { updateInternetUI(false) }</span>
+            }
+        )
+
+        // Setup TTS
+<span class="nc" id="L381">        tts = TextToSpeech(this) { status -&gt;</span>
+<span class="nc bnc" id="L382" title="All 2 branches missed.">            if (status == TextToSpeech.SUCCESS) {</span>
+<span class="nc" id="L383">                tts.language = Locale.US</span>
+<span class="nc" id="L384">                applyVoiceSettings()</span>
+<span class="nc" id="L385">                tts.setOnUtteranceProgressListener(object : android.speech.tts.UtteranceProgressListener() {</span>
+                    override fun onStart(utteranceId: String?) {
+<span class="nc" id="L387">                        LatencyLogger.log(&quot;LocalLLMActivity&quot;, &quot;TTS Synthesis Started for $utteranceId&quot;)</span>
+<span class="nc" id="L388">                    }</span>
+                    override fun onDone(utteranceId: String?) {
+<span class="nc" id="L390">                        LatencyLogger.log(&quot;LocalLLMActivity&quot;, &quot;TTS Synthesis Done for $utteranceId&quot;)</span>
+<span class="nc bnc" id="L391" title="All 4 branches missed.">                        if (utteranceId == &quot;QUESTION&quot; || utteranceId == &quot;QUESTION_FINAL&quot;) {</span>
+<span class="nc" id="L392">                            runOnUiThread {</span>
+<span class="nc" id="L393">                                voiceButton.performClick()</span>
+<span class="nc" id="L394">                            }</span>
+                        }
+<span class="nc" id="L396">                    }</span>
+                    override fun onError(utteranceId: String?) {
+<span class="nc" id="L398">                    }</span>
+                })
+<span class="nc" id="L400">                initOrchestratorBridge()</span>
+            }
+<span class="nc" id="L402">        }</span>
+
+        // Removed runSystemDiagnostics() to prevent it from executing tools every time the activity starts
+
+        // Setup Permissions
+<span class="nc" id="L407">        val perms = arrayOf(</span>
+<span class="nc" id="L408">            Manifest.permission.RECORD_AUDIO,</span>
+<span class="nc" id="L409">            Manifest.permission.ACCESS_FINE_LOCATION,</span>
+<span class="nc" id="L410">            Manifest.permission.ACCESS_COARSE_LOCATION,</span>
+<span class="nc" id="L411">            Manifest.permission.CAMERA</span>
+        )
+<span class="nc bnc" id="L413" title="All 2 branches missed.">        val missingPerms = perms.filter { ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED }</span>
+<span class="nc bnc" id="L414" title="All 4 branches missed.">        if (missingPerms.isNotEmpty()) {</span>
+<span class="nc" id="L415">            ActivityCompat.requestPermissions(this, missingPerms.toTypedArray(), 1)</span>
+        } else {
+            // Disabled background camera start to prevent hardware conflict with AAOS CarBiometricService
+<span class="nc" id="L418">            android.util.Log.d(&quot;LocalLLMActivity&quot;, &quot;Skipped CabinCameraManager auto-start to preserve system camera service stability.&quot;)</span>
+        }
+
+        // Setup STT using AndroidAudioManager (Vosk)
+<span class="nc" id="L422">        localAudioManager = com.tcs.vehicleassistant.hardware.AndroidAudioManager(this)</span>
+<span class="nc" id="L423">        localAudioManager.initialize({</span>
+<span class="nc" id="L424">            localAudioManager.setRecognitionListener(</span>
+                onReadyForSpeech = {
+<span class="nc" id="L426">                    runOnUiThread {</span>
+<span class="nc" id="L427">                        LatencyLogger.log(&quot;LocalLLMActivity&quot;, &quot;Speech Recognizer onReadyForSpeech&quot;)</span>
+<span class="nc" id="L428">                        inputText.setText(&quot;&quot;)</span>
+<span class="nc" id="L429">                    }</span>
+<span class="nc" id="L430">                },</span>
+                onBeginningOfSpeech = {
+<span class="nc" id="L432">                    runOnUiThread { LatencyLogger.log(&quot;LocalLLMActivity&quot;, &quot;Speech Recognizer onBeginningOfSpeech&quot;) }</span>
+<span class="nc" id="L433">                },</span>
+                onEndOfSpeech = {
+<span class="nc" id="L435">                    runOnUiThread {</span>
+<span class="nc" id="L436">                        LatencyLogger.log(&quot;LocalLLMActivity&quot;, &quot;Speech Recognizer onEndOfSpeech&quot;)</span>
+<span class="nc" id="L437">                        inputText.setText(&quot;&quot;)</span>
+<span class="nc" id="L438">                    }</span>
+<span class="nc" id="L439">                },</span>
+                onResult = { text -&gt;
+<span class="nc" id="L441">                    runOnUiThread {</span>
+<span class="nc" id="L442">                        LatencyLogger.log(&quot;LocalLLMActivity&quot;, &quot;Speech Recognizer onResults&quot;)</span>
+<span class="nc" id="L443">                        generateText(text, isVoice = true, displayPrompt = text)</span>
+<span class="nc" id="L444">                    }</span>
+<span class="nc" id="L445">                },</span>
+<span class="nc" id="L446">                onEmptyResult = {},</span>
+                onError = {
+<span class="nc" id="L448">                    runOnUiThread {</span>
+<span class="nc" id="L449">                        val msg = &quot;Voice Error: offline engine failed&quot;</span>
+<span class="nc" id="L450">                        inputText.setText(msg)</span>
+<span class="nc" id="L451">                        chatAdapter.addMessage(ChatMessage(msg, isUser = false))</span>
+<span class="nc" id="L452">                    }</span>
+<span class="nc" id="L453">                },</span>
+<span class="nc" id="L454">                onPartial = {}</span>
+            )
+<span class="nc" id="L456">        }, {})</span>
+
+<span class="nc" id="L458">        voiceButton.setOnClickListener {</span>
+<span class="nc" id="L459">            LatencyLogger.reset()</span>
+<span class="nc" id="L460">            LatencyLogger.log(&quot;LocalLLMActivity&quot;, &quot;Voice Button Clicked&quot;)</span>
+<span class="nc" id="L461">            AssistantVoiceInteractionService.triggerSession(this)</span>
+<span class="nc" id="L462">        }</span>
+
+<span class="nc" id="L464">        tabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {</span>
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+<span class="nc" id="L466">                tabInference.visibility = View.GONE</span>
+<span class="nc" id="L467">                tabUseCases.visibility = View.GONE</span>
+<span class="nc" id="L468">                tabSystemPrompt.visibility = View.GONE</span>
+                
+<span class="nc bnc" id="L470" title="All 2 branches missed.">                when (tab?.position) {</span>
+<span class="nc bnc" id="L471" title="All 4 branches missed.">                    0 -&gt; tabInference.visibility = View.VISIBLE</span>
+<span class="nc bnc" id="L472" title="All 4 branches missed.">                    1 -&gt; tabUseCases.visibility = View.VISIBLE</span>
+<span class="nc bnc" id="L473" title="All 4 branches missed.">                    2 -&gt; tabSystemPrompt.visibility = View.VISIBLE</span>
+                }
+<span class="nc" id="L475">            }</span>
+<span class="nc" id="L476">            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}</span>
+<span class="nc" id="L477">            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}</span>
+        })
+
+        // Setup System Prompt Editor
+<span class="nc" id="L481">        lifecycleScope.launch {</span>
+<span class="nc" id="L482">            etSystemPrompt.setText(LLMManager.getSystemPrompt(this@LocalLLMActivity))</span>
+<span class="nc" id="L483">        }</span>
+        
+<span class="nc" id="L485">        btnSavePrompt.setOnClickListener {</span>
+<span class="nc" id="L486">            val newPrompt = etSystemPrompt.text.toString()</span>
+<span class="nc" id="L487">            prefs.edit().putString(&quot;system_prompt&quot;, newPrompt).apply()</span>
+<span class="nc" id="L488">            LLMManager.resetConversation()</span>
+<span class="nc" id="L489">            Toast.makeText(this, &quot;System Prompt Saved &amp; Applied!&quot;, Toast.LENGTH_SHORT).show()</span>
+<span class="nc" id="L490">        }</span>
+        
+<span class="nc" id="L492">        btnResetPrompt.setOnClickListener {</span>
+<span class="nc" id="L493">            lifecycleScope.launch {</span>
+<span class="nc" id="L494">                val defaultPrompt = LLMManager.getDefaultSystemPrompt(this@LocalLLMActivity)</span>
+<span class="nc" id="L495">                etSystemPrompt.setText(defaultPrompt)</span>
+<span class="nc" id="L496">                prefs.edit().remove(&quot;system_prompt&quot;).apply()</span>
+<span class="nc" id="L497">                LLMManager.resetConversation()</span>
+<span class="nc" id="L498">                Toast.makeText(this@LocalLLMActivity, &quot;Reset to Default Prompt!&quot;, Toast.LENGTH_SHORT).show()</span>
+<span class="nc" id="L499">            }</span>
+<span class="nc" id="L500">        }</span>
+
+
+<span class="nc" id="L503">        setupUseCases()</span>
+        
+        // Custom Spinner Layouts to fix Dark Mode contrast issue
+<span class="nc" id="L506">        val adapter = ArrayAdapter(this, R.layout.spinner_item, supportedModels.map { &quot;[${it.automotiveContext}] ${it.name} (${it.size})&quot; })</span>
+<span class="nc" id="L507">        adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)</span>
+<span class="nc" id="L508">        modelSpinner.adapter = adapter</span>
+        // Default to Gemma 4 E2B; restore cloud selection only when cloud mode is active.
+<span class="nc" id="L510">        var initialModelIndex = defaultModelIndex</span>
+<span class="nc bnc" id="L511" title="All 2 branches missed.">        if (isCloudModelActive) {</span>
+<span class="nc" id="L512">            val cloudIndex = supportedModels.indexOfFirst { it.name == currentCloudModelName }</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">            if (cloudIndex &gt;= 0) initialModelIndex = cloudIndex</span>
+        } else {
+<span class="nc" id="L515">            val selectedPath = prefs.getString(</span>
+<span class="nc" id="L516">                com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL,</span>
+<span class="nc" id="L517">                null</span>
+            )
+<span class="nc bnc" id="L519" title="All 6 branches missed.">            val fromPrefs = if (!selectedPath.isNullOrEmpty()) {</span>
+<span class="nc" id="L520">                supportedModels.indexOfFirst { selectedPath.endsWith(it.filename) }</span>
+            } else {
+<span class="nc" id="L522">                -1</span>
+            }
+            // Prefer Gemma as the product default; only honor a non-Gemma prefs hit when the
+            // user explicitly left another edge model selected and Gemma is not on disk.
+<span class="nc" id="L526">            val gemmaOnDisk = java.io.File(</span>
+<span class="nc" id="L527">                com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH</span>
+<span class="nc" id="L528">            ).canRead()</span>
+<span class="nc" id="L529">            initialModelIndex = when {</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">                gemmaOnDisk -&gt; defaultModelIndex</span>
+<span class="nc bnc" id="L531" title="All 2 branches missed.">                fromPrefs &gt;= 0 -&gt; fromPrefs</span>
+<span class="nc" id="L532">                else -&gt; defaultModelIndex</span>
+            }
+        }
+<span class="nc" id="L535">        currentModel = supportedModels[initialModelIndex]</span>
+<span class="nc" id="L536">        modelSpinner.setSelection(initialModelIndex)</span>
+        
+<span class="nc" id="L538">        modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {</span>
+            override fun onItemSelected(parent: AdapterView&lt;*&gt;?, view: View?, position: Int, id: Long) {
+<span class="nc" id="L540">                currentModel = supportedModels[position]</span>
+<span class="nc bnc" id="L541" title="All 2 branches missed.">                if (currentModel.url == &quot;api&quot;) {</span>
+<span class="nc" id="L542">                    saveCloudMode(this@LocalLLMActivity, true, currentModel.name)</span>
+<span class="nc" id="L543">                    llApiKeyContainer.visibility = View.VISIBLE</span>
+<span class="nc bnc" id="L544" title="All 2 branches missed.">                    if (currentModel.name.contains(&quot;Claude&quot;)) {</span>
+<span class="nc" id="L545">                        tvApiKeyLabel.text = &quot;Anthropic API Key:&quot;</span>
+<span class="nc" id="L546">                        etApiKey.setText(AnthropicManager.apiKey)</span>
+<span class="nc bnc" id="L547" title="All 2 branches missed.">                    } else if (currentModel.name.contains(&quot;Gemini&quot;)) {</span>
+<span class="nc" id="L548">                        tvApiKeyLabel.text = &quot;Gemini API Key:&quot;</span>
+<span class="nc" id="L549">                        etApiKey.setText(GeminiManager.apiKey)</span>
+                    }
+<span class="nc" id="L551">                    updateActiveModelUI()</span>
+<span class="nc" id="L552">                    btnDownloadModel.isEnabled = false</span>
+<span class="nc" id="L553">                    btnLoadModel.isEnabled = true</span>
+                } else {
+<span class="nc" id="L555">                    saveCloudMode(this@LocalLLMActivity, false, &quot;&quot;)</span>
+<span class="nc" id="L556">                    llApiKeyContainer.visibility = View.GONE</span>
+<span class="nc" id="L557">                    btnDownloadModel.isEnabled = true</span>
+<span class="nc" id="L558">                    btnLoadModel.isEnabled = true</span>
+                }
+<span class="nc" id="L560">                checkModelExists()</span>
+<span class="nc" id="L561">            }</span>
+<span class="nc" id="L562">            override fun onNothingSelected(parent: AdapterView&lt;*&gt;?) {}</span>
+        }
+
+<span class="nc" id="L565">        updateDashboardUI()</span>
+<span class="nc" id="L566">        checkModelExists()</span>
+
+        // Auto-load Gemma (or the resolved MODEL_PATH) so commands work without tapping Load Model.
+<span class="nc bnc" id="L569" title="All 6 branches missed.">        if (!isCloudModelActive &amp;&amp; MODEL_PATH.isNotEmpty()) {</span>
+<span class="nc" id="L570">            lifecycleScope.launch {</span>
+<span class="nc bnc" id="L571" title="All 2 branches missed.">                if (LLMManager.isReady()) {</span>
+<span class="nc" id="L572">                    updateActiveModelUI()</span>
+<span class="nc" id="L573">                    generateButton.isEnabled = true</span>
+<span class="nc" id="L574">                    btnLoadModel.isEnabled = false</span>
+                } else {
+<span class="nc" id="L576">                    initLlm()</span>
+                }
+<span class="nc" id="L578">            }</span>
+        }
+
+<span class="nc" id="L581">        btnLoadModel.setOnClickListener {</span>
+<span class="nc" id="L582">            lifecycleScope.launch {</span>
+<span class="nc" id="L583">                initLlm()</span>
+<span class="nc" id="L584">            }</span>
+<span class="nc" id="L585">        }</span>
+
+<span class="nc" id="L587">        btnDownloadModel.setOnClickListener {</span>
+<span class="nc" id="L588">            downloadModel()</span>
+<span class="nc" id="L589">        }</span>
+
+<span class="nc" id="L591">        generateButton.setOnClickListener {</span>
+<span class="nc" id="L592">            val prompt = inputText.text.toString()</span>
+<span class="nc bnc" id="L593" title="All 4 branches missed.">            if (prompt.isNotEmpty()) {</span>
+<span class="nc" id="L594">                generateText(prompt, displayPrompt = prompt)</span>
+            }
+<span class="nc" id="L596">        }</span>
+
+<span class="nc" id="L598">        stopButton.setOnClickListener {</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">            if (isGenerating) {</span>
+                // Cancel ongoing generation but DO NOT destroy the engine
+<span class="nc bnc" id="L601" title="All 2 branches missed.">                LLMManager.conversation?.cancelProcess()</span>
+<span class="nc" id="L602">                chatAdapter.updateLastMessage(&quot;\n\n[Inference stopped by user]&quot;)</span>
+<span class="nc" id="L603">                resetControls()</span>
+            } else {
+                // If not generating, clear chat and reset conversation state to grab fresh vehicle context
+<span class="nc" id="L606">                chatAdapter.clearMessages()</span>
+<span class="nc" id="L607">                LLMManager.resetConversation()</span>
+            }
+<span class="nc" id="L609">        }</span>
+
+<span class="nc" id="L611">        clearButton.setOnClickListener {</span>
+<span class="nc bnc" id="L612" title="All 2 branches missed.">            if (isGenerating) {</span>
+<span class="nc bnc" id="L613" title="All 2 branches missed.">                LLMManager.conversation?.cancelProcess()</span>
+            }
+<span class="nc" id="L615">            chatAdapter.clearMessages()</span>
+<span class="nc" id="L616">            LLMManager.resetConversation()</span>
+<span class="nc" id="L617">            resetControls()</span>
+<span class="nc" id="L618">        }</span>
+        
+<span class="nc" id="L620">        val btnSyncTime = findViewById&lt;Button&gt;(R.id.btnSyncTime)</span>
+<span class="nc" id="L621">        btnSyncTime.setOnClickListener {</span>
+<span class="nc" id="L622">            btnSyncTime.isEnabled = false</span>
+<span class="nc" id="L623">            btnSyncTime.text = &quot;Syncing...&quot;</span>
+<span class="nc" id="L624">            Thread {</span>
+<span class="nc" id="L625">                try {</span>
+<span class="nc" id="L626">                    val url = java.net.URL(&quot;https://clients3.google.com/generate_204&quot;)</span>
+<span class="nc" id="L627">                    val conn = url.openConnection() as java.net.HttpURLConnection</span>
+<span class="nc" id="L628">                    conn.requestMethod = &quot;HEAD&quot;</span>
+<span class="nc" id="L629">                    conn.connectTimeout = 5000</span>
+<span class="nc" id="L630">                    conn.readTimeout = 5000</span>
+<span class="nc" id="L631">                    val dateHeader = conn.getHeaderField(&quot;Date&quot;)</span>
+<span class="nc bnc" id="L632" title="All 2 branches missed.">                    if (dateHeader != null) {</span>
+<span class="nc" id="L633">                        val format = java.text.SimpleDateFormat(&quot;EEE, dd MMM yyyy HH:mm:ss z&quot;, java.util.Locale.US)</span>
+<span class="nc" id="L634">                        val date = format.parse(dateHeader)</span>
+<span class="nc bnc" id="L635" title="All 2 branches missed.">                        if (date != null) {</span>
+<span class="nc" id="L636">                            val am = getSystemService(android.content.Context.ALARM_SERVICE) as android.app.AlarmManager</span>
+<span class="nc" id="L637">                            am.setTime(date.time)</span>
+<span class="nc" id="L638">                            runOnUiThread {</span>
+<span class="nc" id="L639">                                Toast.makeText(this@LocalLLMActivity, &quot;Time synced to $date&quot;, Toast.LENGTH_SHORT).show()</span>
+<span class="nc" id="L640">                            }</span>
+                        }
+                    } else {
+<span class="nc" id="L643">                        runOnUiThread { Toast.makeText(this@LocalLLMActivity, &quot;No Date header found&quot;, Toast.LENGTH_SHORT).show() }</span>
+                    }
+<span class="nc" id="L645">                } catch (e: Exception) {</span>
+<span class="nc" id="L646">                    Log.e(&quot;LocalLLMActivity&quot;, &quot;Failed to sync time&quot;, e)</span>
+<span class="nc" id="L647">                    runOnUiThread {</span>
+<span class="nc" id="L648">                        Toast.makeText(this@LocalLLMActivity, &quot;Sync failed: ${e.message}&quot;, Toast.LENGTH_SHORT).show()</span>
+<span class="nc" id="L649">                    }</span>
+                } finally {
+<span class="nc" id="L651">                    runOnUiThread {</span>
+<span class="nc" id="L652">                        btnSyncTime.isEnabled = true</span>
+<span class="nc" id="L653">                        btnSyncTime.text = &quot;Sync Time&quot;</span>
+<span class="nc" id="L654">                    }</span>
+                }
+<span class="nc" id="L656">            }.start()</span>
+<span class="nc" id="L657">        }</span>
+        
+<span class="nc" id="L659">        val btnSettings = findViewById&lt;Button&gt;(R.id.btnSettings)</span>
+<span class="nc" id="L660">        btnSettings.setOnClickListener {</span>
+<span class="nc" id="L661">            showTelemetrySettingsDialog()</span>
+<span class="nc" id="L662">        }</span>
+
+<span class="nc" id="L664">        val btnOfflineTTS = findViewById&lt;Button&gt;(R.id.btnOfflineTTS)</span>
+<span class="nc" id="L665">        btnOfflineTTS.setOnClickListener {</span>
+<span class="nc" id="L666">            val intent = Intent(android.speech.tts.TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)</span>
+<span class="nc" id="L667">            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)</span>
+<span class="nc" id="L668">            try {</span>
+<span class="nc" id="L669">                startActivity(intent)</span>
+<span class="nc" id="L670">            } catch (e: Exception) {</span>
+<span class="nc" id="L671">                Toast.makeText(this, &quot;TTS Settings not found on this device.&quot;, Toast.LENGTH_SHORT).show()</span>
+            }
+<span class="nc" id="L673">        }</span>
+
+<span class="nc" id="L675">        val btnCockpitAI = findViewById&lt;Button&gt;(R.id.btnCockpitAI)</span>
+<span class="nc bnc" id="L676" title="All 2 branches missed.">        btnCockpitAI?.setOnClickListener {</span>
+<span class="nc" id="L677">            val intent = Intent(this, CockpitAwarenessActivity::class.java)</span>
+<span class="nc" id="L678">            startActivity(intent)</span>
+<span class="nc" id="L679">        }</span>
+        
+        // Wake Word Initialization
+<span class="nc" id="L682">        val currentWakeWord = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD, com.tcs.vehicleassistant.core.AssistantConfig.WakeWord.DEFAULT_WAKE_WORD)</span>
+<span class="nc" id="L683">        etWakeWord.setText(currentWakeWord)</span>
+        
+<span class="nc" id="L685">        val isWakeWordEnabled = prefs.getBoolean(</span>
+<span class="nc" id="L686">            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, false</span>
+        )
+<span class="nc" id="L688">        switchWakeWord.isChecked = isWakeWordEnabled</span>
+<span class="nc bnc" id="L689" title="All 2 branches missed.">        if (isWakeWordEnabled) {</span>
+<span class="nc" id="L690">            try { startService(Intent(this, WakeWordService::class.java)) } catch (e: Exception) {}</span>
+        }
+        
+<span class="nc" id="L693">        switchWakeWord.setOnCheckedChangeListener { _, isChecked -&gt;</span>
+<span class="nc" id="L694">            prefs.edit().putBoolean(</span>
+<span class="nc" id="L695">                com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, isChecked</span>
+<span class="nc" id="L696">            ).apply()</span>
+<span class="nc" id="L697">            val intent = Intent(this, WakeWordService::class.java)</span>
+<span class="nc bnc" id="L698" title="All 2 branches missed.">            if (isChecked) {</span>
+<span class="nc" id="L699">                try { startService(intent) } catch (e: Exception) {}</span>
+            } else {
+<span class="nc" id="L701">                try { stopService(intent) } catch (e: Exception) {}</span>
+            }
+<span class="nc" id="L703">        }</span>
+        
+        // Agentic Loop Initialization
+<span class="nc" id="L706">        val isAgenticLoopEnabled = prefs.getBoolean(&quot;agentic_loop_enabled&quot;, true)</span>
+<span class="nc" id="L707">        switchAgenticLoop.isChecked = isAgenticLoopEnabled</span>
+<span class="nc" id="L708">        switchAgenticLoop.setOnCheckedChangeListener { _, isChecked -&gt;</span>
+<span class="nc" id="L709">            prefs.edit().putBoolean(&quot;agentic_loop_enabled&quot;, isChecked).apply()</span>
+<span class="nc" id="L710">        }</span>
+        
+        // Companion Mode Initialization
+<span class="nc" id="L713">        val switchCompanionMode = findViewById&lt;com.google.android.material.switchmaterial.SwitchMaterial&gt;(R.id.switchCompanionMode)</span>
+<span class="nc" id="L714">        val isCompanionModeEnabled = prefs.getBoolean(&quot;companion_mode_enabled&quot;, true)</span>
+<span class="nc" id="L715">        switchCompanionMode.isChecked = isCompanionModeEnabled</span>
+<span class="nc" id="L716">        switchCompanionMode.setOnCheckedChangeListener { _, isChecked -&gt;</span>
+<span class="nc" id="L717">            prefs.edit().putBoolean(&quot;companion_mode_enabled&quot;, isChecked).apply()</span>
+<span class="nc" id="L718">        }</span>
+        
+<span class="nc" id="L720">        etWakeWord.addTextChangedListener(object : android.text.TextWatcher {</span>
+<span class="nc" id="L721">            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}</span>
+<span class="nc" id="L722">            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}</span>
+            override fun afterTextChanged(s: android.text.Editable?) {
+<span class="nc" id="L724">                prefs.edit().putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD, s.toString().lowercase()).apply()</span>
+<span class="nc bnc" id="L725" title="All 2 branches missed.">                if (switchWakeWord.isChecked) {</span>
+<span class="nc" id="L726">                    val intent = Intent(this@LocalLLMActivity, WakeWordService::class.java)</span>
+<span class="nc" id="L727">                    try { startService(intent) } catch (e: Exception) {}</span>
+                }
+<span class="nc" id="L729">            }</span>
+        })
+
+<span class="nc" id="L732">        com.tcs.vehicleassistant.core.DebugBroadcasts.register(</span>
+<span class="nc" id="L733">            this, diagnosticReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_DIAGNOSTICS_DUMP</span>
+        )
+<span class="nc" id="L735">        com.tcs.vehicleassistant.core.DebugBroadcasts.register(</span>
+<span class="nc" id="L736">            this, testQueryReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_TEST_QUERY</span>
+        )
+<span class="nc" id="L738">    }</span>
+
+    private fun applyVoiceSettings() {
+<span class="nc" id="L741">        val prefs = getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L742">        val rate = prefs.getFloat(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.VOICE_RATE, 1.0f)</span>
+<span class="nc" id="L743">        val pitch = prefs.getFloat(&quot;voice_pitch&quot;, 1.05f)</span>
+        // Legacy Android TextToSpeech (debug UI / fallback only).
+<span class="nc bnc" id="L745" title="All 2 branches missed.">        if (::tts.isInitialized) {</span>
+<span class="nc" id="L746">            tts.setSpeechRate(rate)</span>
+<span class="nc" id="L747">            tts.setPitch(pitch)</span>
+        }
+        // Live cabin overlay + agent service use Sherpa OfflineTts.
+<span class="nc bnc" id="L750" title="All 2 branches missed.">        if (::localAudioManager.isInitialized) {</span>
+<span class="nc" id="L751">            localAudioManager.reloadTtsFromPrefs()</span>
+        }
+<span class="nc" id="L753">        startService(</span>
+<span class="nc" id="L754">            Intent(this, com.tcs.vehicleassistant.service.VehicleAgentService::class.java).apply {</span>
+<span class="nc" id="L755">                action = com.tcs.vehicleassistant.service.VehicleAgentService.ACTION_RELOAD_TTS</span>
+<span class="nc" id="L756">            }</span>
+        )
+<span class="nc" id="L758">    }</span>
+
+    private fun showTelemetrySettingsDialog() {
+<span class="nc" id="L761">        val dialogView = layoutInflater.inflate(R.layout.dialog_telemetry_settings, null)</span>
+<span class="nc" id="L762">        val etSpeed = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etSpeed)</span>
+<span class="nc" id="L763">        val etKvCache = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etKvCache)</span>
+
+<span class="nc" id="L765">        etSpeed.setText(VehicleManager.getRealSpeed().toString())</span>
+        
+<span class="nc" id="L767">        val prefs = getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)</span>
+<span class="nc" id="L768">        val currentKvCache = prefs.getInt(&quot;max_tokens&quot;, 4096)</span>
+<span class="nc" id="L769">        val currentAutoFlush = prefs.getInt(&quot;auto_flush&quot;, 25)</span>
+<span class="nc bnc" id="L770" title="All 2 branches missed.">        val currentLocationOverride = prefs.getString(LocationManager.PREF_LOCATION_OVERRIDE, &quot;&quot;) ?: &quot;&quot;</span>
+<span class="nc bnc" id="L771" title="All 2 branches missed.">        val currentMechanicName = prefs.getString(&quot;mechanic_name&quot;, &quot;Mechanic&quot;) ?: &quot;Mechanic&quot;</span>
+<span class="nc bnc" id="L772" title="All 2 branches missed.">        val currentMechanicNum = prefs.getString(&quot;mechanic_number&quot;, &quot;555-0199&quot;) ?: &quot;555-0199&quot;</span>
+<span class="nc bnc" id="L773" title="All 2 branches missed.">        val currentDiningPref = prefs.getString(&quot;dining_pref&quot;, &quot;Pure Vegetarian&quot;) ?: &quot;Pure Vegetarian&quot;</span>
+<span class="nc" id="L774">        val cloudFallbackEnabled = prefs.getBoolean(&quot;cloud_fallback_enabled&quot;, true)</span>
+<span class="nc" id="L775">        val speculativeEnabled = prefs.getBoolean(</span>
+<span class="nc" id="L776">            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,</span>
+<span class="nc" id="L777">            false</span>
+        )
+
+<span class="nc" id="L780">        etKvCache.setText(currentKvCache.toString())</span>
+<span class="nc" id="L781">        val etAutoFlush = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etAutoFlush)</span>
+<span class="nc" id="L782">        val switchCloudFallback = dialogView.findViewById&lt;android.widget.Switch&gt;(R.id.switchCloudFallback)</span>
+<span class="nc" id="L783">        val switchSpeculativeDecoding =</span>
+<span class="nc" id="L784">            dialogView.findViewById&lt;android.widget.Switch&gt;(R.id.switchSpeculativeDecoding)</span>
+<span class="nc" id="L785">        val btnRunLiteRtBenchmark =</span>
+<span class="nc" id="L786">            dialogView.findViewById&lt;android.widget.Button&gt;(R.id.btnRunLiteRtBenchmark)</span>
+<span class="nc" id="L787">        switchCloudFallback.isChecked = cloudFallbackEnabled</span>
+<span class="nc" id="L788">        switchSpeculativeDecoding.isChecked = speculativeEnabled</span>
+<span class="nc" id="L789">        etAutoFlush.setText(currentAutoFlush.toString())</span>
+
+<span class="nc" id="L791">        btnRunLiteRtBenchmark.setOnClickListener {</span>
+<span class="nc" id="L792">            Toast.makeText(this, &quot;Running LiteRT benchmark… (may take ~30s)&quot;, Toast.LENGTH_SHORT).show()</span>
+<span class="nc" id="L793">            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {</span>
+<span class="nc" id="L794">                val summary = withContext(kotlinx.coroutines.Dispatchers.IO) {</span>
+<span class="nc" id="L795">                    LLMManager.runOfficialBenchmark(this@LocalLLMActivity)</span>
+                }
+<span class="nc" id="L797">                Toast.makeText(this@LocalLLMActivity, summary, Toast.LENGTH_LONG).show()</span>
+<span class="nc" id="L798">                chatAdapter.addMessage(ChatMessage(&quot;LiteRT benchmark: $summary&quot;, isUser = false))</span>
+<span class="nc" id="L799">            }</span>
+<span class="nc" id="L800">        }        </span>
+<span class="nc" id="L801">        val etLocationOverride = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etLocationOverride)</span>
+<span class="nc" id="L802">        etLocationOverride.setText(currentLocationOverride)</span>
+
+<span class="nc" id="L804">        val etMechanicName = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etMechanicName)</span>
+<span class="nc" id="L805">        val etMechanicNumber = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etMechanicNumber)</span>
+<span class="nc" id="L806">        val etDiningPref = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etDiningPref)</span>
+<span class="nc" id="L807">        etMechanicName.setText(currentMechanicName)</span>
+<span class="nc" id="L808">        etMechanicNumber.setText(currentMechanicNum)</span>
+<span class="nc" id="L809">        etDiningPref.setText(currentDiningPref)</span>
+
+<span class="nc" id="L811">        val spinnerDemoPreset = dialogView.findViewById&lt;Spinner&gt;(R.id.spinnerDemoPreset)</span>
+<span class="nc" id="L812">        val spinnerLocationSource = dialogView.findViewById&lt;Spinner&gt;(R.id.spinnerLocationSource)</span>
+<span class="nc" id="L813">        val tvResolvedLocation = dialogView.findViewById&lt;android.widget.TextView&gt;(R.id.tvResolvedLocation)</span>
+<span class="nc" id="L814">        val btnApplyDemoPreset = dialogView.findViewById&lt;Button&gt;(R.id.btnApplyDemoPreset)</span>
+
+<span class="nc" id="L816">        val presetAdapter = ArrayAdapter(</span>
+<span class="nc" id="L817">            this,</span>
+<span class="nc" id="L818">            android.R.layout.simple_spinner_item,</span>
+<span class="nc" id="L819">            DemoSettingsPresets.ALL.map { it.displayName }</span>
+        )
+<span class="nc" id="L821">        presetAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)</span>
+<span class="nc" id="L822">        spinnerDemoPreset.adapter = presetAdapter</span>
+
+<span class="nc" id="L824">        val sourceAdapter = ArrayAdapter(</span>
+<span class="nc" id="L825">            this,</span>
+<span class="nc" id="L826">            android.R.layout.simple_spinner_item,</span>
+<span class="nc" id="L827">            LocationManager.Source.entries.map { it.label }</span>
+        )
+<span class="nc" id="L829">        sourceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)</span>
+<span class="nc" id="L830">        spinnerLocationSource.adapter = sourceAdapter</span>
+
+<span class="nc" id="L832">        val selectedPreset = DemoSettingsPresets.getSelected(this)</span>
+<span class="nc" id="L833">        val selectedPresetIndex = DemoSettingsPresets.ALL.indexOfFirst { it.id == selectedPreset.id }.coerceAtLeast(0)</span>
+<span class="nc" id="L834">        spinnerDemoPreset.setSelection(selectedPresetIndex)</span>
+
+<span class="nc" id="L836">        val selectedSource = LocationManager.Source.fromPref(prefs.getString(LocationManager.PREF_LOCATION_SOURCE, null))</span>
+<span class="nc" id="L837">        val selectedSourceIndex = LocationManager.Source.entries.indexOf(selectedSource).coerceAtLeast(0)</span>
+<span class="nc" id="L838">        spinnerLocationSource.setSelection(selectedSourceIndex)</span>
+
+        fun refreshResolvedLocation() {
+<span class="nc" id="L841">            val source = LocationManager.Source.entries[spinnerLocationSource.selectedItemPosition]</span>
+<span class="nc" id="L842">            val preset = DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition]</span>
+<span class="nc bnc" id="L843" title="All 3 branches missed.">            val preview = when (source) {</span>
+                LocationManager.Source.MANUAL -&gt; {
+<span class="nc bnc" id="L845" title="All 2 branches missed.">                    val manual = etLocationOverride.text.toString().trim().ifBlank { preset.coordinatesString() }</span>
+<span class="nc" id="L846">                    &quot;${preset.cityName} ($manual) via ${source.label}&quot;</span>
+                }
+<span class="nc" id="L848">                LocationManager.Source.PRESET -&gt; &quot;${preset.cityName} (${preset.coordinatesString()}) via ${source.label}&quot;</span>
+<span class="nc" id="L849">                LocationManager.Source.DEVICE -&gt; LocationManager.getLocationStatus(this)</span>
+            }
+<span class="nc" id="L851">            tvResolvedLocation.text = &quot;Resolved: $preview&quot;</span>
+<span class="nc" id="L852">        }</span>
+<span class="nc" id="L853">        refreshResolvedLocation()</span>
+
+<span class="nc" id="L855">        btnApplyDemoPreset.setOnClickListener {</span>
+<span class="nc" id="L856">            val preset = DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition]</span>
+<span class="nc" id="L857">            DemoSettingsPresets.apply(this, preset)</span>
+<span class="nc" id="L858">            etLocationOverride.setText(preset.coordinatesString())</span>
+<span class="nc" id="L859">            etMechanicName.setText(preset.mechanicName)</span>
+<span class="nc" id="L860">            etMechanicNumber.setText(preset.mechanicNumber)</span>
+<span class="nc" id="L861">            etDiningPref.setText(preset.diningPref)</span>
+<span class="nc" id="L862">            refreshResolvedLocation()</span>
+<span class="nc" id="L863">            val switchCompanionMode = findViewById&lt;com.google.android.material.switchmaterial.SwitchMaterial&gt;(R.id.switchCompanionMode)</span>
+<span class="nc" id="L864">            val switchAgenticLoop = findViewById&lt;com.google.android.material.switchmaterial.SwitchMaterial&gt;(R.id.switchAgenticLoop)</span>
+<span class="nc bnc" id="L865" title="All 2 branches missed.">            switchCompanionMode?.isChecked = preset.companionMode</span>
+<span class="nc bnc" id="L866" title="All 2 branches missed.">            switchAgenticLoop?.isChecked = preset.agenticLoop</span>
+<span class="nc" id="L867">            Toast.makeText(this, &quot;Applied ${preset.displayName} defaults&quot;, Toast.LENGTH_SHORT).show()</span>
+<span class="nc" id="L868">        }</span>
+
+<span class="nc" id="L870">        spinnerDemoPreset.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {</span>
+            override fun onItemSelected(parent: AdapterView&lt;*&gt;?, view: View?, position: Int, id: Long) {
+<span class="nc" id="L872">                refreshResolvedLocation()</span>
+<span class="nc" id="L873">            }</span>
+<span class="nc" id="L874">            override fun onNothingSelected(parent: AdapterView&lt;*&gt;?) {}</span>
+        }
+
+<span class="nc" id="L877">        spinnerLocationSource.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {</span>
+            override fun onItemSelected(parent: AdapterView&lt;*&gt;?, view: View?, position: Int, id: Long) {
+<span class="nc" id="L879">                refreshResolvedLocation()</span>
+<span class="nc" id="L880">            }</span>
+<span class="nc" id="L881">            override fun onNothingSelected(parent: AdapterView&lt;*&gt;?) {}</span>
+        }
+
+        // Cabin Piper / Sherpa TTS
+<span class="nc" id="L885">        val spinnerTtsVoice = dialogView.findViewById&lt;Spinner&gt;(R.id.spinnerTtsVoice)</span>
+<span class="nc" id="L886">        val etTtsSpeakerId = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etTtsSpeakerId)</span>
+<span class="nc" id="L887">        val tvTtsVoiceHint = dialogView.findViewById&lt;android.widget.TextView&gt;(R.id.tvTtsVoiceHint)</span>
+<span class="nc" id="L888">        val ttsVoices = com.tcs.vehicleassistant.core.TtsVoiceCatalog.availableVoices(this)</span>
+<span class="nc" id="L889">        val voiceAdapter = ArrayAdapter(</span>
+<span class="nc" id="L890">            this,</span>
+<span class="nc" id="L891">            android.R.layout.simple_spinner_item,</span>
+<span class="nc" id="L892">            ttsVoices.map { it.displayName }</span>
+        )
+<span class="nc" id="L894">        voiceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)</span>
+<span class="nc" id="L895">        spinnerTtsVoice.adapter = voiceAdapter</span>
+<span class="nc" id="L896">        val selectedVoiceId = prefs.getString(</span>
+<span class="nc" id="L897">            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_VOICE_ID,</span>
+<span class="nc" id="L898">            com.tcs.vehicleassistant.core.TtsVoiceCatalog.BUNDLED_AMY_ID</span>
+        )
+<span class="nc" id="L900">        val selectedVoiceIndex = ttsVoices.indexOfFirst { it.id == selectedVoiceId }.coerceAtLeast(0)</span>
+<span class="nc" id="L901">        spinnerTtsVoice.setSelection(selectedVoiceIndex)</span>
+<span class="nc" id="L902">        etTtsSpeakerId.setText(</span>
+<span class="nc" id="L903">            prefs.getInt(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_SPEAKER_ID, 0).toString()</span>
+        )
+        fun refreshSpeakerHint() {
+<span class="nc bnc" id="L906" title="All 2 branches missed.">            val voice = ttsVoices.getOrNull(spinnerTtsVoice.selectedItemPosition) ?: return</span>
+<span class="nc" id="L907">            etTtsSpeakerId.isEnabled = voice.isMultiSpeaker</span>
+<span class="nc" id="L908">            val base = com.tcs.vehicleassistant.core.TtsVoiceCatalog.settingsHint(ttsVoices)</span>
+<span class="nc bnc" id="L909" title="All 2 branches missed.">            tvTtsVoiceHint.text = if (voice.isMultiSpeaker) {</span>
+<span class="nc" id="L910">                &quot;$base Selected: ${voice.id} — multi-speaker (${voice.numSpeakers}); try sid 0–${voice.numSpeakers - 1}.&quot;</span>
+            } else {
+<span class="nc" id="L912">                &quot;$base Selected: ${voice.id}.&quot;</span>
+            }
+<span class="nc" id="L914">        }</span>
+<span class="nc" id="L915">        refreshSpeakerHint()</span>
+<span class="nc" id="L916">        spinnerTtsVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {</span>
+            override fun onItemSelected(parent: AdapterView&lt;*&gt;?, view: View?, position: Int, id: Long) {
+<span class="nc" id="L918">                refreshSpeakerHint()</span>
+<span class="nc" id="L919">            }</span>
+<span class="nc" id="L920">            override fun onNothingSelected(parent: AdapterView&lt;*&gt;?) {}</span>
+        }
+
+        // Voice Settings (legacy Android TTS + shared rate)
+<span class="nc" id="L924">        val etSpeakingRate = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etSpeakingRate)</span>
+<span class="nc" id="L925">        val etPitch = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etPitch)</span>
+<span class="nc" id="L926">        val etVolume = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etVolume)</span>
+<span class="nc" id="L927">        val etEmotion = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etEmotion)</span>
+<span class="nc" id="L928">        val etEmphasis = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etEmphasis)</span>
+<span class="nc" id="L929">        val etPauses = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etPauses)</span>
+<span class="nc" id="L930">        val etBreath = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etBreath)</span>
+<span class="nc" id="L931">        val etIntensity = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etIntensity)</span>
+<span class="nc" id="L932">        val etReverb = dialogView.findViewById&lt;android.widget.EditText&gt;(R.id.etReverb)</span>
+
+<span class="nc" id="L934">        etSpeakingRate.setText(</span>
+<span class="nc" id="L935">            prefs.getFloat(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.VOICE_RATE, 1.0f).toString()</span>
+        )
+<span class="nc" id="L937">        etPitch.setText(prefs.getFloat(&quot;voice_pitch&quot;, 1.0f).toString())</span>
+<span class="nc" id="L938">        etVolume.setText(prefs.getFloat(&quot;voice_volume&quot;, -1.0f).toString())</span>
+<span class="nc" id="L939">        etEmotion.setText(prefs.getString(&quot;voice_emotion&quot;, &quot;empathetic&quot;))</span>
+<span class="nc" id="L940">        etEmphasis.setText(prefs.getString(&quot;voice_emphasis&quot;, &quot;moderate&quot;))</span>
+<span class="nc" id="L941">        etPauses.setText(prefs.getInt(&quot;voice_pauses&quot;, 200).toString())</span>
+<span class="nc" id="L942">        etBreath.setText(prefs.getInt(&quot;voice_breath&quot;, 120).toString())</span>
+<span class="nc" id="L943">        etIntensity.setText(prefs.getFloat(&quot;voice_intensity&quot;, 0.4f).toString())</span>
+<span class="nc" id="L944">        etReverb.setText(prefs.getString(&quot;voice_reverb&quot;, &quot;none&quot;))</span>
+
+<span class="nc" id="L946">        android.app.AlertDialog.Builder(this)</span>
+<span class="nc" id="L947">            .setView(dialogView)</span>
+<span class="nc" id="L948">            .setPositiveButton(&quot;Save&quot;) { _, _ -&gt;</span>
+<span class="nc" id="L949">                val newSpeed = etSpeed.text.toString().toFloatOrNull()</span>
+<span class="nc" id="L950">                val newKvCache = etKvCache.text.toString().toIntOrNull()</span>
+<span class="nc" id="L951">                val newAutoFlush = etAutoFlush.text.toString().toIntOrNull()</span>
+
+<span class="nc bnc" id="L953" title="All 2 branches missed.">                if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)</span>
+
+<span class="nc bnc" id="L955" title="All 2 branches missed.">                val chosenVoice = ttsVoices.getOrNull(spinnerTtsVoice.selectedItemPosition)</span>
+<span class="nc" id="L956">                    ?: com.tcs.vehicleassistant.core.TtsVoiceCatalog.bundledAmy()</span>
+<span class="nc bnc" id="L957" title="All 2 branches missed.">                val speakerId = etTtsSpeakerId.text.toString().toIntOrNull() ?: 0</span>
+                
+<span class="nc" id="L959">                prefs.edit().apply {</span>
+<span class="nc" id="L960">                    putString(LocationManager.PREF_LOCATION_OVERRIDE, etLocationOverride.text.toString().trim())</span>
+<span class="nc" id="L961">                    putString(LocationManager.PREF_DEMO_PRESET, DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition].id)</span>
+<span class="nc" id="L962">                    putString(</span>
+<span class="nc" id="L963">                        LocationManager.PREF_LOCATION_SOURCE,</span>
+<span class="nc" id="L964">                        LocationManager.Source.entries[spinnerLocationSource.selectedItemPosition].prefValue</span>
+                    )
+<span class="nc" id="L966">                    putString(</span>
+<span class="nc" id="L967">                        LocationManager.PREF_DEMO_CITY,</span>
+<span class="nc" id="L968">                        DemoSettingsPresets.ALL[spinnerDemoPreset.selectedItemPosition].cityName</span>
+                    )
+<span class="nc" id="L970">                    putString(&quot;mechanic_name&quot;, etMechanicName.text.toString())</span>
+<span class="nc" id="L971">                    putString(&quot;mechanic_number&quot;, etMechanicNumber.text.toString())</span>
+<span class="nc" id="L972">                    putString(&quot;dining_pref&quot;, etDiningPref.text.toString())</span>
+<span class="nc bnc" id="L973" title="All 2 branches missed.">                    if (newKvCache != null) putInt(&quot;max_tokens&quot;, newKvCache)</span>
+<span class="nc bnc" id="L974" title="All 2 branches missed.">                    if (newAutoFlush != null) putInt(&quot;auto_flush&quot;, newAutoFlush)</span>
+<span class="nc" id="L975">                    putBoolean(&quot;cloud_fallback_enabled&quot;, switchCloudFallback.isChecked)</span>
+<span class="nc" id="L976">                    putBoolean(</span>
+<span class="nc" id="L977">                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,</span>
+<span class="nc" id="L978">                        switchSpeculativeDecoding.isChecked</span>
+                    )
+
+<span class="nc" id="L981">                    putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_VOICE_ID, chosenVoice.id)</span>
+<span class="nc" id="L982">                    putInt(</span>
+<span class="nc" id="L983">                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_SPEAKER_ID,</span>
+<span class="nc" id="L984">                        speakerId.coerceIn(0, (chosenVoice.numSpeakers - 1).coerceAtLeast(0))</span>
+                    )
+                    
+                    // Save Voice Settings
+<span class="nc" id="L988">                    putFloat(</span>
+<span class="nc" id="L989">                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.VOICE_RATE,</span>
+<span class="nc bnc" id="L990" title="All 2 branches missed.">                        (etSpeakingRate.text.toString().toFloatOrNull() ?: 1.0f).coerceIn(0.5f, 2.0f)</span>
+                    )
+<span class="nc bnc" id="L992" title="All 2 branches missed.">                    putFloat(&quot;voice_pitch&quot;, etPitch.text.toString().toFloatOrNull() ?: 1.0f)</span>
+<span class="nc bnc" id="L993" title="All 2 branches missed.">                    putFloat(&quot;voice_volume&quot;, etVolume.text.toString().toFloatOrNull() ?: -1.0f)</span>
+<span class="nc" id="L994">                    putString(&quot;voice_emotion&quot;, etEmotion.text.toString())</span>
+<span class="nc" id="L995">                    putString(&quot;voice_emphasis&quot;, etEmphasis.text.toString())</span>
+<span class="nc bnc" id="L996" title="All 2 branches missed.">                    putInt(&quot;voice_pauses&quot;, etPauses.text.toString().toIntOrNull() ?: 200)</span>
+<span class="nc bnc" id="L997" title="All 2 branches missed.">                    putInt(&quot;voice_breath&quot;, etBreath.text.toString().toIntOrNull() ?: 120)</span>
+<span class="nc bnc" id="L998" title="All 2 branches missed.">                    putFloat(&quot;voice_intensity&quot;, etIntensity.text.toString().toFloatOrNull() ?: 0.4f)</span>
+<span class="nc" id="L999">                    putString(&quot;voice_reverb&quot;, etReverb.text.toString())</span>
+<span class="nc" id="L1000">                    apply()</span>
+<span class="nc" id="L1001">                }</span>
+
+<span class="nc" id="L1003">                applyVoiceSettings()</span>
+<span class="nc" id="L1004">                updateDashboardUI()</span>
+<span class="nc" id="L1005">                Toast.makeText(this, &quot;Settings Updated (cabin voice: ${chosenVoice.id})&quot;, Toast.LENGTH_SHORT).show()</span>
+
+<span class="nc bnc" id="L1007" title="All 2 branches missed.">                val speculativeChanged = speculativeEnabled != switchSpeculativeDecoding.isChecked</span>
+<span class="nc bnc" id="L1008" title="All 6 branches missed.">                if ((newKvCache != null &amp;&amp; newKvCache != currentKvCache) || speculativeChanged) {</span>
+<span class="nc" id="L1009">                    Toast.makeText(this, &quot;Re-initializing LLM (KV / MTP settings)…&quot;, Toast.LENGTH_SHORT).show()</span>
+
+<span class="nc" id="L1011">                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {</span>
+<span class="nc" id="L1012">                        LLMManager.autoInitialize(this@LocalLLMActivity, force = true)</span>
+<span class="nc" id="L1013">                    }</span>
+                }
+<span class="nc" id="L1015">            }</span>
+<span class="nc" id="L1016">            .setNegativeButton(&quot;Cancel&quot;, null)</span>
+<span class="nc" id="L1017">            .show()</span>
+<span class="nc" id="L1018">    }</span>
+
+    private fun updateDashboardUI() {
+<span class="nc" id="L1021">        val dashTemp = findViewById&lt;android.widget.TextView&gt;(R.id.dashTemp)</span>
+<span class="nc" id="L1022">        val dashSpeed = findViewById&lt;android.widget.TextView&gt;(R.id.dashSpeed)</span>
+<span class="nc" id="L1023">        val dashHeater = findViewById&lt;android.widget.TextView&gt;(R.id.dashHeater)</span>
+        
+<span class="nc" id="L1025">        runOnUiThread {</span>
+<span class="nc" id="L1026">            val seatHeaterLevel = VehicleManager.getRealSeatHeaterLevel()</span>
+<span class="nc bnc" id="L1027" title="All 2 branches missed.">            dashTemp?.text = &quot;🌡️ Temp: ${VehicleManager.getRealTemperature()}°F&quot;</span>
+<span class="nc bnc" id="L1028" title="All 2 branches missed.">            dashSpeed?.text = &quot;🏎️ Speed: ${VehicleManager.getRealSpeed()}mph&quot;</span>
+<span class="nc bnc" id="L1029" title="All 4 branches missed.">            dashHeater?.text = &quot;💺 Heater: ${if (seatHeaterLevel &gt; 0) &quot;Level $seatHeaterLevel&quot; else &quot;Off&quot;}&quot;</span>
+<span class="nc" id="L1030">        }</span>
+<span class="nc" id="L1031">    }</span>
+    
+
+
+
+
+    private fun stopEmergencyAlarm() {
+<span class="nc bnc" id="L1038" title="All 2 branches missed.">        alarmJob?.cancel()</span>
+<span class="nc" id="L1039">        alarmJob = null</span>
+<span class="nc" id="L1040">        EmergencyAlarmManager.stop()</span>
+<span class="nc" id="L1041">    }</span>
+
+    private fun initOrchestratorBridge() {
+<span class="nc bnc" id="L1044" title="All 2 branches missed.">        if (orchestratorBridge != null) return</span>
+<span class="nc" id="L1045">        orchestratorBridge = InAppOrchestratorBridge(this, localAudioManager, lifecycleScope).apply {</span>
+<span class="nc" id="L1046">            onThinking = {</span>
+<span class="nc" id="L1047">                runOnUiThread {</span>
+<span class="nc bnc" id="L1048" title="All 2 branches missed.">                    if (isGenerating) chatAdapter.replaceLastMessage(&quot;Thinking...&quot;)</span>
+<span class="nc" id="L1049">                }</span>
+<span class="nc" id="L1050">            }</span>
+<span class="nc" id="L1051">            onStreaming = { msg -&gt;</span>
+<span class="nc" id="L1052">                runOnUiThread {</span>
+<span class="nc bnc" id="L1053" title="All 2 branches missed.">                    if (!isGenerating) return@runOnUiThread</span>
+<span class="nc" id="L1054">                    chatAdapter.replaceLastMessage(msg)</span>
+<span class="nc" id="L1055">                    chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+<span class="nc" id="L1056">                }</span>
+<span class="nc" id="L1057">            }</span>
+<span class="nc" id="L1058">            onSpeaking = { msg -&gt;</span>
+<span class="nc" id="L1059">                runOnUiThread {</span>
+<span class="nc" id="L1060">                    chatAdapter.replaceLastMessage(msg)</span>
+<span class="nc" id="L1061">                    chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+<span class="nc" id="L1062">                    updateDashboardUI()</span>
+<span class="nc" id="L1063">                    resetControls()</span>
+<span class="nc" id="L1064">                }</span>
+<span class="nc" id="L1065">            }</span>
+<span class="nc" id="L1066">            onError = { msg -&gt;</span>
+<span class="nc" id="L1067">                runOnUiThread {</span>
+<span class="nc" id="L1068">                    chatAdapter.replaceLastMessage(msg)</span>
+<span class="nc" id="L1069">                    resetControls()</span>
+<span class="nc" id="L1070">                }</span>
+<span class="nc" id="L1071">            }</span>
+<span class="nc" id="L1072">            onLaunchIntent = { intent -&gt;</span>
+<span class="nc" id="L1073">                runOnUiThread {</span>
+<span class="nc" id="L1074">                    try {</span>
+<span class="nc" id="L1075">                        startActivity(intent)</span>
+<span class="nc" id="L1076">                    } catch (e: Exception) {</span>
+<span class="nc" id="L1077">                        Toast.makeText(this@LocalLLMActivity, &quot;Could not launch app.&quot;, Toast.LENGTH_SHORT).show()</span>
+                    }
+<span class="nc" id="L1079">                }</span>
+<span class="nc" id="L1080">            }</span>
+<span class="nc" id="L1081">        }</span>
+<span class="nc" id="L1082">    }</span>
+
+
+    override fun onResume() {
+<span class="nc" id="L1086">        super.onResume()</span>
+<span class="nc" id="L1087">        updateActiveModelUI()</span>
+<span class="nc" id="L1088">    }</span>
+
+    private fun updateActiveModelUI() {
+<span class="nc bnc" id="L1091" title="All 2 branches missed.">        if (isCloudModelActive) {</span>
+<span class="nc" id="L1092">            tvActiveModel.text = &quot;Active Model: $currentCloudModelName *&quot;</span>
+<span class="nc" id="L1093">            generateButton.isEnabled = true</span>
+<span class="nc bnc" id="L1094" title="All 6 branches missed.">        } else if (LLMManager.engine != null &amp;&amp; LLMManager.currentModelPath.isNotEmpty()) {</span>
+<span class="nc bnc" id="L1095" title="All 8 branches missed.">            val loadedModelName = supportedModels.find { LLMManager.currentModelPath.endsWith(it.filename) }?.name ?: LLMManager.currentModelPath.substringAfterLast(&quot;/&quot;)</span>
+<span class="nc" id="L1096">            tvActiveModel.text = &quot;Active Model: $loadedModelName *&quot;</span>
+<span class="nc" id="L1097">            generateButton.isEnabled = true</span>
+        } else {
+<span class="nc" id="L1099">            tvActiveModel.text = &quot;Active Model: None&quot;</span>
+        }
+<span class="nc" id="L1101">    }</span>
+
+    override fun onNewIntent(intent: Intent?) {
+<span class="nc" id="L1104">        super.onNewIntent(intent)</span>
+<span class="nc" id="L1105">        setIntent(intent)</span>
+<span class="nc bnc" id="L1106" title="All 6 branches missed.">        if (intent?.getBooleanExtra(&quot;auto_trigger_mic&quot;, false) == true) {</span>
+<span class="nc" id="L1107">            android.util.Log.d(&quot;AutomatedTest&quot;, &quot;onNewIntent auto_trigger_mic is true, clicking voice button.&quot;)</span>
+<span class="nc" id="L1108">            val voiceButton = findViewById&lt;android.widget.ImageButton&gt;(R.id.voiceButton)</span>
+<span class="nc" id="L1109">            voiceButton.postDelayed({ voiceButton.performClick() }, 500)</span>
+        }
+<span class="nc" id="L1111">    }</span>
+
+    /** The wake-word toggle in settings; the microphone service must not outlive it being off. */
+    private fun isWakeWordEnabled(): Boolean =
+<span class="nc" id="L1115">        getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, MODE_PRIVATE)</span>
+<span class="nc" id="L1116">            .getBoolean(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)</span>
+
+    override fun onStop() {
+<span class="nc" id="L1119">        super.onStop()</span>
+        // Restart background wake word listening when the UI hides
+<span class="nc bnc" id="L1121" title="All 2 branches missed.">        if (!isWakeWordEnabled()) return</span>
+<span class="nc" id="L1122">        val intent = Intent(this, WakeWordService::class.java)</span>
+<span class="nc" id="L1123">        intent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART</span>
+<span class="nc" id="L1124">        try {</span>
+<span class="nc" id="L1125">            startService(intent)</span>
+<span class="nc" id="L1126">        } catch (e: Exception) {</span>
+<span class="nc" id="L1127">            android.util.Log.w(&quot;WakeWord&quot;, &quot;Could not resume wake word listening&quot;, e)</span>
+        }
+<span class="nc" id="L1129">    }</span>
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array&lt;out String&gt;, grantResults: IntArray) {
+<span class="nc" id="L1132">        super.onRequestPermissionsResult(requestCode, permissions, grantResults)</span>
+<span class="nc bnc" id="L1133" title="All 2 branches missed.">        if (requestCode == 1) {</span>
+<span class="nc" id="L1134">            val cameraIndex = permissions.indexOf(android.Manifest.permission.CAMERA)</span>
+<span class="nc bnc" id="L1135" title="All 6 branches missed.">            if (cameraIndex != -1 &amp;&amp; grantResults.getOrNull(cameraIndex) == PackageManager.PERMISSION_GRANTED) {</span>
+<span class="nc" id="L1136">                com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())</span>
+            }
+<span class="nc" id="L1138">            val audioIndex = permissions.indexOf(android.Manifest.permission.RECORD_AUDIO)</span>
+<span class="nc bnc" id="L1139" title="All 2 branches missed.">            if (audioIndex != -1 &amp;&amp;</span>
+<span class="nc bnc" id="L1140" title="All 4 branches missed.">                grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED &amp;&amp;</span>
+<span class="nc bnc" id="L1141" title="All 2 branches missed.">                isWakeWordEnabled()</span>
+            ) {
+                // Restart WakeWordService to bind to the microphone now that permission is granted
+<span class="nc" id="L1144">                val serviceIntent = Intent(this, WakeWordService::class.java)</span>
+<span class="nc" id="L1145">                serviceIntent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART</span>
+<span class="nc" id="L1146">                startForegroundService(serviceIntent)</span>
+            }
+        }
+<span class="nc" id="L1149">    }</span>
+
+    override fun onDestroy() {
+<span class="nc" id="L1152">        stopEmergencyAlarm()</span>
+<span class="nc bnc" id="L1153" title="All 2 branches missed.">        orchestratorBridge?.destroy()</span>
+<span class="nc" id="L1154">        orchestratorBridge = null</span>
+<span class="nc bnc" id="L1155" title="All 2 branches missed.">        if (::tts.isInitialized) {</span>
+<span class="nc" id="L1156">            tts.stop()</span>
+<span class="nc" id="L1157">            tts.shutdown()</span>
+        }
+<span class="nc bnc" id="L1159" title="All 2 branches missed.">        if (::localAudioManager.isInitialized) {</span>
+<span class="nc" id="L1160">            localAudioManager.shutdown()</span>
+        }
+<span class="nc" id="L1162">        try {</span>
+<span class="nc" id="L1163">            VehicleManager.cleanup()</span>
+<span class="nc" id="L1164">        } catch (e: Exception) {</span>
+<span class="nc" id="L1165">            Log.e(&quot;LocalLLMActivity&quot;, &quot;Failed to cleanup VehicleManager&quot;, e)</span>
+        }
+<span class="nc" id="L1167">        super.onDestroy()</span>
+<span class="nc" id="L1168">        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, diagnosticReceiver)</span>
+<span class="nc" id="L1169">        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, testQueryReceiver)</span>
+<span class="nc" id="L1170">        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, sideloadModelReceiver)</span>
+<span class="nc" id="L1171">    }</span>
+
+    private fun checkModelExists() {
+<span class="nc bnc" id="L1174" title="All 2 branches missed.">        if (isCloudModelActive) {</span>
+<span class="nc" id="L1175">            MODEL_PATH = &quot;cloud_api&quot;</span>
+<span class="nc" id="L1176">            chatAdapter.addMessage(ChatMessage(&quot;Cloud API selected.\nEnsure you have entered a valid API Key and have internet access.&quot;, isUser = false))</span>
+<span class="nc" id="L1177">            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+            
+<span class="nc" id="L1179">            generateButton.isEnabled = false</span>
+<span class="nc" id="L1180">            btnLoadModel.isEnabled = true</span>
+<span class="nc" id="L1181">            btnLoadModel.text = &quot;Connect to Cloud&quot;</span>
+<span class="nc" id="L1182">            btnDownloadModel.isEnabled = false</span>
+<span class="nc" id="L1183">            return</span>
+        }
+
+<span class="nc" id="L1186">        btnLoadModel.text = &quot;Load Model&quot;</span>
+<span class="nc" id="L1187">        btnDownloadModel.isEnabled = true</span>
+
+<span class="nc" id="L1189">        val internalDir = applicationContext.filesDir</span>
+<span class="nc" id="L1190">        val externalDir = applicationContext.getExternalFilesDir(null)</span>
+<span class="nc" id="L1191">        val tmpDir = java.io.File(&quot;/data/local/tmp/&quot;)</span>
+        
+<span class="nc bnc" id="L1193" title="All 4 branches missed.">        val internalFiles = internalDir.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc bnc" id="L1194" title="All 6 branches missed.">        val externalFiles = externalDir?.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc" id="L1195">        val llmDir = java.io.File(&quot;/data/local/tmp/llm/&quot;)</span>
+<span class="nc bnc" id="L1196" title="All 4 branches missed.">        val tmpFiles = llmDir.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc bnc" id="L1197" title="All 4 branches missed.">        val rootTmpFiles = tmpDir.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc" id="L1198">        val allFiles = internalFiles + externalFiles + tmpFiles + rootTmpFiles</span>
+        
+<span class="nc" id="L1200">        var modelFile = allFiles.firstOrNull { it.name == currentModel.filename }</span>
+        
+        // Dynamic Fallback: prefer the product-default Gemma 4 E2B, then any other edge model.
+<span class="nc bnc" id="L1203" title="All 2 branches missed.">        if (modelFile == null) {</span>
+<span class="nc bnc" id="L1204" title="All 6 branches missed.">            val models = allFiles.filter { it.name.endsWith(&quot;.bin&quot;) || it.name.endsWith(&quot;.task&quot;) || it.name.endsWith(&quot;.litertlm&quot;) }</span>
+<span class="nc bnc" id="L1205" title="All 12 branches missed.">            modelFile = models.find {</span>
+<span class="nc" id="L1206">                it.name.equals(</span>
+<span class="nc" id="L1207">                    com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME,</span>
+<span class="nc" id="L1208">                    ignoreCase = true</span>
+<span class="nc" id="L1209">                )</span>
+            }
+<span class="nc bnc" id="L1211" title="All 4 branches missed.">                ?: models.find { it.name.contains(&quot;gemma&quot;, ignoreCase = true) }</span>
+<span class="nc bnc" id="L1212" title="All 4 branches missed.">                ?: models.find { it.name.contains(&quot;handoff&quot;, ignoreCase = true) }</span>
+<span class="nc bnc" id="L1213" title="All 4 branches missed.">                ?: models.find { it.name.contains(&quot;Qwen&quot;, ignoreCase = true) }</span>
+<span class="nc" id="L1214">                ?: models.firstOrNull()</span>
+<span class="nc bnc" id="L1215" title="All 2 branches missed.">            if (modelFile != null) {</span>
+                // Try to find a matching LlmModel for this file to update the UI
+<span class="nc bnc" id="L1217" title="All 4 branches missed.">                val matchingModel = supportedModels.find { it.filename == modelFile!!.name }</span>
+<span class="nc bnc" id="L1218" title="All 2 branches missed.">                if (matchingModel != null) {</span>
+<span class="nc" id="L1219">                    currentModel = matchingModel</span>
+                }
+            }
+        }
+
+<span class="nc bnc" id="L1224" title="All 6 branches missed.">        if (modelFile != null &amp;&amp; modelFile.exists() &amp;&amp; modelFile.length() &gt; 0) {</span>
+<span class="nc" id="L1225">            MODEL_PATH = modelFile.absolutePath</span>
+<span class="nc" id="L1226">            getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, MODE_PRIVATE)</span>
+<span class="nc" id="L1227">                .edit()</span>
+<span class="nc" id="L1228">                .putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL, MODEL_PATH)</span>
+<span class="nc" id="L1229">                .apply()</span>
+<span class="nc bnc" id="L1230" title="All 2 branches missed.">            val alreadyReady = LLMManager.isReady() &amp;&amp;</span>
+<span class="nc bnc" id="L1231" title="All 2 branches missed.">                LLMManager.currentModelPath == MODEL_PATH</span>
+<span class="nc bnc" id="L1232" title="All 2 branches missed.">            val statusMsg = if (alreadyReady) {</span>
+<span class="nc" id="L1233">                &quot;Model ready:\n${modelFile.name}&quot;</span>
+            } else {
+<span class="nc" id="L1235">                &quot;Model found locally:\n${modelFile.name}\nLoading automatically…&quot;</span>
+            }
+<span class="nc" id="L1237">            chatAdapter.addMessage(ChatMessage(statusMsg, isUser = false))</span>
+<span class="nc" id="L1238">            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+            
+<span class="nc" id="L1240">            generateButton.isEnabled = alreadyReady</span>
+<span class="nc bnc" id="L1241" title="All 2 branches missed.">            btnLoadModel.isEnabled = !alreadyReady</span>
+        } else {
+<span class="nc bnc" id="L1243" title="All 2 branches missed.">            MODEL_PATH = java.io.File(externalDir ?: internalDir, currentModel.filename).absolutePath</span>
+<span class="nc bnc" id="L1244" title="All 6 branches missed.">            val allNames = allFiles.map { it.name }.joinToString(&quot;, &quot;).takeIf { it.isNotEmpty() } ?: &quot;empty&quot;</span>
+<span class="nc bnc" id="L1245" title="All 2 branches missed.">            android.util.Log.i(&quot;AutomatedTest&quot;, &quot;No model found. internalDir: ${internalDir.absolutePath}, externalDir: ${externalDir?.absolutePath}, allNames: $allNames&quot;)</span>
+<span class="nc bnc" id="L1246" title="All 2 branches missed.">            chatAdapter.addMessage(ChatMessage(&quot;No model found.\nPath checked: ${externalDir?.absolutePath}\nContents: $allNames\n\nPlease click 'Download' or push via ADB.&quot;, isUser = false))</span>
+<span class="nc" id="L1247">            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+            
+<span class="nc" id="L1249">            generateButton.isEnabled = false</span>
+<span class="nc" id="L1250">            btnLoadModel.isEnabled = false</span>
+        }
+<span class="nc" id="L1252">    }</span>
+
+    private fun setupUseCases() {
+<span class="nc" id="L1255">        val executeScenario = { prompt: String -&gt;</span>
+<span class="nc" id="L1256">            inputText.setText(prompt)</span>
+<span class="nc bnc" id="L1257" title="All 2 branches missed.">            tabLayout.getTabAt(0)?.select()</span>
+<span class="nc bnc" id="L1258" title="All 2 branches missed.">            if (LLMManager.engine == null) {</span>
+<span class="nc" id="L1259">                chatAdapter.addMessage(ChatMessage(&quot;System: Please load a model first before executing a scenario.&quot;, isUser = false))</span>
+<span class="nc" id="L1260">                chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+<span class="nc bnc" id="L1261" title="All 2 branches missed.">            } else if (!isGenerating) {</span>
+<span class="nc" id="L1262">                generateText(prompt, displayPrompt = prompt)</span>
+            }
+<span class="nc" id="L1264">        }</span>
+
+<span class="nc" id="L1266">        btnPremiumUseCase1.setOnClickListener {</span>
+<span class="nc" id="L1267">            executeScenario(&quot;I'm running low on gas and my kids are hungry. Find the nearest rest stop or family restaurant along my current route on I-5.&quot;)</span>
+<span class="nc" id="L1268">        }</span>
+<span class="nc" id="L1269">        btnPremiumUseCase2.setOnClickListener {</span>
+<span class="nc" id="L1270">            executeScenario(&quot;The check engine light just came on, and the dashboard says OBD Code P0420. Is it safe to drive 50 more miles?&quot;)</span>
+<span class="nc" id="L1271">        }</span>
+<span class="nc" id="L1272">        btnPremiumUseCase3.setOnClickListener {</span>
+<span class="nc" id="L1273">            executeScenario(&quot;I'm freezing and the sun is glaring right into my eyes. Provide the exact JSON commands to adjust the HVAC and sunshades.&quot;)</span>
+<span class="nc" id="L1274">        }</span>
+<span class="nc" id="L1275">        btnPremiumUseCase4.setOnClickListener {</span>
+<span class="nc" id="L1276">            executeScenario(&quot;Sensors indicate the driver is falling asleep!&quot;)</span>
+<span class="nc" id="L1277">        }</span>
+<span class="nc" id="L1278">        btnPremiumUseCase5.setOnClickListener {</span>
+<span class="nc" id="L1279">            executeScenario(&quot;Play some relaxing jazz music and turn the volume down a bit.&quot;)</span>
+<span class="nc" id="L1280">        }</span>
+<span class="nc" id="L1281">        btnPremiumUseCase6.setOnClickListener {</span>
+<span class="nc" id="L1282">            executeScenario(&quot;Read my last text message and reply that I am driving and will be there in 15 minutes.&quot;)</span>
+<span class="nc" id="L1283">        }</span>
+<span class="nc" id="L1284">        btnPremiumUseCase7.setOnClickListener {</span>
+<span class="nc" id="L1285">            executeScenario(&quot;Roll down all the windows and set the ambient lighting to a calming blue.&quot;)</span>
+<span class="nc" id="L1286">        }</span>
+<span class="nc" id="L1287">        btnPremiumUseCase8.setOnClickListener {</span>
+<span class="nc" id="L1288">            executeScenario(&quot;How do I enable adaptive cruise control on the highway?&quot;)</span>
+<span class="nc" id="L1289">        }</span>
+<span class="nc" id="L1290">    }</span>
+
+<span class="nc" id="L1292">    private suspend fun initLlm(force: Boolean = false) = withContext(Dispatchers.Main) {</span>
+<span class="nc bnc" id="L1293" title="All 2 branches missed.">        if (isCloudModelActive) {</span>
+<span class="nc" id="L1294">            chatAdapter.addMessage(ChatMessage(&quot;Connected to Cloud API: ${currentModel.name}. Ready for inference.&quot;, isUser = false))</span>
+<span class="nc" id="L1295">            chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+<span class="nc" id="L1296">            generateButton.isEnabled = true</span>
+<span class="nc" id="L1297">            btnLoadModel.isEnabled = false</span>
+<span class="nc" id="L1298">            return@withContext</span>
+        }
+
+<span class="nc" id="L1301">        val backendChoice = spinnerBackend.selectedItem.toString()</span>
+        
+        // Save to SharedPreferences for AssistantSession (Voice Overlay)
+<span class="nc" id="L1304">        val prefs = getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L1305">        prefs.edit()</span>
+<span class="nc" id="L1306">            .putString(&quot;selected_model&quot;, MODEL_PATH)</span>
+<span class="nc" id="L1307">            .putString(&quot;backend_choice&quot;, backendChoice)</span>
+<span class="nc" id="L1308">            .apply()</span>
+            
+<span class="nc" id="L1310">        chatAdapter.addMessage(ChatMessage(&quot;Loading Model from $MODEL_PATH...\nBackend: $backendChoice\nThis may take a minute.&quot;, isUser = false))</span>
+<span class="nc" id="L1311">        generateButton.isEnabled = false</span>
+
+<span class="nc" id="L1313">        LLMManager.initialize(applicationContext, MODEL_PATH, force, backendChoice, object : LLMManager.InitCallback {</span>
+            override fun onSuccess() {
+<span class="nc" id="L1315">                chatAdapter.addMessage(ChatMessage(&quot;Model Loaded successfully! Ready for inference.&quot;, isUser = false))</span>
+<span class="nc" id="L1316">                chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+<span class="nc" id="L1317">                generateButton.isEnabled = true</span>
+<span class="nc" id="L1318">                btnLoadModel.isEnabled = false</span>
+                // Removed prewarm call to optimize startup time
+<span class="nc" id="L1320">            }</span>
+
+            override fun onError(e: Exception) {
+<span class="nc" id="L1323">                chatAdapter.addMessage(ChatMessage(&quot;Failed to load model from $MODEL_PATH.\nException: ${e.message}&quot;, isUser = false))</span>
+<span class="nc" id="L1324">            }</span>
+        })
+<span class="nc" id="L1326">    }</span>
+    
+    private fun resetControls() {
+<span class="nc" id="L1329">        isGenerating = false</span>
+<span class="nc" id="L1330">        generateButton.isEnabled = true</span>
+<span class="nc" id="L1331">        voiceButton.isEnabled = true</span>
+<span class="nc" id="L1332">        stopButton.isEnabled = false</span>
+<span class="nc" id="L1333">        stopEmergencyAlarm()</span>
+<span class="nc" id="L1334">        val text = inputText.text.toString()</span>
+<span class="nc bnc" id="L1335" title="All 4 branches missed.">        if (text == &quot;Listening...&quot; || text == &quot;Processing Voice...&quot;) {</span>
+<span class="nc" id="L1336">            inputText.setText(&quot;&quot;)</span>
+        }
+<span class="nc" id="L1338">    }</span>
+
+<span class="nc" id="L1340">    private fun generateText(prompt: String, isVoice: Boolean = false, displayPrompt: String = &quot;&quot;) {</span>
+<span class="nc bnc" id="L1341" title="All 2 branches missed.">        if (isGenerating) return</span>
+        
+<span class="nc bnc" id="L1343" title="All 2 branches missed.">        if (prompt.trim().lowercase() == &quot;/diagnostics&quot;) {</span>
+<span class="nc" id="L1344">            chatAdapter.addMessage(ChatMessage(&quot;/diagnostics&quot;, isUser = true))</span>
+<span class="nc bnc" id="L1345" title="All 2 branches missed.">            if (!isVoice) {</span>
+<span class="nc" id="L1346">                inputText.setText(&quot;&quot;)</span>
+            }
+            
+            // Diagnostics queries the hardware which can take a moment, so run off the Main thread
+<span class="nc" id="L1350">            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {</span>
+<span class="nc" id="L1351">                val report = org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().runSystemDiagnostics(this@LocalLLMActivity)</span>
+                
+<span class="nc bnc" id="L1353" title="All 2 branches missed.">                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {</span>
+<span class="nc" id="L1354">                    chatAdapter.addMessage(ChatMessage(report, isUser = false, isStreaming = false))</span>
+<span class="nc" id="L1355">                    chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+<span class="nc" id="L1356">                }</span>
+<span class="nc" id="L1357">            }</span>
+<span class="nc" id="L1358">            return</span>
+        }
+        
+<span class="nc" id="L1361">        generateButton.isEnabled = false</span>
+<span class="nc" id="L1362">        voiceButton.isEnabled = false</span>
+<span class="nc" id="L1363">        stopButton.isEnabled = true</span>
+<span class="nc" id="L1364">        isGenerating = true</span>
+        
+<span class="nc" id="L1366">        lastResponseBuilder.clear()</span>
+        
+<span class="nc bnc" id="L1368" title="All 2 branches missed.">        val actualDisplay = if (isVoice) displayPrompt else prompt</span>
+<span class="nc" id="L1369">        chatAdapter.addMessage(ChatMessage(actualDisplay, isUser = true))</span>
+        
+<span class="nc bnc" id="L1371" title="All 2 branches missed.">        if (!isVoice) {</span>
+<span class="nc" id="L1372">            inputText.setText(&quot;&quot;)</span>
+        }
+        
+        // Add empty bubble for model
+<span class="nc" id="L1376">        chatAdapter.addMessage(ChatMessage(&quot;&quot;, isUser = false, isStreaming = true))</span>
+<span class="nc" id="L1377">        chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)</span>
+
+        // Registry direct-executable commands do not need LiteRT; only fall back to the
+        // &quot;Load Model&quot; gate when the query would actually require the edge LLM.
+<span class="nc" id="L1381">        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get&lt;ToolManager&gt;()</span>
+<span class="nc bnc" id="L1382" title="All 2 branches missed.">        if (!toolManager.isInitialized) {</span>
+<span class="nc" id="L1383">            toolManager.initialize(applicationContext)</span>
+        }
+<span class="nc bnc" id="L1385" title="All 2 branches missed.">        val canSkipLlm = toolManager.resolveDirectHit(prompt) != null</span>
+
+<span class="nc bnc" id="L1387" title="All 6 branches missed.">        if (!isCloudModelActive &amp;&amp; !LLMManager.isReady() &amp;&amp; !canSkipLlm) {</span>
+<span class="nc" id="L1388">            chatAdapter.replaceLastMessage(&quot;System: Loading default model (Gemma 4 E2B)…&quot;)</span>
+<span class="nc" id="L1389">            lifecycleScope.launch {</span>
+<span class="nc" id="L1390">                try {</span>
+<span class="nc" id="L1391">                    LLMManager.autoInitialize(this@LocalLLMActivity)</span>
+<span class="nc bnc" id="L1392" title="All 2 branches missed.">                    if (!LLMManager.isReady()) {</span>
+<span class="nc" id="L1393">                        chatAdapter.replaceLastMessage(</span>
+<span class="nc" id="L1394">                            &quot;System: Could not load Gemma 4 E2B. Check that &quot; +</span>
+                                &quot;${com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH} exists.&quot;
+                        )
+<span class="nc" id="L1397">                        resetControls()</span>
+<span class="nc" id="L1398">                        return@launch</span>
+                    }
+<span class="nc" id="L1400">                    updateActiveModelUI()</span>
+<span class="nc" id="L1401">                    btnLoadModel.isEnabled = false</span>
+<span class="nc" id="L1402">                    generateButton.isEnabled = true</span>
+<span class="nc" id="L1403">                    chatAdapter.replaceLastMessage(&quot;&quot;)</span>
+<span class="nc" id="L1404">                    initOrchestratorBridge()</span>
+<span class="nc bnc" id="L1405" title="All 2 branches missed.">                    orchestratorBridge?.enableTts = isVoice</span>
+<span class="nc" id="L1406">                    isVoiceMode = isVoice</span>
+<span class="nc bnc" id="L1407" title="All 2 branches missed.">                    orchestratorBridge?.handleQuery(prompt)</span>
+<span class="nc" id="L1408">                } catch (e: Exception) {</span>
+<span class="nc" id="L1409">                    chatAdapter.replaceLastMessage(&quot;System: Model load failed: ${e.message}&quot;)</span>
+<span class="nc" id="L1410">                    resetControls()</span>
+                }
+<span class="nc" id="L1412">            }</span>
+<span class="nc" id="L1413">            return</span>
+        }
+
+<span class="nc" id="L1416">        initOrchestratorBridge()</span>
+<span class="nc bnc" id="L1417" title="All 2 branches missed.">        orchestratorBridge?.enableTts = isVoice</span>
+<span class="nc" id="L1418">        isVoiceMode = isVoice</span>
+<span class="nc bnc" id="L1419" title="All 2 branches missed.">        orchestratorBridge?.handleQuery(prompt)</span>
+<span class="nc" id="L1420">    }</span>
+
+<span class="nc" id="L1422">    private suspend fun runAutomatedTests() {</span>
+<span class="nc" id="L1423">        android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Initializing 200 Comprehensive Tests...&quot;)</span>
+<span class="nc bnc" id="L1424" title="All 4 branches missed.">        while (MODEL_PATH.isEmpty()) {</span>
+<span class="nc" id="L1425">            kotlinx.coroutines.delay(100)</span>
+        }
+        
+<span class="nc bnc" id="L1428" title="All 2 branches missed.">        if (LLMManager.engine == null) {</span>
+<span class="nc" id="L1429">            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {</span>
+<span class="nc" id="L1430">                try {</span>
+<span class="nc" id="L1431">                    LLMManager.initialize(this@LocalLLMActivity, MODEL_PATH)</span>
+<span class="nc" id="L1432">                    android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Model loaded successfully.&quot;)</span>
+<span class="nc" id="L1433">                } catch (e: Exception) {</span>
+<span class="nc" id="L1434">                    android.util.Log.e(&quot;AutomatedTest&quot;, &quot;Failed to load model: ${e.message}&quot;)</span>
+<span class="nc" id="L1435">                }</span>
+            }
+        }
+        
+        // Ensure conversation is initialized before starting
+<span class="nc bnc" id="L1440" title="All 2 branches missed.">        if (LLMManager.conversation == null) {</span>
+<span class="nc" id="L1441">            LLMManager.resetConversation()</span>
+        }
+        
+<span class="nc" id="L1444">        var passed = 0</span>
+<span class="nc" id="L1445">        var failed = 0</span>
+<span class="nc" id="L1446">        val resultsBuilder = java.lang.StringBuilder()</span>
+<span class="nc" id="L1447">        resultsBuilder.append(&quot;# Comprehensive Automotive AI Test Results\n\n&quot;)</span>
+<span class="nc" id="L1448">        resultsBuilder.append(&quot;| # | Prompt | Expected Tool | Result | Output |\n&quot;)</span>
+<span class="nc" id="L1449">        resultsBuilder.append(&quot;|---|---|---|---|---|\n&quot;)</span>
+
+<span class="nc" id="L1451">        val totalTests = AutomatedTestSuite.testCases.size</span>
+        
+<span class="nc bnc" id="L1453" title="All 2 branches missed.">        for ((index, testCase) in AutomatedTestSuite.testCases.withIndex()) {</span>
+<span class="nc" id="L1454">            val query = testCase.prompt</span>
+<span class="nc" id="L1455">            val expected = testCase.expectedToolPrefix</span>
+<span class="nc" id="L1456">            var status = &quot;FAIL&quot;</span>
+<span class="nc" id="L1457">            var outputSnippet = &quot;Timeout/Error&quot;</span>
+            
+<span class="nc" id="L1459">            try {</span>
+<span class="nc" id="L1460">                val deferred = kotlinx.coroutines.CompletableDeferred&lt;String&gt;()</span>
+<span class="nc" id="L1461">                val lastResponseBuilder = java.lang.StringBuilder()</span>
+                
+<span class="nc" id="L1463">                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {</span>
+<span class="nc" id="L1464">                    val isFirst = LLMManager.isFirstMessage</span>
+<span class="nc bnc" id="L1465" title="All 2 branches missed.">                    val finalQuery = if (isFirst) {</span>
+<span class="nc" id="L1466">                        LLMManager.isFirstMessage = false</span>
+<span class="nc" id="L1467">                        LLMManager.getSystemPrompt(applicationContext, query) + &quot;\nUser: &quot; + query</span>
+                    } else {
+<span class="nc" id="L1469">                        &quot;User: $query&quot;</span>
+                    }
+                    
+<span class="nc bnc" id="L1472" title="All 2 branches missed.">                    android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Conversation is null: ${LLMManager.conversation == null}&quot;)</span>
+                    
+<span class="nc" id="L1474">                    LLMManager.conversation!!.sendMessageAsync(</span>
+<span class="nc" id="L1475">                        com.google.ai.edge.litertlm.Contents.of(com.google.ai.edge.litertlm.Content.Text(finalQuery)),</span>
+<span class="nc" id="L1476">                        object : com.google.ai.edge.litertlm.MessageCallback {</span>
+                            override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+<span class="nc" id="L1478">                                lastResponseBuilder.append(message.toString())</span>
+<span class="nc" id="L1479">                            }</span>
+
+                            override fun onDone() {
+<span class="nc" id="L1482">                                deferred.complete(lastResponseBuilder.toString())</span>
+<span class="nc" id="L1483">                            }</span>
+
+                            override fun onError(throwable: Throwable) {
+<span class="nc" id="L1486">                                deferred.completeExceptionally(throwable)</span>
+<span class="nc" id="L1487">                            }</span>
+                        },
+<span class="nc" id="L1489">                        emptyMap()</span>
+                    )
+<span class="nc" id="L1491">                }</span>
+                
+<span class="nc" id="L1493">                val fullResponse = kotlinx.coroutines.withTimeout(120_000) {</span>
+<span class="nc" id="L1494">                    deferred.await()</span>
+                }
+                
+<span class="nc" id="L1497">                outputSnippet = fullResponse.replace(&quot;\n&quot;, &quot; &quot;).take(100)</span>
+<span class="nc bnc" id="L1498" title="All 2 branches missed.">                if (fullResponse.contains(expected, ignoreCase = true)) {</span>
+<span class="nc" id="L1499">                    status = &quot;PASS&quot;</span>
+<span class="nc" id="L1500">                    passed++</span>
+                } else {
+<span class="nc" id="L1502">                    status = &quot;FAIL&quot;</span>
+<span class="nc" id="L1503">                    failed++</span>
+                }
+                
+<span class="nc" id="L1506">                val testPrefs = getSharedPreferences(&quot;app_prefs&quot;, MODE_PRIVATE)</span>
+<span class="nc" id="L1507">                val autoFlushInterval = testPrefs.getInt(&quot;auto_flush_interval&quot;, 3)</span>
+                
+                // Clear cache if we are getting close to 512 context limit
+<span class="nc bnc" id="L1510" title="All 4 branches missed.">                if (index &gt; 0 &amp;&amp; index % autoFlushInterval == 0) {</span>
+<span class="nc bnc" id="L1511" title="All 2 branches missed.">                   kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {</span>
+<span class="nc" id="L1512">                       LLMManager.resetConversation()</span>
+                   }
+                }
+                
+<span class="nc" id="L1516">                kotlinx.coroutines.delay(200) </span>
+<span class="nc" id="L1517">            } catch (e: kotlinx.coroutines.TimeoutCancellationException) {</span>
+<span class="nc" id="L1518">                status = &quot;FAIL&quot;</span>
+<span class="nc" id="L1519">                outputSnippet = &quot;Timeout (120s)&quot;</span>
+<span class="nc" id="L1520">                failed++</span>
+<span class="nc" id="L1521">            } catch (e: Exception) {</span>
+<span class="nc" id="L1522">                status = &quot;FAIL&quot;</span>
+<span class="nc" id="L1523">                outputSnippet = &quot;Model Crashed: ${e.message}&quot;</span>
+<span class="nc" id="L1524">                failed++</span>
+            }
+            
+<span class="nc" id="L1527">            android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Test ${index+1}/$totalTests -&gt; $status. Expected: $expected&quot;)</span>
+<span class="nc" id="L1528">            resultsBuilder.append(&quot;| ${index+1} | $query | $expected | $status | $outputSnippet |\n&quot;)</span>
+        }
+        
+<span class="nc" id="L1531">        val reportHeader = &quot;Total Tests: $totalTests\nPass: $passed\nFail: $failed\n\n&quot;</span>
+<span class="nc" id="L1532">        val finalReport = reportHeader + resultsBuilder.toString()</span>
+        
+<span class="nc" id="L1534">        try {</span>
+<span class="nc" id="L1535">            val file = java.io.File(getExternalFilesDir(null), &quot;test_results.md&quot;)</span>
+<span class="nc" id="L1536">            file.writeText(finalReport)</span>
+<span class="nc" id="L1537">            android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Test suite complete. Results written to ${file.absolutePath}&quot;)</span>
+<span class="nc" id="L1538">        } catch (e: Exception) {</span>
+<span class="nc" id="L1539">            android.util.Log.e(&quot;AutomatedTest&quot;, &quot;Failed to write report&quot;, e)</span>
+        }
+<span class="nc" id="L1541">    }</span>
+
+    private fun downloadModel() {
+<span class="nc" id="L1544">        btnDownloadModel.isEnabled = false</span>
+<span class="nc" id="L1545">        progressBar.visibility = android.view.View.VISIBLE</span>
+<span class="nc" id="L1546">        chatAdapter.addMessage(ChatMessage(&quot;Starting download (${currentModel.size})... Please keep the app open.&quot;, isUser = false))</span>
+
+<span class="nc" id="L1548">        lifecycleScope.launch(Dispatchers.IO) {</span>
+<span class="nc" id="L1549">            try {</span>
+<span class="nc" id="L1550">                var finalUrl = currentModel.url</span>
+<span class="nc" id="L1551">                var connection: java.net.HttpURLConnection</span>
+<span class="nc" id="L1552">                var redirects = 0</span>
+                
+<span class="nc" id="L1554">                while (true) {</span>
+<span class="nc" id="L1555">                    val url = java.net.URL(finalUrl)</span>
+<span class="nc" id="L1556">                    connection = url.openConnection() as java.net.HttpURLConnection</span>
+<span class="nc" id="L1557">                    connection.instanceFollowRedirects = false</span>
+<span class="nc" id="L1558">                    connection.connect()</span>
+                    
+<span class="nc" id="L1560">                    val status = connection.responseCode</span>
+<span class="nc bnc" id="L1561" title="All 2 branches missed.">                    if (status == java.net.HttpURLConnection.HTTP_MOVED_TEMP ||</span>
+                        status == java.net.HttpURLConnection.HTTP_MOVED_PERM ||
+                        status == java.net.HttpURLConnection.HTTP_SEE_OTHER ||
+                        status == 307 || status == 308) {
+<span class="nc" id="L1565">                        finalUrl = connection.getHeaderField(&quot;Location&quot;)</span>
+<span class="nc" id="L1566">                        redirects++</span>
+<span class="nc bnc" id="L1567" title="All 2 branches missed.">                        if (redirects &gt; 10) throw Exception(&quot;Too many redirects&quot;)</span>
+                    } else {
+<span class="nc" id="L1569">                        break</span>
+                    }
+                }
+
+<span class="nc" id="L1573">                val fileLength = connection.contentLengthLong</span>
+<span class="nc" id="L1574">                val input = java.io.BufferedInputStream(connection.inputStream)</span>
+<span class="nc" id="L1575">                val output = java.io.FileOutputStream(MODEL_PATH)</span>
+
+<span class="nc" id="L1577">                val data = ByteArray(1024 * 64)</span>
+<span class="nc" id="L1578">                var total: Long = 0</span>
+<span class="nc" id="L1579">                var count: Int</span>
+<span class="nc" id="L1580">                var lastProgress = 0</span>
+
+<span class="nc bnc" id="L1582" title="All 2 branches missed.">                while (input.read(data).also { count = it } != -1) {</span>
+<span class="nc" id="L1583">                    total += count.toLong()</span>
+<span class="nc bnc" id="L1584" title="All 2 branches missed.">                    if (fileLength &gt; 0) {</span>
+<span class="nc" id="L1585">                        val progress = (total * 100 / fileLength).toInt()</span>
+<span class="nc bnc" id="L1586" title="All 2 branches missed.">                        if (progress != lastProgress) {</span>
+<span class="nc" id="L1587">                            lastProgress = progress</span>
+<span class="nc bnc" id="L1588" title="All 2 branches missed.">                            withContext(Dispatchers.Main) {</span>
+<span class="nc" id="L1589">                                progressBar.progress = progress</span>
+<span class="nc" id="L1590">                            }</span>
+                        }
+                    }
+<span class="nc" id="L1593">                    output.write(data, 0, count)</span>
+                }
+
+<span class="nc" id="L1596">                output.flush()</span>
+<span class="nc" id="L1597">                output.close()</span>
+<span class="nc" id="L1598">                input.close()</span>
+
+<span class="nc bnc" id="L1600" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
+<span class="nc" id="L1601">                    progressBar.visibility = android.view.View.GONE</span>
+<span class="nc" id="L1602">                    chatAdapter.addMessage(ChatMessage(&quot;Download complete! Initializing model...&quot;, isUser = false))</span>
+<span class="nc" id="L1603">                }</span>
+
+<span class="nc" id="L1605">                initLlm()</span>
+
+<span class="nc" id="L1607">            } catch (e: Exception) {</span>
+<span class="nc bnc" id="L1608" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
+<span class="nc" id="L1609">                    progressBar.visibility = android.view.View.GONE</span>
+<span class="nc" id="L1610">                    btnDownloadModel.isEnabled = true</span>
+<span class="nc" id="L1611">                    chatAdapter.addMessage(ChatMessage(&quot;Download failed: ${e.message}&quot;, isUser = false))</span>
+<span class="nc" id="L1612">                }</span>
+            }
+<span class="nc" id="L1614">        }</span>
+<span class="nc" id="L1615">    }</span>
+<span class="nc" id="L1616">    private val diagnosticReceiver = object : BroadcastReceiver() {</span>
+        override fun onReceive(context: Context?, intent: Intent?) {
+<span class="nc" id="L1618">            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {</span>
+<span class="nc" id="L1619">                val report = org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().runSystemDiagnostics(this@LocalLLMActivity)</span>
+<span class="nc" id="L1620">                android.util.Log.i(&quot;AutomatedTest&quot;, &quot;\n\n=================== DIAGNOSTIC DUMP ===================\n$report\n========================================================\n\n&quot;)</span>
+<span class="nc" id="L1621">            }</span>
+<span class="nc" id="L1622">        }</span>
+    }
+
+<span class="nc" id="L1625">    private val testQueryReceiver = object : BroadcastReceiver() {</span>
+        override fun onReceive(context: Context?, intent: Intent?) {
+<span class="nc bnc" id="L1627" title="All 2 branches missed.">            val query = intent?.getStringExtra(&quot;query&quot;)</span>
+<span class="nc bnc" id="L1628" title="All 6 branches missed.">            if (!query.isNullOrEmpty()) {</span>
+<span class="nc" id="L1629">                android.util.Log.i(&quot;AutomatedTest&quot;, &quot;Received automated test query: $query&quot;)</span>
+<span class="nc" id="L1630">                generateText(query)</span>
+            }
+<span class="nc" id="L1632">        }</span>
+    }
+
+    /**
+     * Pulls a `.litertlm` model from a host-side HTTP server reachable over `adb reverse`, which is
+     * the only way to get a multi-gigabyte file into this app's private storage on a device where
+     * SELinux blocks `adb push` into `/data/data`. Debug builds only.
+     */
+<span class="nc" id="L1640">    private val sideloadModelReceiver = object : BroadcastReceiver() {</span>
+        override fun onReceive(context: Context, intent: Intent) {
+<span class="nc bnc" id="L1642" title="All 2 branches missed.">            val url = intent.getStringExtra(&quot;url&quot;) ?: DEFAULT_SIDELOAD_URL</span>
+<span class="nc bnc" id="L1643" title="All 2 branches missed.">            val fileName = intent.getStringExtra(&quot;file&quot;) ?: DEFAULT_SIDELOAD_FILE</span>
+<span class="nc" id="L1644">            Thread {</span>
+<span class="nc" id="L1645">                try {</span>
+<span class="nc" id="L1646">                    Log.i(&quot;LLMManager&quot;, &quot;Sideloading model from $url&quot;)</span>
+<span class="nc" id="L1647">                    java.net.URL(url).openStream().use { input -&gt;</span>
+<span class="nc" id="L1648">                        java.io.File(context.filesDir, fileName).outputStream().use(input::copyTo)</span>
+                    }
+<span class="nc" id="L1650">                    Log.i(&quot;LLMManager&quot;, &quot;Sideload of $fileName complete.&quot;)</span>
+<span class="nc" id="L1651">                } catch (e: Exception) {</span>
+<span class="nc" id="L1652">                    Log.e(&quot;LLMManager&quot;, &quot;Sideload of $fileName failed&quot;, e)</span>
+                }
+<span class="nc" id="L1654">            }.start()</span>
+<span class="nc" id="L1655">        }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

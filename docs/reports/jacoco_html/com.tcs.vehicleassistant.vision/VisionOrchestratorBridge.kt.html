@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VisionOrchestratorBridge.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">VisionOrchestratorBridge.kt</span></div><h1>VisionOrchestratorBridge.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.content.Context
+import android.util.Log
+import com.tcs.vehicleassistant.repository.AgentOrchestrator
+import com.tcs.vehicleassistant.VehicleManager
+import com.tcs.vehicleassistant.MediaActionBridge
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import android.content.Intent
+import android.net.Uri
+
+<span class="nc" id="L14">class VisionOrchestratorBridge(private val context: Context, private val orchestrator: AgentOrchestrator) {</span>
+
+<span class="nc" id="L16">    private val mediaBridge = MediaActionBridge(context)</span>
+    
+    private var lastGestureTrigger = 0L
+    private var lastStressTrigger = 0L
+    private var lastPassengerTrigger = 0L
+    private var lastEmergencyTrigger = 0L
+    private var lastJoyTrigger = 0L
+    private var lastDrowsyTrigger = 0L
+<span class="nc" id="L24">    private var currentDriverProfile = &quot;Guest&quot;</span>
+    
+<span class="nc" id="L26">    private val DEBOUNCE_MS = 60000L // 1 minute cooldown</span>
+<span class="nc" id="L27">    private val GESTURE_DEBOUNCE_MS = 10000L // 10 seconds for gestures</span>
+
+    fun onHealthUpdate(healthState: HealthState, gestureFeedback: GestureFeedback) {
+<span class="nc" id="L30">        val now = System.currentTimeMillis()</span>
+<span class="nc" id="L31">        val bpm = healthState.heartRate</span>
+<span class="nc" id="L32">        val mood = gestureFeedback.mood</span>
+<span class="nc" id="L33">        val gesture = gestureFeedback.gestureName</span>
+
+        // Use-Case 1: Context-Aware Gesture Shortcuts (Thumbs Down)
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (gesture.contains(&quot;Thumb_Down&quot;, ignoreCase = true)) {</span>
+<span class="nc bnc" id="L37" title="All 2 branches missed.">            if (now - lastGestureTrigger &gt; GESTURE_DEBOUNCE_MS) {</span>
+<span class="nc" id="L38">                lastGestureTrigger = now</span>
+<span class="nc" id="L39">                Log.w(&quot;VisionOrchestrator&quot;, &quot;Thumbs Down gesture detected!&quot;)</span>
+                
+<span class="nc bnc" id="L41" title="All 2 branches missed.">                if (mediaBridge.isMusicPlaying()) {</span>
+<span class="nc" id="L42">                    val prompt = &quot;[SYSTEM EVENT: The driver gave a 'Thumbs Down' gesture while music was playing. Immediately say 'Not a fan? I'll skip to the next song.' Do not wait for confirmation, just do it!]&quot;</span>
+<span class="nc" id="L43">                    triggerLLM(prompt)</span>
+                    // We also immediately execute the media skip (or let the LLM do it via tools, but here we do it directly for speed)
+<span class="nc" id="L45">                    CoroutineScope(Dispatchers.Main).launch {</span>
+<span class="nc" id="L46">                        kotlinx.coroutines.delay(2000)</span>
+<span class="nc" id="L47">                        mediaBridge.skipNext()</span>
+<span class="nc" id="L48">                    }</span>
+                } else {
+<span class="nc" id="L50">                    val prompt = &quot;[SYSTEM EVENT: The driver gave a 'Thumbs Down' gesture. Ask them what they are dissatisfied with, e.g., 'Not a fan of the route? Should I find an alternative?']&quot;</span>
+<span class="nc" id="L51">                    triggerLLM(prompt)</span>
+                }
+            }
+        }
+
+        // Use-Case 2: Proactive Ambiance Mitigation (Stress Relief)
+<span class="nc bnc" id="L57" title="All 6 branches missed.">        if (healthState.stressLevel == &quot;High&quot; &amp;&amp; (mood.contains(&quot;Angry&quot;, ignoreCase = true) || mood.contains(&quot;Frustrated&quot;, ignoreCase = true))) {</span>
+<span class="nc bnc" id="L58" title="All 2 branches missed.">            if (now - lastStressTrigger &gt; DEBOUNCE_MS) {</span>
+<span class="nc" id="L59">                lastStressTrigger = now</span>
+<span class="nc" id="L60">                Log.w(&quot;VisionOrchestrator&quot;, &quot;High stress and angry mood detected!&quot;)</span>
+                
+<span class="nc bnc" id="L62" title="All 2 branches missed.">                CoroutineScope(Dispatchers.Main).launch {</span>
+<span class="nc" id="L63">                    VehicleManager.setTemperature(19f)</span>
+<span class="nc" id="L64">                    VehicleManager.setAmbientColor(0, 0, 255) // Cool blue</span>
+<span class="nc" id="L65">                }</span>
+                
+<span class="nc" id="L67">                val prompt = &quot;[SYSTEM EVENT: The driver's biometric stress is High and they look angry. I have automatically lowered the cabin temperature and changed ambient lighting to a calming blue. Proactively say: 'You seem a bit stressed. I've lowered the temperature and set a calming ambient color. Would you like me to play some relaxing jazz?']&quot;</span>
+<span class="nc" id="L68">                triggerLLM(prompt)</span>
+            }
+        }
+
+        // Use-Case 4: Health Emergency &amp; Safety Intervention
+        // Note: BPM &lt; 40 or &gt; 140 is a generic placeholder for extreme vitals
+<span class="nc bnc" id="L74" title="All 6 branches missed.">        if (bpm &gt; 0 &amp;&amp; (bpm &lt; 40 || bpm &gt; 140)) {</span>
+<span class="nc bnc" id="L75" title="All 2 branches missed.">            if (now - lastEmergencyTrigger &gt; DEBOUNCE_MS) {</span>
+<span class="nc" id="L76">                lastEmergencyTrigger = now</span>
+<span class="nc" id="L77">                Log.w(&quot;VisionOrchestrator&quot;, &quot;Emergency vitals detected: BPM = $bpm&quot;)</span>
+<span class="nc" id="L78">                val prompt = &quot;[SYSTEM EVENT: URGENT! The driver's heart rate is dangerously abnormal ($bpm BPM). Interrupt immediately: 'Are you feeling okay? I've noticed a severe anomaly in your vitals. Should I route us to the nearest hospital or pull over and call emergency services?']&quot;</span>
+<span class="nc" id="L79">                triggerLLM(prompt)</span>
+                
+                // Fire navigation intent to hospital for safety
+<span class="nc" id="L82">                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;google.navigation:q=nearest+hospital&quot;))</span>
+<span class="nc" id="L83">                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+<span class="nc" id="L84">                context.startActivity(intent)</span>
+            }
+        }
+
+        // Use-Case 5: Celebrating Good Moments (The &quot;Human Touch&quot;)
+<span class="nc bnc" id="L89" title="All 4 branches missed.">        if (mood.contains(&quot;Happy&quot;, ignoreCase = true) || mood.contains(&quot;Smile&quot;, ignoreCase = true)) {</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            if (now - lastJoyTrigger &gt; (DEBOUNCE_MS * 5)) { // Less frequent</span>
+<span class="nc" id="L91">                lastJoyTrigger = now</span>
+<span class="nc" id="L92">                Log.w(&quot;VisionOrchestrator&quot;, &quot;Driver is happy!&quot;)</span>
+<span class="nc" id="L93">                val prompt = &quot;[SYSTEM EVENT: The driver is smiling and looks genuinely happy. Casually chime in with something like: 'Looks like you're really enjoying the drive today! Would you like me to save this route or the current song to your favorites?']&quot;</span>
+<span class="nc" id="L94">                triggerLLM(prompt)</span>
+            }
+        }
+
+        // --- NEW WOW FEATURES ---
+
+        // WOW Feature 1: Vitality Guard (Active Safety Intervention)
+<span class="nc bnc" id="L101" title="All 4 branches missed.">        if (mood == &quot;DROWSY WARNING&quot; || mood == &quot;DISTRACTED&quot;) {</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">            if (now - lastDrowsyTrigger &gt; DEBOUNCE_MS) {</span>
+<span class="nc" id="L103">                lastDrowsyTrigger = now</span>
+<span class="nc" id="L104">                Log.w(&quot;VisionOrchestrator&quot;, &quot;Vitality Guard triggered! State: $mood&quot;)</span>
+
+<span class="nc" id="L106">                CoroutineScope(Dispatchers.Main).launch {</span>
+<span class="nc" id="L107">                    VehicleManager.writeTemperatureToVhalVerified(16f) // Max Cold</span>
+<span class="nc" id="L108">                    VehicleManager.writeFanSpeedToVhalVerified(7) // Max Fan</span>
+<span class="nc" id="L109">                    VehicleManager.writeWindowPositionToVhalVerified(50) // Roll window down</span>
+<span class="nc" id="L110">                }</span>
+
+<span class="nc" id="L112">                val prompt = &quot;[SYSTEM EVENT: URGENT! The driver is falling asleep or highly distracted. I have automatically blasted the AC to max cold and rolled down the window to wake them up. Proactively speak and say EXACTLY this: 'Hey, keep your eyes on the road! I've lowered the temperature to help wake you up. I see a coffee shop 2 miles ahead—shall I route us there?']&quot;</span>
+<span class="nc" id="L113">                triggerLLM(prompt)</span>
+            }
+        }
+
+        // WOW Feature 4: The Seamless Hand-off (Biometric Memory)
+<span class="nc bnc" id="L118" title="All 2 branches missed.">        if (gestureFeedback.driverName != currentDriverProfile) {</span>
+<span class="nc" id="L119">            val oldDriver = currentDriverProfile</span>
+<span class="nc" id="L120">            currentDriverProfile = gestureFeedback.driverName</span>
+            
+            // Only trigger if we switched to a known, registered driver (not Guest-to-Guest fluttering)
+<span class="nc bnc" id="L123" title="All 2 branches missed.">            if (currentDriverProfile != &quot;Guest&quot;) {</span>
+<span class="nc" id="L124">                Log.w(&quot;VisionOrchestrator&quot;, &quot;Driver Hand-off detected: $oldDriver -&gt; $currentDriverProfile&quot;)</span>
+<span class="nc" id="L125">                val prompt = &quot;[SYSTEM EVENT: A new driver was biometrically detected in the seat! The current driver is now '$currentDriverProfile'. Greet them warmly by name, confirm you are adjusting the cabin temperature to their preference, and reference something from their memory (like asking if they want to find a sushi restaurant nearby).]&quot;</span>
+<span class="nc" id="L126">                triggerLLM(prompt)</span>
+            }
+        }
+<span class="nc" id="L129">    }</span>
+
+    // Use-Case 3: Passenger Awareness &amp; Entertainment
+    fun onPassengerMoodDetected(passengerMood: String) {
+<span class="nc" id="L133">        val now = System.currentTimeMillis()</span>
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        if (passengerMood.contains(&quot;Sad&quot;, ignoreCase = true)) {</span>
+<span class="nc bnc" id="L135" title="All 2 branches missed.">            if (now - lastPassengerTrigger &gt; DEBOUNCE_MS) {</span>
+<span class="nc" id="L136">                lastPassengerTrigger = now</span>
+<span class="nc" id="L137">                Log.w(&quot;VisionOrchestrator&quot;, &quot;Sad passenger detected in back seat!&quot;)</span>
+<span class="nc" id="L138">                val prompt = &quot;[SYSTEM EVENT: A passenger in the back seat seems sad or restless. Proactively whisper/ask the driver: 'The passenger in the back seems restless. Should I start an audiobook or play a trivia game to keep them entertained?']&quot;</span>
+<span class="nc" id="L139">                triggerLLM(prompt)</span>
+            }
+        }
+<span class="nc" id="L142">    }</span>
+
+<span class="nc" id="L144">    var isProactiveSpeechEnabled: Boolean = false</span>
+
+    private fun triggerLLM(systemPrompt: String) {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (!isProactiveSpeechEnabled) {</span>
+<span class="nc" id="L148">            Log.d(&quot;VisionOrchestrator&quot;, &quot;Proactive speech disabled; ignoring event: $systemPrompt&quot;)</span>
+<span class="nc" id="L149">            return</span>
+        }
+<span class="nc" id="L151">        orchestrator.triggerProactiveEvent(systemPrompt)</span>
+<span class="nc" id="L152">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

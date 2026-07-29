@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ToolHandlerRegistry.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">ToolHandlerRegistry.kt</span></div><h1>ToolHandlerRegistry.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import com.tcs.vehicleassistant.ToolManager
+
+object ToolHandlerRegistry {
+<span class="nc" id="L6">    val hvacHandlers = setOf(&quot;setAirflowDirection&quot;, &quot;increaseTemperature&quot;, &quot;decreaseTemperature&quot;, &quot;setTemperature&quot;, &quot;setDriverTemperature&quot;, &quot;setPassengerTemperature&quot;, &quot;increasePassengerTemperature&quot;, &quot;decreasePassengerTemperature&quot;, &quot;increaseDriverTemperature&quot;, &quot;decreaseDriverTemperature&quot;, &quot;increaseFanSpeed&quot;, &quot;decreaseFanSpeed&quot;, &quot;setFanSpeed&quot;, &quot;setSeatHeater&quot;, &quot;setSeatMassager&quot;, &quot;turnOnDefroster&quot;, &quot;turnOffDefroster&quot;, &quot;turnOnRearDefroster&quot;, &quot;turnOffRearDefroster&quot;, &quot;turnOnAC&quot;, &quot;turnOffAC&quot;, &quot;turnOnAutoClimate&quot;, &quot;turnOffAutoClimate&quot;, &quot;turnOnHvacPower&quot;, &quot;turnOffHvacPower&quot;, &quot;handleFeelingCold&quot;, &quot;enableFreshAirIntake&quot;, &quot;protectFromPollutedAir&quot;, &quot;defogWindshield&quot;, &quot;movePassengerSeatForward&quot;, &quot;turnOnRecirculation&quot;, &quot;turnOffRecirculation&quot;)</span>
+<span class="nc" id="L7">    val mediaHandlers = setOf(&quot;playMusic&quot;, &quot;pauseMusic&quot;, &quot;stopMusic&quot;, &quot;nextTrack&quot;, &quot;prevTrack&quot;, &quot;adjustBgmForSituation&quot;, &quot;setVolumeLevel&quot;)</span>
+<span class="nc" id="L8">    val navHandlers = setOf(&quot;startNavigationTo&quot;, &quot;searchNearby&quot;, &quot;search&quot;, &quot;suggestNearbyPlaces&quot;, &quot;provideLaneLevelGuidance&quot;, &quot;suggestAlternateRoute&quot;)</span>
+<span class="nc" id="L9">    val commHandlers = setOf(&quot;call&quot;, &quot;bookRestaurant&quot;, &quot;queryMemory&quot;, &quot;callContact&quot;, &quot;sendText&quot;)</span>
+<span class="nc" id="L10">    val systemHandlers = setOf(&quot;remember&quot;, &quot;getWeather&quot;, &quot;openApp&quot;, &quot;sendUpcomingEventReminder&quot;, &quot;explainChildSeatInstallation&quot;, &quot;suggestUmbrellaIfRainy&quot;, &quot;getNewsHighlights&quot;, &quot;checkVehicleState&quot;, &quot;answerVehicleIdentity&quot;, &quot;openTrunk&quot;, &quot;setEnergeticCabinLighting&quot;, &quot;turnOffCabinLight&quot;, &quot;turnOnCabinLight&quot;, &quot;unlockDoors&quot;, &quot;analyzeCabinState&quot;)</span>
+<span class="nc" id="L11">    val windowHandlers = setOf(&quot;setAllWindowsPosition&quot;, &quot;openWindowsSlightly&quot;, &quot;closeAllWindows&quot;, &quot;setWindowPosition&quot;, &quot;checkAllWindowsClosed&quot;)</span>
+<span class="nc" id="L12">    val macroHandlers = setOf(&quot;prepareForCommute&quot;, &quot;optimizeCabinForLongDrive&quot;, &quot;makeTripEnjoyable&quot;, &quot;prepareForElderlyPassengers&quot;, &quot;prepareForImportantMeeting&quot;, &quot;prepareForArrival&quot;, &quot;enableAdaptiveNightMode&quot;, &quot;prepareForAirportTrip&quot;, &quot;enhanceNiceEvening&quot;, &quot;prepareForIncomingRain&quot;, &quot;prepareForParking&quot;, &quot;handleEmergencyFeeling&quot;)</span>
+<span class="nc" id="L13">    val safetyHandlers = setOf(&quot;handleDrowsyDriving&quot;, &quot;handleDriverFatigue&quot;, &quot;alertDriverDistraction&quot;, &quot;checkVehicleSecured&quot;, &quot;checkTripReadiness&quot;, &quot;improveRoadVisibility&quot;)</span>
+<span class="nc" id="L14">    val evHandlers = setOf(&quot;suggestOptimizedChargingRate&quot;, &quot;optimizeEnergyForRange&quot;, &quot;explainLowRange&quot;)</span>
+
+    fun getHandler(handlerKey: String, toolDefinition: ToolManager.ToolDefinition): ToolHandler? {
+
+<span class="nc" id="L18">        return when {</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">            hvacHandlers.contains(handlerKey) -&gt; HVACToolHandler(handlerKey, toolDefinition)</span>
+<span class="nc bnc" id="L20" title="All 2 branches missed.">            mediaHandlers.contains(handlerKey) -&gt; MediaToolHandler(handlerKey)</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">            navHandlers.contains(handlerKey) -&gt; NavigationToolHandler(handlerKey)</span>
+<span class="nc bnc" id="L22" title="All 2 branches missed.">            commHandlers.contains(handlerKey) -&gt; CommunicationToolHandler(handlerKey)</span>
+<span class="nc bnc" id="L23" title="All 2 branches missed.">            systemHandlers.contains(handlerKey) -&gt; SystemToolHandler(handlerKey, toolDefinition)</span>
+<span class="nc bnc" id="L24" title="All 2 branches missed.">            windowHandlers.contains(handlerKey) -&gt; WindowToolHandler(handlerKey, toolDefinition)</span>
+<span class="nc bnc" id="L25" title="All 2 branches missed.">            macroHandlers.contains(handlerKey) -&gt; MacroOrchestrationHandler(handlerKey)</span>
+<span class="nc bnc" id="L26" title="All 2 branches missed.">            safetyHandlers.contains(handlerKey) -&gt; SafetyAndCareHandler(handlerKey)</span>
+<span class="nc bnc" id="L27" title="All 2 branches missed.">            evHandlers.contains(handlerKey) -&gt; EVHandler(handlerKey)</span>
+<span class="nc" id="L28">            else -&gt; null</span>
+        }
+    }
+
+    /** Every CUSTOM_KOTLIN handler_key the registry may declare. */
+    fun allRegisteredKeys(): Set&lt;String&gt; =
+<span class="nc" id="L34">        hvacHandlers + mediaHandlers + navHandlers + commHandlers +</span>
+<span class="nc" id="L35">            systemHandlers + windowHandlers + macroHandlers + safetyHandlers + evHandlers</span>
+
+    /**
+     * Returns CUSTOM_KOTLIN handler keys from [tools] that have no registered implementation.
+     * Call after loading the registry so a missing `when` branch fails at init, not on first use.
+     */
+    fun missingHandlers(tools: Map&lt;String, ToolManager.ToolDefinition&gt;): List&lt;String&gt; =
+<span class="nc" id="L42">        tools.values</span>
+<span class="nc" id="L43">            .filter { it.handlerType == &quot;CUSTOM_KOTLIN&quot; }</span>
+<span class="nc" id="L44">            .mapNotNull { it.handlerKey }</span>
+<span class="nc bnc" id="L45" title="All 2 branches missed.">            .filter { it !in allRegisteredKeys() }</span>
+<span class="nc" id="L46">            .distinct()</span>
+<span class="nc" id="L47">            .sorted()</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

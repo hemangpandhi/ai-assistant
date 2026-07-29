@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VoiceAnimationView.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">VoiceAnimationView.kt</span></div><h1>VoiceAnimationView.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.animation.ValueAnimator
+import android.content.Context
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Path
+import android.util.AttributeSet
+import android.view.View
+import android.view.animation.LinearInterpolator
+import kotlin.math.abs
+
+<span class="nc" id="L14">class VoiceAnimationView @JvmOverloads constructor(</span>
+    context: Context,
+<span class="nc" id="L16">    attrs: AttributeSet? = null,</span>
+<span class="nc" id="L17">    defStyleAttr: Int = 0</span>
+<span class="nc" id="L18">) : View(context, attrs, defStyleAttr) {</span>
+
+    enum class State {
+<span class="nc" id="L21">        IDLE, LISTENING, THINKING, SPEAKING</span>
+    }
+
+<span class="nc" id="L24">    private var targetState: State = State.IDLE</span>
+<span class="nc" id="L25">    private var transitionProgress: Float = 1f</span>
+<span class="nc" id="L26">    var state: State = State.IDLE</span>
+        set(value) {
+<span class="nc bnc" id="L28" title="All 2 branches missed.">            if (field == value) return</span>
+<span class="nc" id="L29">            targetState = value</span>
+<span class="nc" id="L30">            transitionProgress = 0f</span>
+<span class="nc" id="L31">            field = value</span>
+<span class="nc bnc" id="L32" title="All 6 branches missed.">            if (animator?.isPaused == true) {</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">                animator?.resume()</span>
+            }
+<span class="nc bnc" id="L35" title="All 8 branches missed.">            if (value != State.IDLE &amp;&amp; animator?.isRunning != true) {</span>
+<span class="nc" id="L36">                startAnimation()</span>
+            }
+<span class="nc" id="L38">        }</span>
+
+    private var animator: ValueAnimator? = null
+    private var animationPhase = 0f
+
+    // Volumetric 3D Wave Layers (Monochromatic Ice-Blue)
+<span class="nc bnc" id="L44" title="All 2 branches missed.">    private val wavePaints = Array(3) { i -&gt;</span>
+<span class="nc" id="L45">        Paint(Paint.ANTI_ALIAS_FLAG).apply {</span>
+<span class="nc" id="L46">            style = Paint.Style.STROKE</span>
+<span class="nc" id="L47">            strokeCap = Paint.Cap.BUTT // Prevents the rounded &quot;pill&quot; progress-bar look</span>
+<span class="nc bnc" id="L48" title="All 3 branches missed.">            strokeWidth = when (i) {</span>
+<span class="nc" id="L49">                0 -&gt; 10f  // Outer volumetric shadow/glow</span>
+<span class="nc" id="L50">                1 -&gt; 4f   // Intense ice-blue mid-core</span>
+<span class="nc" id="L51">                else -&gt; 2f // Razor-sharp white crest</span>
+            }
+            /*
+            when (i) {
+                0 -&gt; setShadowLayer(15f, 0f, 0f, Color.parseColor(&quot;#4D00E5FF&quot;))
+                1 -&gt; setShadowLayer(10f, 0f, 0f, Color.parseColor(&quot;#B3A8C7FA&quot;))
+                else -&gt; setShadowLayer(5f, 0f, 0f, Color.parseColor(&quot;#FFFFFF&quot;))
+            }
+            */
+<span class="nc" id="L60">        }</span>
+    }
+    
+<span class="nc" id="L63">    private val wavePath = Path()</span>
+
+<span class="nc" id="L65">    init {</span>
+        // Hardware acceleration is fully supported for setShadowLayer on Android 9+
+        // Removing LAYER_TYPE_SOFTWARE to prevent severe CPU bottlenecking and 3000ms LLM TTFT delays
+<span class="nc" id="L68">    }</span>
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+<span class="nc" id="L71">        super.onSizeChanged(w, h, oldw, oldh)</span>
+<span class="nc" id="L72">        val wF = w.toFloat()</span>
+        // Seamlessly fade to invisible at the edges to prevent blocky progress-bar look
+<span class="nc" id="L74">        val colors1 = intArrayOf(Color.TRANSPARENT, Color.parseColor(&quot;#4D00E5FF&quot;), Color.parseColor(&quot;#4D00E5FF&quot;), Color.TRANSPARENT)</span>
+<span class="nc" id="L75">        val colors2 = intArrayOf(Color.TRANSPARENT, Color.parseColor(&quot;#B3A8C7FA&quot;), Color.parseColor(&quot;#B3A8C7FA&quot;), Color.TRANSPARENT)</span>
+<span class="nc" id="L76">        val colors3 = intArrayOf(Color.TRANSPARENT, Color.parseColor(&quot;#FFFFFF&quot;), Color.parseColor(&quot;#FFFFFF&quot;), Color.TRANSPARENT)</span>
+        
+<span class="nc" id="L78">        val positions = floatArrayOf(0f, 0.3f, 0.7f, 1f)</span>
+        
+<span class="nc" id="L80">        wavePaints[0].shader = android.graphics.LinearGradient(0f, 0f, wF, 0f, colors1, positions, android.graphics.Shader.TileMode.CLAMP)</span>
+<span class="nc" id="L81">        wavePaints[1].shader = android.graphics.LinearGradient(0f, 0f, wF, 0f, colors2, positions, android.graphics.Shader.TileMode.CLAMP)</span>
+<span class="nc" id="L82">        wavePaints[2].shader = android.graphics.LinearGradient(0f, 0f, wF, 0f, colors3, positions, android.graphics.Shader.TileMode.CLAMP)</span>
+<span class="nc" id="L83">    }</span>
+
+    private fun startAnimation() {
+<span class="nc bnc" id="L86" title="All 6 branches missed.">        if (animator?.isRunning == true) return</span>
+<span class="nc" id="L87">        visibility = VISIBLE</span>
+<span class="nc" id="L88">        var frameCount = 0</span>
+<span class="nc" id="L89">        animator = ValueAnimator.ofFloat(0f, 1f).apply {</span>
+<span class="nc" id="L90">            duration = 45000</span>
+<span class="nc" id="L91">            repeatCount = ValueAnimator.INFINITE</span>
+<span class="nc" id="L92">            interpolator = LinearInterpolator()</span>
+<span class="nc" id="L93">            addUpdateListener {</span>
+<span class="nc" id="L94">                animationPhase += 0.05f</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">                if (transitionProgress &lt; 1f) {</span>
+<span class="nc" id="L96">                    transitionProgress += 0.05f</span>
+<span class="nc bnc" id="L97" title="All 2 branches missed.">                    if (transitionProgress &gt;= 1f) {</span>
+<span class="nc" id="L98">                        transitionProgress = 1f</span>
+<span class="nc" id="L99">                        state = targetState</span>
+                    }
+                }
+<span class="nc" id="L102">                frameCount++</span>
+                // Run at full 60fps for smooth fluid animation
+<span class="nc" id="L104">                invalidate()</span>
+<span class="nc" id="L105">            }</span>
+<span class="nc" id="L106">            start()</span>
+<span class="nc" id="L107">        }</span>
+<span class="nc" id="L108">    }</span>
+
+    override fun onDraw(canvas: Canvas) {
+<span class="nc" id="L111">        super.onDraw(canvas)</span>
+<span class="nc" id="L112">        val cy = height / 2f</span>
+<span class="nc" id="L113">        val w = width.toFloat()</span>
+
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        for (i in 0 until 3) {</span>
+<span class="nc" id="L116">            var amplitudeModifier = 0.1f</span>
+<span class="nc bnc" id="L117" title="All 4 branches missed.">            when (state) {</span>
+<span class="nc" id="L118">                State.LISTENING -&gt; amplitudeModifier = 1.0f + kotlin.math.sin(animationPhase * 2f + i).toFloat() * 0.3f</span>
+<span class="nc" id="L119">                State.THINKING -&gt; amplitudeModifier = 0.5f + kotlin.math.sin(animationPhase * 3f).toFloat() * 0.2f</span>
+<span class="nc" id="L120">                State.SPEAKING -&gt; amplitudeModifier = 1.6f * abs(kotlin.math.sin(animationPhase * 3f + i).toFloat())</span>
+<span class="nc" id="L121">                State.IDLE -&gt; amplitudeModifier = 0.35f + kotlin.math.sin(animationPhase * 1.5f + i).toFloat() * 0.15f</span>
+            }
+
+<span class="nc" id="L124">            val frequency = 0.012f + (i * 0.003f)</span>
+<span class="nc" id="L125">            val baseAmplitude = 12f + (i * 3f)</span>
+            
+<span class="nc" id="L127">            wavePath.reset()</span>
+
+<span class="nc bnc" id="L129" title="All 4 branches missed.">            for (x in 0..width step 16) {</span>
+<span class="nc" id="L130">                val xF = x.toFloat()</span>
+<span class="nc" id="L131">                val midX = w / 2f</span>
+<span class="nc" id="L132">                val distanceFromCenter = abs(xF - midX)</span>
+                
+<span class="nc" id="L134">                val gaussianDistribution = kotlin.math.exp(-(distanceFromCenter * distanceFromCenter) / (2 * (w * 0.15f) * (w * 0.15f)))</span>
+                
+<span class="nc" id="L136">                val y = cy + kotlin.math.sin(xF * frequency + animationPhase + (i * 1.5f)).toFloat() * baseAmplitude * amplitudeModifier * gaussianDistribution</span>
+                
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                if (x == 0) wavePath.moveTo(xF, y) else wavePath.lineTo(xF, y)</span>
+            }
+            
+<span class="nc" id="L141">            canvas.drawPath(wavePath, wavePaints[i])</span>
+        }
+<span class="nc" id="L143">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

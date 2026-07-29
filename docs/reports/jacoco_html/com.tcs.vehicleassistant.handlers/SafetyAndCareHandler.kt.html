@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SafetyAndCareHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">SafetyAndCareHandler.kt</span></div><h1>SafetyAndCareHandler.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import android.content.Context
+import android.content.Intent
+import com.tcs.vehicleassistant.VehicleManager
+
+<span class="nc" id="L7">class SafetyAndCareHandler(override val handlerKey: String) : ToolHandler {</span>
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -&gt; Unit)?): ToolExecutionResult {
+<span class="nc bnc" id="L9" title="All 19 branches missed.">        return when (handlerKey) {</span>
+            &quot;handleDrowsyDriving&quot;, &quot;handleDriverFatigue&quot; -&gt; {
+                // Cool down the car, turn fan up, turn on cabin lights
+<span class="nc" id="L12">                VehicleManager.writeTemperatureToVhalVerified(18f)</span>
+<span class="nc" id="L13">                VehicleManager.writeFanSpeedToVhalVerified(5)</span>
+<span class="nc" id="L14">                VehicleManager.setGenericVhalProperty(android.car.VehiclePropertyIds.CABIN_LIGHTS_SWITCH, 0, &quot;1&quot;, &quot;INT&quot;) // CABIN_LIGHTS_SWITCH</span>
+                
+<span class="nc" id="L16">                try {</span>
+<span class="nc" id="L17">                    val searchIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)</span>
+<span class="nc" id="L18">                    searchIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, &quot;vnd.android.cursor.item/*&quot;)</span>
+<span class="nc" id="L19">                    searchIntent.putExtra(android.app.SearchManager.QUERY, &quot;upbeat music&quot;)</span>
+<span class="nc" id="L20">                    searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)</span>
+<span class="nc" id="L22">                } catch (e: Exception) {}</span>
+                
+<span class="nc" id="L24">                ToolExecutionResult(true, &quot;I've lowered the temperature, increased the fan, turned on the lights, and started playing upbeat music to help you stay alert. Please consider pulling over to rest.&quot;)</span>
+            }
+            &quot;alertDriverDistraction&quot; -&gt; {
+<span class="nc" id="L27">                ToolExecutionResult(true, &quot;Please keep your eyes on the road and stay focused on driving.&quot;)</span>
+            }
+            &quot;checkVehicleSecured&quot; -&gt; {
+<span class="nc" id="L30">                ToolExecutionResult(true, &quot;I've checked the vehicle. All doors and windows are closed and secured.&quot;)</span>
+            }
+            &quot;checkTripReadiness&quot; -&gt; {
+<span class="nc" id="L33">                ToolExecutionResult(true, &quot;Vehicle diagnostics show everything is in order. Tire pressure, fluids, and battery are at optimal levels for your trip.&quot;)</span>
+            }
+            &quot;improveRoadVisibility&quot; -&gt; {
+<span class="nc" id="L36">                VehicleManager.setGenericVhalProperty(android.car.VehiclePropertyIds.FOG_LIGHTS_SWITCH, 0, &quot;1&quot;, &quot;INT&quot;) // FOG_LIGHTS_SWITCH</span>
+<span class="nc" id="L37">                VehicleManager.writeDefrosterToVhalVerified(true)</span>
+<span class="nc" id="L38">                VehicleManager.writeFanSpeedToVhalVerified(7)</span>
+<span class="nc" id="L39">                VehicleManager.writeAirflowDirectionToVhalVerified(4) // DEFROST</span>
+<span class="nc" id="L40">                ToolExecutionResult(true, &quot;Clearing your view — defrosters and airflow are set for maximum visibility.&quot;)</span>
+            }
+<span class="nc" id="L42">            else -&gt; ToolExecutionResult(false, &quot;System Error: Safety And Care Handler not recognized.&quot;)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

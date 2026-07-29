@@ -1,0 +1,243 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CabinCameraManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.hardware</a> &gt; <span class="el_source">CabinCameraManager.kt</span></div><h1>CabinCameraManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.hardware
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.graphics.ImageFormat
+import android.graphics.Rect
+import android.graphics.YuvImage
+import android.util.Log
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.ImageProxy
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.LifecycleOwner
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+
+object CabinCameraManager {
+    private const val TAG = &quot;CabinCameraManager&quot;
+
+    // Blendshape score thresholds. Smile and frown sum a left/right pair, so they can exceed 1.0;
+    // jawOpen is a single score.
+    private const val YAWN_THRESHOLD = 0.4f
+    private const val SMILE_THRESHOLD = 0.6f
+    private const val FROWN_THRESHOLD = 0.6f
+
+    // Mood labels are consumed verbatim by the system prompt, so they are constants rather than
+    // literals scattered across the vision pipeline.
+    const val MOOD_TIRED = &quot;Tired / Yawning&quot;
+    const val MOOD_HAPPY = &quot;Happy / Smiling&quot;
+    const val MOOD_FRUSTRATED = &quot;Frustrated / Frowning&quot;
+    const val MOOD_NEUTRAL = &quot;Neutral / Focused&quot;
+    const val MOOD_NO_OCCUPANT = &quot;No one detected&quot;
+
+    private var faceLandmarker: FaceLandmarker? = null
+    private var cameraExecutor: ExecutorService? = null
+
+    // Callbacks for live view
+<span class="nc" id="L46">    var frameCallback: ((Bitmap) -&gt; Unit)? = null</span>
+
+    // Exposed state
+<span class="pc" id="L49">    var currentMood: String = &quot;Neutral&quot;</span>
+<span class="pc" id="L50">    var occupantCount: Int = 0</span>
+    
+    private var cacheDir: java.io.File? = null
+
+    /** Retained so [stopCamera] can unbind the CameraX use cases and actually free the camera. */
+    private var boundProvider: ProcessCameraProvider? = null
+
+    fun startCamera(context: Context, lifecycleOwner: LifecycleOwner) {
+<span class="nc" id="L58">        cacheDir = context.cacheDir</span>
+<span class="nc bnc" id="L59" title="All 4 branches missed.">        if (cameraExecutor == null || cameraExecutor!!.isShutdown) {</span>
+<span class="nc" id="L60">            cameraExecutor = Executors.newSingleThreadExecutor()</span>
+        }
+<span class="nc" id="L62">        val cameraProviderFuture = ProcessCameraProvider.getInstance(context)</span>
+<span class="nc" id="L63">        cameraProviderFuture.addListener({</span>
+<span class="nc" id="L64">            try {</span>
+<span class="nc" id="L65">                val cameraProvider = cameraProviderFuture.get()</span>
+<span class="nc" id="L66">                boundProvider = cameraProvider</span>
+<span class="nc" id="L67">                val imageAnalysis = ImageAnalysis.Builder()</span>
+<span class="nc" id="L68">                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)</span>
+<span class="nc" id="L69">                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)</span>
+<span class="nc" id="L70">                    .build()</span>
+
+<span class="nc" id="L72">                imageAnalysis.setAnalyzer(cameraExecutor!!) { imageProxy -&gt;</span>
+<span class="nc" id="L73">                    processImageProxy(imageProxy)</span>
+<span class="nc" id="L74">                }</span>
+
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                val cameraSelector = if (cameraProvider.hasCamera(CameraSelector.DEFAULT_FRONT_CAMERA)) {</span>
+<span class="nc" id="L77">                    CameraSelector.DEFAULT_FRONT_CAMERA</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                } else if (cameraProvider.hasCamera(CameraSelector.DEFAULT_BACK_CAMERA)) {</span>
+<span class="nc" id="L79">                    CameraSelector.DEFAULT_BACK_CAMERA</span>
+                } else {
+<span class="nc" id="L81">                    Log.w(TAG, &quot;No camera found on device&quot;)</span>
+<span class="nc" id="L82">                    return@addListener</span>
+                }
+
+<span class="nc" id="L85">                cameraProvider.unbindAll()</span>
+<span class="nc" id="L86">                cameraProvider.bindToLifecycle(</span>
+<span class="nc" id="L87">                    lifecycleOwner,</span>
+<span class="nc" id="L88">                    cameraSelector,</span>
+<span class="nc" id="L89">                    imageAnalysis</span>
+                )
+<span class="nc" id="L91">                Log.d(TAG, &quot;Native camera bound successfully for Cabin Sense.&quot;)</span>
+<span class="nc" id="L92">            } catch (e: Exception) {</span>
+<span class="nc" id="L93">                Log.e(TAG, &quot;Failed to bind native camera: ${e.message}&quot;, e)</span>
+            }
+<span class="nc" id="L95">        }, ContextCompat.getMainExecutor(context))</span>
+<span class="nc" id="L96">    }</span>
+
+    private fun processImageProxy(imageProxy: ImageProxy) {
+<span class="nc" id="L99">        try {</span>
+<span class="nc" id="L100">            val bitmap = imageProxyToBitmap(imageProxy)</span>
+<span class="nc bnc" id="L101" title="All 2 branches missed.">            if (bitmap != null) {</span>
+                // Pass to callback for UI/Services
+<span class="nc bnc" id="L103" title="All 2 branches missed.">                frameCallback?.invoke(bitmap)</span>
+
+<span class="nc" id="L105">                val mpImage = BitmapImageBuilder(bitmap).build()</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                val result = faceLandmarker?.detect(mpImage)</span>
+                
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                if (result != null) {</span>
+<span class="nc" id="L109">                    processLandmarks(result)</span>
+                }
+            }
+<span class="nc" id="L112">        } catch (e: Exception) {</span>
+<span class="nc" id="L113">            Log.e(TAG, &quot;Error processing image&quot;, e)</span>
+        } finally {
+<span class="nc" id="L115">            imageProxy.close()</span>
+        }
+<span class="nc" id="L117">    }</span>
+
+    private fun processLandmarks(result: FaceLandmarkerResult) {
+<span class="nc" id="L120">        val blendshapesOptional = result.faceBlendshapes()</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (blendshapesOptional.isPresent) {</span>
+<span class="nc" id="L122">            val faces = blendshapesOptional.get()</span>
+<span class="nc" id="L123">            occupantCount = faces.size</span>
+            
+<span class="nc bnc" id="L125" title="All 2 branches missed.">            if (occupantCount &gt; 0) {</span>
+                // Analyze the first face (assumed driver)
+<span class="nc" id="L127">                val driverBlendshapes = faces[0]</span>
+                
+<span class="nc" id="L129">                var smileScore = 0f</span>
+<span class="nc" id="L130">                var yawnScore = 0f</span>
+<span class="nc" id="L131">                var frownScore = 0f</span>
+                
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                for (shape in driverBlendshapes) {</span>
+<span class="nc bnc" id="L134" title="All 18 branches missed.">                    when (shape.categoryName()) {</span>
+<span class="nc" id="L135">                        &quot;mouthSmileLeft&quot;, &quot;mouthSmileRight&quot; -&gt; smileScore += shape.score()</span>
+<span class="nc" id="L136">                        &quot;jawOpen&quot; -&gt; yawnScore = shape.score()</span>
+<span class="nc" id="L137">                        &quot;browDownLeft&quot;, &quot;browDownRight&quot; -&gt; frownScore += shape.score()</span>
+                    }
+                }
+                
+<span class="nc" id="L141">                currentMood = classifyMood(smileScore, yawnScore, frownScore)</span>
+<span class="nc" id="L142">                Log.d(TAG, &quot;Detected $occupantCount occupants. Driver Mood: $currentMood&quot;)</span>
+            } else {
+<span class="nc" id="L144">                currentMood = MOOD_NO_OCCUPANT</span>
+            }
+        } else {
+<span class="nc" id="L147">            occupantCount = 0</span>
+<span class="nc" id="L148">            currentMood = MOOD_NO_OCCUPANT</span>
+        }
+<span class="nc" id="L150">    }</span>
+
+    /**
+     * Maps MediaPipe blendshape scores onto the mood label the system prompt reacts to.
+     *
+     * Extracted from the landmark callback so the thresholds can be asserted without a camera;
+     * rule 15 of the system prompt changes the assistant's behaviour based on this string, so a
+     * silent change here changes what the driver hears.
+     */
+<span class="fc" id="L159">    fun classifyMood(smileScore: Float, yawnScore: Float, frownScore: Float): String = when {</span>
+<span class="fc bfc" id="L160" title="All 2 branches covered.">        yawnScore &gt; YAWN_THRESHOLD -&gt; MOOD_TIRED</span>
+<span class="fc bfc" id="L161" title="All 2 branches covered.">        smileScore &gt; SMILE_THRESHOLD -&gt; MOOD_HAPPY</span>
+<span class="fc bfc" id="L162" title="All 2 branches covered.">        frownScore &gt; FROWN_THRESHOLD -&gt; MOOD_FRUSTRATED</span>
+<span class="fc" id="L163">        else -&gt; MOOD_NEUTRAL</span>
+<span class="fc" id="L164">    }</span>
+
+    private fun imageProxyToBitmap(image: ImageProxy): Bitmap? {
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        if (image.format != ImageFormat.YUV_420_888) return null</span>
+<span class="nc" id="L168">        val yBuffer = image.planes[0].buffer</span>
+<span class="nc" id="L169">        val uBuffer = image.planes[1].buffer</span>
+<span class="nc" id="L170">        val vBuffer = image.planes[2].buffer</span>
+        
+<span class="nc" id="L172">        val ySize = yBuffer.remaining()</span>
+<span class="nc" id="L173">        val uSize = uBuffer.remaining()</span>
+<span class="nc" id="L174">        val vSize = vBuffer.remaining()</span>
+        
+<span class="nc" id="L176">        val nv21 = ByteArray(ySize + uSize + vSize)</span>
+<span class="nc" id="L177">        yBuffer.get(nv21, 0, ySize)</span>
+<span class="nc" id="L178">        vBuffer.get(nv21, ySize, vSize)</span>
+<span class="nc" id="L179">        uBuffer.get(nv21, ySize + vSize, uSize)</span>
+        
+<span class="nc" id="L181">        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)</span>
+<span class="nc" id="L182">        val out = ByteArrayOutputStream()</span>
+<span class="nc" id="L183">        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)</span>
+<span class="nc" id="L184">        val imageBytes = out.toByteArray()</span>
+<span class="nc bnc" id="L185" title="All 2 branches missed.">        val rawBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size) ?: return null</span>
+        
+        // Use dynamic rotation provided by CameraX
+<span class="nc" id="L188">        val rotation = image.imageInfo.rotationDegrees.toFloat()</span>
+<span class="nc" id="L189">        Log.d(TAG, &quot;Raw Image: ${image.width}x${image.height}, applying $rotation degree rotation&quot;)</span>
+        
+<span class="nc" id="L191">        val matrix = android.graphics.Matrix()</span>
+<span class="nc" id="L192">        matrix.postRotate(rotation)</span>
+        
+<span class="nc" id="L194">        val finalBitmap = Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)</span>
+        
+<span class="nc bnc" id="L196" title="All 4 branches missed.">        if (frameCount++ % 100 == 0 &amp;&amp; cacheDir != null) {</span>
+<span class="nc" id="L197">            try {</span>
+<span class="nc" id="L198">                val file = java.io.File(cacheDir, &quot;camera_debug.jpg&quot;)</span>
+<span class="nc" id="L199">                val fos = java.io.FileOutputStream(file)</span>
+<span class="nc" id="L200">                finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)</span>
+<span class="nc" id="L201">                fos.close()</span>
+<span class="nc" id="L202">                Log.d(TAG, &quot;Saved debug frame to ${file.absolutePath}&quot;)</span>
+<span class="nc" id="L203">            } catch (e: Exception) {</span>
+<span class="nc" id="L204">                Log.e(TAG, &quot;Failed to save debug frame&quot;, e)</span>
+            }
+        }
+        
+<span class="nc" id="L208">        return finalBitmap</span>
+    }
+
+    private var frameCount = 0
+
+    /**
+     * Releases the camera and analysis pipeline.
+     *
+     * The previous version shut the executor down but never unbound the CameraX use cases, so the
+     * camera stayed held by this process after the vision service was destroyed and a later
+     * [startCamera] bound a second analyzer on a dead executor.
+     */
+    fun stopCamera() {
+<span class="nc" id="L221">        try {</span>
+<span class="nc bnc" id="L222" title="All 2 branches missed.">            boundProvider?.unbindAll()</span>
+<span class="nc" id="L223">        } catch (e: Exception) {</span>
+<span class="nc" id="L224">            Log.w(TAG, &quot;Failed to unbind camera use cases&quot;, e)</span>
+        }
+<span class="nc" id="L226">        boundProvider = null</span>
+
+<span class="nc bnc" id="L228" title="All 2 branches missed.">        cameraExecutor?.shutdown()</span>
+<span class="nc" id="L229">        cameraExecutor = null</span>
+
+<span class="nc" id="L231">        try {</span>
+<span class="nc bnc" id="L232" title="All 2 branches missed.">            faceLandmarker?.close()</span>
+<span class="nc" id="L233">        } catch (e: Exception) {</span>
+<span class="nc" id="L234">            Log.w(TAG, &quot;Failed to close face landmarker&quot;, e)</span>
+        }
+<span class="nc" id="L236">        faceLandmarker = null</span>
+
+<span class="nc" id="L238">        frameCallback = null</span>
+<span class="nc" id="L239">        occupantCount = 0</span>
+<span class="nc" id="L240">        currentMood = &quot;Neutral&quot;</span>
+<span class="nc" id="L241">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

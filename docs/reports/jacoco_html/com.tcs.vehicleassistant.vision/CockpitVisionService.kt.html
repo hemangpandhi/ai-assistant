@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CockpitVisionService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">CockpitVisionService.kt</span></div><h1>CockpitVisionService.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import com.tcs.vehicleassistant.repository.AgentOrchestrator
+import com.tcs.vehicleassistant.VehicleManager
+import org.koin.android.ext.android.inject
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.graphics.Bitmap
+import android.os.Binder
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import com.tcs.vehicleassistant.R
+import com.tcs.vehicleassistant.repository.OrchestratorState
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
+import java.util.Locale
+
+<span class="nc" id="L27">class CockpitVisionService : Service() {</span>
+
+<span class="nc" id="L29">    private val binder = LocalBinder()</span>
+
+    /** Owned scope so [onDestroy] can cancel every vision collector this service started. */
+<span class="nc" id="L32">    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)</span>
+
+    private var streamManager: CameraStreamManager? = null
+    private lateinit var gestureProcessor: GestureProcessor
+    private lateinit var healthProcessor: HealthProcessor
+    private lateinit var visionBridge: VisionOrchestratorBridge
+    private lateinit var faceIdentityProcessor: FaceIdentityProcessor
+    private lateinit var faceProfileManager: FaceProfileManager
+
+    private var latestGestureFeedback: GestureFeedback? = null
+    private var identityCheckCounter = 0
+    private var lastFrame: Bitmap? = null
+
+    // Face Recognition State
+<span class="nc" id="L46">    var recognizedUserName: String = &quot;Guest&quot;</span>
+    private var identitySimilarity: Float = 0f
+
+    // Callbacks for UI
+<span class="nc" id="L50">    var onFrameCallback: ((Bitmap) -&gt; Unit)? = null</span>
+    // Updated signature to include recognized name
+<span class="nc" id="L52">    var onStatsUpdateCallback: ((HealthState, GestureFeedback?, Float, String) -&gt; Unit)? = null</span>
+
+<span class="nc" id="L54">    inner class LocalBinder : Binder() {</span>
+<span class="nc" id="L55">        fun getService(): CockpitVisionService = this@CockpitVisionService</span>
+    }
+
+<span class="nc" id="L58">    private var latestHealthState: HealthState = HealthState(72, &quot;Low&quot;, false)</span>
+
+    private lateinit var aaosUserSwitchManager: com.tcs.vehicleassistant.hardware.AAOSUserSwitchManager
+<span class="nc" id="L61">    private var currentDriverName: String = &quot;&quot;</span>
+
+    override fun onCreate() {
+<span class="nc" id="L64">        super.onCreate()</span>
+<span class="nc" id="L65">        startForegroundServiceNotification()</span>
+
+<span class="nc" id="L67">        val orchestrator: AgentOrchestrator by inject()</span>
+<span class="nc" id="L68">        visionBridge = VisionOrchestratorBridge(this, orchestrator)</span>
+<span class="nc" id="L69">        faceIdentityProcessor = FaceIdentityProcessor(this)</span>
+<span class="nc" id="L70">        faceProfileManager = FaceProfileManager(this)</span>
+<span class="nc" id="L71">        aaosUserSwitchManager = com.tcs.vehicleassistant.hardware.AAOSUserSwitchManager(this)</span>
+
+<span class="nc" id="L73">        gestureProcessor = GestureProcessor(this) { feedback -&gt;</span>
+<span class="nc" id="L74">            latestGestureFeedback = feedback</span>
+<span class="nc" id="L75">            com.tcs.vehicleassistant.hardware.CabinCameraManager.currentMood = feedback.mood</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">            onStatsUpdateCallback?.invoke(latestHealthState, feedback, identitySimilarity, recognizedUserName)</span>
+<span class="nc" id="L77">        }</span>
+
+<span class="nc" id="L79">        healthProcessor = HealthProcessor { state -&gt;</span>
+<span class="nc" id="L80">            latestHealthState = state</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            latestGestureFeedback?.let { feedback -&gt;</span>
+<span class="nc" id="L82">                visionBridge.onHealthUpdate(state, feedback)</span>
+<span class="nc" id="L83">            }</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">            onStatsUpdateCallback?.invoke(state, latestGestureFeedback, identitySimilarity, recognizedUserName)</span>
+<span class="nc" id="L85">        }</span>
+<span class="nc" id="L86">    }</span>
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+<span class="nc bnc" id="L89" title="All 2 branches missed.">        val url = intent?.getStringExtra(&quot;CAMERA_URL&quot;)</span>
+<span class="nc bnc" id="L90" title="All 6 branches missed.">        if (!url.isNullOrEmpty()) {</span>
+<span class="nc" id="L91">            startStream(url)</span>
+        }
+<span class="nc" id="L93">        return START_STICKY</span>
+    }
+
+    private fun startStream(url: String) {
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        streamManager?.stop()</span>
+<span class="nc" id="L98">        com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = null</span>
+
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if (url == &quot;native&quot;) {</span>
+<span class="nc" id="L101">            com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = { bitmap -&gt;</span>
+<span class="nc" id="L102">                handleIncomingFrame(bitmap)</span>
+<span class="nc" id="L103">            }</span>
+<span class="nc" id="L104">            com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(</span>
+<span class="nc" id="L105">                this,</span>
+<span class="nc" id="L106">                androidx.lifecycle.ProcessLifecycleOwner.get()</span>
+            )
+        } else {
+<span class="nc" id="L109">            streamManager = CameraStreamManager(</span>
+                onFrame = { bitmap -&gt;
+<span class="nc" id="L111">                    handleIncomingFrame(bitmap)</span>
+<span class="nc" id="L112">                },</span>
+<span class="nc" id="L113">                onConnected = { },</span>
+<span class="nc" id="L114">                onError = { }</span>
+            )
+<span class="nc bnc" id="L116" title="All 2 branches missed.">            streamManager?.startStream(url)</span>
+        }
+<span class="nc" id="L118">    }</span>
+
+    private fun handleIncomingFrame(bitmap: Bitmap) {
+<span class="nc" id="L121">        lastFrame = bitmap</span>
+<span class="nc bnc" id="L122" title="All 2 branches missed.">        onFrameCallback?.invoke(bitmap)</span>
+
+<span class="nc bnc" id="L124" title="All 2 branches missed.">        scope.launch {</span>
+<span class="nc" id="L125">            gestureProcessor.processingFrame(bitmap)</span>
+<span class="nc" id="L126">            val faceResult = gestureProcessor.lastFaceResult</span>
+<span class="nc bnc" id="L127" title="All 2 branches missed.">            val currentMood = latestGestureFeedback?.mood</span>
+<span class="nc" id="L128">            healthProcessor.processFrame(bitmap, faceResult, currentMood)</span>
+
+<span class="nc" id="L130">            identityCheckCounter++</span>
+<span class="nc bnc" id="L131" title="All 2 branches missed.">            if (identityCheckCounter % 30 == 0) { // Every ~3 seconds at 10fps</span>
+<span class="nc" id="L132">                val embedding = faceIdentityProcessor.extractEmbedding(bitmap)</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                embedding?.let { currentEmb -&gt;</span>
+                    // Compare against all stored profiles
+<span class="nc" id="L135">                    val allProfiles = faceProfileManager.getAllProfiles()</span>
+<span class="nc" id="L136">                    var bestMatchName = &quot;Guest&quot;</span>
+<span class="nc" id="L137">                    var highestSimilarity = 0f</span>
+
+<span class="nc bnc" id="L139" title="All 2 branches missed.">                    for ((name, savedEmb) in allProfiles) {</span>
+<span class="nc" id="L140">                        val sim = faceIdentityProcessor.computeSimilarity(currentEmb, savedEmb)</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                        if (sim &gt; highestSimilarity) {</span>
+<span class="nc" id="L142">                            highestSimilarity = sim</span>
+<span class="nc" id="L143">                            bestMatchName = name</span>
+                        }
+                    }
+
+<span class="nc" id="L147">                    identitySimilarity = highestSimilarity</span>
+                    // 0.6 is a standard threshold for FaceNet cosine similarity
+<span class="nc bnc" id="L149" title="All 2 branches missed.">                    if (highestSimilarity &gt; 0.6f) {</span>
+<span class="nc" id="L150">                        recognizedUserName = bestMatchName</span>
+<span class="nc" id="L151">                        VisionState.recognizedUser = bestMatchName</span>
+
+                        // Trigger zero-touch AAOS user switch &amp; VHAL preferences if driver changed
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                        if (recognizedUserName != currentDriverName) {</span>
+<span class="nc" id="L155">                            currentDriverName = recognizedUserName</span>
+<span class="nc" id="L156">                            val targetUserId = faceProfileManager.getOsUserId(recognizedUserName)</span>
+<span class="nc" id="L157">                            val targetTemp = faceProfileManager.getTargetTemp(recognizedUserName)</span>
+
+<span class="nc" id="L159">                            android.util.Log.d(&quot;CockpitVisionService&quot;, &quot;Face ID verified for $recognizedUserName! Triggering user switch to User ID $targetUserId&quot;)</span>
+<span class="nc" id="L160">                            aaosUserSwitchManager.switchUser(targetUserId, recognizedUserName)</span>
+<span class="nc" id="L161">                            VehicleManager.applySavedCabinPreferences(recognizedUserName, targetTemp)</span>
+                        }
+                    } else {
+<span class="nc" id="L164">                        recognizedUserName = &quot;Guest&quot;</span>
+<span class="nc" id="L165">                        VisionState.recognizedUser = &quot;Guest&quot;</span>
+                    }
+<span class="nc" id="L167">                }</span>
+            }
+<span class="nc" id="L169">        }</span>
+<span class="nc" id="L170">    }</span>
+
+<span class="nc" id="L172">    fun saveCurrentFace(name: String, osUserId: Int = 10, targetTemp: Float = 20.0f) {</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">        lastFrame?.let { bitmap -&gt;</span>
+<span class="nc" id="L174">            val embedding = faceIdentityProcessor.extractEmbedding(bitmap)</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            if (embedding != null) {</span>
+<span class="nc" id="L176">                faceProfileManager.saveProfile(name, embedding, osUserId, targetTemp)</span>
+<span class="nc" id="L177">                android.util.Log.d(&quot;CockpitVisionService&quot;, &quot;Saved face profile for $name (User ID: $osUserId, Temp: $targetTemp°C)&quot;)</span>
+            }
+<span class="nc" id="L179">        }</span>
+<span class="nc" id="L180">    }</span>
+
+    override fun onBind(intent: Intent): IBinder {
+<span class="nc" id="L183">        return binder</span>
+    }
+
+    /**
+     * Full teardown. The previous version only stopped the MJPEG stream, leaving the native camera
+     * bound, the MediaPipe graphs open, and this service's coroutine scope running.
+     */
+    override fun onDestroy() {
+<span class="nc" id="L191">        scope.cancel()</span>
+<span class="nc bnc" id="L192" title="All 2 branches missed.">        streamManager?.stop()</span>
+<span class="nc" id="L193">        streamManager = null</span>
+
+<span class="nc" id="L195">        com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = null</span>
+<span class="nc" id="L196">        try {</span>
+<span class="nc" id="L197">            com.tcs.vehicleassistant.hardware.CabinCameraManager.stopCamera()</span>
+<span class="nc" id="L198">        } catch (e: Exception) {</span>
+<span class="nc" id="L199">            android.util.Log.w(&quot;CockpitVisionService&quot;, &quot;Failed to stop cabin camera&quot;, e)</span>
+        }
+
+<span class="nc bnc" id="L202" title="All 2 branches missed.">        if (::gestureProcessor.isInitialized) {</span>
+<span class="nc" id="L203">            try {</span>
+<span class="nc" id="L204">                gestureProcessor.close()</span>
+<span class="nc" id="L205">            } catch (e: Exception) {</span>
+<span class="nc" id="L206">                android.util.Log.w(&quot;CockpitVisionService&quot;, &quot;Failed to close gesture processor&quot;, e)</span>
+            }
+        }
+
+<span class="nc" id="L210">        onFrameCallback = null</span>
+<span class="nc" id="L211">        onStatsUpdateCallback = null</span>
+<span class="nc" id="L212">        lastFrame = null</span>
+
+<span class="nc" id="L214">        super.onDestroy()</span>
+<span class="nc" id="L215">    }</span>
+
+    private fun startForegroundServiceNotification() {
+<span class="nc" id="L218">        val channelId = &quot;cockpit_vision_channel&quot;</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.O) {</span>
+<span class="nc" id="L220">            val channel = NotificationChannel(</span>
+<span class="nc" id="L221">                channelId,</span>
+<span class="nc" id="L222">                &quot;Cockpit Vision Service&quot;,</span>
+<span class="nc" id="L223">                NotificationManager.IMPORTANCE_LOW</span>
+            )
+<span class="nc" id="L225">            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager</span>
+<span class="nc" id="L226">            manager.createNotificationChannel(channel)</span>
+        }
+
+<span class="nc" id="L229">        val notification = NotificationCompat.Builder(this, channelId)</span>
+<span class="nc" id="L230">            .setContentTitle(&quot;Cockpit AI&quot;)</span>
+<span class="nc" id="L231">            .setContentText(&quot;Monitoring cabin environment...&quot;)</span>
+<span class="nc" id="L232">            .setSmallIcon(android.R.drawable.ic_menu_camera)</span>
+<span class="nc" id="L233">            .build()</span>
+
+<span class="nc" id="L235">        startForeground(1, notification)</span>
+<span class="nc" id="L236">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

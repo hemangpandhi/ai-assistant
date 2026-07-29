@@ -43,17 +43,11 @@ object MemoryManager {
         Log.d(TAG, "Added turn: $role. Retained turns: $size")
     }
 
-    fun isAffirmative(query: String): Boolean {
-        val q = query.lowercase().trim()
-            .trimEnd('.', '!', ',', '?')
-            .trim()
-        if (q in setOf("yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead", "please", "yup")) {
-            return true
-        }
-        // ASR often appends politeness: "yes please", "yeah sure", "ok go ahead"
-        val affirmStarts = listOf("yes ", "yeah ", "yep ", "yup ", "sure ", "ok ", "okay ")
-        return affirmStarts.any { q.startsWith(it) } && q.split(' ').size <= 4
-    }
+    fun isAffirmative(query: String): Boolean =
+        com.tcs.vehicleassistant.core.ConfirmationPolicy.isAffirmative(query)
+
+    fun isDecline(query: String): Boolean =
+        com.tcs.vehicleassistant.core.ConfirmationPolicy.isDecline(query)
 
     fun isFollowUpQuery(query: String, previousResponse: String = ""): Boolean {
         val q = query.lowercase().trim()

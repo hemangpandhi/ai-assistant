@@ -237,18 +237,21 @@
       "handler_type": "CUSTOM_KOTLIN",
       "instruction": "You MUST use exactly one of these parameters: face, floor, face and floor, or defrost. Example: <TOOL>setAirflowDirection(face and floor)</TOOL>",
       "keywords": [
-        "airflow",
-        "direction",
-        "vents",
-        "face",
-        "feet",
-        "floor",
-        "defrost",
-        "windshield"
+        "set airflow to face",
+        "set airflow to floor",
+        "set airflow to defrost",
+        "airflow to face",
+        "airflow to floor",
+        "airflow to defrost",
+        "face and feet",
+        "face and floor",
+        "vents to face",
+        "vents to floor"
       ],
       "offline_capable": true,
       "success_message": "Adjusting the airflow — you should feel it soon.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOnAC()</TOOL>",
@@ -307,18 +310,17 @@
       "value_to_write": "true",
       "success_message": "I've turned on automatic climate control.",
       "keywords": [
-        "auto",
-        "turn on climate",
-        "climate",
+        "turn on automatic climate",
+        "climate auto on",
         "turn on automatic",
-        "turn on auto",
-        "automatic"
+        "turn on auto climate"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOnAutoClimate",
-      "handler_key": "turnOnAutoClimate"
+      "handler_key": "turnOnAutoClimate",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOffAutoClimate()</TOOL>",
@@ -329,18 +331,17 @@
       "value_to_write": "false",
       "success_message": "I've disabled automatic climate control.",
       "keywords": [
+        "turn off automatic climate",
+        "climate auto off",
         "turn off automatic",
-        "turn off auto",
-        "auto",
-        "turn off climate",
-        "climate",
-        "automatic"
+        "turn off auto climate"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOffAutoClimate",
-      "handler_key": "turnOffAutoClimate"
+      "handler_key": "turnOffAutoClimate",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOnRecirculation()</TOOL>",
@@ -360,7 +361,8 @@
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOnRecirculation",
-      "handler_key": "turnOnRecirculation"
+      "handler_key": "turnOnRecirculation",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOffRecirculation()</TOOL>",
@@ -380,7 +382,8 @@
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOffRecirculation",
-      "handler_key": "turnOffRecirculation"
+      "handler_key": "turnOffRecirculation",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOnHvacPower()</TOOL>",
@@ -394,6 +397,7 @@
         "turn on hvac",
         "hvac on",
         "climate on",
+        "turn on climate control",
         "turn on climate"
       ],
       "offline_capable": true,
@@ -415,6 +419,7 @@
         "turn off hvac",
         "hvac off",
         "climate off",
+        "turn off climate control",
         "turn off climate"
       ],
       "offline_capable": true,
@@ -433,13 +438,11 @@
       "value_to_write": "true",
       "success_message": "Defroster's on — your view should clear up.",
       "keywords": [
-        "defrost",
-        "defroster on",
-        "front defrost",
-        "front defroster",
-        "turn on defroster",
         "turn on front defroster",
-        "clear windshield"
+        "front defroster",
+        "clear windshield",
+        "defrost windshield",
+        "defroster on"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
@@ -463,6 +466,7 @@
       "value_to_write": "false",
       "success_message": "Deactivating front defroster.",
       "keywords": [
+        "turn off front defroster",
         "defrost off",
         "defroster off",
         "turn off defroster",
@@ -492,7 +496,8 @@
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOnRearDefroster",
-      "handler_key": "turnOnRearDefroster"
+      "handler_key": "turnOnRearDefroster",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOffRearDefroster()</TOOL>",
@@ -511,7 +516,8 @@
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOffRearDefroster",
-      "handler_key": "turnOffRearDefroster"
+      "handler_key": "turnOffRearDefroster",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>openWindowsSlightly()</TOOL>",
@@ -561,7 +567,8 @@
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOnCabinLight",
-      "handler_key": "turnOnCabinLight"
+      "handler_key": "turnOnCabinLight",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>turnOffCabinLight()</TOOL>",
@@ -580,7 +587,8 @@
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "name": "turnOffCabinLight",
-      "handler_key": "turnOffCabinLight"
+      "handler_key": "turnOffCabinLight",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>setSeatHeater(LEVEL)</TOOL>",
@@ -596,7 +604,8 @@
         "seat heat",
         "seat warmer",
         "heat my seat",
-        "warm my seat"
+        "warm my seat",
+        "warm seat"
       ],
       "offline_capable": true,
       "requires_vehicle_state": true,
@@ -617,13 +626,11 @@
       "success_message": "I've turned on the seat massager for you.",
       "keywords": [
         "back massage",
-        "relax",
-        "tired",
-        "massage",
         "massager",
         "seat massage",
         "relax seat",
-        "back hurts"
+        "back hurts",
+        "massage my back"
       ],
       "offline_capable": true,
       "requires_vehicle_state": true,
@@ -631,7 +638,8 @@
         "seatMassage",
         "massageSeat",
         "startMassager"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>checkAllWindowsClosed()</TOOL>",
@@ -648,7 +656,8 @@
       "requires_vehicle_state": true,
       "name": "checkAllWindowsClosed",
       "handler_key": "checkAllWindowsClosed",
-      "description": "Read window positions and report whether all windows are closed."
+      "description": "Read window positions and report whether all windows are closed.",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>movePassengerSeatForward()</TOOL>",
@@ -661,7 +670,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've moved the passenger seat forward.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>setEnergeticCabinLighting()</TOOL>",
@@ -731,19 +741,15 @@
       "handler_type": "CUSTOM_KOTLIN",
       "success_message": "Clearing your windshield — safety first.",
       "keywords": [
-        "visibility",
-        "mist",
-        "fogged",
+        "defog windshield",
+        "fogged windshield",
+        "clear the fog",
         "fog on glass",
-        "defog",
-        "can't see",
-        "defrost",
-        "windshield is foggy",
-        "windshield",
-        "fog"
+        "mist on windshield"
       ],
       "offline_capable": true,
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>improveRoadVisibility()</TOOL>",
@@ -753,18 +759,14 @@
       "instruction": "CRITICAL: If the user complains about bad weather (like it being foggy or dark outside) or poor visibility, you MUST trigger this macro tool. Do NOT try to manually adjust the airflow or defrosters.",
       "success_message": "I've turned on the defrosters and optimized your airflow for maximum visibility.",
       "keywords": [
-        "too dark",
-        "see better",
-        "visibility",
-        "dark",
-        "can't see",
-        "barely see the road",
-        "fog",
-        "foggy",
-        "see the road"
+        "too dark outside",
+        "improve road visibility",
+        "see better outside",
+        "night visibility"
       ],
       "offline_capable": true,
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>handleDrowsyDriving()</TOOL>",
@@ -813,7 +815,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've analyzed the battery and suggested an optimized charging rate.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>sendUpcomingEventReminder()</TOOL>",
@@ -837,27 +840,26 @@
       "keywords": [
         "child seat",
         "baby seat",
-        "install child seat",
-        "how to install"
+        "install child seat"
       ],
       "offline_capable": true,
       "success_message": "I'll walk you through how to install the child seat safely.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>suggestUmbrellaIfRainy()</TOOL>",
       "handler_key": "suggestUmbrellaIfRainy",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "umbrella",
         "going to rain",
         "rainy weather",
-        "take umbrella",
-        "rain"
+        "take umbrella"
       ],
       "offline_capable": false,
       "success_message": "I've checked the weather and will remind you to carry an umbrella if rain is expected.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>getNewsHighlights()</TOOL>",
@@ -867,11 +869,13 @@
         "today's news",
         "news highlights",
         "latest news",
-        "news"
+        "todays news",
+        "play the news"
       ],
       "offline_capable": false,
       "success_message": "Here are today's news highlights.",
       "requires_vehicle_state": false,
+      "direct_executable": true,
       "context_dependencies": [
         "startNavigationTo"
       ]
@@ -881,21 +885,21 @@
       "handler_key": "handleDriverFatigue",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "fatigue",
         "exhausted",
         "need rest",
-        "sleepy"
+        "driver fatigue",
+        "feel exhausted"
       ],
       "offline_capable": true,
       "success_message": "I've assessed your fatigue level and prepared recommendations.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>alertDriverDistraction()</TOOL>",
       "handler_key": "alertDriverDistraction",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "distracted",
         "not paying attention",
         "eyes off road",
         "stay focused",
@@ -903,7 +907,8 @@
       ],
       "offline_capable": true,
       "success_message": "I'll monitor for distraction and alert you if needed.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>provideLaneLevelGuidance()</TOOL>",
@@ -917,7 +922,8 @@
       ],
       "offline_capable": true,
       "success_message": "I'll guide you with lane-level navigation.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>suggestAlternateRoute()</TOOL>",
@@ -942,7 +948,6 @@
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "background music",
-        "BGM",
         "make it quieter",
         "make it louder",
         "music volume",
@@ -950,7 +955,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've adjusted the background music to match the cabin situation.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>checkVehicleSecured()</TOOL>",
@@ -965,7 +971,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've checked whether the vehicle is secured.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>prepareForCommute()</TOOL>",
@@ -1005,17 +1012,16 @@
       "handler_key": "prepareForIncomingRain",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "wet",
-        "umbrella",
         "rain is coming",
-        "rain",
         "raining",
         "looks like rain",
-        "get ready for rain"
+        "get ready for rain",
+        "prepare for rain"
       ],
       "offline_capable": true,
       "success_message": "I've prepared the vehicle for the incoming rain.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>prepareForParking()</TOOL>",
@@ -1029,7 +1035,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've prepared parking assistance for you.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>optimizeEnergyForRange()</TOOL>",
@@ -1076,7 +1083,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've checked the vehicle's readiness for your trip.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>prepareForElderlyPassengers()</TOOL>",
@@ -1090,7 +1098,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've adjusted cabin settings for your elderly passengers.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>prepareForImportantMeeting()</TOOL>",
@@ -1137,7 +1146,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've evaluated the vehicle signals and prepared safety recommendations.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>enableAdaptiveNightMode()</TOOL>",
@@ -1181,26 +1191,30 @@
         "why is my range low",
         "range dropped",
         "low range",
-        "battery drain",
-        "range so low"
+        "battery drain"
       ],
       "offline_capable": true,
       "success_message": "I've analyzed possible reasons for the lower range.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>answerVehicleIdentity()</TOOL>",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
         "what model is this",
+        "what car is this",
         "car model",
         "vehicle model",
-        "what am I driving"
+        "what am I driving",
+        "who are you",
+        "vehicle identity"
       ],
       "offline_capable": true,
       "success_message": "Here is the vehicle identity.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
+      "direct_executable": true,
       "name": "answerVehicleIdentity",
       "handler_key": "answerVehicleIdentity",
       "description": "Report the vehicle model / identity from INFO_MODEL."
@@ -1210,7 +1224,6 @@
       "handler_key": "playMusic",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "play",
         "play music",
         "play song",
         "play some music",
@@ -1259,6 +1272,7 @@
       "instruction": "CRITICAL: If the user asks to stop the music/audio, you MUST execute this tool.",
       "keywords": [
         "stop music",
+        "stop the music",
         "turn off music",
         "music off",
         "kill the music"
@@ -1394,13 +1408,19 @@
       "handler_key": "getWeather",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "weather",
-        "rain",
+        "what is the weather",
+        "whats the weather",
+        "what's the weather",
+        "weather forecast",
+        "weather in",
+        "outside temperature",
         "forecast",
-        "outside temperature"
+        "weather"
       ],
       "offline_capable": false,
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true,
+      "success_message": "I've opened the weather for you."
     },
     {
       "description": "Searches for nearby amenities like restaurants, gas stations, charging stations, and food. Use this when the user is looking for nearby places and you want to offer them choices in the chat.",
@@ -1409,16 +1429,20 @@
       "handler_key": "searchNearby",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
-        "hungry",
-        "food",
-        "restaurant",
-        "gas",
-        "fuel",
-        "charging",
         "find nearby",
-        "coffee shop"
+        "search nearby",
+        "gas station",
+        "coffee shop",
+        "nearby pizza",
+        "hungry",
+        "restaurant",
+        "charging station",
+        "find a nearby",
+        "craving"
       ],
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true,
+      "success_message": "Looking for places nearby."
     },
     {
       "description": "Searches for physical locations, points of interest (POIs), businesses, or addresses on the map.",
@@ -1481,17 +1505,19 @@
         }
       ],
       "keywords": [
-        "open",
-        "trunk",
-        "cargo",
-        "boot",
-        "back"
+        "open trunk",
+        "open the trunk",
+        "pop the trunk",
+        "pop trunk",
+        "open boot",
+        "open cargo"
       ],
       "requires_confirmation": true,
       "confirmation_message": "Warning: Are you sure you want to open the trunk?",
       "requires_vehicle_state": true,
       "error_message": "The vehicle hardware did not confirm the change.",
       "offline_capable": false,
+      "direct_executable": true,
       "description": "Open the vehicle trunk/cargo area. Requires the vehicle to be in PARK."
     },
     {
@@ -1518,7 +1544,8 @@
         }
       ],
       "requires_vehicle_state": true,
-      "error_message": "The vehicle hardware did not confirm the change."
+      "error_message": "The vehicle hardware did not confirm the change.",
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>unlockDoors()</TOOL>",
@@ -1530,15 +1557,16 @@
       "value_to_write": "false",
       "success_message": "I've unlocked the doors.",
       "keywords": [
-        "unlock",
-        "door",
-        "doors",
-        "open",
-        "latch"
+        "unlock the doors",
+        "unlock doors",
+        "unlock the door",
+        "unlock door",
+        "unlock vehicle"
       ],
       "requires_confirmation": true,
       "confirmation_message": "Security Warning: Are you sure you want to unlock the vehicle doors?",
       "requires_vehicle_state": true,
+      "direct_executable": true,
       "error_message": "The vehicle hardware did not confirm the door unlock."
     },
     {
@@ -1551,7 +1579,8 @@
         "my temperature",
         "driver side temp",
         "make it warmer for the driver",
-        "cool down the driver"
+        "cool down the driver",
+        "set driver temp"
       ],
       "offline_capable": true,
       "success_message": "I've adjusted the driver's side temperature.",
@@ -1562,7 +1591,8 @@
         "setDriverTemp",
         "driverTemperature",
         "setDriverTemperature"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>setPassengerTemperature(VAL)</TOOL>",
@@ -1573,7 +1603,8 @@
         "passenger temperature",
         "passenger side temp",
         "make it warmer for the passenger",
-        "cool down the passenger"
+        "cool down the passenger",
+        "set passenger temp"
       ],
       "offline_capable": true,
       "success_message": "I've adjusted the passenger's side temperature.",
@@ -1584,7 +1615,8 @@
         "setPassengerTemp",
         "passengerTemperature",
         "setPassengerTemperature"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "name": "bookRestaurant",
@@ -1643,11 +1675,9 @@
         "current temperature",
         "is ac on",
         "what is the temperature",
-        "car",
-        "model",
-        "vehicle",
         "tire pressure"
-      ]
+      ],
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>increasePassengerTemperature()</TOOL>",
@@ -1660,7 +1690,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've increased the passenger's temperature.",
-      "requires_vehicle_state": true
+      "requires_vehicle_state": true,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>decreasePassengerTemperature()</TOOL>",
@@ -1673,7 +1704,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've decreased the passenger's temperature.",
-      "requires_vehicle_state": true
+      "requires_vehicle_state": true,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>increaseDriverTemperature()</TOOL>",
@@ -1686,7 +1718,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've increased the driver's temperature.",
-      "requires_vehicle_state": true
+      "requires_vehicle_state": true,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>decreaseDriverTemperature()</TOOL>",
@@ -1699,7 +1732,8 @@
       ],
       "offline_capable": true,
       "success_message": "I've decreased the driver's temperature.",
-      "requires_vehicle_state": true
+      "requires_vehicle_state": true,
+      "direct_executable": true
     },
     {
       "prompt_string": "<TOOL>handleFeelingCold()</TOOL>",
@@ -1741,13 +1775,16 @@
       "handler_key": "suggestNearbyPlaces",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
+        "suggest nearby places",
         "suggest places",
         "places to visit",
-        "nearby attractions"
+        "nearby attractions",
+        "nearby places to visit"
       ],
       "offline_capable": false,
       "success_message": "Here are some nearby places.",
-      "requires_vehicle_state": false
+      "requires_vehicle_state": false,
+      "direct_executable": true
     }
   ],
   "system_instructions": [
@@ -1799,12 +1836,24 @@
         {
           "id": "volume_already_loud",
           "priority": 10,
-          "applies_to": ["setVolumeLevel"],
+          "applies_to": [
+            "setVolumeLevel"
+          ],
           "when": {
-            "arg_matches": ["up", "increase", "+", "louder", "max"],
+            "arg_matches": [
+              "up",
+              "increase",
+              "+",
+              "louder",
+              "max"
+            ],
             "media_playing": true,
             "sensors": [
-              { "source": "media_volume_pct", "op": ">=", "value": 85 }
+              {
+                "source": "media_volume_pct",
+                "op": ">=",
+                "value": 85
+              }
             ]
           },
           "action": "confirm",
@@ -1813,11 +1862,23 @@
         {
           "id": "volume_already_max",
           "priority": 5,
-          "applies_to": ["setVolumeLevel"],
+          "applies_to": [
+            "setVolumeLevel"
+          ],
           "when": {
-            "arg_matches": ["up", "increase", "+", "louder", "max"],
+            "arg_matches": [
+              "up",
+              "increase",
+              "+",
+              "louder",
+              "max"
+            ],
             "sensors": [
-              { "source": "media_volume_pct", "op": ">=", "value": 100 }
+              {
+                "source": "media_volume_pct",
+                "op": ">=",
+                "value": 100
+              }
             ]
           },
           "action": "block",
@@ -1826,10 +1887,16 @@
         {
           "id": "fan_already_max",
           "priority": 10,
-          "applies_to": ["increaseFanSpeed"],
+          "applies_to": [
+            "increaseFanSpeed"
+          ],
           "when": {
             "sensors": [
-              { "source": "fan_level", "op": ">=", "value": 7 }
+              {
+                "source": "fan_level",
+                "op": ">=",
+                "value": 7
+              }
             ]
           },
           "action": "block",
@@ -1838,11 +1905,22 @@
         {
           "id": "seat_heater_already_on",
           "priority": 10,
-          "applies_to": ["setSeatHeater"],
+          "applies_to": [
+            "setSeatHeater"
+          ],
           "when": {
-            "arg_matches": ["1", "2", "3", "on"],
+            "arg_matches": [
+              "1",
+              "2",
+              "3",
+              "on"
+            ],
             "sensors": [
-              { "source": "seat_heater_level", "op": ">=", "value": 2 }
+              {
+                "source": "seat_heater_level",
+                "op": ">=",
+                "value": 2
+              }
             ]
           },
           "action": "block",
@@ -1851,10 +1929,17 @@
         {
           "id": "open_windows_while_moving",
           "priority": 10,
-          "applies_to": ["openWindowsSlightly", "openWindows"],
+          "applies_to": [
+            "openWindowsSlightly",
+            "openWindows"
+          ],
           "when": {
             "sensors": [
-              { "source": "speed_mph", "op": ">=", "value": 40 }
+              {
+                "source": "speed_mph",
+                "op": ">=",
+                "value": 40
+              }
             ]
           },
           "action": "confirm",
@@ -1863,11 +1948,24 @@
         {
           "id": "set_windows_open_while_moving",
           "priority": 10,
-          "applies_to": ["setAllWindowsPosition", "setWindowPosition"],
+          "applies_to": [
+            "setAllWindowsPosition",
+            "setWindowPosition"
+          ],
           "when": {
-            "arg_matches": ["25", "50", "75", "100", "open"],
+            "arg_matches": [
+              "25",
+              "50",
+              "75",
+              "100",
+              "open"
+            ],
             "sensors": [
-              { "source": "speed_mph", "op": ">=", "value": 40 }
+              {
+                "source": "speed_mph",
+                "op": ">=",
+                "value": 40
+              }
             ]
           },
           "action": "confirm",
@@ -1876,10 +1974,16 @@
         {
           "id": "windows_already_open",
           "priority": 20,
-          "applies_to": ["openWindowsSlightly"],
+          "applies_to": [
+            "openWindowsSlightly"
+          ],
           "when": {
             "sensors": [
-              { "source": "window_open_pct", "op": ">=", "value": 20 }
+              {
+                "source": "window_open_pct",
+                "op": ">=",
+                "value": 20
+              }
             ]
           },
           "action": "block",
@@ -1888,10 +1992,16 @@
         {
           "id": "windows_already_closed",
           "priority": 20,
-          "applies_to": ["closeAllWindows"],
+          "applies_to": [
+            "closeAllWindows"
+          ],
           "when": {
             "sensors": [
-              { "source": "window_open_pct", "op": "<=", "value": 0 }
+              {
+                "source": "window_open_pct",
+                "op": "<=",
+                "value": 0
+              }
             ]
           },
           "action": "block",
@@ -1900,10 +2010,16 @@
         {
           "id": "auto_climate_already_on",
           "priority": 15,
-          "applies_to": ["turnOnAutoClimate"],
+          "applies_to": [
+            "turnOnAutoClimate"
+          ],
           "when": {
             "sensors": [
-              { "source": "hvac_auto_on", "op": "==", "value": 1 }
+              {
+                "source": "hvac_auto_on",
+                "op": "==",
+                "value": 1
+              }
             ]
           },
           "action": "block",
@@ -1912,11 +2028,21 @@
         {
           "id": "unlock_doors_while_moving",
           "priority": 8,
-          "applies_to": ["unlockDoors"],
+          "applies_to": [
+            "unlockDoors"
+          ],
           "when": {
             "sensors": [
-              { "source": "is_parked", "op": "==", "value": 0 },
-              { "source": "speed_mph", "op": ">=", "value": 5 }
+              {
+                "source": "is_parked",
+                "op": "==",
+                "value": 0
+              },
+              {
+                "source": "speed_mph",
+                "op": ">=",
+                "value": 5
+              }
             ]
           },
           "action": "confirm",
@@ -1925,10 +2051,16 @@
         {
           "id": "open_trunk_while_moving",
           "priority": 5,
-          "applies_to": ["openTrunk"],
+          "applies_to": [
+            "openTrunk"
+          ],
           "when": {
             "sensors": [
-              { "source": "speed_mph", "op": ">=", "value": 5 }
+              {
+                "source": "speed_mph",
+                "op": ">=",
+                "value": 5
+              }
             ]
           },
           "action": "block",
@@ -1937,10 +2069,16 @@
         {
           "id": "low_fuel_navigation",
           "priority": 12,
-          "applies_to": ["startNavigationTo"],
+          "applies_to": [
+            "startNavigationTo"
+          ],
           "when": {
             "sensors": [
-              { "source": "fuel_level_pct", "op": "<=", "value": 15 }
+              {
+                "source": "fuel_level_pct",
+                "op": "<=",
+                "value": 15
+              }
             ]
           },
           "action": "confirm",
@@ -1949,7 +2087,9 @@
         {
           "id": "already_navigating_same_dest",
           "priority": 9,
-          "applies_to": ["startNavigationTo"],
+          "applies_to": [
+            "startNavigationTo"
+          ],
           "when": {
             "nav_active": true,
             "nav_dest_matches_arg": true
@@ -1960,7 +2100,9 @@
         {
           "id": "reroute_while_navigating",
           "priority": 11,
-          "applies_to": ["startNavigationTo"],
+          "applies_to": [
+            "startNavigationTo"
+          ],
           "when": {
             "nav_active": true,
             "nav_dest_differs_arg": true

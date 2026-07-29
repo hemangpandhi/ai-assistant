@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DemoSettingsPresets.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">DemoSettingsPresets.kt</span></div><h1>DemoSettingsPresets.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.content.Context
+import java.util.Locale
+
+<span class="fc" id="L6">data class DemoPreset(</span>
+<span class="fc" id="L7">    val id: String,</span>
+<span class="pc" id="L8">    val displayName: String,</span>
+<span class="pc" id="L9">    val longitude: Double,</span>
+<span class="pc" id="L10">    val latitude: Double,</span>
+<span class="fc" id="L11">    val cityName: String,</span>
+<span class="pc" id="L12">    val homeAddress: String = &quot;Home&quot;,</span>
+<span class="pc" id="L13">    val workAddress: String = &quot;Work&quot;,</span>
+<span class="pc" id="L14">    val mechanicName: String = &quot;Mechanic&quot;,</span>
+<span class="pc" id="L15">    val mechanicNumber: String = &quot;1-800-555-0199&quot;,</span>
+<span class="pc" id="L16">    val diningPref: String = &quot;Pure Vegetarian&quot;,</span>
+<span class="pc" id="L17">    val companionMode: Boolean = true,</span>
+<span class="pc" id="L18">    val agenticLoop: Boolean = true</span>
+<span class="fc" id="L19">) {</span>
+<span class="pc" id="L20">    val coordinates: Pair&lt;Double, Double&gt; = Pair(longitude, latitude)</span>
+
+    fun coordinatesString(): String =
+<span class="fc" id="L23">        String.format(Locale.US, &quot;%.4f, %.4f&quot;, longitude, latitude)</span>
+}
+
+object DemoSettingsPresets {
+    const val PREF_INITIALIZED = &quot;demo_settings_initialized&quot;
+
+<span class="fc" id="L29">    val TOKYO_OEM = DemoPreset(</span>
+<span class="fc" id="L30">        id = &quot;tokyo_oem&quot;,</span>
+<span class="fc" id="L31">        displayName = &quot;OEM Demo — Tokyo&quot;,</span>
+<span class="fc" id="L32">        longitude = 139.6917,</span>
+<span class="fc" id="L33">        latitude = 35.6895,</span>
+<span class="fc" id="L34">        cityName = &quot;Tokyo&quot;,</span>
+<span class="fc" id="L35">        homeAddress = &quot;Shibuya, Tokyo&quot;,</span>
+<span class="fc" id="L36">        workAddress = &quot;Marunouchi, Tokyo&quot;</span>
+    )
+
+<span class="fc" id="L39">    val SAGAMIHARA = DemoPreset(</span>
+<span class="fc" id="L40">        id = &quot;sagamihara&quot;,</span>
+<span class="fc" id="L41">        displayName = &quot;Dev — Sagamihara&quot;,</span>
+<span class="fc" id="L42">        longitude = 139.37,</span>
+<span class="fc" id="L43">        latitude = 35.57,</span>
+<span class="fc" id="L44">        cityName = &quot;Sagamihara&quot;</span>
+    )
+
+<span class="pc" id="L47">    val ALL = listOf(TOKYO_OEM, SAGAMIHARA)</span>
+
+<span class="nc bnc" id="L49" title="All 4 branches missed.">    fun findById(id: String?): DemoPreset? = ALL.find { it.id == id }</span>
+
+    fun getSelected(context: Context): DemoPreset {
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        val id = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L53">            .getString(LocationManager.PREF_DEMO_PRESET, TOKYO_OEM.id) ?: TOKYO_OEM.id</span>
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        return findById(id) ?: TOKYO_OEM</span>
+    }
+
+    fun apply(context: Context, preset: DemoPreset) {
+<span class="nc" id="L58">        context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE).edit().apply {</span>
+<span class="nc" id="L59">            putString(LocationManager.PREF_DEMO_PRESET, preset.id)</span>
+<span class="nc" id="L60">            putString(LocationManager.PREF_LOCATION_OVERRIDE, preset.coordinatesString())</span>
+<span class="nc" id="L61">            putString(LocationManager.PREF_DEMO_CITY, preset.cityName)</span>
+<span class="nc" id="L62">            putString(&quot;home_address&quot;, preset.homeAddress)</span>
+<span class="nc" id="L63">            putString(&quot;work_address&quot;, preset.workAddress)</span>
+<span class="nc" id="L64">            putString(&quot;mechanic_name&quot;, preset.mechanicName)</span>
+<span class="nc" id="L65">            putString(&quot;mechanic_number&quot;, preset.mechanicNumber)</span>
+<span class="nc" id="L66">            putString(&quot;dining_pref&quot;, preset.diningPref)</span>
+<span class="nc" id="L67">            putBoolean(&quot;companion_mode_enabled&quot;, preset.companionMode)</span>
+<span class="nc" id="L68">            putBoolean(&quot;agentic_loop_enabled&quot;, preset.agenticLoop)</span>
+<span class="nc" id="L69">            apply()</span>
+<span class="nc" id="L70">        }</span>
+<span class="nc" id="L71">    }</span>
+
+    fun ensureDefaults(context: Context) {
+<span class="nc" id="L74">        val prefs = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L75">        prefs.edit()</span>
+<span class="nc" id="L76">            .putString(LocationManager.PREF_LOCATION_SOURCE, LocationManager.Source.DEVICE.prefValue)</span>
+<span class="nc" id="L77">            .putBoolean(&quot;cloud_model_active&quot;, false)</span>
+<span class="nc" id="L78">            .putBoolean(&quot;cloud_fallback_enabled&quot;, false)</span>
+<span class="nc" id="L79">            .putString(&quot;selected_model&quot;, &quot;/data/local/tmp/llm/model.litertlm&quot;)</span>
+<span class="nc" id="L80">            .putBoolean(PREF_INITIALIZED, true)</span>
+<span class="nc" id="L81">            .apply()</span>
+<span class="nc" id="L82">        apply(context, TOKYO_OEM)</span>
+<span class="nc" id="L83">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

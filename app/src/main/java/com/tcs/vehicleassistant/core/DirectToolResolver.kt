@@ -57,18 +57,25 @@ object DirectToolResolver {
         "describe", "should", "could you tell", "do you",
     )
 
+    /** Always LLM — never DirectTool even if a keyword substring matches. */
+    private val HARD_CHAT_PREFIXES = listOf(
+        "tell", "explain", "describe", "should", "could you tell", "do you",
+    )
+
     /**
      * Placeholders that appear inside registry `prompt_string` argument lists. Anything else
-     * (NAME,MSG, FACT, CITY, …) is considered too free-form for direct execution.
+     * (NAME, MSG, FACT, …) is considered too free-form for direct execution.
      */
     private val SUPPORTED_PLACEHOLDERS = setOf(
-        "VAL", "LEVEL", "SONG", "PLACE_NAME", "PCT", "DIRECTION", "AMENITY", "ALERT_LEVEL",
+        "VAL", "LEVEL", "SONG", "PLACE_NAME", "CITY", "PCT", "DIRECTION", "AMENITY", "ALERT_LEVEL",
     )
 
     fun resolve(query: String, tools: Collection<ToolSpec>, policy: Policy = Policy()): Outcome {
         if (!policy.enabled) return Outcome.Skip(Rejection("direct_execution_disabled"))
 
-        val trimmed = query.trim()
+        // Trailing "?" is common ASR/demo punctuation ("What's the weather?"); only reject
+        // mid-utterance question marks that signal a compound interrogative.
+        val trimmed = query.trim().trimEnd('?', '!', '.', ',')
         if (trimmed.isEmpty()) return Outcome.Skip(Rejection("empty_query"))
         if (trimmed.length > policy.maxQueryChars) return Outcome.Skip(Rejection("query_too_long"))
         if (trimmed.contains('?')) return Outcome.Skip(Rejection("question_mark"))
@@ -78,8 +85,13 @@ object DirectToolResolver {
         if (words.isEmpty() || words.size > policy.maxQueryWords) {
             return Outcome.Skip(Rejection("query_word_count"))
         }
-        if (QUESTION_PREFIXES.any { normalized == it || normalized.startsWith("$it ") }) {
-            return Outcome.Skip(Rejection("interrogative"))
+        val hardChat = HARD_CHAT_PREFIXES.any {
+            normalized == it || normalized.startsWith("$it ")
+        }
+        if (hardChat) return Outcome.Skip(Rejection("interrogative"))
+
+        val looksSoftInterrogative = QUESTION_PREFIXES.any {
+            normalized == it || normalized.startsWith("$it ")
         }
 
         val candidates = mutableListOf<Pair<ToolSpec, String>>()
@@ -91,7 +103,14 @@ object DirectToolResolver {
             candidates += tool to keyword
         }
 
-        if (candidates.isEmpty()) return Outcome.Skip(Rejection("no_keyword_match"))
+        // Soft "what/who …" allowed when a DirectTool keyword hits (weather, identity).
+        if (candidates.isEmpty()) {
+            return if (looksSoftInterrogative) {
+                Outcome.Skip(Rejection("interrogative"))
+            } else {
+                Outcome.Skip(Rejection("no_keyword_match"))
+            }
+        }
 
         candidates.sortByDescending { it.second.length }
         val best = candidates.first()
@@ -176,6 +195,7 @@ object DirectToolResolver {
         if (keyword.length < 3) return false
         val needsTrailing = tool.promptString.contains("SONG", ignoreCase = true) ||
             tool.promptString.contains("PLACE_NAME", ignoreCase = true) ||
+            tool.promptString.contains("CITY", ignoreCase = true) ||
             tool.promptString.contains("AMENITY", ignoreCase = true)
         if (!needsTrailing) return false
         return normalizedQuery.startsWith("$keyword ") &&
@@ -234,15 +254,17 @@ object DirectToolResolver {
                 ) ?: return null
                 "$key(\"$place\")"
             }
+            "CITY" -> {
+                val city = extractCityArg(normalizedQuery) ?: "here"
+                "$key($city)"
+            }
             "DIRECTION" -> {
                 val direction = extractAirflowDirection(normalizedQuery) ?: return null
                 "$key($direction)"
             }
             "AMENITY" -> {
-                val amenity = extractTrailingArg(
-                    normalizedQuery,
-                    prefixes = listOf("find", "search for", "search nearby", "nearby"),
-                ) ?: return null
+                // Bare "find nearby" / "craving" default to restaurant; specific cues override.
+                val amenity = extractAmenityArg(normalizedQuery) ?: "restaurant"
                 "$key($amenity)"
             }
             "ALERT_LEVEL" -> "$key(2)"
@@ -325,10 +347,63 @@ object DirectToolResolver {
     }
 
     private fun extractAirflowDirection(query: String): String? = when {
-        query.contains("face and floor") || query.contains("floor and face") -> "face and floor"
+        query.contains("face and floor") || query.contains("floor and face") ||
+            query.contains("face and feet") || query.contains("feet and face") -> "face and floor"
         query.contains("defrost") -> "defrost"
-        query.contains("floor") -> "floor"
+        query.contains("floor") || query.contains("feet") -> "floor"
         query.contains("face") -> "face"
         else -> null
+    }
+
+    /** City for getWeather; "here" means use LocationManager at execution time. */
+    fun extractCityArg(normalizedQuery: String): String? {
+        extractTrailingArg(
+            normalizedQuery,
+            prefixes = listOf(
+                "what is the weather in",
+                "whats the weather in",
+                "weather forecast in",
+                "weather forecast for",
+                "forecast in",
+                "forecast for",
+                "weather in",
+                "weather for",
+                "weather at",
+            ),
+        )?.let { return it }
+        return null
+    }
+
+    /**
+     * Amenity for searchNearby: trailing phrase after find/nearby verbs, else keyword inference
+     * for short cabin asks ("gas station", "i am hungry", "pizza nearby").
+     */
+    fun extractAmenityArg(normalizedQuery: String): String? {
+        extractTrailingArg(
+            normalizedQuery,
+            prefixes = listOf(
+                "find nearby",
+                "search nearby",
+                "looking for nearby",
+                "craving some good",
+                "craving some",
+                "craving",
+                "find a nearby",
+                "find me",
+                "search for",
+                "nearby",
+                "find",
+            ),
+        )?.let { rest ->
+            return rest.removeSuffix(" nearby").removePrefix("nearby ").trim().ifBlank { null }
+        }
+        return when {
+            Regex("""\b(gas station|petrol|fuel)\b""").containsMatchIn(normalizedQuery) -> "gas"
+            Regex("""\bcharg(e|ing)\b""").containsMatchIn(normalizedQuery) -> "charging"
+            Regex("""\bcoffee\b""").containsMatchIn(normalizedQuery) -> "coffee shop"
+            Regex("""\bpizza\b""").containsMatchIn(normalizedQuery) -> "pizza"
+            Regex("""\b(restaurant|food|hungry|eat)\b""").containsMatchIn(normalizedQuery) -> "restaurant"
+            else -> null
+        }
     }
 }

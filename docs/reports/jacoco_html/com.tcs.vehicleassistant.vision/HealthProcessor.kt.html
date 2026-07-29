@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>HealthProcessor.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">HealthProcessor.kt</span></div><h1>HealthProcessor.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.util.Log
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import java.util.ArrayDeque
+import kotlin.math.abs
+
+<span class="nc" id="L10">data class HealthState(</span>
+<span class="nc" id="L11">    val heartRate: Int,</span>
+<span class="nc" id="L12">    val stressLevel: String, // &quot;Low&quot;, &quot;Moderate&quot;, &quot;High&quot;</span>
+<span class="nc" id="L13">    val isCalmModeActive: Boolean,</span>
+<span class="nc" id="L14">    val rawSignal: Float = 0f // For graphing if needed</span>
+<span class="nc" id="L15">)</span>
+
+<span class="nc" id="L17">class HealthProcessor(private val listener: (HealthState) -&gt; Unit) {</span>
+
+<span class="nc" id="L19">    private val signalHistory = ArrayDeque&lt;Float&gt;()</span>
+<span class="nc" id="L20">    private val MAX_HISTORY = 150 // 5 seconds at ~30 FPS</span>
+    
+<span class="nc" id="L22">    private var currentBpm = 72</span>
+<span class="nc" id="L23">    private var stressLevel = &quot;Low&quot;</span>
+    private var isCalmMode = false
+    
+    private var lastProcessTime = 0L
+<span class="nc" id="L27">    private val PROCESS_INTERVAL_MS = 33L // ~30 FPS cap</span>
+    
+    // Filter State
+    private var lastFiltered = 0f
+    
+    fun processFrame(bitmap: Bitmap, faceResult: FaceLandmarkerResult?, currentMood: String?) {
+<span class="nc" id="L33">        val now = System.currentTimeMillis()</span>
+<span class="nc bnc" id="L34" title="All 2 branches missed.">        if (now - lastProcessTime &lt; PROCESS_INTERVAL_MS) return</span>
+<span class="nc" id="L35">        lastProcessTime = now</span>
+
+<span class="nc" id="L37">        var roiGreenAvg = 0f</span>
+<span class="nc" id="L38">        var validFace = false</span>
+        
+        // 1. Get ROI (Forehead/Cheek)
+<span class="nc bnc" id="L41" title="All 10 branches missed.">        if (faceResult != null &amp;&amp; faceResult.faceLandmarks().isNotEmpty() &amp;&amp; faceResult.faceLandmarks()[0].isNotEmpty()) {</span>
+<span class="nc" id="L42">            val landmarks = faceResult.faceLandmarks()[0]</span>
+            // Forehead approximation (between eyes, slightly up)
+            // MP Face Mesh: 10 (High Forehead), 151 (Mid Forehead), 9 (Mid between eyes)
+            // Let's take a small patch around landmark 151 (Forehead center)
+            // or 332, 297 (Right Cheek), 101, 67 (Left Cheek).
+            // Cheeks are better for rPPG. 
+            // Left Cheek Center ~ 123?
+            // Let's use simple center of image fallback if landmarks fail, but tries landmarks[101] (Left Cheek)
+            
+<span class="nc" id="L51">            try {</span>
+                // Safeguard indices
+<span class="nc bnc" id="L53" title="All 2 branches missed.">                if (landmarks.size &gt; 200) {</span>
+<span class="nc" id="L54">                    val cheek = landmarks[101] </span>
+<span class="nc" id="L55">                    val cx = (cheek.x() * bitmap.width).toInt()</span>
+<span class="nc" id="L56">                    val cy = (cheek.y() * bitmap.height).toInt()</span>
+                    
+<span class="nc" id="L58">                    roiGreenAvg = getAverageGreen(bitmap, cx, cy, 20)</span>
+<span class="nc" id="L59">                    validFace = true</span>
+                }
+<span class="nc" id="L61">            } catch (e: Exception) {</span>
+                // Fallback
+            }
+        }
+        
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (!validFace) {</span>
+             // Fallback to center crop (assumes user is centered)
+<span class="nc" id="L68">             roiGreenAvg = getAverageGreen(bitmap, bitmap.width / 2, bitmap.height / 2, 40)</span>
+        }
+        
+        // 2. Signal Processing
+        // Normalize
+<span class="nc" id="L73">        signalHistory.add(roiGreenAvg)</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">        if (signalHistory.size &gt; MAX_HISTORY) signalHistory.removeFirst()</span>
+        
+        // 3. BPM Calculation (Simple Zero-Crossing / Peak Det on AC component)
+<span class="nc bnc" id="L77" title="All 2 branches missed.">        if (signalHistory.size &gt;= MAX_HISTORY) {</span>
+<span class="nc" id="L78">            calculateBpm()</span>
+        }
+        
+        // 4. Stress Logic
+        // Mock Stress based on BPM and Mood (if available)
+<span class="nc bnc" id="L83" title="All 6 branches missed.">        stressLevel = if (currentBpm &gt; 90 || currentMood == &quot;Angry &gt;:(&quot; || currentMood == &quot;Sad :(&quot;) {</span>
+<span class="nc" id="L84">            &quot;High&quot;</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">        } else if (currentBpm &gt; 80) {</span>
+<span class="nc" id="L86">            &quot;Moderate&quot;</span>
+        } else {
+<span class="nc" id="L88">            &quot;Low&quot;</span>
+        }
+        
+<span class="nc bnc" id="L91" title="All 4 branches missed.">        if (stressLevel == &quot;High&quot; &amp;&amp; !isCalmMode) {</span>
+             // Trigger? Logic outside will handle the actual command, we just report state
+             // But we can flag it here.
+             // We'll let the Service decide when to trigger the &quot;Action&quot; to avoid spam.
+        }
+
+<span class="nc" id="L97">        listener(HealthState(currentBpm, stressLevel, isCalmMode, roiGreenAvg))</span>
+<span class="nc" id="L98">    }</span>
+    
+    private fun getAverageGreen(bitmap: Bitmap, cx: Int, cy: Int, size: Int): Float {
+<span class="nc" id="L101">        var sum = 0L</span>
+<span class="nc" id="L102">        var count = 0</span>
+        
+<span class="nc" id="L104">        val startX = (cx - size).coerceAtLeast(0)</span>
+<span class="nc" id="L105">        val endX = (cx + size).coerceAtMost(bitmap.width - 1)</span>
+<span class="nc" id="L106">        val startY = (cy - size).coerceAtLeast(0)</span>
+<span class="nc" id="L107">        val endY = (cy + size).coerceAtMost(bitmap.height - 1)</span>
+        
+<span class="nc bnc" id="L109" title="All 4 branches missed.">        for (x in startX..endX step 2) { // Skip pixels for speed</span>
+<span class="nc bnc" id="L110" title="All 4 branches missed.">            for (y in startY..endY step 2) {</span>
+<span class="nc" id="L111">                val pixel = bitmap.getPixel(x, y)</span>
+                // Green channel
+<span class="nc" id="L113">                sum += (pixel shr 8) and 0xFF</span>
+<span class="nc" id="L114">                count++</span>
+            }
+        }
+<span class="nc bnc" id="L117" title="All 2 branches missed.">        return if (count &gt; 0) sum.toFloat() / count else 0f</span>
+    }
+    
+    private fun calculateBpm() {
+        // Simple heuristic for demo:
+        // Real rPPG is complex. For a demo, we might want a &quot;Simulated but Reactive&quot; approach 
+        // if the signal is too noisy (which it will be without rigorous filtering).
+        // Let's try to extract a frequency.
+        
+        // Remove DC offset (Mean)
+<span class="nc" id="L127">        val mean = signalHistory.average().toFloat()</span>
+<span class="nc" id="L128">        val acSignal = signalHistory.map { it - mean }</span>
+        
+        // Count Zero Crossings (with hysteresis)
+<span class="nc" id="L131">        var zeroCrossings = 0</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">        var isPositive = acSignal.first() &gt; 0</span>
+        
+<span class="nc bnc" id="L134" title="All 2 branches missed.">        for (value in acSignal) {</span>
+<span class="nc bnc" id="L135" title="All 4 branches missed.">            if (isPositive &amp;&amp; value &lt; -2.0) { // Threshold 2.0 to avoid noise</span>
+<span class="nc" id="L136">                zeroCrossings++</span>
+<span class="nc" id="L137">                isPositive = false</span>
+<span class="nc bnc" id="L138" title="All 4 branches missed.">            } else if (!isPositive &amp;&amp; value &gt; 2.0) {</span>
+<span class="nc" id="L139">                zeroCrossings++</span>
+<span class="nc" id="L140">                isPositive = true</span>
+            }
+        }
+        
+        // Crossings / 2 = Cycles
+        // Cycles / Time = Frequency
+        // Time = MAX_HISTORY * (PROCESS_INTERVAL_MS / 1000) ?? No, real fps varies.
+        // Approx 5 seconds buffer.
+<span class="nc" id="L148">        val cycles = zeroCrossings / 2.0</span>
+<span class="nc" id="L149">        val estimatedBpm = (cycles * (60.0 / 5.0)).toInt() // 5 seconds window</span>
+        
+        // Smoothing
+<span class="nc bnc" id="L152" title="All 6 branches missed.">        if (estimatedBpm in 50..120) {</span>
+<span class="nc" id="L153">            currentBpm = (currentBpm * 0.7 + estimatedBpm * 0.3).toInt()</span>
+        } else {
+             // Noise? Drift back to 72
+<span class="nc" id="L156">             currentBpm = (currentBpm * 0.95 + 72 * 0.05).toInt()</span>
+        }
+<span class="nc" id="L158">    }</span>
+    
+    fun setCalmMode(active: Boolean) {
+<span class="nc" id="L161">        isCalmMode = active</span>
+<span class="nc" id="L162">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

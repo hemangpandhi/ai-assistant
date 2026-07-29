@@ -1,0 +1,410 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DirectToolResolver.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.core</a> &gt; <span class="el_source">DirectToolResolver.kt</span></div><h1>DirectToolResolver.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.core
+
+/**
+ * Registry-driven direct tool execution: when a query uniquely matches a tool that the OEM has
+ * marked `direct_executable`, act immediately and skip LiteRT.
+ *
+ * This is the production path for sub-second cabin commands. Scalability comes from the skills
+ * registry — new tools opt in with keywords + `direct_executable: true`; no Kotlin phrase lists.
+ *
+ * Safety over recall: ambiguous, confirmatory, multi-arg, or conversational turns fall through to
+ * the LLM rather than risk a wrong VHAL write.
+ */
+object DirectToolResolver {
+
+<span class="fc" id="L15">    data class ToolSpec(</span>
+<span class="fc" id="L16">        val id: String,</span>
+<span class="fc" id="L17">        val handlerKey: String,</span>
+<span class="fc" id="L18">        val promptString: String,</span>
+<span class="fc" id="L19">        val keywords: List&lt;String&gt;,</span>
+<span class="fc" id="L20">        val successMessage: String?,</span>
+<span class="fc" id="L21">        val requiresConfirmation: Boolean,</span>
+<span class="fc" id="L22">        val requiresAgenticLoop: Boolean,</span>
+<span class="fc" id="L23">        val directExecutable: Boolean,</span>
+    )
+
+<span class="fc" id="L26">    data class Policy(</span>
+<span class="fc" id="L27">        val enabled: Boolean = true,</span>
+        /** Reject matches whose best keyword is shorter than this (blocks &quot;hot&quot;, &quot;fan&quot;, …). */
+<span class="fc" id="L29">        val minKeywordChars: Int = 5,</span>
+        /** Soft cap so long chat turns never short-circuit into a tool. */
+<span class="fc" id="L31">        val maxQueryWords: Int = 12,</span>
+<span class="fc" id="L32">        val maxQueryChars: Int = 100,</span>
+        /**
+         * Winner's matched-keyword length must beat the runner-up by at least this many characters,
+         * or the runner-up must be absent. Prevents &quot;play music&quot; vs &quot;stop music&quot; ties on &quot;music&quot;.
+         */
+<span class="fc" id="L37">        val minKeywordMargin: Int = 3,</span>
+<span class="fc" id="L38">    )</span>
+
+<span class="fc" id="L40">    data class Hit(</span>
+<span class="fc" id="L41">        val toolId: String,</span>
+<span class="fc" id="L42">        val toolCall: String,</span>
+<span class="fc" id="L43">        val spokenResponse: String,</span>
+<span class="fc" id="L44">        val matchedKeyword: String,</span>
+<span class="pc" id="L45">        val reason: String,</span>
+    )
+
+<span class="pc" id="L48">    data class Rejection(val reason: String)</span>
+
+    sealed class Outcome {
+<span class="fc" id="L51">        data class Execute(val hit: Hit) : Outcome()</span>
+<span class="pc" id="L52">        data class Skip(val rejection: Rejection) : Outcome()</span>
+    }
+
+<span class="fc" id="L55">    private val QUESTION_PREFIXES = listOf(</span>
+<span class="fc" id="L56">        &quot;what&quot;, &quot;why&quot;, &quot;how&quot;, &quot;when&quot;, &quot;where&quot;, &quot;who&quot;, &quot;which&quot;, &quot;tell&quot;, &quot;explain&quot;,</span>
+<span class="fc" id="L57">        &quot;describe&quot;, &quot;should&quot;, &quot;could you tell&quot;, &quot;do you&quot;,</span>
+    )
+
+    /** Always LLM — never DirectTool even if a keyword substring matches. */
+<span class="fc" id="L61">    private val HARD_CHAT_PREFIXES = listOf(</span>
+<span class="fc" id="L62">        &quot;tell&quot;, &quot;explain&quot;, &quot;describe&quot;, &quot;should&quot;, &quot;could you tell&quot;, &quot;do you&quot;,</span>
+    )
+
+    /**
+     * Placeholders that appear inside registry `prompt_string` argument lists. Anything else
+     * (NAME, MSG, FACT, …) is considered too free-form for direct execution.
+     */
+<span class="fc" id="L69">    private val SUPPORTED_PLACEHOLDERS = setOf(</span>
+<span class="fc" id="L70">        &quot;VAL&quot;, &quot;LEVEL&quot;, &quot;SONG&quot;, &quot;PLACE_NAME&quot;, &quot;CITY&quot;, &quot;PCT&quot;, &quot;DIRECTION&quot;, &quot;AMENITY&quot;, &quot;ALERT_LEVEL&quot;,</span>
+    )
+
+<span class="fc" id="L73">    fun resolve(query: String, tools: Collection&lt;ToolSpec&gt;, policy: Policy = Policy()): Outcome {</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (!policy.enabled) return Outcome.Skip(Rejection(&quot;direct_execution_disabled&quot;))</span>
+
+        // Trailing &quot;?&quot; is common ASR/demo punctuation (&quot;What's the weather?&quot;); only reject
+        // mid-utterance question marks that signal a compound interrogative.
+<span class="fc" id="L78">        val trimmed = query.trim().trimEnd('?', '!', '.', ',')</span>
+<span class="pc bpc" id="L79" title="2 of 4 branches missed.">        if (trimmed.isEmpty()) return Outcome.Skip(Rejection(&quot;empty_query&quot;))</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (trimmed.length &gt; policy.maxQueryChars) return Outcome.Skip(Rejection(&quot;query_too_long&quot;))</span>
+<span class="pc bpc" id="L81" title="1 of 2 branches missed.">        if (trimmed.contains('?')) return Outcome.Skip(Rejection(&quot;question_mark&quot;))</span>
+
+<span class="fc" id="L83">        val normalized = normalize(trimmed)</span>
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">        val words = normalized.split(' ').filter { it.isNotEmpty() }</span>
+<span class="pc bpc" id="L85" title="2 of 4 branches missed.">        if (words.isEmpty() || words.size &gt; policy.maxQueryWords) {</span>
+<span class="nc" id="L86">            return Outcome.Skip(Rejection(&quot;query_word_count&quot;))</span>
+        }
+<span class="fc" id="L88">        val hardChat = HARD_CHAT_PREFIXES.any {</span>
+<span class="pc bpc" id="L89" title="1 of 4 branches missed.">            normalized == it || normalized.startsWith(&quot;$it &quot;)</span>
+        }
+<span class="fc bfc" id="L91" title="All 2 branches covered.">        if (hardChat) return Outcome.Skip(Rejection(&quot;interrogative&quot;))</span>
+
+<span class="fc" id="L93">        val looksSoftInterrogative = QUESTION_PREFIXES.any {</span>
+<span class="pc bpc" id="L94" title="1 of 4 branches missed.">            normalized == it || normalized.startsWith(&quot;$it &quot;)</span>
+        }
+
+<span class="fc" id="L97">        val candidates = mutableListOf&lt;Pair&lt;ToolSpec, String&gt;&gt;()</span>
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        for (tool in tools) {</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">            if (!tool.directExecutable) continue</span>
+<span class="pc bpc" id="L100" title="1 of 4 branches missed.">            if (tool.requiresConfirmation || tool.requiresAgenticLoop) continue</span>
+<span class="fc bfc" id="L101" title="All 2 branches covered.">            val keyword = bestKeywordMatch(normalized, tool.keywords) ?: continue</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">            if (!isKeywordConfident(keyword, normalized, tool, policy)) continue</span>
+<span class="fc" id="L103">            candidates += tool to keyword</span>
+        }
+
+        // Soft &quot;what/who …&quot; allowed when a DirectTool keyword hits (weather, identity).
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (candidates.isEmpty()) {</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">            return if (looksSoftInterrogative) {</span>
+<span class="fc" id="L109">                Outcome.Skip(Rejection(&quot;interrogative&quot;))</span>
+            } else {
+<span class="fc" id="L111">                Outcome.Skip(Rejection(&quot;no_keyword_match&quot;))</span>
+            }
+        }
+
+<span class="fc" id="L115">        candidates.sortByDescending { it.second.length }</span>
+<span class="fc" id="L116">        val best = candidates.first()</span>
+<span class="pc bpc" id="L117" title="1 of 4 branches missed.">        val secondLen = candidates.getOrNull(1)?.second?.length ?: 0</span>
+<span class="fc bfc" id="L118" title="All 4 branches covered.">        if (secondLen &gt; 0 &amp;&amp; best.second.length - secondLen &lt; policy.minKeywordMargin) {</span>
+            // Same-length distinct keywords for different tools → also ambiguous.
+<span class="pc bpc" id="L120" title="1 of 2 branches missed.">            val tied = candidates.filter { it.second.length == best.second.length }.map { it.first.id }.distinct()</span>
+<span class="pc bpc" id="L121" title="1 of 2 branches missed.">            if (tied.size &gt; 1) {</span>
+<span class="fc" id="L122">                return Outcome.Skip(Rejection(&quot;ambiguous_tools:${tied.joinToString(&quot;,&quot;)}&quot;))</span>
+            }
+<span class="nc" id="L124">            return Outcome.Skip(Rejection(&quot;weak_margin&quot;))</span>
+        }
+
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        val toolCall = buildToolCall(best.first, normalized)</span>
+<span class="fc" id="L128">            ?: return Outcome.Skip(Rejection(&quot;unresolvable_args:${best.first.id}&quot;))</span>
+
+<span class="fc" id="L130">        val spoken = spokenResponseFor(best.first, toolCall)</span>
+
+<span class="fc" id="L132">        return Outcome.Execute(</span>
+<span class="fc" id="L133">            Hit(</span>
+<span class="fc" id="L134">                toolId = best.first.id,</span>
+<span class="fc" id="L135">                toolCall = toolCall,</span>
+<span class="fc" id="L136">                spokenResponse = spoken,</span>
+<span class="fc" id="L137">                matchedKeyword = best.second,</span>
+<span class="fc" id="L138">                reason = &quot;keyword_len=${best.second.length}&quot;,</span>
+            )
+        )
+    }
+
+    /**
+     * Prefer a song-aware spoken line for media; otherwise use the registry success_message.
+     * Static &quot;putting that on for you&quot; hid the artist/title the user actually asked for.
+     */
+    fun spokenResponseFor(tool: ToolSpec, toolCall: String): String {
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        if (tool.handlerKey.equals(&quot;playMusic&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">            toolCall.startsWith(&quot;playMusic&quot;, ignoreCase = true)</span>
+        ) {
+<span class="fc" id="L151">            val song = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).trim()</span>
+<span class="fc" id="L152">                .removeSurrounding(&quot;\&quot;&quot;)</span>
+<span class="pc bpc" id="L153" title="2 of 6 branches missed.">            if (song.isNotBlank() &amp;&amp; !song.equals(&quot;music&quot;, ignoreCase = true) &amp;&amp;</span>
+<span class="pc bpc" id="L154" title="1 of 2 branches missed.">                !song.equals(&quot;SONG&quot;, ignoreCase = true)</span>
+            ) {
+<span class="fc" id="L156">                return &quot;Great choice — putting on $song for you!&quot;</span>
+            }
+        }
+<span class="pc bpc" id="L159" title="3 of 8 branches missed.">        return tool.successMessage?.takeIf { it.isNotBlank() } ?: &quot;Done.&quot;</span>
+    }
+
+    fun normalize(raw: String): String =
+<span class="fc" id="L163">        raw.lowercase()</span>
+<span class="fc" id="L164">            .replace(Regex(&quot;[^a-z0-9\\s]&quot;), &quot; &quot;)</span>
+<span class="fc" id="L165">            .replace(Regex(&quot;\\s+&quot;), &quot; &quot;)</span>
+<span class="fc" id="L166">            .trim()</span>
+
+    /**
+     * Longest whole-phrase keyword contained in [normalizedQuery]. Longer phrases win so
+     * &quot;increase temperature&quot; outranks a shorter accidental substring.
+     */
+    fun bestKeywordMatch(normalizedQuery: String, keywords: List&lt;String&gt;): String? {
+<span class="fc" id="L173">        var best: String? = null</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">        for (rawKeyword in keywords) {</span>
+<span class="fc" id="L175">            val keyword = normalize(rawKeyword)</span>
+<span class="pc bpc" id="L176" title="2 of 4 branches missed.">            if (keyword.isEmpty()) continue</span>
+<span class="fc bfc" id="L177" title="All 2 branches covered.">            if (!containsWholePhrase(normalizedQuery, keyword)) continue</span>
+<span class="fc bfc" id="L178" title="All 4 branches covered.">            if (best == null || keyword.length &gt; best.length) best = keyword</span>
+        }
+<span class="fc" id="L180">        return best</span>
+    }
+
+    /**
+     * Long keywords always pass. Short verb prefixes (e.g. &quot;play&quot;) only pass when the tool's
+     * prompt expects a trailing argument and the user actually supplied more text after the verb —
+     * so &quot;play jazz&quot; can execute while bare &quot;play&quot; / &quot;hot&quot; cannot.
+     */
+    fun isKeywordConfident(
+        keyword: String,
+        normalizedQuery: String,
+        tool: ToolSpec,
+        policy: Policy,
+    ): Boolean {
+<span class="fc bfc" id="L194" title="All 2 branches covered.">        if (keyword.length &gt;= policy.minKeywordChars) return true</span>
+<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        if (keyword.length &lt; 3) return false</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">        val needsTrailing = tool.promptString.contains(&quot;SONG&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;PLACE_NAME&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L198" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;CITY&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;AMENITY&quot;, ignoreCase = true)</span>
+<span class="fc bfc" id="L200" title="All 2 branches covered.">        if (!needsTrailing) return false</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">        return normalizedQuery.startsWith(&quot;$keyword &quot;) &amp;&amp;</span>
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">            normalizedQuery.length &gt;= keyword.length + 2</span>
+    }
+
+    fun containsWholePhrase(haystack: String, phrase: String): Boolean {
+<span class="fc bfc" id="L206" title="All 2 branches covered.">        if (haystack == phrase) return true</span>
+<span class="fc" id="L207">        val pattern = Regex(&quot;&quot;&quot;(?:^|\s)${Regex.escape(phrase)}(?:\s|$)&quot;&quot;&quot;)</span>
+<span class="fc" id="L208">        return pattern.containsMatchIn(haystack)</span>
+    }
+
+    /**
+     * Builds `handlerKey(args)` from the tool's prompt template and the user query.
+     * Returns null when a required placeholder cannot be filled safely.
+     */
+    fun buildToolCall(tool: ToolSpec, normalizedQuery: String): String? {
+<span class="fc" id="L216">        val key = tool.handlerKey</span>
+<span class="fc" id="L217">        val argTemplate = tool.promptString</span>
+<span class="fc" id="L218">            .substringAfter(&quot;&lt;TOOL&gt;&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L219">            .substringBefore(&quot;&lt;/TOOL&gt;&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L220">            .substringAfter(&quot;(&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L221">            .substringBefore(&quot;)&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L222">            .trim()</span>
+<span class="fc" id="L223">            .removeSurrounding(&quot;\&quot;&quot;)</span>
+
+<span class="fc bfc" id="L225" title="All 4 branches covered.">        if (argTemplate.isEmpty()) return &quot;$key()&quot;</span>
+
+<span class="fc" id="L227">        val tokens = argTemplate.split(',').map { it.trim().removeSurrounding(&quot;\&quot;&quot;).uppercase() }</span>
+<span class="fc bfc" id="L228" title="All 4 branches covered.">        if (tokens.any { it !in SUPPORTED_PLACEHOLDERS }) return null</span>
+<span class="pc bpc" id="L229" title="1 of 2 branches missed.">        if (tokens.size != 1) return null // multi-arg tools stay on the LLM path</span>
+
+<span class="pc bpc" id="L231" title="1 of 8 branches missed.">        return when (tokens.single()) {</span>
+            &quot;VAL&quot;, &quot;LEVEL&quot;, &quot;PCT&quot; -&gt; {
+<span class="fc bfc" id="L233" title="All 2 branches covered.">                val value = extractNumericOrDirectionalArg(normalizedQuery, key) ?: return null</span>
+<span class="fc" id="L234">                &quot;$key($value)&quot;</span>
+            }
+            &quot;SONG&quot; -&gt; {
+<span class="fc bfc" id="L237" title="All 2 branches covered.">                val song = extractSongArg(normalizedQuery) ?: &quot;music&quot;</span>
+<span class="fc" id="L238">                &quot;$key($song)&quot;</span>
+            }
+            &quot;PLACE_NAME&quot; -&gt; {
+<span class="pc bpc" id="L241" title="1 of 2 branches missed.">                val place = extractTrailingArg(</span>
+<span class="fc" id="L242">                    normalizedQuery,</span>
+<span class="fc" id="L243">                    prefixes = listOf(</span>
+<span class="fc" id="L244">                        &quot;navigate me to&quot;,</span>
+<span class="fc" id="L245">                        &quot;take me to the&quot;,</span>
+<span class="fc" id="L246">                        &quot;take me to&quot;,</span>
+<span class="fc" id="L247">                        &quot;directions to&quot;,</span>
+<span class="fc" id="L248">                        &quot;route to&quot;,</span>
+<span class="fc" id="L249">                        &quot;drive to&quot;,</span>
+<span class="fc" id="L250">                        &quot;go to&quot;,</span>
+<span class="fc" id="L251">                        &quot;navigate to&quot;,</span>
+<span class="fc" id="L252">                        &quot;navigate&quot;,</span>
+                    ),
+<span class="nc" id="L254">                ) ?: return null</span>
+<span class="fc" id="L255">                &quot;$key(\&quot;$place\&quot;)&quot;</span>
+            }
+            &quot;CITY&quot; -&gt; {
+<span class="fc bfc" id="L258" title="All 2 branches covered.">                val city = extractCityArg(normalizedQuery) ?: &quot;here&quot;</span>
+<span class="fc" id="L259">                &quot;$key($city)&quot;</span>
+            }
+            &quot;DIRECTION&quot; -&gt; {
+<span class="pc bpc" id="L262" title="1 of 2 branches missed.">                val direction = extractAirflowDirection(normalizedQuery) ?: return null</span>
+<span class="fc" id="L263">                &quot;$key($direction)&quot;</span>
+            }
+            &quot;AMENITY&quot; -&gt; {
+                // Bare &quot;find nearby&quot; / &quot;craving&quot; default to restaurant; specific cues override.
+<span class="pc bpc" id="L267" title="1 of 2 branches missed.">                val amenity = extractAmenityArg(normalizedQuery) ?: &quot;restaurant&quot;</span>
+<span class="fc" id="L268">                &quot;$key($amenity)&quot;</span>
+            }
+<span class="fc" id="L270">            &quot;ALERT_LEVEL&quot; -&gt; &quot;$key(2)&quot;</span>
+<span class="nc" id="L271">            else -&gt; null</span>
+        }
+    }
+
+    private fun extractNumericOrDirectionalArg(query: String, handlerKey: String): String? {
+<span class="fc" id="L276">        when {</span>
+<span class="pc bpc" id="L277" title="2 of 4 branches missed.">            query.contains(&quot;mute&quot;) || Regex(&quot;&quot;&quot;\b(zero|off)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;0&quot;</span>
+<span class="fc bfc" id="L279" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(up|louder|higher|increase|raise)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="fc bfc" id="L280" title="All 2 branches covered.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;up&quot;</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(down|quieter|lower|decrease|softer)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;down&quot;</span>
+<span class="pc bpc" id="L283" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(max|maximum)\b&quot;&quot;&quot;).containsMatchIn(query) -&gt; {</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">                return if (handlerKey.contains(&quot;Fan&quot;, ignoreCase = true)) &quot;7&quot; else &quot;100&quot;</span>
+            }
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(min|minimum)\b&quot;&quot;&quot;).containsMatchIn(query) -&gt; return &quot;1&quot;</span>
+<span class="pc bpc" id="L287" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(off|disable)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="nc bnc" id="L288" title="All 2 branches missed.">                handlerKey.contains(&quot;Seat&quot;, ignoreCase = true) -&gt; return &quot;0&quot;</span>
+<span class="pc bpc" id="L289" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(on|enable)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">                handlerKey.contains(&quot;Seat&quot;, ignoreCase = true) -&gt; return &quot;2&quot;</span>
+        }
+<span class="pc bpc" id="L292" title="2 of 6 branches missed.">        Regex(&quot;&quot;&quot;\b(\d{1,3})\b&quot;&quot;&quot;).find(query)?.groupValues?.getOrNull(1)?.let { return it }</span>
+        // Seat heater without a level but matched &quot;seat heater&quot; → default comfort level.
+<span class="fc bfc" id="L294" title="All 2 branches covered.">        if (handlerKey.contains(&quot;SeatHeater&quot;, ignoreCase = true)) return &quot;2&quot;</span>
+<span class="fc" id="L295">        return null</span>
+    }
+
+    private fun extractTrailingArg(query: String, prefixes: List&lt;String&gt;): String? {
+<span class="fc bfc" id="L299" title="All 2 branches covered.">        for (prefix in prefixes.sortedByDescending { it.length }) {</span>
+<span class="fc bfc" id="L300" title="All 2 branches covered.">            if (query == prefix) return null</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">            if (query.startsWith(&quot;$prefix &quot;)) {</span>
+<span class="fc" id="L302">                val rest = query.removePrefix(&quot;$prefix &quot;).trim()</span>
+<span class="fc" id="L303">                    .removePrefix(&quot;some &quot;).removePrefix(&quot;the &quot;).removePrefix(&quot;a &quot;)</span>
+<span class="fc" id="L304">                    .trim()</span>
+<span class="pc bpc" id="L305" title="3 of 6 branches missed.">                if (rest.length in 2..60) return rest</span>
+            }
+        }
+<span class="fc" id="L308">        return null</span>
+    }
+
+    /**
+     * Pulls the music query after play/put-on verbs and strips filler like trailing &quot;music&quot;
+     * so &quot;play arijit singh music&quot; becomes a searchable &quot;arijit singh&quot;.
+     */
+    fun extractSongArg(normalizedQuery: String): String? {
+<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        val raw = extractTrailingArg(</span>
+<span class="fc" id="L317">            normalizedQuery,</span>
+<span class="fc" id="L318">            prefixes = listOf(</span>
+<span class="fc" id="L319">                &quot;play songs by&quot;,</span>
+<span class="fc" id="L320">                &quot;play music by&quot;,</span>
+<span class="fc" id="L321">                &quot;play song by&quot;,</span>
+<span class="fc" id="L322">                &quot;turn on music&quot;,</span>
+<span class="fc" id="L323">                &quot;put on&quot;,</span>
+<span class="fc" id="L324">                &quot;play some&quot;,</span>
+<span class="fc" id="L325">                &quot;start playing&quot;,</span>
+<span class="fc" id="L326">                &quot;turn on&quot;,</span>
+<span class="fc" id="L327">                &quot;play&quot;,</span>
+<span class="fc" id="L328">                &quot;start&quot;,</span>
+            ),
+<span class="nc" id="L330">        ) ?: return null</span>
+
+<span class="fc" id="L332">        var song = raw</span>
+<span class="fc" id="L333">            .replace(Regex(&quot;&quot;&quot;^(songs?|tracks?|music|playlist)\s+(by|from)\s+&quot;&quot;&quot;), &quot;&quot;)</span>
+<span class="fc" id="L334">            .replace(Regex(&quot;&quot;&quot;^(by|from)\s+&quot;&quot;&quot;), &quot;&quot;)</span>
+<span class="fc" id="L335">            .trim()</span>
+
+        // Drop trailing genre/container words that dilute artist/title search.
+<span class="fc" id="L338">        song = song</span>
+<span class="fc" id="L339">            .replace(Regex(&quot;&quot;&quot;\s+(music|songs?|tracks?|playlist|audio)$&quot;&quot;&quot;), &quot;&quot;)</span>
+<span class="fc" id="L340">            .trim()</span>
+
+        // &quot;play music&quot; / &quot;play some music&quot; → no specific request.
+<span class="pc bpc" id="L343" title="2 of 6 branches missed.">        if (song.isEmpty() || song in setOf(&quot;music&quot;, &quot;song&quot;, &quot;songs&quot;, &quot;track&quot;, &quot;tracks&quot;, &quot;something&quot;)) {</span>
+<span class="fc" id="L344">            return null</span>
+        }
+<span class="pc bpc" id="L346" title="3 of 6 branches missed.">        return song.takeIf { it.length in 2..60 }</span>
+    }
+
+<span class="fc" id="L349">    private fun extractAirflowDirection(query: String): String? = when {</span>
+<span class="pc bpc" id="L350" title="1 of 4 branches missed.">        query.contains(&quot;face and floor&quot;) || query.contains(&quot;floor and face&quot;) ||</span>
+<span class="pc bpc" id="L351" title="1 of 4 branches missed.">            query.contains(&quot;face and feet&quot;) || query.contains(&quot;feet and face&quot;) -&gt; &quot;face and floor&quot;</span>
+<span class="fc bfc" id="L352" title="All 2 branches covered.">        query.contains(&quot;defrost&quot;) -&gt; &quot;defrost&quot;</span>
+<span class="pc bpc" id="L353" title="1 of 4 branches missed.">        query.contains(&quot;floor&quot;) || query.contains(&quot;feet&quot;) -&gt; &quot;floor&quot;</span>
+<span class="pc bpc" id="L354" title="1 of 2 branches missed.">        query.contains(&quot;face&quot;) -&gt; &quot;face&quot;</span>
+<span class="nc" id="L355">        else -&gt; null</span>
+<span class="fc" id="L356">    }</span>
+
+    /** City for getWeather; &quot;here&quot; means use LocationManager at execution time. */
+    fun extractCityArg(normalizedQuery: String): String? {
+<span class="fc" id="L360">        extractTrailingArg(</span>
+<span class="fc" id="L361">            normalizedQuery,</span>
+<span class="fc" id="L362">            prefixes = listOf(</span>
+<span class="fc" id="L363">                &quot;what is the weather in&quot;,</span>
+<span class="fc" id="L364">                &quot;whats the weather in&quot;,</span>
+<span class="fc" id="L365">                &quot;weather forecast in&quot;,</span>
+<span class="fc" id="L366">                &quot;weather forecast for&quot;,</span>
+<span class="fc" id="L367">                &quot;forecast in&quot;,</span>
+<span class="fc" id="L368">                &quot;forecast for&quot;,</span>
+<span class="fc" id="L369">                &quot;weather in&quot;,</span>
+<span class="fc" id="L370">                &quot;weather for&quot;,</span>
+<span class="fc" id="L371">                &quot;weather at&quot;,</span>
+            ),
+<span class="fc bfc" id="L373" title="All 2 branches covered.">        )?.let { return it }</span>
+<span class="fc" id="L374">        return null</span>
+    }
+
+    /**
+     * Amenity for searchNearby: trailing phrase after find/nearby verbs, else keyword inference
+     * for short cabin asks (&quot;gas station&quot;, &quot;i am hungry&quot;, &quot;pizza nearby&quot;).
+     */
+    fun extractAmenityArg(normalizedQuery: String): String? {
+<span class="fc" id="L382">        extractTrailingArg(</span>
+<span class="fc" id="L383">            normalizedQuery,</span>
+<span class="fc" id="L384">            prefixes = listOf(</span>
+<span class="fc" id="L385">                &quot;find nearby&quot;,</span>
+<span class="fc" id="L386">                &quot;search nearby&quot;,</span>
+<span class="fc" id="L387">                &quot;looking for nearby&quot;,</span>
+<span class="fc" id="L388">                &quot;craving some good&quot;,</span>
+<span class="fc" id="L389">                &quot;craving some&quot;,</span>
+<span class="fc" id="L390">                &quot;craving&quot;,</span>
+<span class="fc" id="L391">                &quot;find a nearby&quot;,</span>
+<span class="fc" id="L392">                &quot;find me&quot;,</span>
+<span class="fc" id="L393">                &quot;search for&quot;,</span>
+<span class="fc" id="L394">                &quot;nearby&quot;,</span>
+<span class="fc" id="L395">                &quot;find&quot;,</span>
+            ),
+<span class="fc bfc" id="L397" title="All 2 branches covered.">        )?.let { rest -&gt;</span>
+<span class="pc bpc" id="L398" title="1 of 2 branches missed.">            return rest.removeSuffix(&quot; nearby&quot;).removePrefix(&quot;nearby &quot;).trim().ifBlank { null }</span>
+        }
+<span class="fc" id="L400">        return when {</span>
+<span class="fc bfc" id="L401" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(gas station|petrol|fuel)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;gas&quot;</span>
+<span class="fc bfc" id="L402" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\bcharg(e|ing)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;charging&quot;</span>
+<span class="pc bpc" id="L403" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\bcoffee\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;coffee shop&quot;</span>
+<span class="fc bfc" id="L404" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\bpizza\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;pizza&quot;</span>
+<span class="pc bpc" id="L405" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(restaurant|food|hungry|eat)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;restaurant&quot;</span>
+<span class="nc" id="L406">            else -&gt; null</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

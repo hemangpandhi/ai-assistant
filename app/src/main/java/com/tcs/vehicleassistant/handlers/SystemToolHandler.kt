@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.Uri
 import android.app.SearchManager
 import android.util.Log
+import com.tcs.vehicleassistant.LocationManager
 import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.VehicleManager
 import com.tcs.vehicleassistant.core.AssistantConfig
@@ -42,7 +43,18 @@ class SystemToolHandler(
                 }
             }
             "getWeather" -> {
-                val city = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
+                var city = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
+                if (city.isBlank() ||
+                    city.equals("CITY", ignoreCase = true) ||
+                    city.equals("here", ignoreCase = true) ||
+                    city.equals("current", ignoreCase = true)
+                ) {
+                    city = try {
+                        LocationManager.getCurrentCity(context).ifBlank { "your area" }
+                    } catch (_: Exception) {
+                        "your area"
+                    }
+                }
                 // Do not invent temperatures. Open a search the driver can trust instead.
                 val intent = Intent(Intent.ACTION_WEB_SEARCH)
                 intent.putExtra(SearchManager.QUERY, "weather in $city")

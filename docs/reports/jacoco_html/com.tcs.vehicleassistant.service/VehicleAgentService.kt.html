@@ -1,0 +1,113 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VehicleAgentService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.service</a> &gt; <span class="el_source">VehicleAgentService.kt</span></div><h1>VehicleAgentService.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.service
+
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Intent
+import android.os.Binder
+import android.os.Build
+import android.os.IBinder
+import androidx.core.app.NotificationCompat
+import com.tcs.vehicleassistant.R
+import com.tcs.vehicleassistant.controller.AssistantViewModel
+import com.tcs.vehicleassistant.hardware.AndroidAudioManager
+import android.content.ComponentCallbacks2
+
+<span class="nc" id="L16">class VehicleAgentService : Service(), ComponentCallbacks2 {</span>
+
+<span class="nc" id="L18">    private val binder = LocalBinder()</span>
+    
+<span class="nc" id="L20">    lateinit var audioManager: AndroidAudioManager</span>
+<span class="nc" id="L21">    lateinit var viewModel: AssistantViewModel</span>
+
+<span class="nc" id="L23">    inner class LocalBinder : Binder() {</span>
+<span class="nc" id="L24">        fun getService(): VehicleAgentService = this@VehicleAgentService</span>
+    }
+
+    override fun onCreate() {
+<span class="nc" id="L28">        super.onCreate()</span>
+<span class="nc" id="L29">        createNotificationChannel()</span>
+        
+<span class="nc" id="L31">        audioManager = AndroidAudioManager(this)</span>
+<span class="nc" id="L32">        viewModel = AssistantViewModel(this, audioManager)</span>
+        
+<span class="nc" id="L34">        audioManager.initialize(</span>
+            onSuccess = {
+<span class="nc" id="L36">                audioManager.playSilentUtterance(10, &quot;PREWARM&quot;)</span>
+<span class="nc" id="L37">            },</span>
+            onError = {
+                // Ignore silent failure in background
+<span class="nc" id="L40">            }</span>
+        )
+<span class="nc" id="L42">    }</span>
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+<span class="nc bnc" id="L45" title="All 6 branches missed.">        if (intent?.action == ACTION_RELOAD_TTS &amp;&amp; ::audioManager.isInitialized) {</span>
+<span class="nc" id="L46">            audioManager.reloadTtsFromPrefs()</span>
+<span class="nc" id="L47">            android.util.Log.i(TAG, &quot;Reloaded cabin TTS from prefs&quot;)</span>
+        }
+
+<span class="nc" id="L50">        val notification = NotificationCompat.Builder(this, CHANNEL_ID)</span>
+<span class="nc" id="L51">            .setContentTitle(getString(R.string.agent_notification_title))</span>
+<span class="nc" id="L52">            .setContentText(getString(R.string.agent_notification_text))</span>
+<span class="nc" id="L53">            .setSmallIcon(R.drawable.ic_mic_small)</span>
+<span class="nc" id="L54">            .build()</span>
+
+<span class="nc" id="L56">        startForeground(NOTIFICATION_ID, notification)</span>
+        // Sticky so the OS restores the agent after a low-memory kill; the previous
+        // START_NOT_STICKY left the assistant dead until the user manually reopened the app.
+<span class="nc" id="L59">        return START_STICKY</span>
+    }
+
+    override fun onBind(intent: Intent?): IBinder {
+<span class="nc" id="L63">        return binder</span>
+    }
+
+    private fun createNotificationChannel() {
+<span class="nc bnc" id="L67" title="All 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.O) {</span>
+<span class="nc" id="L68">            val serviceChannel = NotificationChannel(</span>
+<span class="nc" id="L69">                CHANNEL_ID,</span>
+<span class="nc" id="L70">                &quot;Agentic Service Channel&quot;,</span>
+<span class="nc" id="L71">                NotificationManager.IMPORTANCE_LOW</span>
+            )
+<span class="nc" id="L73">            val manager = getSystemService(NotificationManager::class.java)</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            manager?.createNotificationChannel(serviceChannel)</span>
+        }
+<span class="nc" id="L76">    }</span>
+
+    /**
+     * Full teardown. This previously only destroyed the speech recognizer, leaking the TTS engine,
+     * the AudioTrack, and the ViewModel's coroutine scope on every service restart.
+     */
+    override fun onDestroy() {
+<span class="nc" id="L83">        try {</span>
+<span class="nc" id="L84">            viewModel.destroy()</span>
+<span class="nc" id="L85">        } catch (e: Exception) {</span>
+<span class="nc" id="L86">            android.util.Log.w(TAG, &quot;Failed to destroy view model&quot;, e)</span>
+        }
+<span class="nc" id="L88">        try {</span>
+<span class="nc" id="L89">            audioManager.shutdown()</span>
+<span class="nc" id="L90">        } catch (e: Exception) {</span>
+<span class="nc" id="L91">            android.util.Log.w(TAG, &quot;Failed to shut down audio manager&quot;, e)</span>
+        }
+<span class="nc" id="L93">        super.onDestroy()</span>
+<span class="nc" id="L94">    }</span>
+
+    override fun onTrimMemory(level: Int) {
+<span class="nc" id="L97">        super.onTrimMemory(level)</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (level &gt;= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {</span>
+            // unload() declines while an inference is still inside the native engine, so a
+            // memory-pressure callback can no longer free state a streaming callback is using.
+<span class="nc" id="L101">            val unloaded = com.tcs.vehicleassistant.LLMManager.unload()</span>
+<span class="nc" id="L102">            android.util.Log.w(TAG, &quot;Memory pressure level=$level. LLM unloaded=$unloaded&quot;)</span>
+        }
+<span class="nc" id="L104">    }</span>
+
+    companion object {
+        const val TAG = &quot;VehicleAgentService&quot;
+        const val CHANNEL_ID = &quot;AgenticServiceChannel&quot;
+        const val NOTIFICATION_ID = 1
+        const val ACTION_RELOAD_TTS = &quot;com.tcs.vehicleassistant.RELOAD_TTS&quot;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
