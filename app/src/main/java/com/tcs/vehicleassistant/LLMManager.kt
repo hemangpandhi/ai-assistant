@@ -426,6 +426,7 @@ object LLMManager {
             lastAiResponse = ""
             isPrewarmed = false
             refreshEngineStatus()
+            System.gc()
             Log.i("LLMManager", "LLM Model unloaded from memory to save resources.")
         }
     }

@@ -236,6 +236,11 @@ class ToolManager {
                 tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
             }.toMutableList()
         }
+
+        val combinedTools = (contextTools + exactMatches).distinct()
+        if (combinedTools.isNotEmpty()) {
+            return combinedTools
+        }
         
         val combinedTools = (contextTools + exactMatches).distinct()
         
@@ -255,8 +260,7 @@ class ToolManager {
             return exactMatches.distinct()
         }
         
-        // Slow path: Semantic Search — when embedder is disabled, do NOT dump
-        // arbitrary tools into the prompt (bloats TTFT). Keyword miss = empty.
+        // Slow path: Semantic Search (remote: only userQuery; top 4 to avoid prompt bloat)
         val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
         return semanticSearchManager.search(userQuery, 4)
     }
