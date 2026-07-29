@@ -140,6 +140,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
 
         loadRuntimePrefs(this)
         VehicleManager.initialize(this)
