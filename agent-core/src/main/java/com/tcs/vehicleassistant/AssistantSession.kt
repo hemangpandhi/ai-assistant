@@ -227,6 +227,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
 
             try {
+                statusText.visibility = View.VISIBLE
+                statusText.text = "Listening..."
+                voiceAnimation.state = VoiceAnimationView.State.LISTENING
                 audioManager?.startListening()
             } catch (e: Exception) {
                 LatencyLogger.log("AssistantSession", "Error starting speech recognizer: ${e.message}")
@@ -359,8 +362,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         super.onShow(args, showFlags)
 
         if (isSessionVisible) {
-            android.util.Log.d("AssistantSession", "Assistant re-triggered while active. Tearing down complete session.")
-            teardownSession()
+            android.util.Log.d("AssistantSession", "Assistant re-triggered while active. Keeping active session visible.")
             return
         }
         isSessionVisible = true

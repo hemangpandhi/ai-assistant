@@ -169,10 +169,10 @@ class ToolManager {
 
     private val commandIndicatorPhrases = listOf(
         "turn on", "turn off", "increase", "decrease", "set temperature", "set to",
-        "navigate", "navigation", "play ", "call ", "open ", "start navigation",
+        "navigate", "navigation", "play ", "stop", "pause", "mute", "call ", "open ", "start navigation",
         "seat heater", "defrost", "fan speed", " air conditioning", " ac ",
         "climate", "windows", "recirculation", "trunk", "unlock", "lock doors",
-        "remember ", "also turn", "also set", "also increase", "also decrease", "also play", "also call"
+        "remember ", "also turn", "also set", "also increase", "also decrease", "also play", "also call", "also stop", "also pause"
     )
 
     private fun hasExplicitCommandIntent(userQuery: String): Boolean {
@@ -237,7 +237,10 @@ class ToolManager {
             }.toMutableList()
         }
         
-        val combinedTools = (contextTools + exactMatches).distinct()
+        val coreTools = activeTools.values.filter { tool ->
+            tool.handlerKey in setOf("stopMusic", "playMusic", "increaseTemperature", "decreaseTemperature", "setSeatHeater")
+        }
+        val combinedTools = (contextTools + exactMatches + coreTools).distinct()
         
         if (combinedTools.isNotEmpty()) {
             return combinedTools

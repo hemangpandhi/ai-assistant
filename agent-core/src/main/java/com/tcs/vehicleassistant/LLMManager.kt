@@ -65,56 +65,28 @@ object LLMManager {
         appContext = context.applicationContext
 
         withContext(Dispatchers.IO) {
-            val internalDir = context.filesDir
-            val externalDir = context.getExternalFilesDir(null)
-            val explicitModel = File("/data/local/tmp/llm/model.litertlm")
-            val explicitQwen = File("/data/local/tmp/llm/Qwen2.5.litertlm")
             val explicitGemma = File("/data/local/tmp/llm/gemma-4-E2B-it.litertlm")
+            val internalFiles = context.filesDir?.listFiles()?.toList() ?: emptyList()
+            val externalFiles = context.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
+            val tmpFiles = File("/data/local/tmp/llm/").listFiles()?.toList() ?: emptyList()
+            val allModelFiles = (internalFiles + externalFiles + tmpFiles).filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
             
-            val allFiles = listOfNotNull(internalDir?.listFiles(), externalDir?.listFiles())
-                .flatMap { it.toList() }
-                .toMutableList()
-                
-            if (explicitModel.exists() && explicitModel.canRead()) {
-                allFiles.add(0, explicitModel)
-            }
-            if (explicitGemma.exists() && explicitGemma.canRead()) {
-                allFiles.add(explicitGemma)
-            }
-            if (explicitQwen.exists() && explicitQwen.canRead()) {
-                allFiles.add(explicitQwen)
-            }
-
-            val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            
-            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-            var savedModelPath = prefs.getString("selected_model", null)
-            if (savedModelPath == null || savedModelPath.contains("gemma-4-E2B") || savedModelPath.contains("Qwen")) {
-                savedModelPath = explicitModel.absolutePath
-                prefs.edit().putString("selected_model", explicitModel.absolutePath).apply()
-            }
-            
-            // Force default backend to GPU
-            var savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
-            if (savedBackendChoice == "Auto" || savedBackendChoice == "CPU") {
-                savedBackendChoice = "GPU"
-                prefs.edit().putString("backend_choice", "GPU").apply()
-            }
-            
-            var modelFile: File? = null
-            if (savedModelPath != null && File(savedModelPath).exists()) {
-                modelFile = File(savedModelPath)
-            }
-            if (modelFile == null || !modelFile.exists()) {
-                modelFile = models.find { it.name == "model.litertlm" }
-                    ?: models.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: models.firstOrNull()
-            }
-
-            if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
-                initialize(context, modelFile.absolutePath, force, if (backendChoice != "Auto") backendChoice else savedBackendChoice, callback)
+            // Strictly lock exclusively to Gemma 4 E2B model
+            val modelFile = if (explicitGemma.exists() && explicitGemma.canRead()) {
+                explicitGemma
             } else {
-                withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }
+                allModelFiles.find { it.name.contains("gemma", ignoreCase = true) } ?: explicitGemma
+            }
+
+            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+            val savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
+            val targetBackend = if (backendChoice != "Auto") backendChoice else savedBackendChoice
+            prefs.edit().putString("selected_model", modelFile.absolutePath).apply()
+
+            if (modelFile.exists() && modelFile.length() > 0) {
+                initialize(context, modelFile.absolutePath, force, targetBackend, callback)
+            } else {
+                withContext(Dispatchers.Main) { callback?.onError(Exception("Gemma model not found at ${modelFile.absolutePath}")) }
             }
         }
     }
@@ -128,17 +100,19 @@ object LLMManager {
                 return
             }
     
-            withContext(Dispatchers.IO) {
+            try {
                 isInitializing = true
                 val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                // Cap max tokens to 2048 to match LiteRT compiled model delegate sequence length metadata
+                val savedBackendChoice = prefs.getString("backend_choice", "GPU") ?: "GPU"
+                val requestedBackend = if (backendChoice != "Auto") backendChoice else savedBackendChoice
+                
                 var maxTokens = prefs.getInt("max_tokens", 2048)
                 if (maxTokens != 2048) {
                     maxTokens = 2048
                     prefs.edit().putInt("max_tokens", 2048).apply()
                 }
                 
-                try {
+                if (engine != null) {
                     try {
                         conversation?.close()
                         engine?.close()
@@ -146,28 +120,17 @@ object LLMManager {
                         Log.w("LLMManager", "Failed to cleanly close old inference instance.", e)
                     }
                     conversation = null
-                engine = null
-
-                val backend = when (backendChoice) {
-                    "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
-                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
-                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
-                    else -> {
-                        when {
-                            modelPath.contains("Tensor_G5", ignoreCase = true) ||
-                                modelPath.contains("qualcomm", ignoreCase = true) ||
-                                modelPath.contains("qcs8275", ignoreCase = true) -> {
-                                activeBackendString = "NPU"
-                                Backend.NPU()
-                            }
-                            else -> {
-                                activeBackendString = "GPU"
-                                Backend.GPU()
-                            }
-                        }
-                    }
+                    engine = null
                 }
 
+                val backend = when (requestedBackend) {
+                    "NPU" -> { activeBackendString = "NPU"; Backend.NPU() }
+                    "CPU" -> { activeBackendString = "CPU"; Backend.CPU() }
+                    "GPU" -> { activeBackendString = "GPU"; Backend.GPU() }
+                    else -> { activeBackendString = "GPU"; Backend.GPU() }
+                }
+
+                Log.d("LLMManager", "Initializing LiteRT Engine for Gemma 4 E2B from: $modelPath on backend: $activeBackendString (user preference=$requestedBackend)")
                 val engineConfig = EngineConfig(
                     modelPath = modelPath,
                     backend = backend,
@@ -175,7 +138,7 @@ object LLMManager {
                     cacheDir = context.cacheDir.absolutePath
                 )
 
-                // Disable Multi-Token Prediction (MTP) / Speculative Decoding to fix token repetition
+                // Disable Multi-Token Prediction (MTP) / Speculative Decoding
                 ExperimentalFlags.enableSpeculativeDecoding = false
 
                 engine = Engine(engineConfig)
@@ -183,59 +146,23 @@ object LLMManager {
 
                 resetConversation(context)
                 currentModelPath = modelPath
-                Log.d("LLMManager", "LLM Initialized successfully from $modelPath (backend=$activeBackendString)")
+                Log.d("LLMManager", "Gemma 4 E2B Initialized successfully from $modelPath (backend=$activeBackendString)")
 
-                isPrewarmed = false // enabled prewarm
+                isPrewarmed = false
 
                 withContext(Dispatchers.Main) {
+                    val p = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                    // Always preserve the user's explicit requested backend choice in preferences
+                    p.edit().putString("selected_model", modelPath).putString("backend_choice", requestedBackend).apply()
                     callback?.onSuccess()
                 }
 
-                // Only prewarm in background if using GPU or NPU. On CPU, prewarming takes 39 seconds and locks the engine.
-                if (activeBackendString != "CPU") {
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-                        prewarm(context)
-                    }
-                } else {
-                    Log.i("LLMManager", "Skipping background prewarm on CPU backend to prevent thread lockup.")
-                }
+                Log.i("LLMManager", "Skipping background prewarm on CPU backend to prevent SIGSEGV thread lockup.")
             } catch (e: Exception) {
-                Log.e("LLMManager", "Error initializing model", e)
-                if (backendChoice != "CPU") {
-                    Log.i("LLMManager", "Attempting fallback to CPU backend...")
-                    try {
-                        activeBackendString = "CPU"
-                        val engineConfigFallback = EngineConfig(
-                            modelPath = modelPath,
-                            backend = Backend.CPU(),
-                            maxNumTokens = maxTokens,
-                            cacheDir = context.cacheDir.absolutePath
-                        )
-                        engine = Engine(engineConfigFallback)
-                        engine!!.initialize()
-                        
-                        resetConversation(context)
-                        currentModelPath = modelPath
-                        Log.d("LLMManager", "LLM Initialized successfully with CPU Fallback from $modelPath")
-
-                        isPrewarmed = false // enabled prewarm
-
-                        withContext(Dispatchers.Main) { callback?.onSuccess() }
-                        
-                        // Automatically prewarm the model in the background to completely eliminate the 5s TTFT delay on the first query
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-                            prewarm(context)
-                        }
-                    } catch (fallbackEx: Exception) {
-                         Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
-                         withContext(Dispatchers.Main) { callback?.onError(fallbackEx) }
-                    }
-                } else {
-                    withContext(Dispatchers.Main) { callback?.onError(e) }
-                }
+                Log.e("LLMManager", "Error initializing Gemma 4 E2B model", e)
+                withContext(Dispatchers.Main) { callback?.onError(e) }
             } finally {
                 isInitializing = false
-            }
             }
         }
     }
@@ -283,11 +210,9 @@ object LLMManager {
         
         // --- CORE OPERATING RULES ---
         basePrompt.append("=== STRICT OPERATING RULES ===\n")
-        basePrompt.append("STRICT LENGTH CONSTRAINT (MANDATORY): You MUST keep your entire response text under 25 words total, UNLESS the user explicitly requests a long response, story, or detailed explanation (e.g. 'explain in detail', 'tell me a story'). Be warm, concise, and direct.\n")
-        basePrompt.append("CRITICAL OVERRIDE: You are the vehicle's intelligent agent. You absolutely CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. However, ONLY execute tools when the user makes a clear command or choice. If they are just asking for conversational suggestions (like places to visit), answer naturally WITHOUT using any tools.\n")
-        basePrompt.append("1. TOOL INTEGRITY: NEVER invent vehicle capabilities or guess tool names. Only use tools strictly defined in the available toolset list below.\n")
-        basePrompt.append("2. NO BLIND GUESSING: Ask for clarification instead of guessing if a request is highly ambiguous or unrelated to available capabilities.\n")
-        basePrompt.append("3. DIRECT COMMAND HANDLING: For relative temperature commands ('increase temperature', 'decrease temperature', 'warmer', 'cooler'), execute immediately with zone 'all' — do NOT ask driver vs passenger. Only ask for zone when the user sets an EXACT degree value for a specific seat (e.g. '72 degrees for the driver'). Fan speed and airflow apply to the ENTIRE car — never ask for a zone.\n")
+        basePrompt.append("1. STRICT 25-WORD MAXIMUM LIMIT (MANDATORY): Your response text MUST NOT exceed 25 words total under any circumstances, unless the user explicitly requested a long story or detailed explanation. Be extremely concise, warm, and direct.\n")
+        basePrompt.append("2. DIRECT HVAC COMMANDS: When the user says 'increase temperature', 'decrease temperature', 'warmer', 'cooler', or 'make it hot', NEVER ask for more context or clarification. IMMEDIATELY append <TOOL>increaseTemperature(all)</TOOL> or <TOOL>decreaseTemperature(all)</TOOL> at the end of your response text and say 'I'm warming it up for you!' or 'I'm cooling it down for you!'.\n")
+        basePrompt.append("3. TOOL INTEGRITY: You are the vehicle's intelligent agent. You CAN and MUST control vehicle functions using XML tool tags provided. NEVER refuse a command if a corresponding tool exists. ONLY execute tools when the user makes a clear command or choice.\n")
         basePrompt.append("4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.\n")
         basePrompt.append("5. COMFORT EMPATHY: You are in a car, NOT a house. NEVER ask which room the user is in. If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute <TOOL>setSeatHeater(2)</TOOL>. If they say they are 'feeling hot', immediately execute <TOOL>decreaseTemperature(all)</TOOL> and say you're cooling it down.\n")
         basePrompt.append("6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n")
@@ -302,6 +227,12 @@ object LLMManager {
         basePrompt.append("15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is 'Tired / Yawning', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is 'Frustrated / Frowning', keep your answers extremely brief and avoid asking follow-up questions. If 'Happy / Smiling', match their energetic tone. If 'No one detected', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n")
         basePrompt.append("16. MEDIA/MUSIC: If the user asks to play music (e.g., 'play music', 'play Bollywood'), ALWAYS use <TOOL>playMusic(SONG)</TOOL>. If the user asks to stop or pause music (e.g., 'stop music', 'pause music', 'turn off the music', 'mute music'), ALWAYS append <TOOL>stopMusic()</TOOL> or <TOOL>pauseMusic()</TOOL> at the end of your response text. NEVER claim you stopped or paused music without emitting the <TOOL> tag.\n")
         basePrompt.append("17. NO MARKDOWN: Never use markdown formatting like asterisks (*) or bold text, as your response will be spoken aloud to the driver via TTS.\n\n")
+        
+        basePrompt.append("=== FEW-SHOT EXAMPLES ===\n")
+        basePrompt.append("User: stop music\nAssistant: <TOOL>stopMusic()</TOOL> Stopping the music for you.\n\n")
+        basePrompt.append("User: pause music\nAssistant: <TOOL>stopMusic()</TOOL> Pausing media playback.\n\n")
+        basePrompt.append("User: increase temperature\nAssistant: <TOOL>increaseTemperature(all)</TOOL> Warming up the cabin.\n\n")
+        basePrompt.append("User: decrease temperature\nAssistant: <TOOL>decreaseTemperature(all)</TOOL> Cooling down the cabin.\n\n")
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")

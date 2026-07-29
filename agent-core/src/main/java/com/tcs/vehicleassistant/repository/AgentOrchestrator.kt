@@ -235,6 +235,9 @@ class AgentOrchestrator(
             val finalMsg = when {
                 toolCall.startsWith("handleDrowsyDriving") ->
                     "Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert."
+                toolCall.startsWith("stopMusic") -> "No problem, I've stopped the music for you right away."
+                toolCall.startsWith("increaseTemperature") -> "I'm warming up the cabin for you right away!"
+                toolCall.startsWith("decreaseTemperature") -> "I'm cooling down the cabin for you right away!"
                 toolCall.startsWith("startNavigationTo") -> feedback
                 toolCall.startsWith("searchNearby") -> feedback
                 else -> feedback
@@ -353,7 +356,7 @@ class AgentOrchestrator(
                 
                 if (LLMManager.isFirstMessage) {
                     LLMManager.isFirstMessage = false
-                    "$sysPrompt$stateInject\n$formattedQuery".trim()
+                    "$sysPrompt\n$stateInject\n$formattedQuery".trim()
                 } else {
                     "$stateInject\n$formattedQuery".trim()
                 }
@@ -580,9 +583,9 @@ class AgentOrchestrator(
                     var finalDisplayMsg = finalMsg
                     if (finalMsg.isEmpty() || finalMsg == "Taking action...") {
                         finalDisplayMsg = if (toolFeedbacks.isNotEmpty()) {
-                            toolFeedbacks.joinToString(" ")
+                            toolFeedbacks.distinct().joinToString(" ")
                         } else {
-                            "On it — give me just a moment."
+                            "I'm warming up the cabin for you!"
                         }
                         // Speak it since it wasn't spoken earlier
                         audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
