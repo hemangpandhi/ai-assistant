@@ -43,6 +43,17 @@ object FollowUpRouter {
         val q = query.lowercase().trim()
         val last = lastAssistantMessage.lowercase()
 
+        val musicPlayMatch = q.contains("play music") || q.contains("play some music") || q.contains("turn on music") || q.contains("start music") || q.contains("resume music") || q == "play" || q == "play music"
+        if (musicPlayMatch) {
+            val songName = if (q.contains("play music ")) q.substringAfter("play music ").trim() else ""
+            return if (songName.isNotEmpty()) "playMusic(\"$songName\")" else "playMusic()"
+        }
+
+        val musicStopMatch = q.contains("stop music") || q.contains("stop the music") || q.contains("pause music") || q.contains("turn off music") || q == "stop"
+        if (musicStopMatch) {
+            return "stopMusic()"
+        }
+
         if (MemoryManager.isAffirmative(query)) {
             when {
                 last.contains("seat heater") -> return "setSeatHeater(2)"
