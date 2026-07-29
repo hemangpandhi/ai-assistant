@@ -18,11 +18,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import com.tcs.vehicleassistant.llm.EngineStatus
-import java.io.File
+import com.tcs.vehicleassistant.llm.EngineStatusStore
+import com.tcs.vehicleassistant.llm.LlmModelLocator
+import kotlinx.coroutines.flow.StateFlow
 
 object LLMManager {
     @Volatile
@@ -47,8 +46,9 @@ object LLMManager {
     var isPrewarming = false
         private set
 
-    private val _engineStatus = MutableStateFlow<EngineStatus>(EngineStatus.Cold)
-    val engineStatus: StateFlow<EngineStatus> = _engineStatus.asStateFlow()
+    private val statusStore = EngineStatusStore()
+    private val modelLocator = LlmModelLocator()
+    val engineStatus: StateFlow<EngineStatus> = statusStore.status
 
     var lastVehicleState = ""
 
@@ -63,13 +63,13 @@ object LLMManager {
     fun isInferenceReady(): Boolean = isReady() && !isPrewarming && engineStatus.value is EngineStatus.Ready
 
     private fun refreshEngineStatus() {
-        _engineStatus.value = when {
-            isInitializing -> EngineStatus.Loading
-            isPrewarming -> EngineStatus.Prewarming
-            engine != null && conversation != null -> EngineStatus.Ready
-            engine == null && currentModelPath.isEmpty() -> EngineStatus.Cold
-            else -> EngineStatus.Unloaded
-        }
+        statusStore.update(
+            initializing = isInitializing,
+            prewarming = isPrewarming,
+            engineLoaded = engine != null,
+            conversationLoaded = conversation != null,
+            modelPath = currentModelPath,
+        )
     }
     interface InitCallback {
         fun onSuccess()
@@ -130,7 +130,7 @@ object LLMManager {
                     ?: models.firstOrNull()
             }
 
-            if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
+            if (modelFile != null) {
                 initialize(context, modelFile.absolutePath, force, if (backendChoice != "Auto") backendChoice else savedBackendChoice, callback)
             } else {
                 withContext(Dispatchers.Main) { callback?.onError(Exception("No model found")) }

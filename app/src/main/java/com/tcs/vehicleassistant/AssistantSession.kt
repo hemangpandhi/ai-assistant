@@ -1,15 +1,9 @@
 package com.tcs.vehicleassistant
 
-import android.app.Activity
-import android.app.ActivityManager
-import android.app.Application
-import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.ServiceConnection
-import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.service.voice.VoiceInteractionSession
@@ -26,19 +20,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
-import androidx.core.content.ContextCompat
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleOwner
-import androidx.lifecycle.LifecycleRegistry
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.SavedStateRegistry
-import androidx.savedstate.SavedStateRegistryController
-import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.assistant.ui.assistant.api.AssistantDebugLog
+import com.assistant.ui.assistant.api.AssistantBackend
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
@@ -46,13 +32,16 @@ import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
 import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
-import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
+import com.tcs.vehicleassistant.assistant.session.AssistantSessionDismissController
+import com.tcs.vehicleassistant.assistant.session.AssistantSessionIdleController
+import com.tcs.vehicleassistant.assistant.session.SessionComposeHost
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
+import com.tcs.vehicleassistant.hardware.AssistantAudioFocusDucker
 import com.tcs.vehicleassistant.hardware.SessionAudioPort
 import com.tcs.vehicleassistant.service.VehicleAgentService
 import kotlinx.coroutines.CoroutineScope
@@ -64,49 +53,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import com.assistant.ui.assistant.api.AssistantBackend
-
-/**
- * Lifecycle / SavedState / ViewModel host for Compose content inside a
- * [VoiceInteractionSession] (which is not itself a LifecycleOwner).
- *
- * SavedStateRegistry's Restarter may only be registered while the owner is still
- * [Lifecycle.State.INITIALIZED] — jumping straight to RESUMED before
- * [SavedStateRegistryController.performRestore] crashes with:
- * "Restarter must be created only during owner's initialization stage".
- */
-private class SessionComposeHost :
-    LifecycleOwner,
-    SavedStateRegistryOwner,
-    ViewModelStoreOwner {
-
-    private val registry = LifecycleRegistry(this)
-    private val savedStateController = SavedStateRegistryController.create(this)
-    private val store = ViewModelStore()
-
-    override val lifecycle: Lifecycle get() = registry
-    override val savedStateRegistry: SavedStateRegistry
-        get() = savedStateController.savedStateRegistry
-    override val viewModelStore: ViewModelStore get() = store
-
-    fun start() {
-        // Attach + restore while still INITIALIZED (LifecycleRegistry default).
-        savedStateController.performAttach()
-        savedStateController.performRestore(null)
-        registry.currentState = Lifecycle.State.RESUMED
-    }
-
-    fun destroy() {
-        if (registry.currentState == Lifecycle.State.INITIALIZED ||
-            registry.currentState == Lifecycle.State.DESTROYED
-        ) {
-            store.clear()
-            return
-        }
-        registry.currentState = Lifecycle.State.DESTROYED
-        store.clear()
-    }
-}
 
 /**
  * System voice-interaction session.
@@ -137,11 +83,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var composeHost: SessionComposeHost? = null
     /** True between [onShow] and [onHide] — used to dismiss when another system-bar UI opens. */
     private var sessionUiVisible = false
-    private var baselineResumedActivity: String? = null
-    private var baselineTopPackage: String? = null
-    private var focusListenerRegistered = false
-    private var topTaskPollJob: Job? = null
-    private var closeSystemDialogsReceiverRegistered = false
 
     private var dotAnimatorJob: Job? = null
     private var typewriterJob: Job? = null
@@ -149,80 +90,29 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private var currentDisplayLength = 0
     private val typingSpeedMs: Long = 15L
     private var unloadJob: Job? = null
-    /** Countdown that closes the overlay after quiet listening. */
-    private var idleJob: Job? = null
-    /** Collects uiState / events to arm or pause [idleJob]. */
-    private var idleWatchJob: Job? = null
-    /**
-     * Idle auto-close must not run until STT has reached Listening at least once.
-     * Otherwise the 5s timer races wake-word mic release and closes before the user can speak.
-     */
-    private var idleArmedAfterMicReady = false
     /** Opens agent STT after wake-word AudioRecord is released. */
     private var micHandoffJob: Job? = null
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-
-    private val activityWatcher = object : Application.ActivityLifecycleCallbacks {
-        override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
-        override fun onActivityStarted(a: Activity) {
-            // Same-process apps (e.g. LocalLLMActivity) — dismiss as soon as they start.
-            if (!sessionUiVisible) return
-            if (a.javaClass.name.contains("AssistantSession")) return
-            AssistantDebugLog.d("Session", "activity started=${a.javaClass.simpleName} — dismiss")
-            dismissForExternalUi("activity-started:${a.javaClass.simpleName}")
-        }
-        override fun onActivityStopped(a: Activity) = Unit
-        override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
-        override fun onActivityDestroyed(a: Activity) = Unit
-        override fun onActivityPaused(a: Activity) = Unit
-        override fun onActivityResumed(a: Activity) {
-            if (!sessionUiVisible) return
-            val name = a.javaClass.name
-            if (baselineResumedActivity == null) {
-                baselineResumedActivity = name
-                AssistantDebugLog.d("Session", "baseline activity=$name")
-                return
-            }
-            if (name != baselineResumedActivity) {
-                dismissForExternalUi("activity-resumed:$name")
-            }
-        }
-    }
-
-    private val windowFocusListener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
-        if (!sessionUiVisible) return@OnWindowFocusChangeListener
-        AssistantDebugLog.d("Session", "window focus=$hasFocus")
-        if (!hasFocus) {
-            if (isSummonProtected()) {
-                AssistantDebugLog.d("Session", "focus-lost ignored (summon protect)")
-                return@OnWindowFocusChangeListener
-            }
-            observerScope.launch {
-                delay(80)
-                if (sessionUiVisible && ::overlayView.isInitialized &&
-                    !overlayView.hasWindowFocus() &&
-                    !isSummonProtected()
-                ) {
-                    dismissForExternalUi("window-focus-lost")
-                }
-            }
-        }
-    }
-
-    private val closeSystemDialogsReceiver = object : android.content.BroadcastReceiver() {
-        override fun onReceive(ctx: Context?, intent: Intent?) {
-            if (!sessionUiVisible) return
-            val reason = intent?.getStringExtra("reason") ?: intent?.action ?: "unknown"
-            AssistantDebugLog.d("Session", "CLOSE_SYSTEM_DIALOGS reason=$reason")
-            if (isSummonProtected()) {
-                AssistantDebugLog.d("Session", "close-system-dialogs ignored (summon protect)")
-                return
-            }
-            // Home / recent / system bar often fires this when leaving the assistant.
-            dismissForExternalUi("close-system-dialogs:$reason")
-        }
-    }
+    private val idleController = AssistantSessionIdleController(
+        context = context,
+        scope = observerScope,
+        isVisible = { sessionUiVisible },
+        isBusy = { viewModel?.isProcessing() == true },
+        currentUiState = { viewModel?.uiState?.value },
+        viewModelProvider = { viewModel },
+        onTimeout = ::dismissForIdleTimeout,
+    )
+    private val dismissController = AssistantSessionDismissController(
+        context = context,
+        scope = observerScope,
+        overlayViewProvider = {
+            if (::overlayView.isInitialized) overlayView else null
+        },
+        isVisible = { sessionUiVisible },
+        onDismiss = ::dismissForExternalUi,
+    )
+    private val fallbackAudioFocusDucker = AssistantAudioFocusDucker(context)
 
     private fun dismissForExternalUi(reason: String) {
         AssistantDebugLog.d("Session", "dismiss overlay ($reason) visible=$sessionUiVisible")
@@ -260,7 +150,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 startObservingViewModel()
             }
             if (sessionUiVisible) {
-                startIdleWatch()
+                idleController.start()
             }
         }
 
@@ -307,7 +197,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.stopSpeaking()
         com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
         audioManager?.abandonAssistantDuck()
-        abandonFallbackDuck()
+        fallbackAudioFocusDucker.abandon()
     }
 
     override fun onCreateContentView(): View {
@@ -425,7 +315,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         btnSend?.setOnClickListener {
             val query = etInput?.text?.toString().orEmpty()
             if (query.isNotBlank()) {
-                noteUserActivity()
+                idleController.noteActivity()
                 audioManager?.stopSpeaking()
                 resetDisplayState()
                 viewModel?.handleQuery(query)
@@ -438,7 +328,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 android.util.Log.w("AssistantSession", "Ignoring mic trigger because query is still being processed.")
                 return@setOnClickListener
             }
-            noteUserActivity()
+            idleController.noteActivity()
             LatencyLogger.reset()
             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
             audioManager?.stopSpeaking()
@@ -464,92 +354,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         etInput?.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (!s.isNullOrEmpty()) noteUserActivity()
+                if (!s.isNullOrEmpty()) idleController.noteActivity()
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
 
         setContentView(overlayView)
-    }
-
-    /**
-     * Quiet-listening auto-close: after [AssistantIdleTimeout] seconds with no speech /
-     * LLM / text activity, dismiss the overlay and finish the session.
-     *
-     * Busy states (thinking / streaming / speaking) and model warm-up pause the timer.
-     * Timer does not start until the mic has reached Listening at least once.
-     */
-    private fun startIdleWatch() {
-        AssistantIdleTimeout.install(context)
-        idleArmedAfterMicReady = false
-        idleWatchJob?.cancel()
-        idleWatchJob = observerScope.launch {
-            val vm = viewModel
-            if (vm != null) {
-                launch {
-                    vm.uiState.collect { state -> onUiStateForIdle(state) }
-                }
-                launch {
-                    vm.events.collect { event ->
-                        when (event) {
-                            is ViewModelEvent.SetInputText -> {
-                                if (event.text.isNotBlank()) noteUserActivity()
-                            }
-                            is ViewModelEvent.StartListening -> {
-                                // Request only — idle arms when uiState reaches Listening (ready).
-                            }
-                            else -> Unit
-                        }
-                    }
-                }
-            }
-            // Do not count down until STT is ready — pause while warming / handoff.
-            pauseIdleTimer()
-            AssistantDebugLog.d("Session", "idle watch started — waiting for mic ready")
-            // Safety: if STT never reaches Listening, still allow close after a long grace.
-            delay(15_000)
-            if (isActive && sessionUiVisible && !idleArmedAfterMicReady) {
-                AssistantDebugLog.w("Session", "idle grace — mic never ready, arming anyway")
-                idleArmedAfterMicReady = true
-                armIdleTimer("mic-ready-fallback")
-            }
-        }
-    }
-
-    private fun cancelIdleWatch() {
-        idleJob?.cancel()
-        idleJob = null
-        idleWatchJob?.cancel()
-        idleWatchJob = null
-        micHandoffJob?.cancel()
-        micHandoffJob = null
-        idleArmedAfterMicReady = false
-    }
-
-    private fun onUiStateForIdle(state: AssistantUiState) {
-        when (state) {
-            is AssistantUiState.Thinking,
-            is AssistantUiState.Streaming,
-            is AssistantUiState.Speaking,
-            -> pauseIdleTimer()
-            is AssistantUiState.Listening -> {
-                idleArmedAfterMicReady = true
-                if (isModelWarmingUp()) {
-                    pauseIdleTimer()
-                } else {
-                    armIdleTimer("ui:Listening")
-                }
-            }
-            is AssistantUiState.Idle,
-            is AssistantUiState.Error,
-            -> {
-                if (!idleArmedAfterMicReady || isModelWarmingUp()) {
-                    pauseIdleTimer()
-                } else {
-                    armIdleTimer("ui:${state::class.simpleName}")
-                }
-            }
-        }
     }
 
     private fun isCloudRoutingActive(): Boolean {
@@ -558,67 +368,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 .get<com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags>()
                 .isCloudActive
         }.getOrElse { LocalLLMActivity.isCloudModelActive }
-    }
-
-    private fun isModelWarmingUp(): Boolean {
-        if (isCloudRoutingActive()) return false
-        return LLMManager.isInitializing || LLMManager.isPrewarming || !LLMManager.isReady()
-    }
-
-    /** Reset the idle countdown after real user / pipeline activity. */
-    private fun noteUserActivity() {
-        if (!sessionUiVisible) return
-        if (viewModel?.isProcessing() == true) {
-            pauseIdleTimer()
-            return
-        }
-        if (!idleArmedAfterMicReady) return
-        armIdleTimer("user-activity")
-    }
-
-    private fun pauseIdleTimer() {
-        idleJob?.cancel()
-        idleJob = null
-    }
-
-    private fun armIdleTimer(reason: String) {
-        idleJob?.cancel()
-        if (!sessionUiVisible) return
-        if (!idleArmedAfterMicReady) {
-            AssistantDebugLog.d("Session", "idle arm skipped — mic not ready ($reason)")
-            return
-        }
-        val timeoutMs = AssistantIdleTimeout.currentMs()
-        if (timeoutMs <= 0L) {
-            AssistantDebugLog.d("Session", "idle timer disabled ($reason)")
-            idleJob = null
-            return
-        }
-        idleJob = observerScope.launch {
-            AssistantDebugLog.d("Session", "idle arm ${timeoutMs}ms ($reason)")
-            delay(timeoutMs)
-            if (!isActive || !sessionUiVisible) return@launch
-            // Still busy? Skip close (e.g. race with Thinking).
-            val busy = when (viewModel?.uiState?.value) {
-                is AssistantUiState.Thinking,
-                is AssistantUiState.Streaming,
-                is AssistantUiState.Speaking,
-                -> true
-                else -> viewModel?.isProcessing() == true
-            }
-            if (busy || isModelWarmingUp()) {
-                AssistantDebugLog.d("Session", "idle fire skipped — busy")
-                return@launch
-            }
-            // Never close while STT is still starting (not yet Listening).
-            if (viewModel?.uiState?.value !is AssistantUiState.Listening &&
-                viewModel?.uiState?.value !is AssistantUiState.Idle &&
-                viewModel?.uiState?.value !is AssistantUiState.Error
-            ) {
-                return@launch
-            }
-            dismissForIdleTimeout()
-        }
     }
 
     private fun dismissForIdleTimeout() {
@@ -788,11 +537,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         // Cancel stale hide→wake restart so Vosk cannot reclaim the mic mid-STT.
         wakeRestartJob?.cancel()
         wakeRestartJob = null
-        beginSummonProtection()
-        baselineResumedActivity = null
-        baselineTopPackage = null
-        registerDismissWatchers()
-        startIdleWatch()
+        dismissController.start()
+        idleController.start()
 
         if (isSessionVisible) {
             android.util.Log.d("AssistantSession", "Assistant re-triggered while active. Tearing down complete session.")
@@ -865,7 +611,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             inputControls?.visibility = View.VISIBLE
             btnSend?.isEnabled = true
             btnMic?.isEnabled = true
-            armIdleTimer("xml-ready")
+            idleController.arm("xml-ready")
 
             // Automatically start listening on session open
             CoroutineScope(Dispatchers.Main).launch {
@@ -940,126 +686,6 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
     }
 
-    private fun registerDismissWatchers() {
-        val app = context.applicationContext as? Application ?: return
-        runCatching { app.unregisterActivityLifecycleCallbacks(activityWatcher) }
-        app.registerActivityLifecycleCallbacks(activityWatcher)
-        if (!focusListenerRegistered && ::overlayView.isInitialized) {
-            overlayView.viewTreeObserver.addOnWindowFocusChangeListener(windowFocusListener)
-            focusListenerRegistered = true
-        }
-        if (!closeSystemDialogsReceiverRegistered) {
-            val filter = IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
-            runCatching {
-                ContextCompat.registerReceiver(
-                    context.applicationContext,
-                    closeSystemDialogsReceiver,
-                    filter,
-                    ContextCompat.RECEIVER_NOT_EXPORTED,
-                )
-                closeSystemDialogsReceiverRegistered = true
-            }.onFailure {
-                AssistantDebugLog.w("Session", "CLOSE_SYSTEM_DIALOGS register failed: ${it.message}")
-            }
-        }
-        startTopTaskPoller()
-    }
-
-    private fun unregisterDismissWatchers() {
-        topTaskPollJob?.cancel()
-        topTaskPollJob = null
-        val app = context.applicationContext as? Application
-        runCatching { app?.unregisterActivityLifecycleCallbacks(activityWatcher) }
-        if (focusListenerRegistered && ::overlayView.isInitialized) {
-            runCatching {
-                overlayView.viewTreeObserver.removeOnWindowFocusChangeListener(windowFocusListener)
-            }
-            focusListenerRegistered = false
-        }
-        if (closeSystemDialogsReceiverRegistered) {
-            runCatching {
-                context.applicationContext.unregisterReceiver(closeSystemDialogsReceiver)
-            }
-            closeSystemDialogsReceiverRegistered = false
-        }
-    }
-
-    /**
-     * Cross-process dismiss: ActivityLifecycleCallbacks only see *this* app's activities.
-     * System-bar launches (Maps, phone, …) live in other processes — poll the foreground
-     * task/package and hide when it changes.
-     */
-    private fun startTopTaskPoller() {
-        topTaskPollJob?.cancel()
-        topTaskPollJob = observerScope.launch {
-            // Let the session settle before sampling the baseline top package.
-            delay(350)
-            while (isActive && sessionUiVisible) {
-                val top = foregroundPackage()
-                if (top != null) {
-                    if (baselineTopPackage == null) {
-                        baselineTopPackage = top
-                        AssistantDebugLog.d("Session", "baseline topPkg=$top")
-                    } else if (top != baselineTopPackage && !isTransientSystemPackage(top)) {
-                        // Confirm once — AAOS system UI can briefly report a different pkg.
-                        delay(120)
-                        val confirmed = foregroundPackage()
-                        if (confirmed == top && confirmed != baselineTopPackage && sessionUiVisible) {
-                            if (isSummonProtected()) {
-                                AssistantDebugLog.d(
-                                    "Session",
-                                    "topPkg change ignored (summon protect): $confirmed",
-                                )
-                            } else {
-                                dismissForExternalUi("top-pkg $baselineTopPackage → $confirmed")
-                                break
-                            }
-                        }
-                    }
-                }
-                delay(250)
-            }
-        }
-    }
-
-    /** Packages that flicker without meaning a real app launch from the system bar. */
-    private fun isTransientSystemPackage(pkg: String): Boolean {
-        return pkg == "android" ||
-            pkg == "com.android.systemui" ||
-            pkg.endsWith(".systemui") ||
-            pkg.contains("permissioncontroller")
-    }
-
-    private fun foregroundPackage(): String? {
-        // 1) Running tasks (works for priv-apps with REAL_GET_TASKS on AAOS).
-        runCatching {
-            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            @Suppress("DEPRECATION")
-            val pkg = am.getRunningTasks(1)?.firstOrNull()?.topActivity?.packageName
-            if (!pkg.isNullOrBlank()) return pkg
-        }
-        // 2) Importance-based process list.
-        runCatching {
-            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-            val proc = am.runningAppProcesses?.firstOrNull {
-                it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
-            }
-            val pkg = proc?.pkgList?.firstOrNull() ?: proc?.processName
-            if (!pkg.isNullOrBlank()) return pkg
-        }
-        // 3) Usage stats (if granted).
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            runCatching {
-                val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-                val end = System.currentTimeMillis()
-                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, end - 15_000, end)
-                val top = stats?.maxByOrNull { it.lastTimeUsed }?.packageName
-                if (!top.isNullOrBlank()) return top
-            }
-        }
-        return null
-    }
-
     private fun stopDotAnimation(finalText: String = "") {
         dotAnimatorJob?.cancel()
         if (finalText.isNotEmpty()) {
@@ -1085,63 +711,12 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         return spannable
     }
 
-    /**
-     * Fallback duck when [audioManager] is not bound yet (first frames of onShow).
-     * Matches [com.tcs.vehicleassistant.hardware.AndroidAudioManager] policy.
-     */
-    private var fallbackDuckRequest: android.media.AudioFocusRequest? = null
-    private val fallbackDuckListener =
-        android.media.AudioManager.OnAudioFocusChangeListener { /* session-owned */ }
-
-    private fun requestFallbackDuck() {
-        try {
-            val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                val attrs = android.media.AudioAttributes.Builder()
-                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-                val req = android.media.AudioFocusRequest.Builder(
-                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
-                )
-                    .setAudioAttributes(attrs)
-                    .setOnAudioFocusChangeListener(fallbackDuckListener)
-                    .setWillPauseWhenDucked(false)
-                    .build()
-                fallbackDuckRequest = req
-                am.requestAudioFocus(req)
-            } else {
-                @Suppress("DEPRECATION")
-                am.requestAudioFocus(
-                    fallbackDuckListener,
-                    android.media.AudioManager.STREAM_MUSIC,
-                    android.media.AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK,
-                )
-            }
-            AssistantDebugLog.d("Session", "fallback duck requested")
-        } catch (t: Throwable) {
-            AssistantDebugLog.w("Session", "fallback duck failed: ${t.message}")
-        }
-    }
-
-    private fun abandonFallbackDuck() {
-        try {
-            val am = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                fallbackDuckRequest?.let { am.abandonAudioFocusRequest(it) }
-                fallbackDuckRequest = null
-            } else {
-                @Suppress("DEPRECATION")
-                am.abandonAudioFocus(fallbackDuckListener)
-            }
-        } catch (_: Throwable) {
-        }
-    }
-
     override fun onDestroy() {
         sessionUiVisible = false
-        cancelIdleWatch()
-        unregisterDismissWatchers()
+        idleController.destroy()
+        micHandoffJob?.cancel()
+        micHandoffJob = null
+        dismissController.destroy()
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
         // Mirror onHide audio teardown so Vosk cannot race an open SpeechRecognizer.
