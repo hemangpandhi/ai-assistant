@@ -235,6 +235,9 @@ class AgentOrchestrator(
             val finalMsg = when {
                 toolCall.startsWith("handleDrowsyDriving") ->
                     "Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert."
+                toolCall.startsWith("stopMusic") -> "No problem, I've stopped the music for you right away."
+                toolCall.startsWith("increaseTemperature") -> "I'm warming up the cabin for you right away!"
+                toolCall.startsWith("decreaseTemperature") -> "I'm cooling down the cabin for you right away!"
                 toolCall.startsWith("startNavigationTo") -> feedback
                 toolCall.startsWith("searchNearby") -> feedback
                 else -> feedback
