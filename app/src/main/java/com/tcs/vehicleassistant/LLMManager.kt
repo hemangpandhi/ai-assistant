@@ -180,6 +180,11 @@ object LLMManager {
                 withContext(Dispatchers.Main) {
                     callback?.onSuccess()
                 }
+
+                // Automatically prewarm the model in the background to completely eliminate the 5s TTFT delay on the first query
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                    prewarm(context)
+                }
             } catch (e: Exception) {
                 Log.e("LLMManager", "Error initializing model", e)
                 if (backendChoice != "CPU") {
@@ -202,6 +207,11 @@ object LLMManager {
                         isPrewarmed = false // enabled prewarm
 
                         withContext(Dispatchers.Main) { callback?.onSuccess() }
+                        
+                        // Automatically prewarm the model in the background to completely eliminate the 5s TTFT delay on the first query
+                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
+                            prewarm(context)
+                        }
                     } catch (fallbackEx: Exception) {
                          Log.e("LLMManager", "Error initializing model with CPU fallback", fallbackEx)
                          withContext(Dispatchers.Main) { callback?.onError(fallbackEx) }
