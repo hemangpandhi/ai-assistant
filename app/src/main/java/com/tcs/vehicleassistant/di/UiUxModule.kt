@@ -7,6 +7,7 @@ import com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags
 import com.tcs.vehicleassistant.data.memory.ConversationMemory
 import com.tcs.vehicleassistant.data.memory.MemoryManagerStore
 import com.tcs.vehicleassistant.data.tools.ToolManagerCatalog
+import com.tcs.vehicleassistant.data.tools.UiUxToolDispatcher
 import com.tcs.vehicleassistant.data.vehicle.VehicleManagerGateway
 import com.tcs.vehicleassistant.data.vehicle.VhalGateway
 import com.tcs.vehicleassistant.domain.ExecuteToolUseCase
@@ -22,6 +23,8 @@ import com.tcs.vehicleassistant.llm.LiteRtLlmEngine
 import com.tcs.vehicleassistant.llm.LlmEngine
 import com.tcs.vehicleassistant.llm.LlmManagerSessionAdapter
 import com.tcs.vehicleassistant.repository.UiUxAgentOrchestrator
+import com.tcs.vehicleassistant.repository.uiux.MoodOrchestratorExtension
+import com.tcs.vehicleassistant.repository.uiux.OrchestratorExtension
 import org.koin.android.ext.koin.androidContext
 import org.koin.dsl.module
 
@@ -37,7 +40,9 @@ val uiUxModule = module {
     single<ConversationMemory> { MemoryManagerStore() }
     single<LlmEngine> { LiteRtLlmEngine() }
     single<LlmSessionPort> { LlmManagerSessionAdapter(get()) }
-    single<ToolCatalog> { ToolManagerCatalog(get()) }
+    single { ToolManagerCatalog(get()) }
+    single<ToolCatalog> { UiUxToolDispatcher(get<ToolManagerCatalog>()) }
+    single<OrchestratorExtension> { MoodOrchestratorExtension() }
 
     // Concrete audio impl registered as SessionAudioPort; also satisfies IAudioManager.
     single { SessionAndroidAudioManager(androidContext()) }
@@ -61,6 +66,7 @@ val uiUxModule = module {
             speechPresenter = get(),
             llmSession = get(),
             toolCatalog = get(),
+            extensions = getAll(),
         )
     }
     single { UiUxAssistantViewModel(androidContext(), get(), get(), get(), get()) }

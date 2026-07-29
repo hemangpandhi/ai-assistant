@@ -45,11 +45,22 @@ UI/UX startup is selected without editing refactor-owned Kotlin:
 
 1. `UiUxVehicleApplication` loads `appModule` plus `uiUxModule`; the manifest
    selects this additive application class.
-2. `UiUxAssistantSessionService` chooses Compose versus XML sessions;
-   `voice_interaction_service.xml` selects this additive service.
-3. `AndroidManifest.xml` contains additive UI/UX activities, services, and receivers.
-4. `app/build.gradle.kts` / `settings.gradle.kts` include `:assistant-ui`,
+2. `UiUxAssistantVoiceInteractionService` is the system-bound VIS; it starts
+   `UiUxWakeWordService` (Compose) or `WakeWordService` (XML). Refactor
+   `AssistantVoiceInteractionService` stays registered but is not system-bound.
+3. `UiUxAssistantSessionService` chooses Compose versus XML sessions;
+   `voice_interaction_service.xml` selects this additive session service.
+4. `AndroidManifest.xml` contains additive UI/UX activities, services, and receivers.
+5. `app/build.gradle.kts` / `settings.gradle.kts` include `:assistant-ui`,
    `:assistant-api`, and required dependencies.
+
+### Plugin seams
+
+- `OrchestratorExtension` (+ `MoodOrchestratorExtension`) — mood / decoration hooks
+  for `UiUxAgentOrchestrator` (`beforeQuery`, `onToken`, `onDone`, `stripDecorations`,
+  `moodForDirectTool`, `onReset`). Bind additional plugins via Koin `getAll()`.
+- `UiUxToolDispatcher` — `ToolCatalog` front-door that applies `HvacToolAliases`
+  before find/execute.
 
 Manifest, XML, and Gradle wiring may differ from `origin/dev/refactor`; Kotlin
 files owned by that branch may not.

@@ -4,10 +4,28 @@
 
 This repo is a single Android Automotive OS (AAOS) app — `VehicleEdgeAssistant`
 (package `com.tcs.vehicleassistant`), built with Gradle (Kotlin DSL). Modules:
-`:app` (agent / VHAL host) and `:assistant-ui` (Compose face/overlay contracts).
+`:app` (agent / VHAL host), `:assistant-ui` (Compose face/overlay contracts), and
+`:assistant-api` (host-neutral LLM/tool ports).
 There is no backend/server to run; the "product" is an installable APK. See
 `README.md` and `ARCHITECTURE.md` for product/architecture details and
 `app/build.gradle.kts` for the module config.
+
+### Hard rule: do not modify `origin/dev/refactor`-owned classes
+
+The Kotlin tree that exists on `origin/dev/refactor` under `app/src` is
+**refactor-owned**. Treat it as read-only for UI/UX / TTFR / agent work on
+`dev/ui_ux_v2` (and agent branches):
+
+- **Do not edit** those `.kt` files unless it is **extremely required** (e.g. a
+  true compile break that cannot be fixed with a parallel type, adapter, or
+  manifest/DI wiring). Prefer almost never.
+- Prefer **new parallel types**, **extensions**, **ports/adapters**, and
+  **manifest / Koin / XML wiring** instead (see
+  `docs/architecture/refactor_extension_policy.md`).
+- After any accidental touch, restore the file from `origin/dev/refactor` and
+  move the change into an additive type.
+- Enforced by `RefactorOwnedTreeContractTest` +
+  `app/src/test/resources/refactor_owned_kotlin.txt` (byte-identical check).
 
 ### Toolchain (non-obvious)
 - **Use JDK 17, not the VM default JDK 21.** AGP 8.2.2 / Gradle 8.4 require Java 17;
