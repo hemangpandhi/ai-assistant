@@ -85,6 +85,7 @@ android {
 
 dependencies {
     implementation(project(":assistant-ui"))
+    implementation(project(":assistant-api"))
 
     val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
     implementation(composeBom)

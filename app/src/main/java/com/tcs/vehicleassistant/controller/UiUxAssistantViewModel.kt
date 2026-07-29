@@ -3,6 +3,7 @@ package com.tcs.vehicleassistant.controller
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.assistant.api.llm.LlmSessionPort
 import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.tcs.vehicleassistant.domain.ProcessQueryUseCase
 import com.tcs.vehicleassistant.domain.SpeculativeToolPrep
@@ -29,6 +30,7 @@ class UiUxAssistantViewModel(
     private val audioManager: SessionAudioPort,
     private val orchestrator: UiUxAgentOrchestrator,
     private val processQuery: ProcessQueryUseCase,
+    private val llmSession: LlmSessionPort,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<AssistantUiState>(AssistantUiState.Idle)
@@ -122,7 +124,7 @@ class UiUxAssistantViewModel(
             },
             onPartial = { partialText ->
                 if (partialText.isNotBlank()) {
-                    SpeculativeToolPrep.onPartial(partialText)
+                    SpeculativeToolPrep.onPartial(partialText, llmSession.lastAiResponse)
                     audioManager.setEndpointingProfile(EndpointingProfileSelector.forPartial(partialText))
                     _liveTranscript.value = partialText
                     _events.tryEmit(UiUxViewModelEvent.SetInputText(partialText))

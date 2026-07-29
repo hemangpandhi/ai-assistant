@@ -2,7 +2,7 @@ package com.tcs.vehicleassistant.domain
 
 import android.content.Context
 import android.content.Intent
-import com.tcs.vehicleassistant.ToolManager
+import com.assistant.api.tools.ToolCatalog
 import com.tcs.vehicleassistant.utils.StreamingToolCallParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +13,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * Schedules tool execution (eager mid-stream or onDone).
  */
 class ExecuteToolUseCase(
-    private val toolManager: ToolManager,
+    private val toolCatalog: ToolCatalog,
 ) {
     data class ScheduledTool(
         val toolCall: String,
@@ -29,7 +29,7 @@ class ExecuteToolUseCase(
         onIntent: (Intent) -> Unit,
         execute: suspend (String) -> String?,
     ): ScheduledTool {
-        val toolDef = toolManager.getToolDefinition(toolCall)
+        val toolDef = toolCatalog.find(toolCall)
         if (toolDef?.requiresConfirmation == true) {
             return ScheduledTool(toolCall, requiresConfirmation = true, deferred = null)
         }
@@ -44,5 +44,5 @@ class ExecuteToolUseCase(
         context: Context,
         toolCall: String,
         onIntent: (Intent) -> Unit,
-    ): String? = toolManager.executeToolCall(context.applicationContext, toolCall, onIntent)
+    ): String? = toolCatalog.execute(context.applicationContext, toolCall, onIntent)
 }
