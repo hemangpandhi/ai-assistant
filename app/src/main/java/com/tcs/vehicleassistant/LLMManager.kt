@@ -92,11 +92,12 @@ object LLMManager {
             val savedBackendChoice = prefs.getString("backend_choice", "Auto") ?: "Auto"
             
             var modelFile: File? = null
-            if (savedModelPath != null && !savedModelPath.endsWith("model.litertlm")) {
+            if (savedModelPath != null) {
                 modelFile = File(savedModelPath)
             }
             if (modelFile == null || !modelFile.exists()) {
-                modelFile = models.find { it.name.contains("gemma", ignoreCase = true) }
+                modelFile = models.find { it.name == "model.litertlm" }
+                    ?: models.find { it.name.contains("gemma", ignoreCase = true) }
                     ?: models.find { it.name.contains("qwen", ignoreCase = true) }
                     ?: models.firstOrNull()
             }
