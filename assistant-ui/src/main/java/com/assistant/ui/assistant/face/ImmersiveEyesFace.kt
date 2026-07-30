@@ -58,7 +58,8 @@ import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
 internal val NomiFaceBlack = Color(0xFF050508)
 
 /**
- * NIO NOMI–style glyphs: hollow ring eyes + mouth on a matte black SemiCircle face.
+ * NIO NOMI–style glyphs: hollow ring eyes + mouth on a matte SemiCircle device shell
+ * (volume housing + recessed glass). Shape stays SemiCircle — paint/lighting only.
  */
 internal data class ImmersiveEyePose(
     val eyeOpen: Float = 1f,
@@ -216,7 +217,7 @@ private val PoseSpring = spring<Float>(
 )
 
 /**
- * Floating Nomi glyphs on a matte black SemiCircle face.
+ * Floating Nomi glyphs on a matte SemiCircle device shell (volume + recessed glass).
  *
  * @param gazeX/gazeY optional cabin gaze override (−1..1); null keeps mood look loops
  * @param mouthAmplitude optional lip-sync 0..1 (drives mouth while speaking)
@@ -557,17 +558,17 @@ fun ImmersiveEyesFace(
             center = Offset(cx + parallaxX, cy + parallaxY),
         )
 
-        // Faint floor shadow — flat puddle that barely follows motion so the face feels anchored.
+        // Contact AO puddle — slightly tighter/darker so the device feels seated in a well.
         val floorCx = cx + swayX * 0.3f
         val floorCy = cy + faceR * 0.78f + bobY * 0.18f
-        val floorW = faceR * 1.48f
-        val floorH = faceR * 0.20f
+        val floorW = faceR * 1.42f
+        val floorH = faceR * 0.18f
         drawOval(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(
-                    0.0f to Color.Black.copy(alpha = 0.30f),
-                    0.40f to Color.Black.copy(alpha = 0.14f),
-                    0.75f to Color.Black.copy(alpha = 0.04f),
+                    0.0f to Color.Black.copy(alpha = 0.42f),
+                    0.35f to Color.Black.copy(alpha = 0.20f),
+                    0.70f to Color.Black.copy(alpha = 0.06f),
                     1.0f to Color.Transparent,
                 ),
                 center = Offset(floorCx, floorCy),
@@ -588,32 +589,15 @@ fun ImmersiveEyesFace(
                 bottom = cy + shellH * 0.72f,
             )
 
-            // Matte black SemiCircle face (color only — shape unchanged).
-            drawExpressiveFaceShell(
-                morphState = shellMorph,
-                bounds = shellBounds,
-                color = NomiFaceBlack,
-            )
-            // Soft top-left sheen on the black shell.
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.08f),
-                        Color.Transparent,
-                    ),
-                    center = Offset(cx - faceR * 0.28f, cy - faceR * 0.32f),
-                    radius = faceR * 0.72f,
-                ),
-                radius = faceR * 0.72f,
-                center = Offset(cx - faceR * 0.28f, cy - faceR * 0.32f),
-            )
-            // Hairline pale rim stroke.
+            // Matte housing + recessed glass (same SemiCircle footprint).
             val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
-            drawExpressiveFaceShell(
+            drawImmersiveDeviceShell(
                 morphState = shellMorph,
-                bounds = shellBounds,
-                color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.65f),
-                style = Stroke(width = 0.028f, cap = StrokeCap.Round),
+                shellBounds = shellBounds,
+                cx = cx,
+                cy = cy,
+                faceR = faceR,
+                rimAlpha = rimAlpha,
             )
 
             val liveTilt = tilt.value + 0.35f * sin(life * 0.28f).toFloat()
@@ -702,8 +686,140 @@ fun ImmersiveEyesFace(
                     )
                 }
             }
+
+            // Light glass film + crescent over glyphs — sells a cover glass without hiding eyes.
+            drawImmersiveGlassOverlay(cx = cx, cy = cy, faceR = faceR)
         }
     }
+}
+
+/**
+ * Nomi-like device shell on the fixed SemiCircle footprint:
+ * matte volume housing → glossy bezel band → recessed deep-black glass → dual rim.
+ * Paint/lighting only — silhouette and [shellBounds] stay unchanged.
+ */
+private fun DrawScope.drawImmersiveDeviceShell(
+    morphState: ExpressiveShellMorphState,
+    shellBounds: Rect,
+    cx: Float,
+    cy: Float,
+    faceR: Float,
+    rimAlpha: Float,
+) {
+    // Outer matte housing — soft spherical volume (top-left lift → deep chin).
+    drawExpressiveFaceShell(
+        morphState = morphState,
+        bounds = shellBounds,
+        brush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0.0f to Color(0xFF22252C),
+                0.35f to Color(0xFF12141A),
+                0.72f to NomiFaceBlack,
+                1.0f to Color(0xFF020203),
+            ),
+            center = Offset(cx - faceR * 0.24f, cy - faceR * 0.40f),
+            radius = faceR * 1.55f,
+        ),
+    )
+    // Satin bezel catch-light on the housing rim (matte, not chrome).
+    drawExpressiveFaceShell(
+        morphState = morphState,
+        bounds = shellBounds,
+        brush = Brush.linearGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.16f),
+                Color.Transparent,
+                Color.White.copy(alpha = 0.05f),
+            ),
+            start = Offset(shellBounds.left, shellBounds.top),
+            end = Offset(shellBounds.right, shellBounds.center.y),
+        ),
+        style = Stroke(width = 0.058f, cap = StrokeCap.Round),
+    )
+
+    // Recessed glass face — same morph, ~7% inset so the housing reads as a bezel.
+    val inset = 0.07f
+    val glassBounds = Rect(
+        left = shellBounds.left + shellBounds.width * inset,
+        top = shellBounds.top + shellBounds.height * inset,
+        right = shellBounds.right - shellBounds.width * inset,
+        bottom = shellBounds.bottom - shellBounds.height * inset,
+    )
+    drawExpressiveFaceShell(
+        morphState = morphState,
+        bounds = glassBounds,
+        color = Color(0xFF000000),
+    )
+    // Soft glass veil on the inset only.
+    drawExpressiveFaceShell(
+        morphState = morphState,
+        bounds = glassBounds,
+        brush = Brush.verticalGradient(
+            colors = listOf(
+                Color.White.copy(alpha = 0.07f),
+                Color.Transparent,
+                Color.Black.copy(alpha = 0.38f),
+            ),
+            startY = glassBounds.top,
+            endY = glassBounds.bottom,
+        ),
+    )
+    // Elongated top specular (EPORO-style, scaled to SemiCircle).
+    val specW = faceR * 0.20f
+    val specH = faceR * 0.026f
+    drawRoundRect(
+        color = Color.White.copy(alpha = 0.20f),
+        topLeft = Offset(cx - specW * 0.5f, cy - faceR * 0.44f),
+        size = Size(specW, specH),
+        cornerRadius = CornerRadius(specH, specH),
+    )
+
+    // Dual rim: dark inner edge (recess) + pale outer hairline.
+    drawExpressiveFaceShell(
+        morphState = morphState,
+        bounds = glassBounds,
+        color = Color.Black.copy(alpha = 0.60f),
+        style = Stroke(width = 0.020f, cap = StrokeCap.Round),
+    )
+    drawExpressiveFaceShell(
+        morphState = morphState,
+        bounds = shellBounds,
+        color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.70f),
+        style = Stroke(width = 0.028f, cap = StrokeCap.Round),
+    )
+}
+
+/** Thin glass film + crescent highlight over the face plane (Canvas-only, no blur). */
+private fun DrawScope.drawImmersiveGlassOverlay(
+    cx: Float,
+    cy: Float,
+    faceR: Float,
+) {
+    drawCircle(
+        color = Color.Black.copy(alpha = 0.08f),
+        radius = faceR * 0.90f,
+        center = Offset(cx, cy - faceR * 0.02f),
+    )
+    val arcCx = cx - faceR * 0.14f
+    val arcCy = cy - faceR * 0.30f
+    val r = faceR * 0.76f
+    val path = Path().apply {
+        val start = Offset(arcCx - r * 0.50f, arcCy)
+        val mid = Offset(arcCx - r * 0.10f, arcCy - r * 0.50f)
+        val end = Offset(arcCx + r * 0.30f, arcCy - r * 0.38f)
+        moveTo(start.x, start.y)
+        quadraticTo(mid.x, mid.y, end.x, end.y)
+    }
+    drawPath(
+        path,
+        color = Color.White.copy(alpha = 0.28f),
+        style = Stroke(width = faceR * 0.034f, cap = StrokeCap.Round),
+    )
+    drawPath(
+        path,
+        color = Color.White.copy(alpha = 0.10f),
+        style = Stroke(width = faceR * 0.070f, cap = StrokeCap.Round),
+    )
 }
 
 /** Immersive capsule eyes — [glowStrength] 0..1 morphs pale rings ↔ EPORO purple bloom. */
