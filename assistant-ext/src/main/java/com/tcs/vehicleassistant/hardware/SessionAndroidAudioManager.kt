@@ -146,34 +146,84 @@ class SessionAndroidAudioManager(private val context: Context) : SessionAudioPor
 
     private fun initSpeechRecognizer() {
         if (sherpaRecognizer != null) return
+        val sttDir = java.io.File(com.tcs.vehicleassistant.core.AssistantConfig.Audio.STT_SIDELOAD_DIR)
+        val baseEncoder = java.io.File(sttDir, "base.en-encoder.int8.onnx")
+        val baseDecoder = java.io.File(sttDir, "base.en-decoder.int8.onnx")
+        val baseTokens = java.io.File(sttDir, "base.en-tokens.txt")
+        val tinyEncoder = java.io.File(sttDir, "tiny.en-encoder.int8.onnx")
+        val tinyDecoder = java.io.File(sttDir, "tiny.en-decoder.int8.onnx")
+        val tinyTokens = java.io.File(sttDir, "tiny.en-tokens.txt")
+        val useBase = readableSideloadTriplet(baseEncoder, baseDecoder, baseTokens)
+        val useTinySideload = readableSideloadTriplet(tinyEncoder, tinyDecoder, tinyTokens)
         try {
-            val whisperConfig = OfflineWhisperModelConfig(
-                encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
-                decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
-                language = "en",
-                task = "transcribe",
-                tailPaddings = -1,
-            )
-            val modelConfig = OfflineModelConfig(
-                whisper = whisperConfig,
-                tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
-                numThreads = 4,
-                debug = false,
-                provider = "cpu",
-                modelType = "whisper",
-            )
-            val featConfig = FeatureConfig(
-                sampleRate = 16000,
-                featureDim = 80,
-            )
-            val config = OfflineRecognizerConfig(
-                featConfig = featConfig,
-                modelConfig = modelConfig,
-            )
-            sherpaRecognizer = OfflineRecognizer(appContext.assets, config)
+            when {
+                useBase -> {
+                    Log.i(TAG, "Using Whisper Base from ${sttDir.absolutePath}")
+                    sherpaRecognizer = buildWhisperRecognizer(
+                        encoderPath = baseEncoder.absolutePath,
+                        decoderPath = baseDecoder.absolutePath,
+                        tokensPath = baseTokens.absolutePath,
+                    )
+                }
+                useTinySideload -> {
+                    Log.i(TAG, "Using Whisper Tiny from ${sttDir.absolutePath}")
+                    sherpaRecognizer = buildWhisperRecognizer(
+                        encoderPath = tinyEncoder.absolutePath,
+                        decoderPath = tinyDecoder.absolutePath,
+                        tokensPath = tinyTokens.absolutePath,
+                    )
+                }
+                else -> {
+                    Log.e(
+                        TAG,
+                        "STT models missing under ${sttDir.absolutePath}. " +
+                            "APK no longer packages Whisper; adb-push tiny or base " +
+                            "(encoder/decoder/tokens) — see docs/MODEL_SIDELOAD.md",
+                    )
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to init Sherpa-ONNX Whisper: ${e.message}", e)
         }
+    }
+
+    private fun readableSideloadTriplet(
+        encoder: java.io.File,
+        decoder: java.io.File,
+        tokens: java.io.File,
+    ): Boolean = listOf(encoder, decoder, tokens).all { it.exists() && it.canRead() && it.length() > 0L }
+
+    private fun buildWhisperRecognizer(
+        encoderPath: String,
+        decoderPath: String,
+        tokensPath: String,
+    ): OfflineRecognizer {
+        val whisperConfig = OfflineWhisperModelConfig(
+            encoder = encoderPath,
+            decoder = decoderPath,
+            language = "en",
+            task = "transcribe",
+            tailPaddings = -1,
+        )
+        val modelConfig = OfflineModelConfig(
+            whisper = whisperConfig,
+            tokens = tokensPath,
+            numThreads = 4,
+            debug = false,
+            provider = "cpu",
+            modelType = "whisper",
+        )
+        val featConfig = FeatureConfig(
+            sampleRate = 16000,
+            featureDim = 80,
+        )
+        val config = OfflineRecognizerConfig(
+            featConfig = featConfig,
+            modelConfig = modelConfig,
+        )
+        // sherpa-onnx requires assetManager=null for absolute filesystem paths.
+        @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
+        return OfflineRecognizer(null, config)
     }
 
     override fun ensureWarmRecognizer() {

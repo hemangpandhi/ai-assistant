@@ -98,18 +98,20 @@ class UiUxWakeWordService : Service() {
 
         ioScope.launch {
             try {
-                val destDir = java.io.File(filesDir, "model")
-                if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {
-                    copyAssetFolder(assets, "model", destDir.absolutePath)
+                val m = withContext(Dispatchers.IO) {
+                    com.tcs.vehicleassistant.WakeWordService.ensureModel(applicationContext)
                 }
-                val m = Model(destDir.absolutePath)
                 withContext(Dispatchers.Main) {
+                    if (m == null) {
+                        Log.e(TAG, "Vosk wake model unavailable — see docs/MODEL_SIDELOAD.md")
+                        return@withContext
+                    }
                     model = m
                     sharedModel = m
                     recognizerSetup()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to manually unpack/load model: ${e.message}", e)
+                Log.e(TAG, "Failed to load Vosk wake model: ${e.message}", e)
             }
         }
 
@@ -322,22 +324,6 @@ class UiUxWakeWordService : Service() {
                 reason = "hotword",
             )
             UiUxAssistantVoiceInteractionService.triggerSession(this@UiUxWakeWordService)
-        }
-    }
-
-    private fun copyAssetFolder(assetManager: android.content.res.AssetManager, fromAssetPath: String, toPath: String) {
-        val files = assetManager.list(fromAssetPath)
-        if (files.isNullOrEmpty()) {
-            assetManager.open(fromAssetPath).use { input ->
-                java.io.File(toPath).outputStream().use { output ->
-                    input.copyTo(output)
-                }
-            }
-        } else {
-            java.io.File(toPath).mkdirs()
-            for (file in files) {
-                copyAssetFolder(assetManager, "$fromAssetPath/$file", "$toPath/$file")
-            }
         }
     }
 }
