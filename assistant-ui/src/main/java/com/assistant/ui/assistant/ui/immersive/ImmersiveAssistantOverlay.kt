@@ -89,6 +89,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.assistant.ui.assistant.face.AssistantFaceConfig
+import com.assistant.ui.assistant.face.AssistantFaceCuePreview
 import com.assistant.ui.assistant.face.AssistantFaceKind
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.AssistantPresentation
@@ -177,7 +178,10 @@ fun ImmersiveAssistantOverlay(
     val thumbsTick = stage.thumbsTick
     val contextGlyph = stage.contextGlyph
     val glyphGazeActive = stage.glyphGazeActive
-    val faceCues = stage.faceCues
+    val stageFaceCues = stage.faceCues
+    val previewFaceCues by AssistantFaceCuePreview.cues.collectAsStateWithLifecycle()
+    // ADB preview wins over LLM cues when set.
+    val faceCues = previewFaceCues ?: stageFaceCues
     val lastError = stage.lastError
 
     fun summon(origin: ImmersiveSummonOrigin) {

@@ -239,6 +239,16 @@
         </receiver>
 
         <receiver
+            android:name="com.assistant.ui.assistant.face.AssistantFaceCueReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_FACE_CUES" />
+                <action android:name="com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_FACE_CUES" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name="com.assistant.ui.assistant.api.AssistantDebugStripReceiver"
             android:exported="true">
             <intent-filter>
