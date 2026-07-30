@@ -8,6 +8,7 @@ import com.assistant.ui.assistant.face.AssistantFaceConfig
 import com.assistant.ui.assistant.face.AssistantFaceKind
 import com.assistant.ui.assistant.backend.DemoAssistantBackend
 import com.assistant.ui.assistant.backend.SilentAssistantTts
+import com.assistant.ui.assistant.ui.immersive.AssistantPlacementConfig
 import org.koin.java.KoinJavaComponent.getKoin
 /**
  * Installs Compose assistant runtime + UI profile for the host app.
@@ -18,6 +19,7 @@ object AssistantRuntimeBootstrap {
     fun install(app: Application, useDemoBackend: Boolean = false) {
         AssistantUiProfile.install(app)
         AssistantFaceConfig.install(app)
+        AssistantPlacementConfig.install(app)
         AssistantDebugStripConfig.install(app)
         ensureDefaultFace(app)
 

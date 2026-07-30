@@ -26,5 +26,6 @@ class UiUxVehicleApplication : Application() {
         DemoSettingsPresets.ensureDefaults(this)
         UiUxWakeWordService.bindHoldContext(this)
         AssistantRuntimeBootstrap.install(this, useDemoBackend = false)
+        LocalLlmPlacementSettingsHook.install(this)
     }
 }
