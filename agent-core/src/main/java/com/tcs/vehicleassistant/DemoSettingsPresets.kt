@@ -70,13 +70,22 @@ object DemoSettingsPresets {
         }
     }
 
+    /**
+     * First-run only. Must not overwrite OEM/user prefs on every process start — that wiped
+     * selected local model, companion mode, location source, and demo preset each launch.
+     */
     fun ensureDefaults(context: Context) {
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+        if (prefs.getBoolean(PREF_INITIALIZED, false)) return
+
         prefs.edit()
             .putString(LocationManager.PREF_LOCATION_SOURCE, LocationManager.Source.DEVICE.prefValue)
             .putBoolean("cloud_model_active", false)
             .putBoolean("cloud_fallback_enabled", false)
-            .putString("selected_model", "/data/local/tmp/llm/model.litertlm")
+            .putString(
+                com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL,
+                com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH,
+            )
             .putBoolean(PREF_INITIALIZED, true)
             .apply()
         apply(context, TOKYO_OEM)

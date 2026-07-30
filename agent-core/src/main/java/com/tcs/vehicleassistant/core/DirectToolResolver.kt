@@ -35,6 +35,16 @@ object DirectToolResolver {
          * or the runner-up must be absent. Prevents "play music" vs "stop music" ties on "music".
          */
         val minKeywordMargin: Int = 3,
+        /** Max fan level used for DirectTool "max" utterances; OEM override via registry. */
+        val fanMax: Int = 7,
+        /** Max volume percent for DirectTool "max" utterances. */
+        val volumeMax: Int = 100,
+        /** Default seat-heater level when user says "on" / bare seat-heater. */
+        val seatHeaterOnDefault: Int = 2,
+        /** Default alert level for ALERT_LEVEL placeholder tools. */
+        val alertLevelDefault: Int = 2,
+        /** Fallback numeric minimum (fan/volume "min"). */
+        val numericMinDefault: Int = 1,
     )
 
     data class Hit(
@@ -124,7 +134,7 @@ object DirectToolResolver {
             return Outcome.Skip(Rejection("weak_margin"))
         }
 
-        val toolCall = buildToolCall(best.first, normalized)
+        val toolCall = buildToolCall(best.first, normalized, policy)
             ?: return Outcome.Skip(Rejection("unresolvable_args:${best.first.id}"))
 
         val spoken = spokenResponseFor(best.first, toolCall)
@@ -214,7 +224,11 @@ object DirectToolResolver {
      * Builds `handlerKey(args)` from the tool's prompt template and the user query.
      * Returns null when a required placeholder cannot be filled safely.
      */
-    fun buildToolCall(tool: ToolSpec, normalizedQuery: String): String? {
+    fun buildToolCall(
+        tool: ToolSpec,
+        normalizedQuery: String,
+        policy: Policy = Policy(),
+    ): String? {
         val key = tool.handlerKey
         val argTemplate = tool.promptString
             .substringAfter("<TOOL>", missingDelimiterValue = "")
@@ -232,7 +246,7 @@ object DirectToolResolver {
 
         return when (tokens.single()) {
             "VAL", "LEVEL", "PCT" -> {
-                val value = extractNumericOrDirectionalArg(normalizedQuery, key) ?: return null
+                val value = extractNumericOrDirectionalArg(normalizedQuery, key, policy) ?: return null
                 "$key($value)"
             }
             "SONG" -> {
@@ -269,12 +283,16 @@ object DirectToolResolver {
                 val amenity = extractAmenityArg(normalizedQuery) ?: "restaurant"
                 "$key($amenity)"
             }
-            "ALERT_LEVEL" -> "$key(2)"
+            "ALERT_LEVEL" -> "$key(${policy.alertLevelDefault})"
             else -> null
         }
     }
 
-    private fun extractNumericOrDirectionalArg(query: String, handlerKey: String): String? {
+    private fun extractNumericOrDirectionalArg(
+        query: String,
+        handlerKey: String,
+        policy: Policy,
+    ): String? {
         when {
             query.contains("mute") || Regex("""\b(zero|off)\b""").containsMatchIn(query) &&
                 handlerKey.contains("Volume", ignoreCase = true) -> return "0"
@@ -283,17 +301,25 @@ object DirectToolResolver {
             Regex("""\b(down|quieter|lower|decrease|softer)\b""").containsMatchIn(query) &&
                 handlerKey.contains("Volume", ignoreCase = true) -> return "down"
             Regex("""\b(max|maximum)\b""").containsMatchIn(query) -> {
-                return if (handlerKey.contains("Fan", ignoreCase = true)) "7" else "100"
+                return if (handlerKey.contains("Fan", ignoreCase = true)) {
+                    policy.fanMax.toString()
+                } else {
+                    policy.volumeMax.toString()
+                }
             }
-            Regex("""\b(min|minimum)\b""").containsMatchIn(query) -> return "1"
+            Regex("""\b(min|minimum)\b""").containsMatchIn(query) ->
+                return policy.numericMinDefault.toString()
             Regex("""\b(off|disable)\b""").containsMatchIn(query) &&
                 handlerKey.contains("Seat", ignoreCase = true) -> return "0"
             Regex("""\b(on|enable)\b""").containsMatchIn(query) &&
-                handlerKey.contains("Seat", ignoreCase = true) -> return "2"
+                handlerKey.contains("Seat", ignoreCase = true) ->
+                return policy.seatHeaterOnDefault.toString()
         }
         Regex("""\b(\d{1,3})\b""").find(query)?.groupValues?.getOrNull(1)?.let { return it }
         // Seat heater without a level but matched "seat heater" → default comfort level.
-        if (handlerKey.contains("SeatHeater", ignoreCase = true)) return "2"
+        if (handlerKey.contains("SeatHeater", ignoreCase = true)) {
+            return policy.seatHeaterOnDefault.toString()
+        }
         return null
     }
 

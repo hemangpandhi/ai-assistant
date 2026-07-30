@@ -611,6 +611,24 @@ class AgentOrchestrator(
             }
         }
 
+        // Recycle native conversation BEFORE building the prompt so a post-reset turn gets the
+        // full system prompt (isFirstMessage=true) instead of a compact later-turn stub.
+        if (!LocalLLMActivity.isCloudModelActive) {
+            val needsReset = com.tcs.vehicleassistant.core.ConversationResetPolicy.shouldResetBeforePrompt(
+                LLMManager.nativeTurnsSinceReset,
+                AssistantConfig.Llm.CONVERSATION_RESET_TURNS,
+            )
+            if (needsReset) {
+                withContext(Dispatchers.IO) {
+                    if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context)) {
+                        android.util.Log.i(TAG, "Native conversation reset before prompt; string memory retained.")
+                    } else {
+                        android.util.Log.w(TAG, "Deferred conversation reset; inference still active")
+                    }
+                }
+            }
+        }
+
         val finalPrompt: String = withContext(Dispatchers.IO) {
             val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
             val maxHistoryChars = toolManager.slidingWindowMaxChars
@@ -669,6 +687,7 @@ class AgentOrchestrator(
                 // re-inject them — which is when the model starts saying it is a text-only AI that
                 // cannot play music.
                 val toolsForTurn = toolManager.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+                LLMManager.lastInjectedTools = toolsForTurn
                 val toolsBlock = if (toolsForTurn.isNotBlank()) {
                     "=== AVAILABLE TOOLS ===\n$toolsForTurn\n"
                 } else {
@@ -818,7 +837,15 @@ class AgentOrchestrator(
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
                         if (executedTools.add(toolCall)) {
-                            val toolDef = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(toolCall)
+                            val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+                            if (!toolManager.isToolAllowedForCurrentPrompt(parsed.toolName)) {
+                                android.util.Log.w(TAG, "LLM tool rejected by allow-list: $toolCall")
+                                toolFeedbacks.add(
+                                    com.tcs.vehicleassistant.core.LlmToolAllowList.rejectionMessage(parsed.toolName),
+                                )
+                                continue
+                            }
+                            val toolDef = toolManager.getToolDefinition(toolCall)
                             if (toolDef?.requiresConfirmation == true) {
                                 pendingConfirmationTool = toolCall
                             } else {
@@ -831,7 +858,8 @@ class AgentOrchestrator(
                                             }
                                             is ContextGuard.Decision.Block -> decision.message
                                             is ContextGuard.Decision.Escalate -> decision.message
-                                            is ContextGuard.Decision.Allow -> executeToolCall(toolCall)
+                                            is ContextGuard.Decision.Allow ->
+                                                executeToolCall(toolCall, enforcePromptAllowList = true)
                                         }
                                     } ?: "System Error: Tool execution timed out."
                                 }
@@ -989,18 +1017,8 @@ class AgentOrchestrator(
                 } else {
                     val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("edge"))
                     edgeProvider.initialize(context, force = false)
-                    
-                    if ((LLMManager.currentModelPath.contains("gemma", ignoreCase = true) ||
-                            LLMManager.currentModelPath.contains("handoff", ignoreCase = true)) &&
-                        LLMManager.nativeTurnsSinceReset >= AssistantConfig.Llm.CONVERSATION_RESET_TURNS
-                    ) {
-                        if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context)) {
-                            android.util.Log.i(TAG, "Native conversation reset; string memory retained for sliding window.")
-                        } else {
-                            android.util.Log.w(TAG, "Deferred conversation reset; inference still active")
-                        }
-                    }
 
+                    // Reset already ran before prompt construction when needed.
                     LLMManager.nativeTurnsSinceReset++
                     edgeProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)
                 }
@@ -1012,11 +1030,17 @@ class AgentOrchestrator(
         }
     }
 
-    private suspend fun executeToolCall(toolCall: String): String? {
+    private suspend fun executeToolCall(
+        toolCall: String,
+        enforcePromptAllowList: Boolean = false,
+    ): String? {
         val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
-        return toolManager.executeToolCall(context.applicationContext, toolCall) { intent ->
-            pendingIntentsToLaunch.add(intent)
-        }
+        return toolManager.executeToolCall(
+            context.applicationContext,
+            toolCall,
+            enforcePromptAllowList = enforcePromptAllowList,
+            intentHandler = { intent -> pendingIntentsToLaunch.add(intent) },
+        )
     }
 
     companion object {

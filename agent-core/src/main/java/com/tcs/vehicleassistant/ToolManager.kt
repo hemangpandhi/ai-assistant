@@ -99,6 +99,10 @@ class ToolManager {
     /** Keyword-gated instructions from the registry `system_instructions` array. */
     private var systemInstructions: List<SystemInstruction> = emptyList()
 
+    /** Few-shot examples from registry `config.llm_few_shots` for the local LiteRT prompt. */
+    var llmFewShots: List<com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot> = emptyList()
+        private set
+
     var isInitialized = false
         private set
 
@@ -115,6 +119,11 @@ class ToolManager {
 
     /** Policy for registry-driven direct execution; overridable from `config.direct_execution`. */
     var directExecutionPolicy: DirectToolResolver.Policy = DirectToolResolver.Policy()
+        private set
+
+    /** Handler keys last injected into the LLM prompt (per-turn allow-list). */
+    @Volatile
+    var lastPromptedToolKeys: Set<String> = emptySet()
         private set
 
     fun initialize(context: Context) {
@@ -146,8 +155,14 @@ class ToolManager {
                         maxQueryWords = de.optInt("max_query_words", 12).coerceAtLeast(3),
                         maxQueryChars = de.optInt("max_query_chars", 100).coerceAtLeast(20),
                         minKeywordMargin = de.optInt("min_keyword_margin", 3).coerceAtLeast(0),
+                        fanMax = de.optInt("fan_max", 7).coerceAtLeast(1),
+                        volumeMax = de.optInt("volume_max", 100).coerceAtLeast(1),
+                        seatHeaterOnDefault = de.optInt("seat_heater_on_default", 2).coerceAtLeast(0),
+                        alertLevelDefault = de.optInt("alert_level_default", 2).coerceAtLeast(0),
+                        numericMinDefault = de.optInt("numeric_min_default", 1).coerceAtLeast(0),
                     )
                 }
+                llmFewShots = parseLlmFewShots(config)
                 ContextGuard.loadFromConfig(config)
             }
 
@@ -263,6 +278,32 @@ class ToolManager {
             out.add(SystemInstruction(instruction, keywords))
         }
         return out
+    }
+
+    private fun parseLlmFewShots(
+        config: JSONObject,
+    ): List<com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot> {
+        if (!config.has("llm_few_shots")) return emptyList()
+        val arr = config.getJSONArray("llm_few_shots")
+        val out = mutableListOf<com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot>()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val user = obj.optString("user").trim()
+            val assistant = obj.optString("assistant").trim()
+            if (user.isEmpty() || assistant.isEmpty()) continue
+            out += com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot(user, assistant)
+        }
+        return out
+    }
+
+    /** Registry few-shots filtered to tools that exist in this OEM catalogue. */
+    fun getLlmFewShotsPrompt(): String {
+        val keys = activeTools.keys.toSet()
+        val filtered = com.tcs.vehicleassistant.core.LocalLlmPromptSupport.filterByAvailableTools(
+            llmFewShots,
+            keys,
+        )
+        return com.tcs.vehicleassistant.core.LocalLlmPromptSupport.formatFewShots(filtered)
     }
 
     private fun buildRetrievalIndex(): List<ToolRetriever.Document> = activeTools.map { (commandName, tool) ->
@@ -416,6 +457,7 @@ class ToolManager {
             sb.append(toolNames.joinToString(", "))
             sb.append("\n")
         }
+        lastPromptedToolKeys = toolNames.toSet()
 
         val haystack = "$conversationalContext $userQuery".lowercase()
         val matchedInstructions = systemInstructions.filter { inst ->
@@ -431,13 +473,40 @@ class ToolManager {
     }
 
     /**
+     * True when [toolName] (or its registry alias) was offered in the latest LLM tools prompt.
+     * DirectTool / confirmation follow-ups bypass this check in the orchestrator.
+     */
+    fun isToolAllowedForCurrentPrompt(toolName: String): Boolean {
+        val def = getToolDefinition(toolName)
+        val canonical = def?.handlerKey ?: toolName.substringBefore("(").trim()
+        return com.tcs.vehicleassistant.core.LlmToolAllowList.isAllowed(
+            toolName = toolName.substringBefore("(").trim(),
+            allowedKeys = lastPromptedToolKeys,
+            canonicalKey = canonical,
+        )
+    }
+
+    /**
      * Executes the requested tool call if it is enabled in vehicle_skills_registry.json.
      * Returns a string summarizing the outcome for the chat UI.
+     *
+     * @param enforcePromptAllowList when true, reject tools not injected in the latest LLM prompt
      */
-    suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
+    suspend fun executeToolCall(
+        context: Context,
+        rawToolCall: String,
+        enforcePromptAllowList: Boolean = false,
+        intentHandler: ((Intent) -> Unit)? = null,
+    ): String {
         val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>|<\\|tool_call>call:"), "").trim()
         Log.d(TAG, "Executing toolCall: $toolCall")
         try {
+            if (enforcePromptAllowList && !isToolAllowedForCurrentPrompt(toolCall)) {
+                val name = toolCall.substringBefore("(").trim()
+                Log.w(TAG, "Tool rejected by per-turn allow-list: $toolCall keys=$lastPromptedToolKeys")
+                return com.tcs.vehicleassistant.core.LlmToolAllowList.rejectionMessage(name)
+            }
+
             // Check if the requested tool corresponds to an enabled handler
             var matchedTool: ToolDefinition? = null
             for ((key, def) in activeTools) {
@@ -494,15 +563,10 @@ class ToolManager {
                 val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter("(").substringBefore(")")
                 
                 val startToolTime = System.currentTimeMillis()
-                
-                // Hardware confirmation logic with Emulator workaround
-                val isAospEmulator = propId == 289410577 || propId == 354419973 || propId == 289410578
-                val success = if (isAospEmulator) {
-                    VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
-                    true
-                } else {
-                    VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
-                }
+
+                // Always verify VHAL writes. The previous "AOSP emulator" shortcut included real
+                // HVAC_AC_ON (354419973), so AC always reported success without hardware confirm.
+                val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
                 
                 val endToolTime = System.currentTimeMillis()
                 val latency = endToolTime - startToolTime
