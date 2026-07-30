@@ -26,6 +26,22 @@ class WakeWordMatchingTest {
     }
 
     @Test
+    fun `stale decoder leftovers with a repeated wake phrase do not rematch`() {
+        // After RESTART without reset, Vosk emitted e.g. "hey [unk] hey nissan" which still
+        // contained the configured phrase and reopened the overlay without a new wake word.
+        assertFalse(WakeWordService.matchesWakeWord("hey [unk] hey assistant", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("hey [unk] hey [unk] hey assistant", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("hey [unk] hey nissan", "hey nissan"))
+        assertFalse(WakeWordService.matchesWakeWord("hey nissan hey nissan", "hey nissan"))
+    }
+
+    @Test
+    fun `a single wake phrase with unk noise around it still matches`() {
+        assertTrue(WakeWordService.matchesWakeWord("hey [unk] assistant", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("[unk] hey assistant [unk]", wakeWord))
+    }
+
+    @Test
     fun `matching ignores case and surrounding whitespace`() {
         assertTrue(WakeWordService.matchesWakeWord("  HEY Assistant  ", wakeWord))
         assertTrue(WakeWordService.matchesWakeWord("hey assistant", "  HEY ASSISTANT "))

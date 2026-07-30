@@ -197,6 +197,18 @@ object AssistantConfig {
         const val RECOGNITION_TAIL_FRAMES = 30
 
         const val RESTART_DELAY_MS = 300L
+
+        /**
+         * After a successful match, ignore further hypotheses for this long. Prevents a rematch
+         * when the session immediately hands the mic back (or music/TTS bleeds into the mic).
+         */
+        const val POST_MATCH_COOLDOWN_MS = 3_000L
+
+        /**
+         * After RESTART resumes listening, ignore matches briefly so a stale Vosk final or the
+         * first burst of media audio cannot reopen the overlay without a fresh wake utterance.
+         */
+        const val POST_RESTART_IGNORE_MS = 1_500L
     }
 
     /**

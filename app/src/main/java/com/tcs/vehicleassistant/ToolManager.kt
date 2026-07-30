@@ -564,10 +564,11 @@ class ToolManager {
                 
                 val startToolTime = System.currentTimeMillis()
 
-                // Always verify VHAL writes. The previous "AOSP emulator" shortcut included real
-                // HVAC_AC_ON (354419973), so AC always reported success without hardware confirm.
+                // Always require a verified VHAL write+readback. Never claim success from a fire-and-forget
+                // write (the former AOSP "emulator workaround" ignored SecurityException / null CPM and
+                // spoke registry success_message for HVAC_AC_ON and related props).
                 val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
-                
+
                 val endToolTime = System.currentTimeMillis()
                 val latency = endToolTime - startToolTime
                 com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency

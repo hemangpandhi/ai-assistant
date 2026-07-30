@@ -94,18 +94,40 @@ class WakeWordService : Service() {
         }
 
         /**
-         * True when [transcript] contains the configured wake word.
+         * True when [transcript] contains the configured wake word as a fresh phrase.
          *
-         * Matching is deliberately strict — a partial or fuzzy match caused false triggers — and
-         * the Vosk out-of-vocabulary token never counts.
+         * Matching strips Vosk `[unk]` tokens first. A bare `contains` on the raw decoder string
+         * rematched after RESTART when the recognizer was not reset — e.g.
+         * `"hey [unk] hey nissan"` normalizes to `"hey hey nissan"`, which still contains
+         * `"hey nissan"` once. Reject when the wake phrase's leading token repeats more often
+         * than it appears in the configured phrase itself.
          */
         fun matchesWakeWord(transcript: String, configuredWakeWord: String): Boolean {
-            val text = transcript.lowercase().trim()
             val configured = configuredWakeWord.lowercase().trim()
-            if (text.isEmpty() || text == AssistantConfig.WakeWord.UNKNOWN_TOKEN) return false
             if (configured.isEmpty()) return false
-            return text.contains(configured)
+            val text = normalizeTranscript(transcript)
+            if (text.isEmpty()) return false
+            if (!text.contains(configured)) return false
+
+            val lead = configured.substringBefore(' ')
+            if (lead.isNotEmpty()) {
+                val leadRegex = Regex("""\b${Regex.escape(lead)}\b""")
+                val inConfigured = leadRegex.findAll(configured).count()
+                val inText = leadRegex.findAll(text).count()
+                if (inText > inConfigured) return false
+            }
+
+            val first = text.indexOf(configured)
+            val second = text.indexOf(configured, first + configured.length)
+            return second < 0
         }
+
+        /** Lowercases, drops `[unk]`, and collapses whitespace. */
+        fun normalizeTranscript(transcript: String): String =
+            transcript.lowercase()
+                .replace(AssistantConfig.WakeWord.UNKNOWN_TOKEN, " ")
+                .replace(Regex("\\s+"), " ")
+                .trim()
 
         /** Extracts the transcript from a Vosk `{"text": ...}` or `{"partial": ...}` result. */
         fun extractTranscript(voskJson: String): String =
@@ -128,6 +150,10 @@ class WakeWordService : Service() {
     private var listeningJob: Job? = null
     private var restartJob: Job? = null
     private var noiseSuppressor: NoiseSuppressor? = null
+
+    /** Elapsed realtime after which a match is allowed again. */
+    @Volatile
+    private var matchCooldownUntilElapsedMs = 0L
 
     /** Owned scope so every coroutine this service starts is cancelled in [onDestroy]. */
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -184,7 +210,9 @@ class WakeWordService : Service() {
                 // A voice session is opening. Release the microphone but stay alive so the
                 // session can hand it straight back when it finishes.
                 Log.i(TAG, "Pause requested; releasing microphone for the speech recognizer.")
+                restartJob?.cancel()
                 stopCustomListening()
+                resetRecognizer()
                 START_STICKY
             }
 
@@ -194,8 +222,18 @@ class WakeWordService : Service() {
                 restartJob = serviceScope.launch {
                     try {
                         stopCustomListening()
+                        resetRecognizer()
                         delay(AssistantConfig.WakeWord.RESTART_DELAY_MS)
+                        // Ignore the first window after resume: stale finals and media bleed.
+                        matchCooldownUntilElapsedMs = maxOf(
+                            matchCooldownUntilElapsedMs,
+                            android.os.SystemClock.elapsedRealtime() +
+                                AssistantConfig.WakeWord.POST_RESTART_IGNORE_MS
+                        )
                         ensureRecognizerAndListen()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        // A newer RESTART cancelled this job; expected when finish/onHide race.
+                        throw e
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to restart listening", e)
                     }
@@ -333,10 +371,12 @@ class WakeWordService : Service() {
                 }
 
                 val recognizer = customRecognizer ?: break
+                // Only finals may open the session. Partials on a sticky decoder re-fired the
+                // previous wake phrase after RESTART (see "hey [unk] hey nissan" rematches).
                 if (recognizer.acceptWaveForm(buffer, readSize)) {
                     handleTranscript(recognizer.result)
-                } else if (loopCount % 10 == 0) {
-                    handleTranscript(recognizer.partialResult)
+                    // Clear decoder state after every final so music/TTS cannot rematch leftovers.
+                    resetRecognizer()
                 }
                 loopCount++
             }
@@ -378,6 +418,15 @@ class WakeWordService : Service() {
         releaseAudioResources(customAudioRecord)
     }
 
+    /** Drops in-flight Vosk hypotheses so a later RESTART cannot rematch a prior wake phrase. */
+    private fun resetRecognizer() {
+        try {
+            customRecognizer?.reset()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to reset recognizer", e)
+        }
+    }
+
     override fun onDestroy() {
         isRecording = false
         stopCustomListening()
@@ -397,12 +446,20 @@ class WakeWordService : Service() {
         val transcript = extractTranscript(voskJson.orEmpty())
         if (!matchesWakeWord(transcript, wakeWord)) return
 
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (now < matchCooldownUntilElapsedMs) {
+            Log.i(TAG, "Wake word ignored during cooldown: '$transcript'")
+            return
+        }
+
         Log.i(TAG, "Wake word matched: '$transcript'")
+        matchCooldownUntilElapsedMs = now + AssistantConfig.WakeWord.POST_MATCH_COOLDOWN_MS
         sendBroadcast(
             Intent(AssistantConfig.WakeWordAction.DETECTED_BROADCAST).setPackage(packageName)
         )
 
         // Release the mic immediately so the session's speech recognizer can acquire it.
         stopCustomListening()
+        resetRecognizer()
     }
 }

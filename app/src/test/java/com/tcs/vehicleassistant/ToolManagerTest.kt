@@ -2,6 +2,7 @@ package com.tcs.vehicleassistant
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -153,5 +154,45 @@ class ToolManagerTest {
         val before = toolManager.getAllTools().size
         toolManager.initialize(ApplicationProvider.getApplicationContext())
         assertEquals(before, toolManager.getAllTools().size)
+    }
+
+    @Test
+    fun `turnOffAC does not claim success when VHAL cannot confirm the write`() = runBlocking {
+        // Robolectric has no CarPropertyManager. The old AOSP emulator shortcut forced success=true
+        // for HVAC_AC_ON (354419973) and spoke "I've turned off the AC." — a false positive.
+        val msg = toolManager.executeToolCall(
+            ApplicationProvider.getApplicationContext(),
+            "turnOffAC()",
+        )
+        assertFalse(
+            "must not claim AC off without VHAL confirmation, got: $msg",
+            msg.contains("I've turned off the AC", ignoreCase = true) ||
+                msg.contains("Action completed successfully", ignoreCase = true),
+        )
+        assertTrue(
+            "expected honest failure wording, got: $msg",
+            msg.contains("did not confirm", ignoreCase = true) ||
+                msg.contains("didn't confirm", ignoreCase = true) ||
+                msg.contains("hardware", ignoreCase = true),
+        )
+    }
+
+    @Test
+    fun `turnOnAC does not claim success when VHAL cannot confirm the write`() = runBlocking {
+        val msg = toolManager.executeToolCall(
+            ApplicationProvider.getApplicationContext(),
+            "turnOnAC()",
+        )
+        assertFalse(
+            "must not claim AC on without VHAL confirmation, got: $msg",
+            msg.contains("AC is on", ignoreCase = true) ||
+                msg.contains("Action completed successfully", ignoreCase = true),
+        )
+        assertTrue(
+            "expected honest failure wording, got: $msg",
+            msg.contains("did not confirm", ignoreCase = true) ||
+                msg.contains("didn't confirm", ignoreCase = true) ||
+                msg.contains("hardware", ignoreCase = true),
+        )
     }
 }
