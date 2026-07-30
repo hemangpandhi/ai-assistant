@@ -4,11 +4,7 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -727,41 +723,42 @@ fun ImmersiveBorderGlow(
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
     val sweepAngle = remember { Animatable(0f) }
+    val breathScale = remember { Animatable(1f) }
     LaunchedEffect(idleMotion) {
         if (!idleMotion) {
             sweepAngle.snapTo(0f)
+            breathScale.snapTo(1f)
             return@LaunchedEffect
         }
+        // Spectrum sweep + width breathe run together while idle motion is on.
+        launch {
+            while (true) {
+                sweepAngle.snapTo(0f)
+                sweepAngle.animateTo(
+                    targetValue = 360f,
+                    animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
+                )
+            }
+        }
+        // Slow, subtle width breathe: base → slightly wider → restore.
         while (true) {
-            sweepAngle.snapTo(0f)
-            sweepAngle.animateTo(
-                targetValue = 360f,
-                animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
+            breathScale.animateTo(
+                targetValue = 1.18f,
+                animationSpec = tween(durationMillis = 4_000, easing = FastOutSlowInEasing),
+            )
+            breathScale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = 4_000, easing = FastOutSlowInEasing),
             )
         }
-    }
-    // Slow, subtle width breathe: base → slightly wider → restore.
-    // Peak expansion also softens opacity so the bloom stays faded, not neon.
-    val breathScale = if (idleMotion) {
-        val infinite = rememberInfiniteTransition(label = "border_glow_breath")
-        infinite.animateFloat(
-            initialValue = 1f,
-            targetValue = 1.18f,
-            animationSpec = infiniteRepeatable(
-                animation = tween(durationMillis = 4_000, easing = FastOutSlowInEasing),
-                repeatMode = RepeatMode.Reverse,
-            ),
-            label = "glow_breath_width",
-        ).value
-    } else {
-        1f
     }
     val paint = remember { Paint().asFrameworkPaint().apply { isAntiAlias = true } }
     val shaderMatrix = remember { Matrix() }
     val angle = sweepAngle.value
+    val breath = breathScale.value
     val progress = revealProgress.coerceIn(0f, 1f)
     // Soften overall alpha as the rim widens so the expanded edge stays faded.
-    val breathFade = 1f - (breathScale - 1f) * 0.65f
+    val breathFade = 1f - (breath - 1f) * 0.65f
     val spectrum = remember(glowColor) {
         fun tint(c: Color): Color = Color(
             red = c.red * 0.72f + glowColor.red * 0.28f,
@@ -806,8 +803,8 @@ fun ImmersiveBorderGlow(
     ) {
         val w = size.width
         val h = size.height
-        // Moderate bloom — softens further as breathScale widens the band.
-        val thickness = 48.dp.toPx() * breathScale
+        // Moderate bloom — softens further as breath widens the band.
+        val thickness = 48.dp.toPx() * breath
         val cx = w * 0.5f
         val cy = h * 0.5f
 
