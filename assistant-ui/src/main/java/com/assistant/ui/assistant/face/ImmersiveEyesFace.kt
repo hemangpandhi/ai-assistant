@@ -53,6 +53,8 @@ import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
 import com.assistant.ui.assistant.ui.theme.auraAlphaForContrast
 import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
+import com.assistant.ui.assistant.ui.theme.immersiveMatchedShellBounds
+import com.assistant.ui.assistant.ui.theme.ImmersiveShellWidthFactor
 
 /** Matte black face fill (NOMI-like). */
 internal val NomiFaceBlack = Color(0xFF050508)
@@ -560,7 +562,8 @@ fun ImmersiveEyesFace(
         // Faint floor shadow — flat puddle that barely follows motion so the face feels anchored.
         val floorCx = cx + swayX * 0.3f
         val floorCy = cy + faceR * 0.78f + bobY * 0.18f
-        val floorW = faceR * 1.48f
+        // Track slimmer shell base diameter (was 1.48 when width factor was 1.38).
+        val floorW = faceR * (ImmersiveShellWidthFactor + 0.10f)
         val floorH = faceR * 0.20f
         drawOval(
             brush = Brush.radialGradient(
@@ -578,15 +581,8 @@ fun ImmersiveEyesFace(
         )
 
         translate(left = swayX, top = bobY) {
-            // Fixed SemiCircle silhouette — tall chin clearance for open / speaking mouths.
-            val shellW = faceR * 1.38f
-            val shellH = faceR * 1.42f
-            val shellBounds = Rect(
-                left = cx - shellW,
-                top = cy - shellH * 0.68f,
-                right = cx + shellW,
-                bottom = cy + shellH * 0.72f,
-            )
+            // SemiCircle: narrower base diameter, same height (chin clearance unchanged).
+            val shellBounds = immersiveMatchedShellBounds(size.width, size.height, breath = breath)
 
             // Matte black SemiCircle face (color only — shape unchanged).
             drawExpressiveFaceShell(

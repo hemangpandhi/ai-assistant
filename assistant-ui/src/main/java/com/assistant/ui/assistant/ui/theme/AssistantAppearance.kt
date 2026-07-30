@@ -60,14 +60,25 @@ internal fun auraAlphaForContrast(highContrast: Boolean, base: Float): Float =
 /**
  * Shell bounds used by [ImmersiveEyesFace] — EPORO / Fusion draw into this rect
  * so overall height/size matches Immersive eyes & Immersive glow.
+ *
+ * [shellWidthFactor] / [shellHeightFactor] control SemiCircle aspect:
+ * width is the base diameter; height is kept independent so the silhouette
+ * can slim without getting shorter.
  */
-internal fun immersiveMatchedShellBounds(width: Float, height: Float): Rect {
+internal const val ImmersiveShellWidthFactor = 1.24f
+internal const val ImmersiveShellHeightFactor = 1.42f
+
+internal fun immersiveMatchedShellBounds(
+    width: Float,
+    height: Float,
+    breath: Float = 1f,
+): Rect {
     val side = minOf(width, height)
     val cx = width * 0.5f
     val cy = height * 0.5f
-    val faceR = side * 0.36f
-    val shellW = faceR * 1.38f
-    val shellH = faceR * 1.42f
+    val faceR = side * 0.36f * breath
+    val shellW = faceR * ImmersiveShellWidthFactor
+    val shellH = faceR * ImmersiveShellHeightFactor
     return Rect(
         left = cx - shellW,
         top = cy - shellH * 0.68f,
