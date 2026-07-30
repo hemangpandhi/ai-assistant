@@ -65,6 +65,14 @@
       "type": "INT"
     },
     {
+      "name": "HVAC_FAN_DIRECTION",
+      "hex": "0x15400501",
+      "id": 356517121,
+      "value_type": "INT32",
+      "type": "INT",
+      "instruction": "Cabin airflow direction bitmask. Prefer setAirflowDirection(face|floor|face and floor|defrost)."
+    },
+    {
       "name": "DOOR_LOCK",
       "hex": "0x16200b02",
       "id": 371198722,
@@ -1834,8 +1842,35 @@
       "min_keyword_chars": 5,
       "max_query_words": 12,
       "max_query_chars": 100,
-      "min_keyword_margin": 3
+      "min_keyword_margin": 3,
+      "fan_max": 7,
+      "volume_max": 100,
+      "seat_heater_on_default": 2,
+      "alert_level_default": 2,
+      "numeric_min_default": 1
     },
+    "llm_few_shots": [
+      {
+        "user": "play music",
+        "assistant": "<TOOL>playMusic()</TOOL> Playing music for you right now."
+      },
+      {
+        "user": "stop music",
+        "assistant": "<TOOL>stopMusic()</TOOL> Stopping the music for you."
+      },
+      {
+        "user": "pause music",
+        "assistant": "<TOOL>pauseMusic()</TOOL> Pausing media playback."
+      },
+      {
+        "user": "increase temperature",
+        "assistant": "<TOOL>increaseTemperature(all)</TOOL> Warming up the cabin."
+      },
+      {
+        "user": "decrease temperature",
+        "assistant": "<TOOL>decreaseTemperature(all)</TOOL> Cooling down the cabin."
+      }
+    ],
     "context_policies": {
       "enabled": true,
       "rules": [
@@ -1901,7 +1936,7 @@
               {
                 "source": "fan_level",
                 "op": ">=",
-                "value": 7
+                "compare_to": "fan_max"
               }
             ]
           },

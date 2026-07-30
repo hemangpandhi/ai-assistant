@@ -150,7 +150,9 @@ class CabinFuelNormalizeTest {
         assertEquals(-1, CabinSnapshot.normalizeFuelLevelPct(-1f))
         assertEquals(50, CabinSnapshot.normalizeFuelLevelPct(0.5f))
         assertEquals(80, CabinSnapshot.normalizeFuelLevelPct(80f))
-        assertEquals(100, CabinSnapshot.normalizeFuelLevelPct(150f))
+        // Absolute volume without capacity must not be inventively clamped to 100%.
+        assertEquals(-1, CabinSnapshot.normalizeFuelLevelPct(150f))
+        assertEquals(-1, CabinSnapshot.normalizeFuelLevelPct(45000f))
     }
 }
 
