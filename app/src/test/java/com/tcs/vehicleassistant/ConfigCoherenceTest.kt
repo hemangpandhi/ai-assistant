@@ -87,9 +87,8 @@ class ConfigCoherenceTest {
     }
 
     @Test
-    fun `STT sideload prefers device tmp over packaging`() {
+    fun `STT loads only from device sideload dir`() {
         assertEquals("/data/local/tmp/stt", AssistantConfig.Audio.STT_SIDELOAD_DIR)
-        assertTrue(AssistantConfig.Audio.STT_ASSET_TINY_ENCODER.startsWith("sherpa-onnx-whisper/"))
     }
 
     @Test

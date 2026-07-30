@@ -149,15 +149,10 @@ object AssistantConfig {
          * /data/local/tmp/stt/base.en-decoder.int8.onnx
          * /data/local/tmp/stt/base.en-tokens.txt
          * ```
-         * LLM models stay under `/data/local/tmp/llm/`; optional Vosk wake pack under
-         * `/data/local/tmp/vosk/` (see [WakeWordService]).
+         * LLM models stay under `/data/local/tmp/llm/`; required Vosk wake pack under
+         * `/data/local/tmp/vosk/` (see [WakeWordService]). Whisper is not packaged in the APK.
          */
         const val STT_SIDELOAD_DIR = "/data/local/tmp/stt"
-
-        /** Asset-relative Whisper Tiny paths used only when [STT_SIDELOAD_DIR] has no usable model. */
-        const val STT_ASSET_TINY_ENCODER = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx"
-        const val STT_ASSET_TINY_DECODER = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx"
-        const val STT_ASSET_TINY_TOKENS = "sherpa-onnx-whisper/tiny.en-tokens.txt"
 
         /**
          * How long after the last voiced frame we treat the utterance as finished.

@@ -184,7 +184,6 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                         encoderPath = baseEncoder.absolutePath,
                         decoderPath = baseDecoder.absolutePath,
                         tokensPath = baseTokens.absolutePath,
-                        fromAssets = false,
                     )
                 }
                 useTinySideload -> {
@@ -193,20 +192,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                         encoderPath = tinyEncoder.absolutePath,
                         decoderPath = tinyDecoder.absolutePath,
                         tokensPath = tinyTokens.absolutePath,
-                        fromAssets = false,
                     )
                 }
                 else -> {
-                    Log.w(
+                    Log.e(
                         TAG,
-                        "No STT under ${sttDir.absolutePath}; falling back to assets Tiny " +
-                            "(${AssistantConfig.Audio.STT_ASSET_TINY_ENCODER})",
-                    )
-                    sherpaRecognizer = buildWhisperRecognizer(
-                        encoderPath = AssistantConfig.Audio.STT_ASSET_TINY_ENCODER,
-                        decoderPath = AssistantConfig.Audio.STT_ASSET_TINY_DECODER,
-                        tokensPath = AssistantConfig.Audio.STT_ASSET_TINY_TOKENS,
-                        fromAssets = true,
+                        "STT models missing under ${sttDir.absolutePath}. " +
+                            "APK no longer packages Whisper; adb-push tiny or base " +
+                            "(encoder/decoder/tokens) — see docs/MODEL_SIDELOAD.md",
                     )
                 }
             }
@@ -219,14 +212,13 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         listOf(encoder, decoder, tokens).all { it.exists() && it.canRead() && it.length() > 0L }
 
     /**
-     * Builds an OfflineRecognizer for Whisper. Absolute paths require [fromAssets]=false
-     * (sherpa-onnx needs a null AssetManager); asset-relative paths use [context].assets.
+     * Builds an OfflineRecognizer for Whisper from absolute filesystem paths
+     * (sherpa-onnx needs a null AssetManager; Whisper is no longer packaged in assets).
      */
     private fun buildWhisperRecognizer(
         encoderPath: String,
         decoderPath: String,
         tokensPath: String,
-        fromAssets: Boolean,
     ): OfflineRecognizer {
         val whisperConfig = OfflineWhisperModelConfig(
             encoder = encoderPath,
@@ -245,13 +237,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         )
         val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
         val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)
-        return if (fromAssets) {
-            OfflineRecognizer(context.assets, config)
-        } else {
-            // sherpa-onnx requires assetManager=null for absolute filesystem paths.
-            @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
-            OfflineRecognizer(null, config)
-        }
+        // sherpa-onnx requires assetManager=null for absolute filesystem paths.
+        @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
+        return OfflineRecognizer(null, config)
     }
 
     private var sherpaVad: Vad? = null

@@ -52,32 +52,16 @@ class WakeWordService : Service() {
         @Volatile
         private var sharedModel: Model? = null
 
-        fun copyAssetFolder(assetManager: android.content.res.AssetManager, fromAssetPath: String, toPath: String) {
-            val files = assetManager.list(fromAssetPath)
-            if (files.isNullOrEmpty()) {
-                assetManager.open(fromAssetPath).use { input ->
-                    File(toPath).outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            } else {
-                File(toPath).mkdirs()
-                for (file in files) {
-                    copyAssetFolder(assetManager, "$fromAssetPath/$file", "$toPath/$file")
-                }
-            }
-        }
-
         /**
-         * Optional sideload for the Vosk wake pack (extracted model tree). Prefer this over
-         * packaging a ~200 MB archive in assets when pushing to device:
-         * `adb push model/ /data/local/tmp/vosk/` (must contain `am/`, `conf/`, `graph/`, …).
-         * If missing, falls back to assets `model/` as before — wake still works without sideload.
+         * Required sideload for the Vosk wake pack (extracted model tree).
+         * APK no longer packages `assets/model/` (~205 MB). Push via:
+         * `adb push device_models/vosk/. /data/local/tmp/vosk/`
+         * (must contain `am/`, `conf/`, `graph/`, …). See docs/MODEL_SIDELOAD.md.
          */
         private const val VOSK_SIDELOAD_DIR = "/data/local/tmp/vosk"
 
         @Synchronized
-        fun ensureModel(context: Context): Model? {
+        fun ensureModel(@Suppress("UNUSED_PARAMETER") context: Context): Model? {
             sharedModel?.let { return it }
             return try {
                 val sideload = File(VOSK_SIDELOAD_DIR)
@@ -85,11 +69,13 @@ class WakeWordService : Service() {
                     Log.i(TAG, "Loading Vosk wake model from $VOSK_SIDELOAD_DIR")
                     return Model(sideload.absolutePath).also { sharedModel = it }
                 }
-                val destDir = File(context.filesDir, "model")
-                if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {
-                    copyAssetFolder(context.assets, "model", destDir.absolutePath)
-                }
-                Model(destDir.absolutePath).also { sharedModel = it }
+                Log.e(
+                    TAG,
+                    "Vosk wake model missing under $VOSK_SIDELOAD_DIR (need am/). " +
+                        "APK no longer packages assets/model; adb-push device_models/vosk/ — " +
+                        "see docs/MODEL_SIDELOAD.md",
+                )
+                null
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load Vosk model: ${e.message}", e)
                 null
