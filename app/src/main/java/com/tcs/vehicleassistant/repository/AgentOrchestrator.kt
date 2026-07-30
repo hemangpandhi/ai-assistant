@@ -684,12 +684,11 @@ class AgentOrchestrator(
                         append('\n').append(formattedQuery)
                     }.trim()
                 } else {
-                    // Re-inject tools + a bounded history slice. LiteRT KV cache alone is not enough
-                    // after conversation resets or long multi-turn chats.
+                    // Re-inject tools. LiteRT KV cache already contains the conversation history.
+                    // DO NOT re-inject historyBlock, as it will duplicate the history and crash the context window.
                     buildString {
                         append(LLMManager.capabilityReminder())
                         append(toolsBlock)
-                        if (historyBlock.isNotBlank()) append(historyBlock)
                         if (stateInject.isNotBlank()) append(stateInject)
                         append(formattedQuery)
                     }.trim()
@@ -993,7 +992,7 @@ class AgentOrchestrator(
                     
                     if ((LLMManager.currentModelPath.contains("gemma", ignoreCase = true) ||
                             LLMManager.currentModelPath.contains("handoff", ignoreCase = true)) &&
-                        MemoryManager.turnCount() > AssistantConfig.Llm.CONVERSATION_RESET_TURNS
+                        LLMManager.nativeTurnsSinceReset >= AssistantConfig.Llm.CONVERSATION_RESET_TURNS
                     ) {
                         if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context)) {
                             android.util.Log.i(TAG, "Native conversation reset; string memory retained for sliding window.")
@@ -1002,6 +1001,7 @@ class AgentOrchestrator(
                         }
                     }
 
+                    LLMManager.nativeTurnsSinceReset++
                     edgeProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)
                 }
             } catch (e: Exception) {

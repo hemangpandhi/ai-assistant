@@ -58,6 +58,7 @@ object LLMManager {
     var lastVehicleState = ""
 
     var isFirstMessage = true
+    var nativeTurnsSinceReset = 0
     var lastAiResponse: String = ""
     var lastInjectedTools: String = ""
 
@@ -576,6 +577,7 @@ object LLMManager {
             try {
                 conversation = engine?.createConversation(buildConversationConfig())
                 isFirstMessage = true
+                nativeTurnsSinceReset = 0
                 Log.d(
                     TAG,
                     "Conversation reset. isFirstMessage=true backend=$activeBackendString " +
