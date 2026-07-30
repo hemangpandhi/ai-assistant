@@ -10,15 +10,12 @@ import android.service.voice.VoiceInteractionSession
 import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.VehicleManager
 import com.tcs.vehicleassistant.WakeWordService
-import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
 
 /**
- * Primary UI/UX [VoiceInteractionService] — keeps refactor
- * [com.tcs.vehicleassistant.AssistantVoiceInteractionService] byte-identical and
- * reserved for legacy XML / LocalLLMActivity paths.
+ * Primary UI [VoiceInteractionService] — keeps refactor
+ * [com.tcs.vehicleassistant.AssistantVoiceInteractionService] byte-identical.
  *
- * Compose profile starts [UiUxWakeWordService]; XML profile starts [WakeWordService]
- * so the legacy broadcast wake path still works.
+ * Always starts master [WakeWordService] (no parallel TTFR wake path).
  */
 class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
 
@@ -68,12 +65,7 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
         VehicleManager.initialize(this)
         try {
             AssistantUiProfile.install(this)
-            val wakeClass = if (AssistantUiProfile.isCompose()) {
-                UiUxWakeWordService::class.java
-            } else {
-                WakeWordService::class.java
-            }
-            startService(Intent(this, wakeClass))
+            startService(Intent(this, WakeWordService::class.java))
         } catch (_: Exception) {
         }
     }

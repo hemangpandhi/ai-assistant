@@ -1,9 +1,25 @@
 package com.tcs.vehicleassistant.assistant.session
+import com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels
+import com.tcs.vehicleassistant.WakeWordService
+import com.tcs.vehicleassistant.VoiceAnimationView
+import com.tcs.vehicleassistant.VehicleManager
+import com.tcs.vehicleassistant.R
+import com.tcs.vehicleassistant.LocalLLMActivity
+import com.tcs.vehicleassistant.LLMManager
+import com.tcs.vehicleassistant.LatencyLogger
 
+import com.tcs.vehicleassistant.hardware.AssistantAudioFocusDucker
+
+import android.app.Activity
+import android.app.ActivityManager
+import android.app.Application
+import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.service.voice.VoiceInteractionSession
@@ -20,12 +36,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.lifecycle.setViewTreeViewModelStoreOwner
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
-import com.assistant.api.llm.LlmSessionPort
 import com.assistant.ui.assistant.api.AssistantDebugLog
-import com.assistant.ui.assistant.api.AssistantBackend
 import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
@@ -33,17 +56,16 @@ import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
 import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
-import com.tcs.vehicleassistant.*
+import com.tcs.vehicleassistant.assistant.AssistantIdleTimeout
 import com.tcs.vehicleassistant.assistant.AssistantUiMode
 import com.tcs.vehicleassistant.assistant.AssistantUiProfile
+import com.tcs.vehicleassistant.assistant.VehicleAgentAssistantBackend
 import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
 import com.tcs.vehicleassistant.controller.AssistantUiState
-import com.tcs.vehicleassistant.controller.UiUxAssistantViewModel
-import com.tcs.vehicleassistant.controller.UiUxViewModelEvent
-import com.tcs.vehicleassistant.hardware.AssistantAudioFocusDucker
-import com.tcs.vehicleassistant.hardware.SessionAudioPort
-import com.tcs.vehicleassistant.service.UiUxVehicleAgentService
-import com.tcs.vehicleassistant.wakeword.UiUxWakeWordService
+import com.tcs.vehicleassistant.controller.AssistantViewModel
+import com.tcs.vehicleassistant.controller.ViewModelEvent
+import com.tcs.vehicleassistant.hardware.IAudioManager
+import com.tcs.vehicleassistant.service.VehicleAgentService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -53,7 +75,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.koin.java.KoinJavaComponent.getKoin
+import com.assistant.ui.assistant.api.AssistantBackend
 
 /**
  * System voice-interaction session.
@@ -74,9 +96,9 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private var voiceAnimation: VoiceAnimationView? = null
     private var svResponse: android.widget.ScrollView? = null
 
-    private var audioManager: SessionAudioPort? = null
-    private var viewModel: UiUxAssistantViewModel? = null
-    private var agentService: UiUxVehicleAgentService? = null
+    private var audioManager: IAudioManager? = null
+    private var viewModel: AssistantViewModel? = null
+    private var agentService: VehicleAgentService? = null
     private var isBound = false
     private var usingComposeUi = true
     private var currentUiToken: String = ""
@@ -84,6 +106,11 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private var composeHost: SessionComposeHost? = null
     /** True between [onShow] and [onHide] — used to dismiss when another system-bar UI opens. */
     private var sessionUiVisible = false
+    private var baselineResumedActivity: String? = null
+    private var baselineTopPackage: String? = null
+    private var focusListenerRegistered = false
+    private var topTaskPollJob: Job? = null
+    private var closeSystemDialogsReceiverRegistered = false
 
     private var dotAnimatorJob: Job? = null
     private var typewriterJob: Job? = null
@@ -91,33 +118,83 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private var currentDisplayLength = 0
     private val typingSpeedMs: Long = 15L
     private var unloadJob: Job? = null
-    /** Opens agent STT after wake-word AudioRecord is released. */
-    private var micHandoffJob: Job? = null
-    /** Delayed wake-word restart after hide — must cancel on re-show. */
-    private var wakeRestartJob: Job? = null
+    private val fallbackAudioFocusDucker = AssistantAudioFocusDucker(context)
+    /** Countdown that closes the overlay after quiet listening. */
+    private var idleJob: Job? = null
+    /** Collects uiState / events to arm or pause [idleJob]. */
+    private var idleWatchJob: Job? = null
+    /** Ignore flaky system dismiss signals for a short window after assist/hotword show. */
+    private var protectUntilElapsedMs: Long = 0L
+
+    private fun isSummonProtected(): Boolean =
+        android.os.SystemClock.elapsedRealtime() < protectUntilElapsedMs
+
+    private fun beginSummonProtection(ms: Long = 2_000L) {
+        protectUntilElapsedMs = android.os.SystemClock.elapsedRealtime() + ms
+    }
 
     private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
-    private val llmSession: LlmSessionPort by lazy { getKoin().get() }
-    private val idleController = AssistantSessionIdleController(
-        context = context,
-        scope = observerScope,
-        isVisible = { sessionUiVisible },
-        isBusy = { viewModel?.isProcessing() == true },
-        currentUiState = { viewModel?.uiState?.value },
-        viewModelProvider = { viewModel },
-        llmSession = llmSession,
-        onTimeout = ::dismissForIdleTimeout,
-    )
-    private val dismissController = AssistantSessionDismissController(
-        context = context,
-        scope = observerScope,
-        overlayViewProvider = {
-            if (::overlayView.isInitialized) overlayView else null
-        },
-        isVisible = { sessionUiVisible },
-        onDismiss = ::dismissForExternalUi,
-    )
-    private val fallbackAudioFocusDucker = AssistantAudioFocusDucker(context)
+
+    private val activityWatcher = object : Application.ActivityLifecycleCallbacks {
+        override fun onActivityCreated(a: Activity, b: Bundle?) = Unit
+        override fun onActivityStarted(a: Activity) {
+            // Same-process apps (e.g. LocalLLMActivity) — dismiss as soon as they start.
+            if (!sessionUiVisible) return
+            if (a.javaClass.name.contains("AssistantSession")) return
+            AssistantDebugLog.d("Session", "activity started=${a.javaClass.simpleName} — dismiss")
+            dismissForExternalUi("activity-started:${a.javaClass.simpleName}")
+        }
+        override fun onActivityStopped(a: Activity) = Unit
+        override fun onActivitySaveInstanceState(a: Activity, b: Bundle) = Unit
+        override fun onActivityDestroyed(a: Activity) = Unit
+        override fun onActivityPaused(a: Activity) = Unit
+        override fun onActivityResumed(a: Activity) {
+            if (!sessionUiVisible) return
+            val name = a.javaClass.name
+            if (baselineResumedActivity == null) {
+                baselineResumedActivity = name
+                AssistantDebugLog.d("Session", "baseline activity=$name")
+                return
+            }
+            if (name != baselineResumedActivity) {
+                dismissForExternalUi("activity-resumed:$name")
+            }
+        }
+    }
+
+    private val windowFocusListener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+        if (!sessionUiVisible) return@OnWindowFocusChangeListener
+        AssistantDebugLog.d("Session", "window focus=$hasFocus")
+        if (!hasFocus) {
+            if (isSummonProtected()) {
+                AssistantDebugLog.d("Session", "focus-lost ignored (summon protect)")
+                return@OnWindowFocusChangeListener
+            }
+            observerScope.launch {
+                delay(80)
+                if (sessionUiVisible && ::overlayView.isInitialized &&
+                    !overlayView.hasWindowFocus() &&
+                    !isSummonProtected()
+                ) {
+                    dismissForExternalUi("window-focus-lost")
+                }
+            }
+        }
+    }
+
+    private val closeSystemDialogsReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(ctx: Context?, intent: Intent?) {
+            if (!sessionUiVisible) return
+            val reason = intent?.getStringExtra("reason") ?: intent?.action ?: "unknown"
+            AssistantDebugLog.d("Session", "CLOSE_SYSTEM_DIALOGS reason=$reason")
+            if (isSummonProtected()) {
+                AssistantDebugLog.d("Session", "close-system-dialogs ignored (summon protect)")
+                return
+            }
+            // Home / recent / system bar often fires this when leaving the assistant.
+            dismissForExternalUi("close-system-dialogs:$reason")
+        }
+    }
 
     private fun dismissForExternalUi(reason: String) {
         AssistantDebugLog.d("Session", "dismiss overlay ($reason) visible=$sessionUiVisible")
@@ -136,18 +213,18 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as UiUxVehicleAgentService.LocalBinder
+            val binder = service as VehicleAgentService.LocalBinder
             agentService = binder.getService()
             isBound = true
             viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
-            AssistantRuntime.backend?.asMicController()?.attachSession(
+            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
                 viewModel,
                 audioManager,
             )
             // Duck as soon as the agent audio manager is ready (may have missed onShow).
             if (sessionUiVisible) {
-                audioManager?.requestAssistantDuck()
+                fallbackAudioFocusDucker.request()
             }
             if (usingComposeUi) {
                 startObservingComposeAgentEvents()
@@ -155,12 +232,12 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 startObservingViewModel()
             }
             if (sessionUiVisible) {
-                idleController.start()
+                startIdleWatch()
             }
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
-            AssistantRuntime.backend?.asMicController()?.detachSession()
+            (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(null)
             isBound = false
             agentService = null
             viewModel = null
@@ -172,38 +249,32 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         super.onHide()
         AssistantDebugLog.d("Session", "onHide")
         sessionUiVisible = false
-        idleController.stop()
-        micHandoffJob?.cancel()
-        micHandoffJob = null
-        dismissController.stop()
-        teardownAssistantAudio(reason = "onHide")
+        cancelIdleWatch()
+        baselineResumedActivity = null
+        baselineTopPackage = null
+        unregisterDismissWatchers()
+        // Drop STT before wake-word reclaims the mic.
+        notifyImmersiveAssistantDismiss()
+        (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.stopSession()
+        audioManager?.stopListening()
+        audioManager?.stopSpeaking()
+        audioManager?.destroySpeechRecognizer()
+        // Restore music volume immediately when the overlay goes away.
+        fallbackAudioFocusDucker.abandon()
 
-        wakeRestartJob?.cancel()
-        wakeRestartJob = observerScope.launch {
-            // Let SpeechRecognizer cancel/settle before Vosk grabs AudioRecord.
+        observerScope.launch {
+            // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
             delay(450)
-            val restartIntent = Intent(context, UiUxWakeWordService::class.java)
+            val restartIntent = Intent(context, WakeWordService::class.java)
             restartIntent.action = "ACTION_RESTART_LISTENING"
             context.startService(restartIntent)
         }
 
         unloadJob?.cancel()
-        // Unload sooner under idle — keep warm only for recent interaction (~90s).
-        unloadJob = observerScope.launch {
-            delay(90_000)
-            llmSession.unload()
+        unloadJob = CoroutineScope(Dispatchers.Main).launch {
+            delay(600_000)
+            LLMManager.unload()
         }
-    }
-
-    /** Shared hide/destroy audio teardown — idempotent via backend.stopSession. */
-    private fun teardownAssistantAudio(reason: String) {
-        AssistantDebugLog.d("Session", "teardownAudio $reason")
-        notifyImmersiveAssistantDismiss()
-        AssistantRuntime.backend?.stopSession()
-        audioManager?.stopSpeaking()
-        com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
-        audioManager?.abandonAssistantDuck()
-        fallbackAudioFocusDucker.abandon()
     }
 
     override fun onCreateContentView(): View {
@@ -236,7 +307,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private fun bindAgentService() {
         if (isBound) return
-        val intent = Intent(context, UiUxVehicleAgentService::class.java)
+        val intent = Intent(context, VehicleAgentService::class.java)
         runCatching {
             context.startForegroundService(intent)
             context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
@@ -248,8 +319,8 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             runCatching { LocalLLMActivity.loadRuntimePrefs(context.applicationContext) }
             runCatching { VehicleManager.initialize(context.applicationContext) }
             runCatching {
-                if (!llmSession.isReady() && !isCloudRoutingActive()) {
-                    llmSession.ensureReady(context.applicationContext)
+                if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
+                    LLMManager.autoInitialize(context.applicationContext)
                 }
             }
             withContext(Dispatchers.Main) {
@@ -309,7 +380,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         awaitHotword = false,
                         // Wait for onShow → notifyImmersiveAssistantSummon(origin).
                         autoPresent = false,
-                        // Agent owns STT via SessionAudioPort (same path as XML).
+                        // Agent owns STT via IAudioManager (same path as XML).
                         enableLiveSpeech = false,
                         // Agent owns TTS via orchestrator audioManager.
                         enableTts = false,
@@ -356,12 +427,10 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
 
         val modelInfoTag: TextView? = overlayView.findViewById(R.id.modelInfoTag)
-        modelInfoTag?.text =
-            com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.modelLabel(llmSession)
+        modelInfoTag?.text = com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.modelLabel()
 
         val activeBackendTag: TextView? = overlayView.findViewById(R.id.activeBackendTag)
-        activeBackendTag?.text =
-            com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.backendLabel(llmSession)
+        activeBackendTag?.text = com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels.backendLabel()
 
         responseText?.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -398,7 +467,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         btnSend?.setOnClickListener {
             val query = etInput?.text?.toString().orEmpty()
             if (query.isNotBlank()) {
-                idleController.noteActivity()
+                noteUserActivity()
                 audioManager?.stopSpeaking()
                 resetDisplayState()
                 viewModel?.handleQuery(query)
@@ -411,20 +480,14 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 android.util.Log.w("AssistantSession", "Ignoring mic trigger because query is still being processed.")
                 return@setOnClickListener
             }
-            idleController.noteActivity()
+            noteUserActivity()
             LatencyLogger.reset()
             LatencyLogger.log("AssistantSession", "Voice Button Clicked")
             audioManager?.stopSpeaking()
             btnMic?.isEnabled = false
             LatencyLogger.log("AssistantSession", "Speech Recognizer startListening() called")
             try {
-                // Prefer backend schedule so XML mic shares the single-owner arm path.
-                val mic = AssistantRuntime.backend?.asMicController()
-                if (mic != null) {
-                    mic.requestListen()
-                } else {
-                    audioManager?.startListening()
-                }
+                audioManager?.startListening()
             } catch (e: Exception) {
                 LatencyLogger.log("AssistantSession", "Error starting speech recognizer: ${e.message}")
                 stopDotAnimation("Error starting microphone.")
@@ -437,7 +500,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         etInput?.addTextChangedListener(object : android.text.TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                if (!s.isNullOrEmpty()) idleController.noteActivity()
+                if (!s.isNullOrEmpty()) noteUserActivity()
             }
             override fun afterTextChanged(s: android.text.Editable?) {}
         })
@@ -445,12 +508,117 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         setContentView(overlayView)
     }
 
-    private fun isCloudRoutingActive(): Boolean {
-        return runCatching {
-            org.koin.java.KoinJavaComponent.getKoin()
-                .get<com.tcs.vehicleassistant.core.flags.AssistantFeatureFlags>()
-                .isCloudActive
-        }.getOrElse { LocalLLMActivity.isCloudModelActive }
+    /**
+     * Quiet-listening auto-close: after [AssistantIdleTimeout] seconds with no speech /
+     * LLM / text activity, dismiss the overlay and finish the session.
+     *
+     * Busy states (thinking / streaming / speaking) and model warm-up pause the timer.
+     */
+    private fun startIdleWatch() {
+        AssistantIdleTimeout.install(context)
+        idleWatchJob?.cancel()
+        idleWatchJob = observerScope.launch {
+            val vm = viewModel
+            if (vm != null) {
+                launch {
+                    vm.uiState.collect { state -> onUiStateForIdle(state) }
+                }
+                launch {
+                    vm.events.collect { event ->
+                        when (event) {
+                            is ViewModelEvent.SetInputText -> {
+                                if (event.text.isNotBlank()) noteUserActivity()
+                            }
+                            is ViewModelEvent.StartListening -> armIdleTimer("start-listening")
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+            // Begin counting only after the mic is actually listening (see onUiStateForIdle).
+            // Arming at show raced the 1.4s STT delay and closed the overlay mid-warmup.
+            if (viewModel?.uiState?.value is AssistantUiState.Listening) {
+                armIdleTimer("watch-start-listening")
+            } else {
+                pauseIdleTimer()
+                AssistantDebugLog.d("Session", "idle wait until Listening")
+            }
+        }
+    }
+
+    private fun cancelIdleWatch() {
+        idleJob?.cancel()
+        idleJob = null
+        idleWatchJob?.cancel()
+        idleWatchJob = null
+    }
+
+    private fun onUiStateForIdle(state: AssistantUiState) {
+        when (state) {
+            is AssistantUiState.Thinking,
+            is AssistantUiState.Streaming,
+            is AssistantUiState.Speaking,
+            -> pauseIdleTimer()
+            is AssistantUiState.Idle,
+            is AssistantUiState.Listening,
+            is AssistantUiState.Error,
+            -> {
+                if (isModelWarmingUp()) {
+                    pauseIdleTimer()
+                } else {
+                    armIdleTimer("ui:${state::class.simpleName}")
+                }
+            }
+        }
+    }
+
+    private fun isModelWarmingUp(): Boolean {
+        if (LocalLLMActivity.isCloudModelActive) return false
+        return LLMManager.isInitializing || !LLMManager.isReady()
+    }
+
+    /** Reset the idle countdown after real user / pipeline activity. */
+    private fun noteUserActivity() {
+        if (!sessionUiVisible) return
+        if (viewModel?.isProcessing() == true) {
+            pauseIdleTimer()
+            return
+        }
+        armIdleTimer("user-activity")
+    }
+
+    private fun pauseIdleTimer() {
+        idleJob?.cancel()
+        idleJob = null
+    }
+
+    private fun armIdleTimer(reason: String) {
+        idleJob?.cancel()
+        if (!sessionUiVisible) return
+        val timeoutMs = AssistantIdleTimeout.currentMs()
+        if (timeoutMs <= 0L) {
+            AssistantDebugLog.d("Session", "idle timer disabled ($reason)")
+            idleJob = null
+            return
+        }
+        idleJob = observerScope.launch {
+            AssistantDebugLog.d("Session", "idle arm ${timeoutMs}ms ($reason)")
+            delay(timeoutMs)
+            if (!isActive || !sessionUiVisible) return@launch
+            // Still busy? Skip close (e.g. race with Thinking).
+            val busy = when (viewModel?.uiState?.value) {
+                is AssistantUiState.Thinking,
+                is AssistantUiState.Streaming,
+                is AssistantUiState.Speaking,
+                -> true
+                else -> viewModel?.isProcessing() == true
+            }
+            if (busy || isModelWarmingUp()) {
+                AssistantDebugLog.d("Session", "idle fire skipped — busy")
+                return@launch
+            }
+            dismissForIdleTimeout()
+        }
     }
 
     private fun dismissForIdleTimeout() {
@@ -473,7 +641,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         observerScope.launch {
             viewModel?.events?.collect { event ->
                 when (event) {
-                    is UiUxViewModelEvent.LaunchIntent -> {
+                    is ViewModelEvent.LaunchIntent -> {
                         try {
                             event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             context.applicationContext.startActivity(event.intent)
@@ -484,7 +652,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         // Calling hide() first cleared sessionUiVisible and skipped finish().
                         dismissForExternalUi("compose-launch-intent")
                     }
-                    is UiUxViewModelEvent.ShowToast ->
+                    is ViewModelEvent.ShowToast ->
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     else -> Unit
                 }
@@ -541,7 +709,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         observerScope.launch {
             viewModel?.events?.collect { event ->
                 when (event) {
-                    is UiUxViewModelEvent.LaunchIntent -> {
+                    is ViewModelEvent.LaunchIntent -> {
                         try {
                             event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                             this@ComposeAssistantSession.startVoiceActivity(event.intent)
@@ -556,16 +724,15 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         }
                         dismissForExternalUi("xml-launch-intent")
                     }
-                    is UiUxViewModelEvent.FinishSession -> finish()
-                    is UiUxViewModelEvent.StartListening -> btnMic?.performClick()
-                    is UiUxViewModelEvent.ShowToast ->
+                    is ViewModelEvent.FinishSession -> finish()
+                    is ViewModelEvent.StartListening -> btnMic?.performClick()
+                    is ViewModelEvent.ShowToast ->
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
-                    is UiUxViewModelEvent.SetInputEnabled -> {
+                    is ViewModelEvent.SetInputEnabled -> {
                         btnSend?.isEnabled = event.enabled
                         btnMic?.isEnabled = event.enabled
                     }
-                    is UiUxViewModelEvent.SetInputText -> etInput?.setText(event.text)
-                    is UiUxViewModelEvent.AffectiveMood -> Unit // Compose path owns face mood
+                    is ViewModelEvent.SetInputText -> etInput?.setText(event.text)
                 }
             }
         }
@@ -587,14 +754,14 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         super.onShow(args, showFlags)
         AssistantDebugLog.d("Session", "onShow flags=$showFlags compose=$usingComposeUi")
         sessionUiVisible = true
-        // Cancel stale hide→wake restart so Vosk cannot reclaim the mic mid-STT.
-        wakeRestartJob?.cancel()
-        wakeRestartJob = null
-        dismissController.start()
-        idleController.start()
+        beginSummonProtection()
+        baselineResumedActivity = null
+        baselineTopPackage = null
+        registerDismissWatchers()
+        startIdleWatch()
 
         // Duck music immediately — do not wait for STT (~1.4s) or service bind.
-        audioManager?.requestAssistantDuck() ?: fallbackAudioFocusDucker.request()
+        fallbackAudioFocusDucker.request()
 
         window?.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,
@@ -616,7 +783,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             if (viewModel != null) startObservingViewModel()
         }
 
-        val stopListeningIntent = Intent(context, UiUxWakeWordService::class.java)
+        val stopListeningIntent = Intent(context, WakeWordService::class.java)
         stopListeningIntent.action = "ACTION_STOP_LISTENING"
         context.startService(stopListeningIntent)
 
@@ -625,36 +792,19 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             val origin = ImmersiveSummonOrigin.fromBundleToken(
                 args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
             )
-            // Summon UI immediately. STT is pre-armed on hotword/icon; only fall back here.
+            // post + delayed retry: composition may register the summon bridge a frame late.
             overlayView.post {
                 notifyImmersiveAssistantSummon(origin)
+                (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
             }
             overlayView.postDelayed(
                 { notifyImmersiveAssistantSummon(origin) },
                 80L,
             )
-            micHandoffJob?.cancel()
-            micHandoffJob = observerScope.launch {
-                if (com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.isCaptureLive(audioManager) ||
-                    audioManager?.isActivelyListening() == true
-                ) {
-                    AssistantDebugLog.d("Session", "mic already live — overlay attaches only")
-                    AssistantRuntime.backend?.asMicController()?.requestListen()
-                    return@launch
-                }
-                val released = UiUxWakeWordService.awaitMicReleased(timeoutMs = 900L)
-                AssistantDebugLog.d(
-                    "Session",
-                    "mic handoff fallback released=$released holding=${UiUxWakeWordService.isHoldingMic}",
-                )
-                delay(25)
-                if (!sessionUiVisible) return@launch
-                AssistantRuntime.backend?.asMicController()?.requestListen()
-            }
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
-                    if (!llmSession.isReady() && !isCloudRoutingActive()) {
-                        llmSession.ensureReady(context.applicationContext)
+                    if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {
+                        LLMManager.autoInitialize(context.applicationContext)
                     }
                 }
             }
@@ -670,28 +820,22 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         etInput?.setText("")
         voiceAnimation?.state = VoiceAnimationView.State.IDLE
 
-        if (!llmSession.isReady() || llmSession.isInitializing() || llmSession.isPrewarming()) {
+        if (!LLMManager.isReady() || LLMManager.isInitializing) {
             statusText?.text = "Initializing Model..."
             btnOpenApp?.visibility = View.GONE
             inputControls?.visibility = View.GONE
             btnMic?.isEnabled = false
-            idleController.pause()
+            pauseIdleTimer()
 
-            observerScope.launch {
-                if (!llmSession.isReady() &&
-                    !llmSession.isInitializing() &&
-                    !llmSession.isPrewarming()
-                ) {
+            CoroutineScope(Dispatchers.Main).launch {
+                if (!LLMManager.isReady() && !LLMManager.isInitializing) {
                     withContext(Dispatchers.IO) {
-                        runCatching { llmSession.ensureReady(context.applicationContext) }
+                        runCatching { LLMManager.autoInitialize(context.applicationContext) }
                     }
                 }
-                // Wait until the local LLM is fully ready and not prewarming.
+                // Wait until LLMManager is fully ready and not prewarming.
                 withContext(Dispatchers.IO) {
-                    while (!llmSession.isReady() ||
-                        llmSession.isInitializing() ||
-                        llmSession.isPrewarming()
-                    ) {
+                    while (!LLMManager.isReady() || LLMManager.isInitializing) {
                         delay(500)
                     }
                 }
@@ -699,9 +843,9 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 inputControls?.visibility = View.VISIBLE
                 btnSend?.isEnabled = true
                 btnMic?.isEnabled = true
-                idleController.arm("model-ready")
+                armIdleTimer("model-ready")
                 if (showFlags and SHOW_WITH_ASSIST != 0) {
-                    delay(250) // Wait for WakeWordService to release the mic
+                    delay(500) // Wait for WakeWordService to release the mic
                     btnMic?.performClick()
                 }
             }
@@ -712,11 +856,11 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             inputControls?.visibility = View.VISIBLE
             btnSend?.isEnabled = true
             btnMic?.isEnabled = true
-            idleController.arm("xml-ready")
+            armIdleTimer("xml-ready")
 
             if (showFlags and SHOW_WITH_ASSIST != 0) {
-                observerScope.launch {
-                    delay(250)
+                CoroutineScope(Dispatchers.Main).launch {
+                    delay(500)
                     btnMic?.performClick()
                 }
             }
@@ -732,7 +876,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private fun startTypewriterIfNeeded() {
         if (typewriterJob == null || typewriterJob?.isActive != true) {
-            typewriterJob = observerScope.launch {
+            typewriterJob = CoroutineScope(Dispatchers.Main).launch {
                 while (isActive && currentDisplayLength < targetDisplayMessage.length) {
                     val timeSinceTts = System.currentTimeMillis() - (viewModel?.lastTtsUpdateTime ?: 0L)
                     val isTtsActive = (viewModel?.lastTtsUpdateTime ?: 0L) > 0L && timeSinceTts < 2000
@@ -760,7 +904,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             statusText?.text = ""
             return
         }
-        dotAnimatorJob = observerScope.launch {
+        dotAnimatorJob = CoroutineScope(Dispatchers.Main).launch {
             var dotCount = 0
             while (isActive) {
                 statusText?.text = "$baseText${".".repeat(dotCount)}"
@@ -768,6 +912,126 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 delay(400)
             }
         }
+    }
+
+    private fun registerDismissWatchers() {
+        val app = context.applicationContext as? Application ?: return
+        runCatching { app.unregisterActivityLifecycleCallbacks(activityWatcher) }
+        app.registerActivityLifecycleCallbacks(activityWatcher)
+        if (!focusListenerRegistered && ::overlayView.isInitialized) {
+            overlayView.viewTreeObserver.addOnWindowFocusChangeListener(windowFocusListener)
+            focusListenerRegistered = true
+        }
+        if (!closeSystemDialogsReceiverRegistered) {
+            val filter = IntentFilter(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+            runCatching {
+                ContextCompat.registerReceiver(
+                    context.applicationContext,
+                    closeSystemDialogsReceiver,
+                    filter,
+                    ContextCompat.RECEIVER_NOT_EXPORTED,
+                )
+                closeSystemDialogsReceiverRegistered = true
+            }.onFailure {
+                AssistantDebugLog.w("Session", "CLOSE_SYSTEM_DIALOGS register failed: ${it.message}")
+            }
+        }
+        startTopTaskPoller()
+    }
+
+    private fun unregisterDismissWatchers() {
+        topTaskPollJob?.cancel()
+        topTaskPollJob = null
+        val app = context.applicationContext as? Application
+        runCatching { app?.unregisterActivityLifecycleCallbacks(activityWatcher) }
+        if (focusListenerRegistered && ::overlayView.isInitialized) {
+            runCatching {
+                overlayView.viewTreeObserver.removeOnWindowFocusChangeListener(windowFocusListener)
+            }
+            focusListenerRegistered = false
+        }
+        if (closeSystemDialogsReceiverRegistered) {
+            runCatching {
+                context.applicationContext.unregisterReceiver(closeSystemDialogsReceiver)
+            }
+            closeSystemDialogsReceiverRegistered = false
+        }
+    }
+
+    /**
+     * Cross-process dismiss: ActivityLifecycleCallbacks only see *this* app's activities.
+     * System-bar launches (Maps, phone, …) live in other processes — poll the foreground
+     * task/package and hide when it changes.
+     */
+    private fun startTopTaskPoller() {
+        topTaskPollJob?.cancel()
+        topTaskPollJob = observerScope.launch {
+            // Let the session settle before sampling the baseline top package.
+            delay(350)
+            while (isActive && sessionUiVisible) {
+                val top = foregroundPackage()
+                if (top != null) {
+                    if (baselineTopPackage == null) {
+                        baselineTopPackage = top
+                        AssistantDebugLog.d("Session", "baseline topPkg=$top")
+                    } else if (top != baselineTopPackage && !isTransientSystemPackage(top)) {
+                        // Confirm once — AAOS system UI can briefly report a different pkg.
+                        delay(120)
+                        val confirmed = foregroundPackage()
+                        if (confirmed == top && confirmed != baselineTopPackage && sessionUiVisible) {
+                            if (isSummonProtected()) {
+                                AssistantDebugLog.d(
+                                    "Session",
+                                    "topPkg change ignored (summon protect): $confirmed",
+                                )
+                            } else {
+                                dismissForExternalUi("top-pkg $baselineTopPackage → $confirmed")
+                                break
+                            }
+                        }
+                    }
+                }
+                delay(250)
+            }
+        }
+    }
+
+    /** Packages that flicker without meaning a real app launch from the system bar. */
+    private fun isTransientSystemPackage(pkg: String): Boolean {
+        return pkg == "android" ||
+            pkg == "com.android.systemui" ||
+            pkg.endsWith(".systemui") ||
+            pkg.contains("permissioncontroller")
+    }
+
+    private fun foregroundPackage(): String? {
+        // 1) Running tasks (works for priv-apps with REAL_GET_TASKS on AAOS).
+        runCatching {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            @Suppress("DEPRECATION")
+            val pkg = am.getRunningTasks(1)?.firstOrNull()?.topActivity?.packageName
+            if (!pkg.isNullOrBlank()) return pkg
+        }
+        // 2) Importance-based process list.
+        runCatching {
+            val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+            val proc = am.runningAppProcesses?.firstOrNull {
+                it.importance == ActivityManager.RunningAppProcessInfo.IMPORTANCE_FOREGROUND
+            }
+            val pkg = proc?.pkgList?.firstOrNull() ?: proc?.processName
+            if (!pkg.isNullOrBlank()) return pkg
+        }
+        // 3) Usage stats (if granted).
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            runCatching {
+                val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+                val end = System.currentTimeMillis()
+                val stats = usm.queryUsageStats(UsageStatsManager.INTERVAL_DAILY, end - 15_000, end)
+                val top = stats?.maxByOrNull { it.lastTimeUsed }?.packageName
+                if (!top.isNullOrBlank()) return top
+            }
+        }
+        return null
     }
 
     private fun stopDotAnimation(finalText: String = "") {
@@ -797,14 +1061,10 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     override fun onDestroy() {
         sessionUiVisible = false
-        idleController.destroy()
-        micHandoffJob?.cancel()
-        micHandoffJob = null
-        dismissController.destroy()
+        cancelIdleWatch()
+        unregisterDismissWatchers()
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
-        // Mirror onHide audio teardown so Vosk cannot race an open SpeechRecognizer.
-        teardownAssistantAudio(reason = "onDestroy")
         observerScope.cancel()
         composeHost?.destroy()
         composeHost = null
@@ -812,7 +1072,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             context.unbindService(serviceConnection)
             isBound = false
         }
-        val restartIntent = Intent(context, UiUxWakeWordService::class.java)
+        val restartIntent = Intent(context, WakeWordService::class.java)
         restartIntent.action = "ACTION_RESTART_LISTENING"
         context.startService(restartIntent)
         super.onDestroy()

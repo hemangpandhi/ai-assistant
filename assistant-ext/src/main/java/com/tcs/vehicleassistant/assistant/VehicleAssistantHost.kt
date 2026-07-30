@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.util.Log
-import com.assistant.api.llm.LlmSessionPort
 import com.assistant.ui.assistant.api.AssistantCabinContext
 import com.assistant.ui.assistant.api.AssistantDebugInfo
 import com.assistant.ui.assistant.api.AssistantHost
@@ -16,7 +15,6 @@ import com.tcs.vehicleassistant.CockpitAwarenessActivity
  */
 class VehicleAssistantHost(
     private val app: Application,
-    private val llmSession: LlmSessionPort,
 ) : AssistantHost {
     override fun cabinContext(): AssistantCabinContext {
         VehicleCabinContextStore.publishFromVehicleManager()
@@ -38,8 +36,8 @@ class VehicleAssistantHost(
         val debuggable = app.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
         if (!debuggable) return null
         return AssistantDebugInfo(
-            modelLabel = AssistantLlmDebugLabels.modelLabel(llmSession),
-            backendLabel = AssistantLlmDebugLabels.backendLabel(llmSession),
+            modelLabel = AssistantLlmDebugLabels.modelLabel(),
+            backendLabel = AssistantLlmDebugLabels.backendLabel(),
         )
     }
 

@@ -155,25 +155,13 @@
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:exported="true" />
                  
-        <!-- Legacy refactor agent service — XML AssistantSession path only. -->
+        <!-- Master agent host — Compose + XML sessions bind here. -->
         <service android:name=".service.VehicleAgentService"
                  android:foregroundServiceType="dataSync"
                  android:exported="false" />
-
-        <!-- Primary Compose agent host. -->
-        <service android:name=".service.UiUxVehicleAgentService"
-                 android:foregroundServiceType="dataSync"
-                 android:exported="false" />
                  
-        <!-- Legacy refactor wake word — XML profile / LocalLLMActivity. -->
+        <!-- Master wake word (Compose + XML). -->
         <service android:name=".WakeWordService"
-                 android:process=":wakeword"
-                 android:foregroundServiceType="microphone"
-                 android:permission="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT"
-                 android:exported="true" />
-
-        <!-- Primary Compose wake word (:wakeword process). -->
-        <service android:name=".wakeword.UiUxWakeWordService"
                  android:process=":wakeword"
                  android:foregroundServiceType="microphone"
                  android:permission="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT"

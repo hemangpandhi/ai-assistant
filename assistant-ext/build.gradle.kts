@@ -29,7 +29,6 @@ android {
 
 dependencies {
     api(project(":agent-core"))
-    api(project(":assistant-api"))
     implementation(project(":assistant-ui"))
 
     val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
@@ -47,12 +46,8 @@ dependencies {
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
-    compileOnly(files("../app/libs/sherpa-onnx.aar"))
-    implementation("com.alphacephei:vosk-android:0.3.75@aar")
-    implementation("net.java.dev.jna:jna:5.13.0@aar")
-    implementation("com.google.ai.edge.litertlm:litertlm-android:0.14.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
+    implementation("androidx.savedstate:savedstate:1.2.1")
 
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1")
-    testImplementation("org.json:json:20210307")
 }
