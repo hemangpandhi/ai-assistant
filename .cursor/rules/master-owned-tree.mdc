@@ -1,0 +1,21 @@
+---
+description: Never edit origin/master-owned Kotlin in :agent-core
+alwaysApply: true
+---
+
+# Hard rule: do not modify `origin/master`-owned classes
+
+This branch tracks `origin/master` for agent logic. Master-owned Kotlin lives in **`:agent-core`** (byte-identical to `origin/master` `app/src/main/java`).
+
+## Do
+
+- Put UI/UX / TTFR work in **`:assistant-ext`**, **`:assistant-ui`**, and **`:assistant-api`**
+- Prefer new types in `:assistant-ext`, ports in `:assistant-api`, and manifest / Koin wiring in `:app` / `:assistant-ext`
+- After any accidental `:agent-core` edit, restore from `origin/master` into `:agent-core`
+
+## Do not
+
+- Edit `:agent-core` `.kt` files unless **extremely required**
+- Copy or “fix” master agent classes in place — extend via the modules above instead
+
+Enforced by `MasterOwnedTreeContractTest` (path-mapped allowlist).
