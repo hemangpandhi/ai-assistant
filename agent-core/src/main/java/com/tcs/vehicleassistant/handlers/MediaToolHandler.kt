@@ -58,10 +58,19 @@ class MediaToolHandler(override val handlerKey: String) : ToolHandler {
                     if (spotifyController != null) {
                         Log.i(TAG, "playFromSearch via Spotify query='$query' artistFocus=$looksLikeArtist")
                         spotifyController.transportControls.playFromSearch(query, searchExtras)
+                        // playFromSearch alone can leave a paused session unchanged on AAOS.
+                        try {
+                            spotifyController.transportControls.play()
+                        } catch (_: Exception) {
+                        }
                         success = true
                     } else if (controllers.isNotEmpty()) {
                         Log.i(TAG, "playFromSearch via ${controllers[0].packageName} query='$query'")
                         controllers[0].transportControls.playFromSearch(query, searchExtras)
+                        try {
+                            controllers[0].transportControls.play()
+                        } catch (_: Exception) {
+                        }
                         success = true
                     } else {
                         // Fallback: Launch intent silently if possible, or normally if no active sessions exist

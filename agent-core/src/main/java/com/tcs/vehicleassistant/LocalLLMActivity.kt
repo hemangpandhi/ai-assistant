@@ -1380,14 +1380,14 @@ class LocalLLMActivity : AppCompatActivity() {
         val canSkipLlm = toolManager.resolveDirectHit(prompt) != null
 
         if (!isCloudModelActive && !LLMManager.isReady() && !canSkipLlm) {
-            chatAdapter.replaceLastMessage("System: Loading default model (Gemma 4 E2B)…")
+            val modelName = currentModel.name
+            chatAdapter.replaceLastMessage("System: Loading selected model ($modelName)…")
             lifecycleScope.launch {
                 try {
-                    LLMManager.autoInitialize(this@LocalLLMActivity)
+                    initLlm(false)
                     if (!LLMManager.isReady()) {
                         chatAdapter.replaceLastMessage(
-                            "System: Could not load Gemma 4 E2B. Check that " +
-                                "${com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH} exists."
+                            "System: Could not load $modelName. Check that it exists."
                         )
                         resetControls()
                         return@launch

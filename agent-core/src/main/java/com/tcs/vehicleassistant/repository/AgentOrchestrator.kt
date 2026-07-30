@@ -11,6 +11,7 @@ import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.core.CabinSnapshotReader
 import com.tcs.vehicleassistant.core.ConfirmationPolicy
 import com.tcs.vehicleassistant.core.ContextGuard
+import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.llm.ILLMProvider
 import com.tcs.vehicleassistant.utils.FollowUpRouter
 import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
@@ -55,6 +56,11 @@ class AgentOrchestrator(
     private var isQueryProcessed = true
     private var timeoutJob: Job? = null
     private var pendingConfirmationTool: String? = null
+    /**
+     * Soft conversational offer (e.g. wellness "want music?") — not a ContextGuard safety confirm.
+     * Bare "yes"/"no" must resolve this instead of dismissing the overlay or treating "yes" as ASR junk.
+     */
+    private var pendingOfferedTool: String? = null
     private val pendingIntentsToLaunch = java.util.Collections.synchronizedList(mutableListOf<Intent>())
 
     /**
@@ -153,7 +159,20 @@ class AgentOrchestrator(
     }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
-        val trimmedQuery = query.trim()
+        val rawTrimmed = query.trim()
+        // ASR often stutters cabin commands; collapse before DirectTool *and* LLM so allow-list
+        // retrieval and tool execution see the intended short phrase.
+        val normalizedFull = DirectToolResolver.normalize(rawTrimmed)
+        val collapsed = DirectToolResolver.collapseAsrRepeats(rawTrimmed)
+        val trimmedQuery = if (
+            collapsed.isNotBlank() &&
+            collapsed.split(' ').size < normalizedFull.split(' ').size
+        ) {
+            android.util.Log.i(TAG, "Collapsed ASR repeat: '$rawTrimmed' → '$collapsed'")
+            collapsed
+        } else {
+            rawTrimmed
+        }
         val lowerQuery = trimmedQuery.lowercase().replace(Regex("[^a-z ]"), "").trim()
         
         // Ghost Voice Filter: ignore silence hallucinations from Whisper.
@@ -167,6 +186,7 @@ class AgentOrchestrator(
             when (ConfirmationPolicy.classify(trimmedQuery)) {
                 ConfirmationPolicy.Reply.DECLINE -> {
                     pendingConfirmationTool = null
+                    pendingOfferedTool = null
                     LatencyLogger.reset()
                     beginTurn()
                     scope.launch {
@@ -183,6 +203,7 @@ class AgentOrchestrator(
                 ConfirmationPolicy.Reply.AFFIRM -> {
                     val toolToExecute = pendingConfirmationTool!!
                     pendingConfirmationTool = null
+                    pendingOfferedTool = null
                     LatencyLogger.reset()
                     LatencyLogger.log("Orchestrator", "Query received")
                     beginTurn()
@@ -211,11 +232,64 @@ class AgentOrchestrator(
                 }
             }
         }
+
+        // Soft offer follow-up (wellness / empathy music): "yes" must run the offered tool,
+        // not FinishSession or a bare-LLM "I didn't catch that".
+        if (pendingOfferedTool != null && pendingConfirmationTool == null && !trimmedQuery.startsWith("[")) {
+            when (ConfirmationPolicy.classify(trimmedQuery)) {
+                ConfirmationPolicy.Reply.DECLINE -> {
+                    val declined = pendingOfferedTool
+                    pendingOfferedTool = null
+                    LatencyLogger.reset()
+                    beginTurn()
+                    scope.launch {
+                        finishGuardedTurn(
+                            message = "Okay — I won't do that. I'm here if you need anything else.",
+                            pathLabel = "OfferDecline",
+                            toolCall = declined ?: "declined",
+                            policyId = "user_declined_offer",
+                            asQuestion = false,
+                        )
+                    }
+                    return
+                }
+                ConfirmationPolicy.Reply.AFFIRM -> {
+                    val toolToExecute = pendingOfferedTool!!
+                    pendingOfferedTool = null
+                    LatencyLogger.reset()
+                    LatencyLogger.log("Orchestrator", "Offer affirmed → $toolToExecute")
+                    beginTurn()
+                    _state.value = OrchestratorState.Thinking(trimmedQuery)
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                    scope.launch {
+                        completeDirectToolTurn(
+                            query = trimmedQuery,
+                            toolCall = toolToExecute,
+                            preferredSpoken = when {
+                                toolToExecute.startsWith("playMusic") ->
+                                    "Sure — playing something calming for you."
+                                else -> null
+                            },
+                            pathLabel = "OfferConfirm",
+                            skipGuard = false,
+                        )
+                    }
+                    return
+                }
+                ConfirmationPolicy.Reply.OTHER -> {
+                    pendingOfferedTool = null
+                    LatencyLogger.log(
+                        "Orchestrator",
+                        "Pending soft offer superseded by: $trimmedQuery",
+                    )
+                }
+            }
+        }
         
         // Let it pass if it's an internal system event (starts with '[')
         if (!trimmedQuery.startsWith("[")) {
             if (MemoryManager.isAffirmative(trimmedQuery)) {
-                // keep
+                // keep — FollowUpRouter / LLM must see multi-turn "yes"
             } else if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
                 _events.tryEmit(OrchestratorEvent.FinishSession)
                 resetState()
@@ -234,15 +308,20 @@ class AgentOrchestrator(
             return
         }
 
+        // Emotional / open-ended wellness: speak an offer immediately (no fake "Done", no LLM wait).
+        if (pendingConfirmationTool == null && tryHandleWellnessOffer(trimmedQuery)) {
+            return
+        }
+
         if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
-            _state.value = OrchestratorState.Thinking(query)
+            _state.value = OrchestratorState.Thinking(trimmedQuery)
             _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
             scope.launch {
                 try {
                     val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
                         .inject(org.koin.core.qualifier.named("edge"))
                     edgeProvider.initialize(context, force = false)
-                    handleQuery(query, retryCount)
+                    handleQuery(trimmedQuery, retryCount)
                 } catch (e: Exception) {
                     _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
@@ -253,11 +332,11 @@ class AgentOrchestrator(
 
         val turnId = beginTurn()
 
-        _state.value = OrchestratorState.Thinking(query)
+        _state.value = OrchestratorState.Thinking(trimmedQuery)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
 
         scope.launch {
-            processQuery(query, retryCount, turnId = turnId)
+            processQuery(trimmedQuery, retryCount, turnId = turnId)
         }
     }
 
@@ -296,11 +375,20 @@ class AgentOrchestrator(
                     }
                     pendingIntentsToLaunch.clear()
                     delay(50)
-                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                    // Soft offer still waiting for yes/no — keep overlay up and listen.
+                    if (pendingOfferedTool != null) {
+                        _events.tryEmit(OrchestratorEvent.StartListening)
+                    } else {
+                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                    }
                 }
                 "STATEMENT_FINAL" -> {
                     delay(50)
-                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                    if (pendingOfferedTool != null) {
+                        _events.tryEmit(OrchestratorEvent.StartListening)
+                    } else {
+                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                    }
                 }
             }
         }
@@ -322,11 +410,19 @@ class AgentOrchestrator(
                     }
                     pendingIntentsToLaunch.clear()
                     delay(3000) // Artificial delay to allow user to read text since TTS failed
-                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                    if (pendingOfferedTool != null) {
+                        _events.tryEmit(OrchestratorEvent.StartListening)
+                    } else {
+                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                    }
                 }
                 "STATEMENT_FINAL" -> {
                     delay(4000) // Artificial delay to allow user to read text since TTS failed
-                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                    if (pendingOfferedTool != null) {
+                        _events.tryEmit(OrchestratorEvent.StartListening)
+                    } else {
+                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                    }
                 }
             }
         }
@@ -372,6 +468,7 @@ class AgentOrchestrator(
         if (pendingConfirmationTool != null) return false
         val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false
 
+        pendingOfferedTool = null
         beginTurn()
         _state.value = OrchestratorState.Thinking(query)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
@@ -392,7 +489,7 @@ class AgentOrchestrator(
                     if (song.isNotBlank() && !song.equals("music", ignoreCase = true)) {
                         "Great choice — putting on $song for you!"
                     } else {
-                        "Great choice — putting some music on for you!"
+                        "Sure — playing something calming for you."
                     }
                 }
                 toolCall.startsWith("increaseTemperature") -> "I'm warming up the cabin for you right away!"
@@ -405,6 +502,36 @@ class AgentOrchestrator(
                 toolCall = toolCall,
                 preferredSpoken = preferred,
                 pathLabel = "FollowUp",
+            )
+        }
+        return true
+    }
+
+
+    /**
+     * Lightweight wellness intent: emotional / "not feeling good" phrases get empathy + an offer
+     * (music) without waiting on the LLM or claiming a fake action ACK.
+     */
+    private fun tryHandleWellnessOffer(query: String): Boolean {
+        if (!com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(query)) {
+            return false
+        }
+
+        beginTurn()
+        _state.value = OrchestratorState.Thinking(query)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        LatencyLogger.log("WellnessOffer", "Matched emotional/open-ended wellness utterance")
+
+        scope.launch {
+            MemoryManager.captureLongTermFacts(context, query)
+            MemoryManager.addTurn("User", query)
+            pendingOfferedTool = "playMusic(relaxing)"
+            finishGuardedTurn(
+                message = WELLNESS_OFFER,
+                pathLabel = "WellnessOffer",
+                toolCall = "wellness_offer",
+                policyId = null,
+                asQuestion = true,
             )
         }
         return true
@@ -548,7 +675,8 @@ class AgentOrchestrator(
         loopCount: Int = 0,
         isAgenticObservation: Boolean = false,
         previousExecutedTools: Set<String> = emptySet(),
-        turnId: Long
+        turnId: Long,
+        emptyChatRetry: Int = 0,
     ) {
         if (!isCurrentTurn(turnId)) return
         
@@ -636,11 +764,14 @@ class AgentOrchestrator(
             val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
             val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
 
-            if (isAgenticObservation) {
-                MemoryManager.addTurn("System", interceptedQuery)
-            } else {
-                MemoryManager.captureLongTermFacts(context, interceptedQuery)
-                MemoryManager.addTurn("User", interceptedQuery)
+            // Empty-chat retries already recorded the user turn; avoid duplicating it in memory.
+            if (emptyChatRetry == 0) {
+                if (isAgenticObservation) {
+                    MemoryManager.addTurn("System", interceptedQuery)
+                } else {
+                    MemoryManager.captureLongTermFacts(context, interceptedQuery)
+                    MemoryManager.addTurn("User", interceptedQuery)
+                }
             }
 
             val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
@@ -676,6 +807,16 @@ class AgentOrchestrator(
                 val toolsJsonArr = relevantToolsList.map { "\"${it.handlerKey}\"" }.joinToString(",", "[", "]")
                 """{"user_input":"${interceptedQuery.replace("\"", "\\\"")}","available_tools":$toolsJsonArr,"vehicle_context":{},"dialog_state":{}}"""
             } else {
+                // Empathy hint on the *first* emotional turn, not only after an empty EOS —
+                // core-tool-free prompts still need an explicit chat-only steer for Gemma-E2B.
+                val chatHint = if (
+                    emptyChatRetry > 0 ||
+                    com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(interceptedQuery)
+                ) {
+                    "[System: Reply with warm empathy only — no tools this turn. Acknowledge the feeling and offer optional help such as music.]\n"
+                } else {
+                    ""
+                }
                 val formattedQuery = if (LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true) {
                     "User: $interceptedQuery"
                 } else {
@@ -697,19 +838,27 @@ class AgentOrchestrator(
                 if (LLMManager.isFirstMessage) {
                     LLMManager.isFirstMessage = false
                     buildString {
+                        append("<start_of_turn>system\n")
                         append(sysPrompt)
+                        append("\n<end_of_turn>\n<start_of_turn>user\n")
                         if (historyBlock.isNotBlank()) append(historyBlock)
                         if (stateInject.isNotBlank()) append('\n').append(stateInject)
+                        if (chatHint.isNotBlank()) append('\n').append(chatHint)
                         append('\n').append(formattedQuery)
+                        append("\n<end_of_turn>\n<start_of_turn>model\n")
                     }.trim()
                 } else {
                     // Re-inject tools. LiteRT KV cache already contains the conversation history.
                     // DO NOT re-inject historyBlock, as it will duplicate the history and crash the context window.
                     buildString {
+                        append("<start_of_turn>user\n")
                         append(LLMManager.capabilityReminder())
+                        append('\n')
                         append(toolsBlock)
                         if (stateInject.isNotBlank()) append(stateInject)
+                        if (chatHint.isNotBlank()) append(chatHint)
                         append(formattedQuery)
+                        append("\n<end_of_turn>\n<start_of_turn>model\n")
                     }.trim()
                 }
             }
@@ -805,6 +954,10 @@ class AgentOrchestrator(
                     MemoryManager.addTurn("Assistant", tempFinalMsg.trim())
 
                     var finalMsg = normalizeForDisplay(ToolCallParser.stripToolTags(tempFinalMsg))
+                    android.util.Log.i(
+                        TAG,
+                        "Model done. raw='${tempFinalMsg.take(160)}' display='${finalMsg.take(160)}' query='${query.take(80)}'",
+                    )
 
                     val isQuestion = finalMsg.trim().endsWith("?") ||
                         finalMsg.contains("would you like", ignoreCase = true) ||
@@ -813,6 +966,11 @@ class AgentOrchestrator(
                         finalMsg.contains("shall i", ignoreCase = true)
 
                     LLMManager.lastAiResponse = finalMsg
+                    // Soft music offer with no tool tags yet — stash for bare "yes".
+                    if (isQuestion && FollowUpRouter.offeredMusic(finalMsg)) {
+                        pendingOfferedTool = "playMusic(relaxing)"
+                        android.util.Log.i(TAG, "Stashed soft music offer for follow-up affirm")
+                    }
                     
                     // Don't emit empty finalMsg to avoid clearing the UI
                     val displayFinalMsg = if (finalMsg.isBlank()) TAKING_ACTION_PLACEHOLDER else finalMsg
@@ -873,6 +1031,10 @@ class AgentOrchestrator(
                         // Do NOT emit Thinking here, as it clears the UI screen and causes flickering.
                         val feedbacks = awaitAll(*pendingTools.toTypedArray()).filterNotNull()
                         toolFeedbacks.addAll(feedbacks)
+                        // Tool already ran — don't keep a soft offer pending for a later "yes".
+                        if (pendingConfirmationTool == null) {
+                            pendingOfferedTool = null
+                        }
                     }
 
                     if (executedTools.any { it.startsWith("handleDrowsyDriving", ignoreCase = true) }) {
@@ -920,15 +1082,65 @@ class AgentOrchestrator(
                     }
 
                     // Append error feedback if needed, but DO NOT speak it automatically if we already spoke the main text.
+                    // Prefer live tool feedback over a fake "Done" ACK whenever a tool actually ran —
+                    // empty LLM prose (tool-tag-only / template-token replies) used to sound like a no-op.
                     var finalDisplayMsg = finalMsg
                     if (finalMsg.isEmpty() || finalMsg == TAKING_ACTION_PLACEHOLDER) {
-                        finalDisplayMsg = if (toolFeedbacks.isNotEmpty()) {
-                            toolFeedbacks.distinct().joinToString(" ")
-                        } else {
-                            GENERIC_ACTION_ACK
+                        val usefulFeedback = toolFeedbacks
+                            .map { it.trim() }
+                            .filter { it.isNotEmpty() && !it.equals("Action completed.", ignoreCase = true) }
+                            .distinct()
+                        finalDisplayMsg = when {
+                            usefulFeedback.isNotEmpty() -> usefulFeedback.joinToString(" ")
+                            executedTools.isNotEmpty() ->
+                                "Okay — I ran ${executedTools.first().substringBefore("(")}."
+                            else -> {
+                                android.util.Log.w(
+                                    TAG,
+                                    "Empty model text (no tools). raw='${tempFinalMsg.take(160)}' query='${query.take(80)}'",
+                                )
+                                // Short EOS / chat-template-only replies have left the next
+                                // sendMessageAsync hung; recycle so the following turn can run.
+                                if (!LocalLLMActivity.isCloudModelActive) {
+                                    withContext(Dispatchers.IO) {
+                                        if (LLMManager.awaitInferenceDrain() &&
+                                            LLMManager.resetConversation(context)
+                                        ) {
+                                            android.util.Log.i(TAG, "Reset conversation after empty model reply")
+                                        }
+                                    }
+                                }
+                                // Clear emotional/open chat: one chat-oriented retry before any canned line.
+                                if (emptyChatRetry < 1 &&
+                                    com.tcs.vehicleassistant.core.ConversationalIntent.isOpenChat(query)
+                                ) {
+                                    android.util.Log.i(TAG, "Retrying empty open-chat turn with empathy hint")
+                                    processQuery(
+                                        query,
+                                        retryCount,
+                                        loopCount,
+                                        isAgenticObservation,
+                                        previousExecutedTools,
+                                        turnId = turnId,
+                                        emptyChatRetry = emptyChatRetry + 1,
+                                    )
+                                    return@launch
+                                }
+                                resolveEmptyModelFallback(query).also { fallback ->
+                                    if (fallback == WELLNESS_OFFER ||
+                                        FollowUpRouter.offeredMusic(fallback)
+                                    ) {
+                                        pendingOfferedTool = "playMusic(relaxing)"
+                                        android.util.Log.i(TAG, "Stashed soft music offer from empty fallback")
+                                    }
+                                }
+                            }
                         }
-                        // Speak it since it wasn't spoken earlier
-                        audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
+                        // Speak only when we have something useful — silent ignore for mic/TTS-echo
+                        // noise avoids overwriting a good empathy reply with "I didn't catch that".
+                        if (finalDisplayMsg.isNotBlank()) {
+                            audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
+                        }
                     } else if (toolFeedbacks.isNotEmpty()) {
                         val hasError = toolFeedbacks.any {
                             it.contains("Error", true) || it.contains("Failed", true) ||
@@ -941,16 +1153,24 @@ class AgentOrchestrator(
                         }
                     }
 
-                    // Update UI with the final resulting message
-                    _state.value = OrchestratorState.Speaking(finalDisplayMsg)
+                    // Update UI with the final resulting message (keep prior text on silent ignore)
+                    if (finalDisplayMsg.isNotBlank()) {
+                        _state.value = OrchestratorState.Speaking(finalDisplayMsg)
+                    }
 
-                    val finalUtterance = if (isQuestion) "QUESTION_FINAL"
+                    val spokenIsQuestion = finalDisplayMsg.isNotBlank() && (
+                        isQuestion ||
+                        finalDisplayMsg.trim().endsWith("?") ||
+                        finalDisplayMsg.contains("could you say", ignoreCase = true) ||
+                        finalDisplayMsg.contains("want to try again", ignoreCase = true)
+                    )
+                    val finalUtterance = if (spokenIsQuestion) "QUESTION_FINAL"
                         else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
                         else "STATEMENT_FINAL"
                     audioManager.playSilentUtterance(10, finalUtterance)
 
                     // Only now is the turn finished — re-enable input for the next utterance.
-                    if (finalMsg.isBlank() && isQuestion) {
+                    if (finalMsg.isBlank() && spokenIsQuestion) {
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     }
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
@@ -1047,7 +1267,72 @@ class AgentOrchestrator(
         private const val TAG = "AgentOrchestrator"
 
         private const val TAKING_ACTION_PLACEHOLDER = "Taking action..."
-        private const val GENERIC_ACTION_ACK = "Done — that's taken care of."
+        private const val EMPTY_CATCH_FALLBACK = "I didn't catch that. Could you say that again?"
+        private const val EMPTY_TOOL_FALLBACK = "I couldn't run a tool for that. Want to try again?"
+        /** Empathy + offer for emotional / "not feeling good" — never a fake "Done" ACK. */
+        internal const val WELLNESS_OFFER =
+            "I'm sorry you're not feeling well. Would you like me to play some music?"
+        /** Last resort only after a chat-oriented LLM retry still returned empty — never "didn't catch that". */
+        private const val EMPTY_CHAT_LAST_RESORT =
+            "I'm here with you. Would you like me to play some music or adjust the cabin?"
+
+        private val USER_QUESTION_PREFIX = Regex(
+            "(?i)^(what|why|how|when|where|who|which|can you|could you|would you|will you|" +
+                "do you|did you|is |are |am i|should |tell me|explain)\\b",
+        )
+
+        private val ACTION_REQUEST_HINT = Regex(
+            "(?i)\\b(" +
+                "play|stop|pause|resume|skip|next|previous|mute|unmute|volume|" +
+                "turn on|turn off|increase|decrease|set|open|close|lock|unlock|" +
+                "navigate|navigation|directions|call|text|message|warm|cool|" +
+                "heater|defrost|ac|a\\.?c\\.?|fan|music|song|track" +
+                ")\\b",
+        )
+
+        /**
+         * Spoken fallback when the model produced no usable text and no tool ran.
+         * Never claims "Done". "Didn't catch that" is reserved for clear questions the model
+         * failed on — not for mic/TTS-echo fragments (those return blank = silent ignore).
+         * Clear emotional sentences get a soft invite only as absolute last resort after retry.
+         */
+        internal fun resolveEmptyModelFallback(userQuery: String): String {
+            if (com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(userQuery)) {
+                return WELLNESS_OFFER
+            }
+            // Bare multi-turn "yes"/"ok" with no pending offer / FollowUp match — clarify, don't dismiss.
+            if (ConfirmationPolicy.isAffirmative(userQuery)) {
+                return "Got it — would you like me to play some music, or something else?"
+            }
+            if (ConfirmationPolicy.isDecline(userQuery)) {
+                return "Okay — what would you like me to do instead?"
+            }
+            if (com.tcs.vehicleassistant.core.ConversationalIntent.isOpenChat(userQuery)) {
+                return EMPTY_CHAT_LAST_RESORT
+            }
+            if (looksLikeActionRequest(userQuery)) return EMPTY_TOOL_FALLBACK
+            if (com.tcs.vehicleassistant.core.ConversationalIntent.isLikelyAsrGarbage(userQuery)) {
+                return EMPTY_CATCH_FALLBACK
+            }
+            if (looksLikeUserQuestion(userQuery)) return EMPTY_CATCH_FALLBACK
+            // Mid-phrase ASR echo — stay silent rather than a fake "Done" or "didn't catch that".
+            return ""
+        }
+
+        /** True when the user's utterance is a question / request for information, not a cabin action. */
+        internal fun looksLikeUserQuestion(userQuery: String): Boolean {
+            val q = userQuery.trim()
+            if (q.isEmpty() || q.startsWith("[")) return false
+            if (q.endsWith("?")) return true
+            return USER_QUESTION_PREFIX.containsMatchIn(q)
+        }
+
+        /** Rough cabin/media command shape — used only to pick an honest empty-model fallback. */
+        internal fun looksLikeActionRequest(userQuery: String): Boolean {
+            val q = userQuery.trim()
+            if (q.isEmpty() || q.startsWith("[")) return false
+            return ACTION_REQUEST_HINT.containsMatchIn(q)
+        }
 
         /**
          * Chat-template role markers the model sometimes echoes back. Stripping them keeps the

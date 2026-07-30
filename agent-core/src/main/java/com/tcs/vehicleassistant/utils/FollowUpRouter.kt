@@ -48,6 +48,8 @@ object FollowUpRouter {
                 last.contains("seat heater") || last.contains("seat heat") ||
                     last.contains("heated seat") || last.contains("warm your seat") ||
                     last.contains("warm the seat") -> return "setSeatHeater(2)"
+                // Wellness / empathy offer ("Would you like me to play some music?")
+                offeredMusic(last) -> return "playMusic(relaxing)"
                 last.contains("gas station") || last.contains("charging station") ||
                     last.contains("find a nearby") || last.contains("find nearby") -> {
                     return if (last.contains("charg")) "searchNearby(charging)" else "searchNearby(gas)"
@@ -91,6 +93,21 @@ object FollowUpRouter {
         return response.contains("sound_alarm", ignoreCase = true) ||
             response.contains("\"action\":\"sound_alarm\"", ignoreCase = true) ||
             response.contains("\"action\": \"sound_alarm\"", ignoreCase = true)
+    }
+
+    /** True when the last assistant turn offered optional music / wellness playback. */
+    fun offeredMusic(lastAssistantLower: String): Boolean {
+        val last = lastAssistantLower.lowercase()
+        if (last.contains("play some music") || last.contains("play some relaxing") ||
+            last.contains("play relaxing music") || last.contains("play music") ||
+            last.contains("put on some music") || last.contains("put some music")
+        ) {
+            return true
+        }
+        // "Would you like me to play …" / "… music or adjust the cabin?"
+        val offersHelp = last.contains("would you like") || last.contains("want me to") ||
+            last.contains("shall i") || last.contains("if you'd like") || last.contains("if you like")
+        return offersHelp && (last.contains("music") || last.contains("playlist") || last.contains("song"))
     }
 
     private fun extractNamedDestinationFromQuery(query: String): String? {
