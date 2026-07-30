@@ -36,6 +36,12 @@ import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 
 /**
+ * Pull the face toward the transcript. The face canvas keeps chin / glow clearance
+ * below the drawn shell, which otherwise reads as a large gap above the text.
+ */
+private val FaceTowardTranscriptNudge = 20.dp
+
+/**
  * Shared bottom chrome for the immersive assistant stage:
  * face (optional floating context glyph) + [ImmersiveTranscript].
  *
@@ -107,7 +113,8 @@ fun ImmersiveAssistantBottomChrome(
                     modifier = Modifier
                         .padding(top = if (showGlyph) glyphSize * 0.72f else 0.dp)
                         .offset {
-                            IntOffset(0, (faceRise * risePx).roundToInt())
+                            val nudgePx = FaceTowardTranscriptNudge.roundToPx()
+                            IntOffset(0, (faceRise * risePx).roundToInt() + nudgePx)
                         }
                         .graphicsLayer {
                             val s = faceScale
@@ -149,7 +156,7 @@ fun ImmersiveAssistantBottomChrome(
                 modifier = Modifier
                     .fillMaxWidth()
                     .graphicsLayer { alpha = transcriptAlpha.coerceIn(0f, 1f) }
-                    .padding(top = 8.dp),
+                    .padding(top = 2.dp),
             )
         }
     }
