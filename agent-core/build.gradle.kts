@@ -65,7 +65,6 @@ dependencies {
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")
     implementation("io.insert-koin:koin-android:3.5.3")
     compileOnly(files("../app/libs/sherpa-onnx.aar"))
-    compileOnly(files("../app/libs/soniqo-speech.aar"))
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.14.0")

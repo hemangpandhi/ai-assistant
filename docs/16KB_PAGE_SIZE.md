@@ -20,6 +20,7 @@ LOAD segment align `0x1000` (4 KB) instead of `≥ 0x4000` (16 KB).
 | MediaPipe tasks-vision | **0.10.26** |
 | Vosk | **0.3.75** |
 | TFLite | **`com.google.ai.edge.litert:litert:1.4.0`** (replaces 4 KB TFLite 2.13) |
+| Soniqo (`soniqo-speech.aar` / `libspeech_android.so`) | **Removed** — cabin STT/TTS uses Sherpa-ONNX; platform `RecognitionService` is a no-op stub |
 
 ## Post-rebuild verification (debug APK)
 
@@ -27,10 +28,11 @@ LOAD segment align `0x1000` (4 KB) instead of `≥ 0x4000` (16 KB).
 |---------|-------|--------|
 | CameraX / MediaPipe / Vosk / LiteRT / Sherpa / LiteRT-LM / ONNX / JNA | ≥16384 | **OK** |
 | ZIP packaging of `.so` | STORED | **OK** |
-| `libspeech_android.so` (`app/libs/soniqo-speech.aar`) | 4096 | **FAIL** |
+| `libspeech_android.so` | — | **Not packaged** (Soniqo AAR removed) |
 
-Until Soniqo rebuilds that AAR with `-Wl,-z,max-page-size=16384`, the tablet may still
-show a warning for that **one** library.
+Re-run the check below after `assembleDebug` / `assembleRelease` to confirm no remaining
+4 KB–aligned libraries. As of the Soniqo removal there should be **no known FAIL** entries
+from `libspeech_android.so`.
 
 ## How to re-check
 
