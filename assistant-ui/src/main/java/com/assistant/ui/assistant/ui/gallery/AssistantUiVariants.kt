@@ -334,7 +334,16 @@ private fun WeatherSinkUi(modifier: Modifier) {
 
     Box(modifier = modifier.fillMaxSize()) {
         ImmersiveBackdrop()
-        ImmersiveBorderGlow(glowColor = beat.mood.glowColor.copy(alpha = 0.55f))
+        ImmersiveBorderGlow(
+            glowColor = beat.mood.glowColor.copy(alpha = 0.55f),
+            speechActive = beat.speaker == DialogueSpeaker.User ||
+                beat.mood == AssistantMood.Speaking,
+            speechEnergy = when {
+                beat.speaker == DialogueSpeaker.User -> 0.40f
+                beat.mood == AssistantMood.Speaking -> 0.30f
+                else -> 0f
+            },
+        )
         ImmersiveAssistantBottomChrome(
             mood = beat.mood,
             faceKind = AssistantFaceKind.FusionEyes,
