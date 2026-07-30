@@ -480,11 +480,24 @@ fun ImmersiveAssistantOverlay(
                 ) {
                     ImmersiveBackdrop(rich = richEffects)
                     if (glowReveal > 0.01f) {
+                        val speechActive = speaker == DialogueSpeaker.User ||
+                            mood == AssistantMood.Speaking ||
+                            (mouthAmplitude != null && mouthAmplitude > 0.04f)
+                        val speechEnergy = when {
+                            mouthAmplitude != null -> mouthAmplitude.coerceIn(0f, 1f)
+                            // User turns have no lip-sync — keep a soft mid energy so the rim
+                            // still feels responsive while they talk.
+                            speaker == DialogueSpeaker.User -> 0.40f
+                            mood == AssistantMood.Speaking -> 0.30f
+                            else -> 0f
+                        }
                         ImmersiveBorderGlow(
                             glowColor = brandGlow,
                             // Hotword: full rim under the vertical wipe (bottom appears first).
                             // Icon: fade rim in as the scale-up finishes.
                             revealProgress = glowReveal,
+                            speechActive = speechActive,
+                            speechEnergy = speechEnergy,
                         )
                     }
                 }
@@ -708,7 +721,12 @@ fun ImmersiveBackdrop(
 
 /**
  * Soft cockpit-edge glow: cool teal → ice-blue → steel spectrum bloom that
- * eases inward to full transparency. Colors drift slowly when idle motion is on.
+ * eases inward to full transparency. Colors drift slowly when idle motion is on,
+ * and the rim width gently breathes (widens then restores) with a faded bloom.
+ *
+ * When [speechActive] is true (user or assistant speaking), the breath quickens
+ * slightly and [speechEnergy] adds a soft width kick so the rim feels alive
+ * with the voice without going neon.
  *
  * [revealProgress] fades the rim in/out (parent owns icon emerge / hotword wipe).
  *
@@ -721,26 +739,56 @@ fun ImmersiveBorderGlow(
     glowColor: Color = Color(0xFF8AB4F8),
     windowInsets: WindowInsets = WindowInsets.systemBars,
     revealProgress: Float = 1f,
+    speechActive: Boolean = false,
+    speechEnergy: Float = 0f,
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
     val sweepAngle = remember { Animatable(0f) }
-    LaunchedEffect(idleMotion) {
-        if (!idleMotion) {
+    val breathScale = remember { Animatable(1f) }
+    LaunchedEffect(idleMotion, speechActive) {
+        val breathEnabled = idleMotion || speechActive
+        if (!breathEnabled) {
             sweepAngle.snapTo(0f)
+            breathScale.snapTo(1f)
             return@LaunchedEffect
         }
-        while (true) {
+        // Spectrum sweep only while idle-motion is allowed (TTFR-safe first frame).
+        if (idleMotion) {
+            launch {
+                while (true) {
+                    sweepAngle.snapTo(0f)
+                    sweepAngle.animateTo(
+                        targetValue = 360f,
+                        animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
+                    )
+                }
+            }
+        } else {
             sweepAngle.snapTo(0f)
-            sweepAngle.animateTo(
-                targetValue = 360f,
-                animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
+        }
+        // Idle: slow subtle widen. Speaking: quicker, slightly wider faded bloom.
+        val peak = if (speechActive) 1.26f else 1.18f
+        val halfCycleMs = if (speechActive) 2_200 else 4_000
+        while (true) {
+            breathScale.animateTo(
+                targetValue = peak,
+                animationSpec = tween(durationMillis = halfCycleMs, easing = FastOutSlowInEasing),
+            )
+            breathScale.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = halfCycleMs, easing = FastOutSlowInEasing),
             )
         }
     }
     val paint = remember { Paint().asFrameworkPaint().apply { isAntiAlias = true } }
     val shaderMatrix = remember { Matrix() }
     val angle = sweepAngle.value
+    val energy = speechEnergy.coerceIn(0f, 1f)
+    // Soft voice kick on top of the breath cycle (lip-sync / live user speech).
+    val breath = breathScale.value + energy * 0.10f
     val progress = revealProgress.coerceIn(0f, 1f)
+    // Soften overall alpha as the rim widens so the expanded edge stays faded.
+    val breathFade = 1f - (breath - 1f).coerceAtLeast(0f) * 0.65f
     val spectrum = remember(glowColor) {
         fun tint(c: Color): Color = Color(
             red = c.red * 0.72f + glowColor.red * 0.28f,
@@ -781,12 +829,12 @@ fun ImmersiveBorderGlow(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(windowInsets)
-            .graphicsLayer { alpha = progress },
+            .graphicsLayer { alpha = progress * breathFade },
     ) {
         val w = size.width
         val h = size.height
-        // Moderate bloom — softer than the prior neon rim.
-        val thickness = 48.dp.toPx()
+        // Moderate bloom — softens further as breath widens the band.
+        val thickness = 48.dp.toPx() * breath
         val cx = w * 0.5f
         val cy = h * 0.5f
 
