@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssistantViewModel.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.controller</a> &gt; <span class="el_source">AssistantViewModel.kt</span></div><h1>AssistantViewModel.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.controller
+
+import android.content.Context
+import com.tcs.vehicleassistant.repository.AgentOrchestrator
+import com.tcs.vehicleassistant.repository.OrchestratorEvent
+import com.tcs.vehicleassistant.repository.OrchestratorState
+import com.tcs.vehicleassistant.hardware.IAudioManager
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.koin.java.KoinJavaComponent.getKoin
+
+/**
+ * ViewModel that owns the UI state for the Assistant.
+ *
+ * Responsibilities:
+ *  - Receive UI intents (Speech Recognition, Text input)
+ *  - Delegate queries to AgentOrchestrator
+ *  - Map OrchestratorState to AssistantUiState
+ *
+ * The View (AssistantSession) observes [uiState] and [events] and renders accordingly.
+ */
+<span class="nc" id="L27">class AssistantViewModel(</span>
+<span class="nc" id="L28">    private val context: Context,</span>
+<span class="nc" id="L29">    private val audioManager: IAudioManager</span>
+) {
+<span class="nc" id="L31">    private val orchestrator = AgentOrchestrator(context, audioManager)</span>
+
+    // ── Public observable state ──────────────────────────────────────────────
+<span class="nc" id="L34">    private val _uiState = MutableStateFlow&lt;AssistantUiState&gt;(AssistantUiState.Idle)</span>
+<span class="nc" id="L35">    val uiState: StateFlow&lt;AssistantUiState&gt; = _uiState.asStateFlow()</span>
+
+<span class="nc" id="L37">    private val _events = MutableSharedFlow&lt;ViewModelEvent&gt;(extraBufferCapacity = 32)</span>
+<span class="nc" id="L38">    val events: SharedFlow&lt;ViewModelEvent&gt; = _events.asSharedFlow()</span>
+
+    // ── Internal state ──────────────────────────────────────────────────────
+<span class="nc" id="L41">    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)</span>
+
+<span class="nc" id="L43">    init {</span>
+<span class="nc" id="L44">        audioManager.setRecognitionListener(</span>
+            onReadyForSpeech = {
+<span class="nc" id="L46">                _uiState.value = AssistantUiState.Listening()</span>
+<span class="nc" id="L47">            },</span>
+<span class="nc" id="L48">            onBeginningOfSpeech = { },</span>
+            onEndOfSpeech = {
+<span class="nc" id="L50">                _uiState.value = AssistantUiState.Thinking()</span>
+<span class="nc" id="L51">            },</span>
+            onResult = { spokenText -&gt;
+<span class="nc" id="L53">                audioManager.stopSpeaking()</span>
+<span class="nc" id="L54">                _events.tryEmit(ViewModelEvent.SetInputText(spokenText))</span>
+<span class="nc" id="L55">                handleQuery(spokenText)</span>
+<span class="nc" id="L56">            },</span>
+            onEmptyResult = {
+<span class="nc" id="L58">                _uiState.value = AssistantUiState.Error(&quot;I didn't hear anything.&quot;)</span>
+                // Do not dismiss automatically so user can try again
+<span class="nc" id="L60">            },</span>
+            onError = { errorCode -&gt;
+<span class="nc" id="L62">                val errorMsg = mapSpeechError(errorCode)</span>
+<span class="nc" id="L63">                _uiState.value = AssistantUiState.Error(errorMsg)</span>
+                // Do not dismiss automatically so user can try again
+<span class="nc" id="L65">            },</span>
+            onPartial = { partialText -&gt;
+<span class="nc" id="L67">                _uiState.value = AssistantUiState.Listening(partialText)</span>
+<span class="nc" id="L68">                _events.tryEmit(ViewModelEvent.SetInputText(partialText))</span>
+<span class="nc" id="L69">            }</span>
+        )
+
+        // Map Orchestrator State to UI State
+<span class="nc" id="L73">        scope.launch {</span>
+<span class="nc" id="L74">            orchestrator.state.collect { state -&gt;</span>
+<span class="nc" id="L75">                _uiState.value = when (state) {</span>
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                    is OrchestratorState.Idle -&gt; AssistantUiState.Idle</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                    is OrchestratorState.Thinking -&gt; AssistantUiState.Thinking(state.query)</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                    is OrchestratorState.Streaming -&gt; AssistantUiState.Streaming(state.displayMsg)</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">                    is OrchestratorState.Speaking -&gt; AssistantUiState.Speaking(state.finalMsg)</span>
+<span class="nc" id="L80">                    is OrchestratorState.Error -&gt; AssistantUiState.Error(state.message)</span>
+                }
+<span class="nc" id="L82">            }</span>
+        }
+
+        // Map Orchestrator Events to UI Events
+<span class="nc" id="L86">        scope.launch {</span>
+<span class="nc" id="L87">            orchestrator.events.collect { event -&gt;</span>
+<span class="nc" id="L88">                when (event) {</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                    is OrchestratorEvent.ShowToast -&gt; _events.tryEmit(ViewModelEvent.ShowToast(event.message))</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                    is OrchestratorEvent.SetInputEnabled -&gt; _events.tryEmit(ViewModelEvent.SetInputEnabled(event.enabled))</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                    is OrchestratorEvent.LaunchIntent -&gt; _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">                    is OrchestratorEvent.StartListening -&gt; _events.tryEmit(ViewModelEvent.StartListening)</span>
+<span class="nc" id="L93">                    is OrchestratorEvent.FinishSession -&gt; _events.tryEmit(ViewModelEvent.FinishSession)</span>
+                }
+<span class="nc" id="L95">            }</span>
+        }
+<span class="nc" id="L97">    }</span>
+
+    // ── Public API ──────────────────────────────────────────────────────────
+
+<span class="nc" id="L101">    fun isProcessing(): Boolean = orchestrator.isProcessing()</span>
+
+    val lastTtsUpdateTime: Long
+<span class="nc" id="L104">        get() = orchestrator.lastTtsUpdateTime</span>
+
+    val ttsSpokenLength: Int
+<span class="nc" id="L107">        get() = orchestrator.ttsSpokenLength</span>
+
+<span class="nc" id="L109">    fun handleQuery(query: String, retryCount: Int = 0) {</span>
+<span class="nc" id="L110">        orchestrator.handleQuery(query, retryCount)</span>
+<span class="nc" id="L111">    }</span>
+
+    fun resetUiState() {
+<span class="nc" id="L114">        orchestrator.resetState()</span>
+<span class="nc" id="L115">    }</span>
+
+    fun resetState() {
+<span class="nc" id="L118">        orchestrator.resetState()</span>
+<span class="nc" id="L119">    }</span>
+
+    fun destroy() {
+<span class="nc" id="L122">        scope.cancel()</span>
+<span class="nc" id="L123">        orchestrator.destroy()</span>
+<span class="nc" id="L124">    }</span>
+
+    private fun mapSpeechError(errorCode: Int): String {
+<span class="nc bnc" id="L127" title="All 10 branches missed.">        return when (errorCode) {</span>
+<span class="nc" id="L128">            android.speech.SpeechRecognizer.ERROR_AUDIO -&gt; &quot;Audio recording error&quot;</span>
+<span class="nc" id="L129">            android.speech.SpeechRecognizer.ERROR_CLIENT -&gt; &quot;Client side error&quot;</span>
+<span class="nc" id="L130">            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -&gt; &quot;Insufficient permissions&quot;</span>
+<span class="nc" id="L131">            android.speech.SpeechRecognizer.ERROR_NETWORK -&gt; &quot;Network error&quot;</span>
+<span class="nc" id="L132">            android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -&gt; &quot;Network timeout&quot;</span>
+<span class="nc" id="L133">            android.speech.SpeechRecognizer.ERROR_NO_MATCH -&gt; &quot;No recognition result matched&quot;</span>
+<span class="nc" id="L134">            android.speech.SpeechRecognizer.ERROR_RECOGNIZER_BUSY -&gt; &quot;RecognitionService busy&quot;</span>
+<span class="nc" id="L135">            android.speech.SpeechRecognizer.ERROR_SERVER -&gt; &quot;Error from server&quot;</span>
+<span class="nc" id="L136">            android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -&gt; &quot;No speech input&quot;</span>
+<span class="nc" id="L137">            else -&gt; &quot;Unknown recognition error&quot;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,72 @@
+name: Android CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx4g
+
+jobs:
+  verify:
+    name: Build, test and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      # The release build reads GEMINI_API_KEY from local.properties. CI has no key and the cloud
+      # path is optional at runtime, so an empty value keeps the build reproducible.
+      - name: Write local.properties
+        run: echo "GEMINI_API_KEY=" > local.properties
+
+      - name: Compile
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Unit tests
+        run: ./gradlew :app:testDebugUnitTest --stacktrace
+
+      - name: Coverage report
+        run: ./gradlew :app:jacocoDebugUnitTestReport --stacktrace
+
+      - name: Lint
+        run: ./gradlew :app:lintDebug --stacktrace
+
+      # Exercises R8 and the resource shrinker. Minification is where reflective and JNI-reached
+      # classes get stripped, so a broken keep rule has to fail here rather than on a head unit.
+      - name: Release build with R8
+        run: ./gradlew :app:assembleRelease --stacktrace
+
+      - name: Verify reflectively-reached classes survived R8
+        run: ./scripts/verify_r8_keeps.sh
+
+      - name: Instrumented test compilation
+        run: ./gradlew :app:assembleDebugAndroidTest --stacktrace
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-reports
+          if-no-files-found: ignore
+          path: |
+            app/build/reports/tests/**
+            app/build/reports/jacoco/**
+            app/build/reports/lint-results-*.*
+            app/build/outputs/mapping/release/mapping.txt

@@ -1,0 +1,567 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GestureProcessor.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">GestureProcessor.kt</span></div><h1>GestureProcessor.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.util.Log
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.tasks.core.BaseOptions
+import com.google.mediapipe.tasks.vision.core.RunningMode
+import com.google.mediapipe.tasks.vision.gesturerecognizer.GestureRecognizer
+import com.google.mediapipe.tasks.vision.gesturerecognizer.GestureRecognizerResult
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarker
+import com.google.mediapipe.tasks.vision.facelandmarker.FaceLandmarkerResult
+import kotlinx.coroutines.*
+
+<span class="fc" id="L15">data class GestureFeedback(</span>
+<span class="fc" id="L16">    val gestureName: String,</span>
+<span class="fc" id="L17">    val score: Float,</span>
+<span class="fc" id="L18">    val feedbackMessage: String,</span>
+<span class="pc" id="L19">    val positionHint: String,</span>
+<span class="pc" id="L20">    val isNightMode: Boolean = false,</span>
+<span class="pc" id="L21">    val isSleeping: Boolean = false,</span>
+<span class="pc" id="L22">    val isDemoMode: Boolean = false,</span>
+<span class="pc" id="L23">    val mood: String = &quot;Neutral&quot;,</span>
+<span class="pc" id="L24">    val driverName: String = &quot;Guest&quot;,</span>
+<span class="pc" id="L25">    val passengerDetected: Boolean = false</span>
+<span class="fc" id="L26">)</span>
+
+<span class="nc" id="L28">class GestureProcessor(context: Context, private val listener: (GestureFeedback) -&gt; Unit) {</span>
+    private var gestureRecognizer: GestureRecognizer? = null
+    private var faceLandmarker: FaceLandmarker? = null
+    
+    // Phase 4: Demo Mode &amp; Mood
+<span class="nc" id="L33">    var isDemoMode = true // Default for Customer Demo</span>
+<span class="nc" id="L34">    private var currentMood = &quot;Neutral&quot;</span>
+    private var frameCount = 0
+    
+    // ID State
+<span class="nc" id="L38">    private var driverName = &quot;Guest&quot;</span>
+    private var passengerPresent = false
+    
+    // Shared Data for HealthProcessor
+<span class="nc" id="L42">    var lastFaceResult: FaceLandmarkerResult? = null</span>
+
+    
+    // Phase 3 State Variables
+<span class="nc" id="L46">    private var isSleeping = true </span>
+    private var lastWakeTime = 0L
+<span class="nc" id="L48">    private val WAKE_DURATION_MS = 10000L</span>
+    private var wakeHoldStartTime = 0L
+    
+<span class="nc" id="L51">    private val handHistory = ArrayDeque&lt;Pair&lt;Long, Float&gt;&gt;()</span>
+<span class="nc" id="L52">    private val HISTORY_SIZE = 10 </span>
+
+<span class="nc" id="L54">    init {</span>
+<span class="nc" id="L55">        setupGestureRecognizer(context)</span>
+<span class="nc" id="L56">        setupFaceLandmarker(context)</span>
+<span class="nc" id="L57">    }</span>
+
+    private fun setupGestureRecognizer(context: Context) {
+<span class="nc" id="L60">        val baseOptions = BaseOptions.builder()</span>
+<span class="nc" id="L61">            .setModelAssetPath(&quot;gesture_recognizer.task&quot;) </span>
+<span class="nc" id="L62">            .build()</span>
+<span class="nc" id="L63">        val options = GestureRecognizer.GestureRecognizerOptions.builder()</span>
+<span class="nc" id="L64">            .setBaseOptions(baseOptions)</span>
+<span class="nc" id="L65">            .setRunningMode(RunningMode.IMAGE) </span>
+<span class="nc" id="L66">            .build()</span>
+<span class="nc" id="L67">        try {</span>
+<span class="nc" id="L68">            gestureRecognizer = GestureRecognizer.createFromOptions(context, options)</span>
+<span class="nc" id="L69">        } catch (e: Exception) {</span>
+<span class="nc" id="L70">            Log.e(&quot;GestureProcessor&quot;, &quot;Error initializing recognizer: ${e.message}&quot;)</span>
+        }
+<span class="nc" id="L72">    }</span>
+    
+    private fun setupFaceLandmarker(context: Context) {
+<span class="nc" id="L75">        val baseOptions = BaseOptions.builder()</span>
+<span class="nc" id="L76">            .setModelAssetPath(&quot;face_landmarker.task&quot;)</span>
+<span class="nc" id="L77">            .build()</span>
+<span class="nc" id="L78">        val options = FaceLandmarker.FaceLandmarkerOptions.builder()</span>
+<span class="nc" id="L79">            .setBaseOptions(baseOptions)</span>
+<span class="nc" id="L80">            .setRunningMode(RunningMode.IMAGE)</span>
+<span class="nc" id="L81">            .setNumFaces(2)</span>
+<span class="nc" id="L82">            .setOutputFaceBlendshapes(true) // CRITICAL: Needed for mood (smile/frown) detection</span>
+<span class="nc" id="L83">            .build()</span>
+<span class="nc" id="L84">        try {</span>
+<span class="nc" id="L85">            faceLandmarker = FaceLandmarker.createFromOptions(context, options)</span>
+<span class="nc" id="L86">        } catch (e: Exception) {</span>
+<span class="nc" id="L87">             Log.e(&quot;GestureProcessor&quot;, &quot;Error initializing face landmarker: ${e.message}&quot;)</span>
+        }
+<span class="nc" id="L89">    }</span>
+
+    private var lastInferenceTime = 0L
+<span class="nc" id="L92">    private val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default)</span>
+    private var isProcessing = false
+
+    fun processingFrame(bitmap: Bitmap) {
+<span class="nc bnc" id="L96" title="All 2 branches missed.">        if (isProcessing) return</span>
+<span class="nc" id="L97">        val currentTime = System.currentTimeMillis()</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">        if (currentTime - lastInferenceTime &lt; 100) return // Throttle to ~10 FPS</span>
+        
+<span class="nc bnc" id="L100" title="All 2 branches missed.">        if (gestureRecognizer == null) return</span>
+<span class="nc" id="L101">        isProcessing = true</span>
+        
+<span class="nc" id="L103">        scope.launch {</span>
+<span class="nc" id="L104">            try {</span>
+<span class="nc" id="L105">                lastInferenceTime = System.currentTimeMillis()</span>
+<span class="nc" id="L106">                val mpImage = BitmapImageBuilder(bitmap).build()</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                val result = gestureRecognizer?.recognize(mpImage)</span>
+                
+                // Run Face Detection every 10 frames (Throttle)
+<span class="nc" id="L110">                frameCount++</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">                if (frameCount % 10 == 0) {</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">                     val faceResult = faceLandmarker?.detect(mpImage)</span>
+<span class="nc" id="L113">                     lastFaceResult = faceResult</span>
+<span class="nc" id="L114">                     analyzeMood(faceResult)</span>
+                }
+                
+                // Calculate Luminance
+<span class="nc" id="L118">                var lumSum = 0L</span>
+<span class="nc" id="L119">                val cx = bitmap.width / 2</span>
+<span class="nc" id="L120">                val cy = bitmap.height / 2</span>
+<span class="nc" id="L121">                var pixels = 0</span>
+<span class="nc bnc" id="L122" title="All 4 branches missed.">                if (cx &gt; 10 &amp;&amp; cy &gt; 10) {</span>
+<span class="nc bnc" id="L123" title="All 2 branches missed.">                     for (x in -5 until 5) {</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">                        for (y in -5 until 5) {</span>
+<span class="nc" id="L125">                            val pixel = bitmap.getPixel(cx + x, cy + y)</span>
+<span class="nc" id="L126">                            val r = (pixel shr 16) and 0xFF</span>
+<span class="nc" id="L127">                            val g = (pixel shr 8) and 0xFF</span>
+<span class="nc" id="L128">                            val b = pixel and 0xFF</span>
+<span class="nc" id="L129">                            lumSum += (0.299 * r + 0.587 * g + 0.114 * b).toLong()</span>
+<span class="nc" id="L130">                            pixels++</span>
+                        }
+                    }
+                }
+<span class="nc bnc" id="L134" title="All 2 branches missed.">                val avgLum = if (pixels &gt; 0) lumSum / pixels else 255</span>
+                
+<span class="nc bnc" id="L136" title="All 2 branches missed.">                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {</span>
+<span class="nc" id="L137">                    processResult(result, avgLum.toInt())</span>
+<span class="nc" id="L138">                }</span>
+<span class="nc" id="L139">            } catch (e: Exception) {</span>
+<span class="nc" id="L140">                Log.e(&quot;GestureProcessor&quot;, &quot;Inference error: ${e.message}&quot;)</span>
+            } finally {
+<span class="nc" id="L142">                isProcessing = false</span>
+            }
+<span class="nc" id="L144">        }</span>
+<span class="nc" id="L145">    }</span>
+    
+    // State Timers
+    private var eyesClosedStartTime = 0L
+    private var distractionStartTime = 0L
+    
+    private fun analyzeMood(result: FaceLandmarkerResult?) {
+<span class="nc bnc" id="L152" title="All 2 branches missed.">        result?.let {</span>
+<span class="nc bnc" id="L153" title="All 6 branches missed.">            if (it.faceBlendshapes().isPresent &amp;&amp; it.faceBlendshapes().get().isNotEmpty()) {</span>
+<span class="nc" id="L154">                val blendshapes = it.faceBlendshapes().get()[0]</span>
+                
+                // --- DRIVER ID &amp; PASSENGER LOGIC ---
+                // Reset defaults for this frame logic, but we need to persist them for processResult
+<span class="nc" id="L158">                var detectedDriver = &quot;Guest&quot;</span>
+<span class="nc" id="L159">                var detectedPassenger = false</span>
+                
+                // 1. Passenger Detection (Check if 2nd face exists)
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                if (it.faceLandmarks().size &gt; 1) {</span>
+<span class="nc" id="L163">                    detectedPassenger = true</span>
+                }
+                
+                // 2. Driver Identification
+<span class="nc bnc" id="L167" title="All 4 branches missed.">                if (it.faceLandmarks().isNotEmpty()) {</span>
+<span class="nc" id="L168">                    val driverLandmarks = it.faceLandmarks()[0]</span>
+<span class="nc" id="L169">                    val currentSig = extractFaceSignature(driverLandmarks)</span>
+                    
+<span class="nc bnc" id="L171" title="All 4 branches missed.">                    if (currentSig.isNotEmpty()) {</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">                        if (registerNextFace) {</span>
+<span class="nc" id="L173">                            registeredDrivers[pendingRegistrationName] = currentSig</span>
+<span class="nc" id="L174">                            registerNextFace = false</span>
+<span class="nc" id="L175">                            Log.d(&quot;GestureProcessor&quot;, &quot;Driver Registered: $pendingRegistrationName&quot;)</span>
+                        }
+                        
+                        // Check against all registered drivers
+<span class="nc" id="L179">                        var bestMatchName = &quot;Guest&quot;</span>
+<span class="nc" id="L180">                        var bestMatchScore = 100f</span>
+                        
+<span class="nc bnc" id="L182" title="All 2 branches missed.">                        for ((name, savedSig) in registeredDrivers) {</span>
+<span class="nc" id="L183">                             val diff = compareSignatures(currentSig, savedSig)</span>
+<span class="nc" id="L184">                             Log.d(&quot;GestureProcessor&quot;, &quot;Comparing with $name: diff=$diff&quot;)</span>
+<span class="nc bnc" id="L185" title="All 4 branches missed.">                             if (diff &lt; 0.25f &amp;&amp; diff &lt; bestMatchScore) {</span>
+<span class="nc" id="L186">                                 bestMatchScore = diff</span>
+<span class="nc" id="L187">                                 bestMatchName = name</span>
+                             }
+                        }
+                        
+<span class="nc" id="L191">                        detectedDriver = bestMatchName</span>
+                    }
+                }
+                
+                // Store in class vars for listener
+<span class="nc" id="L196">                this.driverName = detectedDriver</span>
+<span class="nc" id="L197">                this.passengerPresent = detectedPassenger</span>
+                
+                // Scores
+<span class="nc" id="L200">                var smileScore = 0f</span>
+<span class="nc" id="L201">                var jawOpenScore = 0f</span>
+<span class="nc" id="L202">                var browDownScore = 0f</span>
+<span class="nc" id="L203">                var frownScore = 0f</span>
+                
+                // Advanced States
+<span class="nc" id="L206">                var eyeBlinkScore = 0f</span>
+<span class="nc" id="L207">                var gazeOutScore = 0f</span>
+<span class="nc" id="L208">                var browInnerUpScore = 0f</span>
+<span class="nc" id="L209">                var noseSneerScore = 0f</span>
+<span class="nc" id="L210">                var cheekPuffScore = 0f</span>
+<span class="nc" id="L211">                var eyeSquintScore = 0f</span>
+<span class="nc" id="L212">                var eyeBlinkLeftScore = 0f</span>
+<span class="nc" id="L213">                var eyeBlinkRightScore = 0f</span>
+                
+<span class="nc" id="L215">                var gazeSum = 0f</span>
+                
+<span class="nc bnc" id="L217" title="All 2 branches missed.">                for (category in blendshapes) {</span>
+<span class="nc" id="L218">                    val name = category.categoryName()</span>
+<span class="nc" id="L219">                    val score = category.score()</span>
+                    
+                    // Mood
+<span class="nc bnc" id="L222" title="All 4 branches missed.">                    if (name == &quot;mouthSmileLeft&quot; || name == &quot;mouthSmileRight&quot;) smileScore += score</span>
+<span class="nc bnc" id="L223" title="All 2 branches missed.">                    if (name == &quot;jawOpen&quot;) jawOpenScore = score</span>
+<span class="nc bnc" id="L224" title="All 4 branches missed.">                    if (name == &quot;browDownLeft&quot; || name == &quot;browDownRight&quot;) browDownScore += score</span>
+<span class="nc bnc" id="L225" title="All 4 branches missed.">                    if (name == &quot;mouthFrownLeft&quot; || name == &quot;mouthFrownRight&quot;) frownScore += score</span>
+                    
+                    // Advanced
+<span class="nc bnc" id="L228" title="All 2 branches missed.">                    if (name == &quot;eyeBlinkLeft&quot;) eyeBlinkLeftScore = score</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">                    if (name == &quot;eyeBlinkRight&quot;) eyeBlinkRightScore = score</span>
+                    
+<span class="nc bnc" id="L231" title="All 4 branches missed.">                    if (name == &quot;eyeBlinkLeft&quot; || name == &quot;eyeBlinkRight&quot;) {</span>
+                         // Keep existing combined score for Drowsiness logic
+<span class="nc bnc" id="L233" title="All 2 branches missed.">                        if (score &gt; 0.5) eyeBlinkScore += 0.5f </span>
+                    }
+<span class="nc bnc" id="L235" title="All 27 branches missed.">                    if (name == &quot;eyeLookOutLeft&quot; || name == &quot;eyeLookOutRight&quot; || name == &quot;eyeLookInLeft&quot; || name == &quot;eyeLookInRight&quot; || name == &quot;eyeLookUpLeft&quot; || name == &quot;eyeLookUpRight&quot; || name == &quot;eyeLookDownLeft&quot; || name == &quot;eyeLookDownRight&quot;) {</span>
+<span class="nc" id="L236">                        gazeSum += score</span>
+                    }
+<span class="nc bnc" id="L238" title="All 2 branches missed.">                    if (name == &quot;browInnerUp&quot;) browInnerUpScore = score</span>
+<span class="nc bnc" id="L239" title="All 4 branches missed.">                    if (name == &quot;noseSneerLeft&quot; || name == &quot;noseSneerRight&quot;) {</span>
+<span class="nc" id="L240">                        noseSneerScore += score // Sum for pain/discomfort</span>
+                    }
+                    
+                    // New Moods
+<span class="nc bnc" id="L244" title="All 2 branches missed.">                    if (name == &quot;cheekPuff&quot;) cheekPuffScore = score</span>
+<span class="nc bnc" id="L245" title="All 4 branches missed.">                    if (name == &quot;eyeSquintLeft&quot; || name == &quot;eyeSquintRight&quot;) eyeSquintScore += score // Sum &gt; 1.0 means both</span>
+                    // jawOpen is already tracked for &quot;Surprised&quot; but also for &quot;Speaking&quot; 
+                    // To diff Surprised vs Speaking: Surprised is usually WIDE open (&gt;0.3), Speaking is rhythmic/smaller.
+                    // For demo, let's use a threshold.
+                }
+                
+                // --- STATE LOGIC ---
+<span class="nc" id="L252">                val now = System.currentTimeMillis()</span>
+<span class="nc" id="L253">                var newState = &quot;Neutral&quot;</span>
+                
+                // 1. Drowsiness (Eyes Closed &gt; 1s)
+<span class="nc bnc" id="L256" title="All 2 branches missed.">                if (eyeBlinkScore &gt; 0.8) { // Both eyes closed</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                    if (eyesClosedStartTime == 0L) eyesClosedStartTime = now</span>
+<span class="nc bnc" id="L258" title="All 2 branches missed.">                    if (now - eyesClosedStartTime &gt; 1000) {</span>
+<span class="nc" id="L259">                        newState = &quot;DROWSY WARNING&quot;</span>
+<span class="nc" id="L260">                        eyesClosedStartTime = now - 1000 // Keep triggering</span>
+                    }
+                } else {
+<span class="nc" id="L263">                    eyesClosedStartTime = 0L</span>
+                }
+                
+                // 2. Distraction (Gaze vector sum &gt; threshold for 2s)
+<span class="nc bnc" id="L267" title="All 2 branches missed.">                if (gazeSum &gt; 1.5f) { // If looking away significantly</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                    if (distractionStartTime == 0L) distractionStartTime = now</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">                    if (now - distractionStartTime &gt; 2000) {</span>
+<span class="nc" id="L270">                        newState = &quot;DISTRACTED&quot;</span>
+<span class="nc" id="L271">                        distractionStartTime = now - 2000</span>
+                    }
+                } else {
+<span class="nc" id="L274">                    distractionStartTime = 0L</span>
+                }
+                
+                // 3. Expressions (Immediate)
+<span class="nc bnc" id="L278" title="All 2 branches missed.">                if (newState == &quot;Neutral&quot;) {</span>
+<span class="nc bnc" id="L279" title="All 2 branches missed.">                    if (browInnerUpScore &gt; 0.5) {</span>
+<span class="nc" id="L280">                        newState = &quot;Cognitive Load&quot;</span>
+<span class="nc bnc" id="L281" title="All 2 branches missed.">                    } else if (noseSneerScore &gt; 0.6) {</span>
+<span class="nc" id="L282">                        newState = &quot;Pain/Discomfort&quot;</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">                    } else if (cheekPuffScore &gt; 0.4) {</span>
+<span class="nc" id="L284">                        newState = &quot;Frustration&quot;</span>
+<span class="nc bnc" id="L285" title="All 4 branches missed.">                    } else if (eyeSquintScore &gt; 1.0 &amp;&amp; smileScore &lt; 0.2) {</span>
+<span class="nc" id="L286">                        newState = &quot;Skepticism&quot;</span>
+<span class="nc bnc" id="L287" title="All 2 branches missed.">                    } else if (smileScore &gt; 0.6) { // Lowered threshold for Happy</span>
+<span class="nc" id="L288">                        newState = &quot;Happy :)&quot;</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">                    } else if (browDownScore &gt; 0.6) {</span>
+<span class="nc" id="L290">                        newState = &quot;Angry &gt;:(&quot;</span>
+<span class="nc bnc" id="L291" title="All 2 branches missed.">                    } else if (frownScore &gt; 0.6) {</span>
+<span class="nc" id="L292">                        newState = &quot;Sad :(&quot;</span>
+<span class="nc bnc" id="L293" title="All 2 branches missed.">                    } else if (jawOpenScore &gt; 0.4) { </span>
+<span class="nc" id="L294">                        newState = &quot;Surprised :O&quot;</span>
+<span class="nc bnc" id="L295" title="All 4 branches missed.">                    } else if (eyeBlinkLeftScore &gt; 0.5 &amp;&amp; eyeBlinkRightScore &lt; 0.2) {</span>
+<span class="nc" id="L296">                        newState = &quot;Winking&quot;</span>
+<span class="nc bnc" id="L297" title="All 4 branches missed.">                    } else if (eyeBlinkRightScore &gt; 0.5 &amp;&amp; eyeBlinkLeftScore &lt; 0.2) {</span>
+<span class="nc" id="L298">                        newState = &quot;Winking&quot;</span>
+                    }
+                }
+                
+<span class="nc" id="L302">                currentMood = newState</span>
+<span class="nc bnc" id="L303" title="All 4 branches missed.">                if (newState == &quot;DROWSY WARNING&quot; || newState == &quot;DISTRACTED&quot;) {</span>
+                    // Force immediate update if critical
+<span class="nc" id="L305">                     Log.w(&quot;GestureProcessor&quot;, &quot;Critical State: $newState&quot;)</span>
+                }
+            } else {
+<span class="nc" id="L308">                currentMood = &quot;No Face Detected&quot;</span>
+<span class="nc" id="L309">                driverName = &quot;Guest&quot;</span>
+<span class="nc" id="L310">                passengerPresent = false</span>
+            }
+<span class="nc" id="L312">        } ?: run {</span>
+<span class="nc" id="L313">            currentMood = &quot;No Face Detected&quot;</span>
+<span class="nc" id="L314">        }</span>
+<span class="nc" id="L315">    }</span>
+
+    private fun processResult(result: GestureRecognizerResult?, luminance: Int) {
+<span class="nc" id="L318">        val currentTime = System.currentTimeMillis()</span>
+        
+        // Demo Mode Bypass: Always active if isDemoMode
+<span class="nc bnc" id="L321" title="All 6 branches missed.">        if (!isDemoMode &amp;&amp; !isSleeping &amp;&amp; (currentTime - lastWakeTime &gt; WAKE_DURATION_MS)) {</span>
+<span class="nc" id="L322">            isSleeping = true</span>
+<span class="nc" id="L323">            wakeHoldStartTime = 0L </span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">        } else if (isDemoMode) {</span>
+<span class="nc" id="L325">            isSleeping = false // Force awake in demo mode</span>
+        }
+
+<span class="nc bnc" id="L328" title="All 2 branches missed.">        val isNightMode = luminance &lt; 80</span>
+<span class="nc bnc" id="L329" title="All 2 branches missed.">        val activeThreshold = if (isNightMode) 0.4f else 0.6f</span>
+
+<span class="nc bnc" id="L331" title="All 2 branches missed.">        result?.let {</span>
+<span class="nc bnc" id="L332" title="All 4 branches missed.">            if (it.gestures().isNotEmpty()) {</span>
+<span class="nc" id="L333">                val topGesture = it.gestures().first().first()</span>
+<span class="nc" id="L334">                val score = topGesture.score()</span>
+<span class="nc" id="L335">                var category = topGesture.categoryName() // Mutable for override</span>
+<span class="nc" id="L336">                val landmarks = it.landmarks()[0]</span>
+<span class="nc" id="L337">                var positionHint = &quot;Centered&quot;</span>
+<span class="nc" id="L338">                var inDriverZone = true</span>
+<span class="nc" id="L339">                var isStatic = false</span>
+                
+<span class="nc bnc" id="L341" title="All 4 branches missed.">                if (landmarks.isNotEmpty()) {</span>
+<span class="nc" id="L342">                    val wrist = landmarks[0]</span>
+<span class="nc" id="L343">                    val x = wrist.x()</span>
+                    
+                    // Logic for Pointing Down
+<span class="nc" id="L346">                    val indexTip = landmarks[8]</span>
+<span class="nc" id="L347">                    val indexMcp = landmarks[5]</span>
+<span class="nc" id="L348">                    val middleTip = landmarks[12]</span>
+<span class="nc" id="L349">                    val middleMcp = landmarks[9]</span>
+<span class="nc" id="L350">                    val ringTip = landmarks[16]</span>
+<span class="nc" id="L351">                    val ringMcp = landmarks[13]</span>
+<span class="nc" id="L352">                    val pinkyTip = landmarks[20]</span>
+<span class="nc" id="L353">                    val pinkyMcp = landmarks[17]</span>
+                    
+                    // Define State Booleans (Restored)
+<span class="nc bnc" id="L356" title="All 2 branches missed.">                    val isMiddleUp = middleTip.y() &lt; middleMcp.y()</span>
+<span class="nc bnc" id="L357" title="All 2 branches missed.">                    val isRingUp = ringTip.y() &lt; ringMcp.y()</span>
+<span class="nc bnc" id="L358" title="All 2 branches missed.">                    val isPinkyUp = pinkyTip.y() &lt; pinkyMcp.y()</span>
+
+                    // --- ADVANCED DIRECTIONAL LOGIC ---
+                    // ROBUST SCALE: Calculate Palm Size (Wrist to Index MCP) to normalize distances
+<span class="nc" id="L362">                    val palmDx = indexMcp.x() - wrist.x()</span>
+<span class="nc" id="L363">                    val palmDy = indexMcp.y() - wrist.y()</span>
+<span class="nc" id="L364">                    val palmSize = Math.sqrt((palmDx*palmDx + palmDy*palmDy).toDouble())</span>
+                    
+                    // Extension Threshold: Finger must be nearly as long as the palm to be &quot;Extended&quot;
+                    // STRICTURE: Increased to 1.0 * PalmSize to filter out loose fists (Thumb Up false positives)
+<span class="nc" id="L368">                    val extensionThreshold = palmSize * 1.0 </span>
+                    
+                    // Calculate vectors for Index and Middle fingers
+<span class="nc" id="L371">                    val idxDx = indexTip.x() - indexMcp.x()</span>
+<span class="nc" id="L372">                    val idxDy = indexTip.y() - indexMcp.y()</span>
+<span class="nc" id="L373">                    val midDx = middleTip.x() - middleMcp.x()</span>
+<span class="nc" id="L374">                    val midDy = middleTip.y() - middleMcp.y()</span>
+                    
+<span class="nc" id="L376">                    val idxLen = Math.sqrt((idxDx*idxDx + idxDy*idxDy).toDouble())</span>
+<span class="nc" id="L377">                    val midLen = Math.sqrt((midDx*midDx + midDy*midDy).toDouble())</span>
+                    
+<span class="nc bnc" id="L379" title="All 2 branches missed.">                    val isIdxExt = idxLen &gt; extensionThreshold</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">                    val isMidExt = midLen &gt; extensionThreshold</span>
+                    
+                    // Thumb Check: Is Thumb Up? (Tip significantly above IP/MCP)
+                    // If MediaPipe says &quot;Thumb_Up&quot;, we should respect it unless Index/Middle are CLEARLY pointing.
+                    // But in a Fist (Thumb Up), Index/Middle are folded (Short).
+                    // So just the `isIdxExt` check with high threshold should fix the &quot;Thumb Up&quot; false positive.
+                    
+<span class="nc bnc" id="L387" title="All 8 branches missed.">                    if (isIdxExt &amp;&amp; isMidExt &amp;&amp; !isRingUp &amp;&amp; !isPinkyUp) {</span>
+                        // Both extended, others likely folded
+                        
+                        // Check Orientation
+                        // Dynamic Threshold: 40% of palm size is a robust movement indicator
+<span class="nc" id="L392">                        val directionThreshold = palmSize * 0.4</span>
+                        
+<span class="nc bnc" id="L394" title="All 2 branches missed.">                        if (Math.abs(idxDx) &gt; Math.abs(idxDy)) {</span>
+                            // Horizontal
+<span class="nc bnc" id="L396" title="All 2 branches missed.">                            if (idxDx &gt; directionThreshold) { </span>
+                                // dx &gt; 0 means pointing to Image Right (User's Left if mirrored)
+<span class="nc" id="L398">                                Log.d(&quot;GestureProcessor&quot;, &quot;Override: Two_Fingers_Left&quot;)</span>
+<span class="nc" id="L399">                                category = &quot;Two_Fingers_Left&quot;</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">                            } else if (idxDx &lt; -directionThreshold) {</span>
+                                // dx &lt; 0 means pointing to Image Left (User's Right if mirrored)
+<span class="nc" id="L402">                                Log.d(&quot;GestureProcessor&quot;, &quot;Override: Two_Fingers_Right&quot;)</span>
+<span class="nc" id="L403">                                category = &quot;Two_Fingers_Right&quot;</span>
+                            }
+                        } else {
+                            // Vertical
+<span class="nc bnc" id="L407" title="All 2 branches missed.">                            if (idxDy &lt; -directionThreshold) { // Up (Y decreases upwards)</span>
+<span class="nc" id="L408">                                Log.d(&quot;GestureProcessor&quot;, &quot;Override: Two_Fingers_Up&quot;)</span>
+<span class="nc" id="L409">                                category = &quot;Two_Fingers_Up&quot;</span>
+                            }
+                             // Removed Pointing_Down from Two Fingers logic to avoid confusion. Single finger Down is handled below.
+                        }
+<span class="nc bnc" id="L413" title="All 6 branches missed.">                    } else if (indexTip.y() &gt; indexMcp.y() + 0.05 &amp;&amp; !isMiddleUp &amp;&amp; isIdxExt) {</span>
+                         // Single finger pointing down fallback (Only if extended!)
+<span class="nc" id="L415">                         category = &quot;Pointing_Down&quot;</span>
+                    }
+                    
+<span class="nc" id="L418">                    handHistory.add(Pair(currentTime, x))</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                    if (handHistory.size &gt; HISTORY_SIZE) handHistory.removeFirst()</span>
+                    
+                    // Static Filter Logic ... (existing) 
+<span class="nc bnc" id="L422" title="All 4 branches missed.">                    if (!isDemoMode &amp;&amp; handHistory.size &gt;= 5) { </span>
+<span class="nc" id="L423">                        val first = handHistory.first()</span>
+<span class="nc" id="L424">                        val last = handHistory.last()</span>
+<span class="nc" id="L425">                        val dx = Math.abs(last.second - first.second)</span>
+<span class="nc bnc" id="L426" title="All 2 branches missed.">                        if (dx &lt; 0.02) isStatic = true </span>
+                    }
+                    
+                    // SWIPE DETECTION
+                    // Calculate velocity over the last few frames
+<span class="nc bnc" id="L431" title="All 2 branches missed.">                    if (handHistory.size &gt;= 5) {</span>
+<span class="nc" id="L432">                        val first = handHistory.first()</span>
+<span class="nc" id="L433">                        val last = handHistory.last()</span>
+<span class="nc" id="L434">                        val duration = (last.first - first.first) / 1000.0 // seconds</span>
+<span class="nc" id="L435">                        val distance = last.second - first.second // positive = Left to Right (in MP coords, x increases Left-&gt;Right)</span>
+                        // Note: Camera is mirrored typically. 
+                        // x: 0 (Left) -&gt; 1 (Right). 
+                        // Move Hand Right -&gt; x increases -&gt; Velocity &gt; 0.
+                        
+<span class="nc bnc" id="L440" title="All 2 branches missed.">                        val velocity = if (duration &gt; 0) distance / duration else 0.0</span>
+                        
+                        // Lowered threshold to 0.5 (from 1.5) to make swipes easier to detect
+<span class="nc bnc" id="L443" title="All 2 branches missed.">                        if (Math.abs(velocity) &gt; 0.5) { // Threshold for Swipe</span>
+                            // If moving fast, override category to Swipe
+                            // To prevent spamming, we might need a debounce or &quot;consumed&quot; flag, 
+                            // but CommandDispatcher has debounce.
+<span class="nc bnc" id="L447" title="All 2 branches missed.">                            if (velocity &gt; 0) category = &quot;Swipe_Right&quot;</span>
+<span class="nc" id="L448">                            else category = &quot;Swipe_Left&quot;</span>
+                        }
+                    }
+
+<span class="nc bnc" id="L452" title="All 4 branches missed.">                    if (!isDemoMode &amp;&amp; x &gt; 0.6) { // Disable ROI in Demo</span>
+<span class="nc" id="L453">                         inDriverZone = false</span>
+<span class="nc" id="L454">                         positionHint = &quot;passenger zone ignored&quot;</span>
+                    } else {
+<span class="nc bnc" id="L456" title="All 2 branches missed.">                        if (x &lt; 0.3) positionHint = &quot;Move Right &gt;&quot;</span>
+<span class="nc bnc" id="L457" title="All 2 branches missed.">                        else if (x &gt; 0.5) positionHint = &quot;&lt; Move Left&quot;</span>
+                    }
+                    
+<span class="nc" id="L460">                    val thumbTip = landmarks[4]</span>
+<span class="nc" id="L461">                    val distance = Math.sqrt(</span>
+<span class="nc" id="L462">                        Math.pow((thumbTip.x() - indexTip.x()).toDouble(), 2.0) +</span>
+<span class="nc" id="L463">                        Math.pow((thumbTip.y() - indexTip.y()).toDouble(), 2.0)</span>
+                    )
+<span class="nc bnc" id="L465" title="All 4 branches missed.">                     if (distance &lt; 0.05 &amp;&amp; inDriverZone) {</span>
+<span class="nc bnc" id="L466" title="All 2 branches missed.">                         if (score &gt; activeThreshold) {</span>
+<span class="nc" id="L467">                            listener(GestureFeedback(&quot;Pinch&quot;, score, &quot;Privacy Toggled&quot;, positionHint, isNightMode, isSleeping, isDemoMode, currentMood, driverName, passengerPresent))</span>
+<span class="nc" id="L468">                            lastWakeTime = currentTime </span>
+<span class="nc" id="L469">                            return@let </span>
+                        }
+                    }
+                }
+                
+                // Sleep Logic (Skipped in Demo Mode)
+<span class="nc bnc" id="L475" title="All 2 branches missed.">                if (isSleeping) {</span>
+<span class="nc bnc" id="L476" title="All 6 branches missed.">                    if (inDriverZone &amp;&amp; category == &quot;Open_Palm&quot; &amp;&amp; score &gt; activeThreshold) {</span>
+<span class="nc bnc" id="L477" title="All 2 branches missed.">                        if (wakeHoldStartTime == 0L) wakeHoldStartTime = currentTime</span>
+                        
+<span class="nc bnc" id="L479" title="All 2 branches missed.">                        if (currentTime - wakeHoldStartTime &gt; 1000) { </span>
+<span class="nc" id="L480">                            isSleeping = false</span>
+<span class="nc" id="L481">                            lastWakeTime = currentTime</span>
+<span class="nc" id="L482">                            listener(GestureFeedback(&quot;WAKE UP&quot;, score, &quot;System Active&quot;, positionHint, isNightMode, false, isDemoMode, currentMood, driverName, passengerPresent))</span>
+                        } else {
+<span class="nc" id="L484">                            listener(GestureFeedback(&quot;Possible Wake&quot;, score, &quot;Hold to Wake...&quot;, positionHint, isNightMode, true, isDemoMode, currentMood, driverName, passengerPresent))</span>
+                        }
+                    } else {
+<span class="nc" id="L487">                        wakeHoldStartTime = 0L </span>
+<span class="nc bnc" id="L488" title="All 2 branches missed.">                        if (inDriverZone) {</span>
+<span class="nc" id="L489">                             listener(GestureFeedback(&quot;SLEEPING&quot;, score, &quot;Show Palm to Wake&quot;, positionHint, isNightMode, true, isDemoMode, currentMood, driverName, passengerPresent))</span>
+                        }
+                    }
+<span class="nc" id="L492">                    return@let </span>
+                }
+                
+<span class="nc" id="L495">                lastWakeTime = currentTime </span>
+                
+<span class="nc bnc" id="L497" title="All 2 branches missed.">                if (!inDriverZone) {</span>
+<span class="nc" id="L498">                    listener(GestureFeedback(&quot;None&quot;, 0f, &quot;Ignored (Passenger)&quot;, positionHint, isNightMode, isSleeping, isDemoMode, currentMood, driverName, passengerPresent))</span>
+<span class="nc" id="L499">                    return@let</span>
+                }
+                
+<span class="nc bnc" id="L502" title="All 2 branches missed.">                if (isStatic) {</span>
+<span class="nc" id="L503">                     listener(GestureFeedback(&quot;None&quot;, score, &quot;Ignored (Static/Wheel)&quot;, positionHint, isNightMode, isSleeping, isDemoMode, currentMood, driverName, passengerPresent))</span>
+<span class="nc" id="L504">                     return@let</span>
+                }
+
+<span class="nc bnc" id="L507" title="All 2 branches missed.">                val feedbackMsg = if (score &gt; 0.8) &quot;Excellent&quot; else &quot;Good&quot;</span>
+
+<span class="nc bnc" id="L509" title="All 2 branches missed.">                if (score &gt; activeThreshold) {</span>
+<span class="nc" id="L510">                    listener(GestureFeedback(category, score, feedbackMsg, positionHint, isNightMode, isSleeping, isDemoMode, currentMood, driverName, passengerPresent))</span>
+                }
+            } else {
+<span class="nc" id="L513">                 wakeHoldStartTime = 0L</span>
+                 // Send update even if no hand, so Mood is updated!
+<span class="nc" id="L515">                 listener(GestureFeedback(&quot;None&quot;, 0f, &quot; &quot;, &quot;No Hand&quot;, isNightMode, isSleeping, isDemoMode, currentMood, driverName, passengerPresent))</span>
+            }
+<span class="nc" id="L517">        }</span>
+<span class="nc" id="L518">    }</span>
+    
+    // Driver ID Logic
+<span class="nc" id="L521">    private val registeredDrivers = mutableMapOf&lt;String, List&lt;Float&gt;&gt;()</span>
+<span class="nc" id="L522">    private var pendingRegistrationName: String = &quot;Guest&quot;</span>
+    private var registerNextFace = false
+
+    fun registerDriver(name: String) {
+<span class="nc" id="L526">        pendingRegistrationName = name</span>
+<span class="nc" id="L527">        registerNextFace = true</span>
+<span class="nc" id="L528">    }</span>
+
+    private fun extractFaceSignature(landmarks: List&lt;com.google.mediapipe.tasks.components.containers.NormalizedLandmark&gt;): List&lt;Float&gt; {
+        // Simple Euclidean distances between key points
+        fun dist(i1: Int, i2: Int): Float {
+<span class="nc bnc" id="L533" title="All 4 branches missed.">            if (i1 &gt;= landmarks.size || i2 &gt;= landmarks.size) return 0f</span>
+<span class="nc" id="L534">            val p1 = landmarks[i1]</span>
+<span class="nc" id="L535">            val p2 = landmarks[i2]</span>
+<span class="nc" id="L536">            return Math.sqrt(Math.pow((p1.x() - p2.x()).toDouble(), 2.0) + Math.pow((p1.y() - p2.y()).toDouble(), 2.0)).toFloat()</span>
+        }
+
+<span class="nc" id="L539">        val eyeDist = dist(33, 263)</span>
+<span class="nc bnc" id="L540" title="All 2 branches missed.">        if (eyeDist &lt; 0.01f) return emptyList() // Avoid div by zero</span>
+
+        // Normalized Ratios - More features for better accuracy
+<span class="nc" id="L543">        val v1 = dist(1, 152) / eyeDist   // Nose to chin</span>
+<span class="nc" id="L544">        val v2 = dist(1, 33) / eyeDist    // Nose to left eye</span>
+<span class="nc" id="L545">        val v3 = dist(1, 263) / eyeDist   // Nose to right eye</span>
+<span class="nc" id="L546">        val v4 = dist(61, 291) / eyeDist  // Mouth width</span>
+<span class="nc" id="L547">        val v5 = dist(10, 152) / eyeDist  // Forehead to chin</span>
+<span class="nc" id="L548">        val v6 = dist(234, 454) / eyeDist // Face width at cheeks</span>
+        
+<span class="nc" id="L550">        return listOf(v1, v2, v3, v4, v5, v6)</span>
+    }
+
+    private fun compareSignatures(sig1: List&lt;Float&gt;, sig2: List&lt;Float&gt;): Float {
+<span class="nc bnc" id="L554" title="All 2 branches missed.">        if (sig1.size != sig2.size) return 100f</span>
+<span class="nc" id="L555">        var diff = 0f</span>
+<span class="nc bnc" id="L556" title="All 2 branches missed.">        for (i in sig1.indices) {</span>
+<span class="nc" id="L557">            diff += Math.abs(sig1[i] - sig2[i])</span>
+        }
+<span class="nc" id="L559">        return diff</span>
+    }
+    
+    fun close() {
+<span class="nc bnc" id="L563" title="All 2 branches missed.">        gestureRecognizer?.close()</span>
+<span class="nc bnc" id="L564" title="All 2 branches missed.">        faceLandmarker?.close()</span>
+<span class="nc" id="L565">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssistantUiState.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.controller</a> &gt; <span class="el_source">AssistantUiState.kt</span></div><h1>AssistantUiState.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.controller
+
+/**
+ * Represents the pure UI state of the Assistant.
+ * The AssistantSession (View layer) observes this state to render animations and text.
+ */
+sealed class AssistantUiState {
+<span class="nc" id="L8">    object Idle : AssistantUiState()</span>
+<span class="nc" id="L9">    data class Listening(val partialText: String = &quot;&quot;) : AssistantUiState()</span>
+<span class="nc" id="L10">    data class Thinking(val userQuery: String? = null) : AssistantUiState()</span>
+    
+    /**
+     * Represents the real-time streaming state where text chunks are arriving from the LLM.
+     */
+<span class="nc" id="L15">    data class Streaming(val displayText: String) : AssistantUiState()</span>
+    
+    /**
+     * Represents the state where the assistant has finished processing and is actively speaking the final output.
+     */
+<span class="nc" id="L20">    data class Speaking(val finalMessage: String) : AssistantUiState()</span>
+    
+    /**
+     * Represents a timeout or API error state.
+     */
+<span class="nc" id="L25">    data class Error(val errorMessage: String) : AssistantUiState()</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

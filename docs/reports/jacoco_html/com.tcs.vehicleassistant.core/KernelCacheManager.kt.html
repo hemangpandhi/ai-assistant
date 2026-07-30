@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>KernelCacheManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.core</a> &gt; <span class="el_source">KernelCacheManager.kt</span></div><h1>KernelCacheManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.core
+
+import android.content.Context
+import android.util.Log
+import java.io.File
+
+/**
+ * Owns the directory LiteRT uses to persist serialized inference contexts — on the GPU backend
+ * this is where compiled OpenCL kernels land.
+ *
+ * The engine previously pointed at [Context.getCacheDir], which Android evicts under storage
+ * pressure. Losing the cache forces a full OpenCL kernel recompile on the next cold start, which
+ * is the slowest part of bringing the model up. This uses no-backup internal storage instead, so
+ * the kernels survive reboots and low-storage cleanups but are never copied off the device.
+ *
+ * Kernels are only valid for the model they were compiled against, so the cache is dropped
+ * whenever the model path or backend changes.
+ */
+object KernelCacheManager {
+
+    private const val TAG = &quot;KernelCacheManager&quot;
+
+    /**
+     * Directory to hand LiteRT as `EngineConfig.cacheDir`, cleared first if the previous contents
+     * were compiled for a different model or backend.
+     */
+    fun prepare(context: Context, modelPath: String, backend: String): String {
+<span class="nc" id="L28">        val root = cacheRoot(context)</span>
+<span class="nc" id="L29">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L30">        val fingerprint = fingerprint(modelPath, backend)</span>
+<span class="nc" id="L31">        val previous = prefs.getString(AssistantConfig.Prefs.KERNEL_CACHE_MODEL, null)</span>
+
+<span class="nc bnc" id="L33" title="All 4 branches missed.">        if (previous != null &amp;&amp; previous != fingerprint) {</span>
+<span class="nc" id="L34">            Log.i(TAG, &quot;Model/backend changed; discarding stale kernel cache at ${root.path}&quot;)</span>
+<span class="nc" id="L35">            clearDirectory(root)</span>
+        }
+
+<span class="nc bnc" id="L38" title="All 4 branches missed.">        if (!root.exists() &amp;&amp; !root.mkdirs()) {</span>
+<span class="nc" id="L39">            Log.w(TAG, &quot;Could not create ${root.path}; falling back to the volatile cache dir&quot;)</span>
+<span class="nc" id="L40">            return context.cacheDir.absolutePath</span>
+        }
+
+<span class="nc" id="L43">        prefs.edit().putString(AssistantConfig.Prefs.KERNEL_CACHE_MODEL, fingerprint).apply()</span>
+<span class="nc" id="L44">        return root.absolutePath</span>
+    }
+
+    /** Drops every cached kernel, forcing a recompile on the next engine initialization. */
+    fun invalidate(context: Context) {
+<span class="nc" id="L49">        clearDirectory(cacheRoot(context))</span>
+<span class="nc" id="L50">        context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L51">            .edit()</span>
+<span class="nc" id="L52">            .remove(AssistantConfig.Prefs.KERNEL_CACHE_MODEL)</span>
+<span class="nc" id="L53">            .apply()</span>
+<span class="nc" id="L54">    }</span>
+
+    /** True once LiteRT has written a serialized context, meaning the next start skips compilation. */
+    fun isWarm(context: Context): Boolean {
+<span class="nc" id="L58">        val root = cacheRoot(context)</span>
+<span class="nc bnc" id="L59" title="All 12 branches missed.">        return root.isDirectory &amp;&amp; (root.listFiles()?.isNotEmpty() == true)</span>
+    }
+
+    /** Total bytes held by the cache, logged when the engine comes up. */
+    fun sizeBytes(context: Context): Long {
+<span class="nc" id="L64">        val root = cacheRoot(context)</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">        if (!root.isDirectory) return 0L</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        return root.walkBottomUp().filter { it.isFile }.sumOf { it.length() }</span>
+    }
+
+    private fun cacheRoot(context: Context): File {
+        // noBackupFilesDir keeps device-specific compiled kernels out of cloud/adb backups, where
+        // they would be restored onto hardware with a different GPU.
+<span class="nc" id="L72">        val parent = try {</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            context.noBackupFilesDir ?: context.filesDir</span>
+<span class="nc" id="L74">        } catch (e: Exception) {</span>
+<span class="nc" id="L75">            Log.w(TAG, &quot;noBackupFilesDir unavailable, using filesDir&quot;, e)</span>
+<span class="nc" id="L76">            context.filesDir</span>
+        }
+<span class="nc" id="L78">        return File(parent, AssistantConfig.Llm.KERNEL_CACHE_DIR)</span>
+    }
+
+    private fun fingerprint(modelPath: String, backend: String): String {
+<span class="nc" id="L82">        val model = File(modelPath)</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        val stamp = if (model.exists()) &quot;${model.length()}:${model.lastModified()}&quot; else &quot;absent&quot;</span>
+<span class="nc" id="L84">        return &quot;$modelPath|$backend|$stamp&quot;</span>
+    }
+
+    private fun clearDirectory(dir: File) {
+<span class="nc bnc" id="L88" title="All 2 branches missed.">        if (!dir.exists()) return</span>
+<span class="nc" id="L89">        try {</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">            dir.walkBottomUp().forEach { if (it != dir) it.delete() }</span>
+<span class="nc" id="L91">        } catch (e: Exception) {</span>
+<span class="nc" id="L92">            Log.w(TAG, &quot;Failed to clear kernel cache at ${dir.path}&quot;, e)</span>
+        }
+<span class="nc" id="L94">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

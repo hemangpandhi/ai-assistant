@@ -1,0 +1,592 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ToolManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">ToolManager.kt</span></div><h1>ToolManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.content.Context
+import android.content.Intent
+import android.util.Log
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.ContextGuard
+import com.tcs.vehicleassistant.core.DirectToolResolver
+import com.tcs.vehicleassistant.core.ToolRetriever
+import org.json.JSONObject
+
+<span class="nc" id="L12">class ToolManager {</span>
+
+    companion object {
+        private const val TAG = &quot;ToolManager&quot;
+
+        /** Tools the model may need at any moment, regardless of the current utterance. */
+<span class="fc" id="L18">        private val CORE_HANDLER_KEYS = setOf(</span>
+<span class="fc" id="L19">            &quot;stopMusic&quot;, &quot;playMusic&quot;, &quot;pauseMusic&quot;, &quot;nextTrack&quot;,</span>
+<span class="fc" id="L20">            &quot;increaseTemperature&quot;, &quot;decreaseTemperature&quot;, &quot;setSeatHeater&quot;</span>
+        )
+
+        /**
+         * Short single-token aliases that are real spoken verbs (needed so &quot;play arijit singh music&quot;
+         * matches). Longer camelCase API aliases and dangerous prefix words like &quot;navigate&quot;/&quot;nav&quot;
+         * stay execution-only and are NOT merged into DirectTool keywords.
+         */
+<span class="fc" id="L28">        private val SPEAKABLE_SHORT_ALIASES = setOf(&quot;play&quot;, &quot;pause&quot;)</span>
+
+        /** True when an alias is safe to use as a DirectTool utterance keyword. */
+        fun isSpeakableDirectKeyword(alias: String): Boolean {
+<span class="fc" id="L32">            val a = alias.trim().lowercase()</span>
+<span class="pc bpc" id="L33" title="2 of 4 branches missed.">            if (a.isEmpty()) return false</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">            if (a.contains(' ')) return true</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">            if (a in SPEAKABLE_SHORT_ALIASES) return true</span>
+<span class="fc" id="L36">            return false</span>
+        }
+
+        /** Plausible cabin temperature setpoints in Fahrenheit. */
+<span class="fc" id="L40">        private val TEMPERATURE_VALUE = Regex(&quot;&quot;&quot;\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b&quot;&quot;&quot;)</span>
+<span class="fc" id="L41">        private val TEMPERATURE_FAHRENHEIT = Regex(&quot;&quot;&quot;\d{2}f&quot;&quot;&quot;)</span>
+
+        /**
+         * Injecting more than a handful of tools overflows the edge model's context and degrades
+         * tool-call accuracy, so both the BM25 fallback and the prompt builder cap the count.
+         */
+        private const val BM25_TOP_K = 4
+        private const val MAX_PROMPT_TOOLS = 8
+    }
+
+<span class="nc" id="L51">    data class Constraint(</span>
+<span class="nc" id="L52">        val propertyId: Int,</span>
+<span class="nc" id="L53">        val operator: String,</span>
+<span class="nc" id="L54">        val value: Double,</span>
+<span class="nc" id="L55">        val errorMsg: String</span>
+    )
+    
+<span class="nc" id="L58">    data class ToolDefinition(</span>
+<span class="nc" id="L59">        val handlerType: String,</span>
+<span class="nc" id="L60">        val promptString: String,</span>
+<span class="nc" id="L61">        val handlerKey: String?,</span>
+<span class="nc" id="L62">        val propertyId: Int?,</span>
+<span class="nc" id="L63">        val dataType: String?,</span>
+<span class="nc" id="L64">        val areaId: Int?,</span>
+<span class="nc" id="L65">        val valueToWrite: String?,</span>
+<span class="nc" id="L66">        val successMessage: String?,</span>
+<span class="nc" id="L67">        val errorMessage: String?,</span>
+<span class="nc" id="L68">        val description: String?,</span>
+<span class="nc" id="L69">        val instruction: String?,</span>
+<span class="nc" id="L70">        val keywords: List&lt;String&gt;?,</span>
+<span class="nc" id="L71">        val aliases: List&lt;String&gt;?,</span>
+<span class="nc" id="L72">        val constraints: List&lt;Constraint&gt;?,</span>
+<span class="nc" id="L73">        val requiresConfirmation: Boolean = false,</span>
+<span class="nc" id="L74">        val confirmationMessage: String? = null,</span>
+<span class="nc" id="L75">        val offlineCapable: Boolean = false,</span>
+<span class="nc" id="L76">        val requiresVehicleState: Boolean = false,</span>
+<span class="nc" id="L77">        val requiresAgenticLoop: Boolean = false,</span>
+        /** When true, [DirectToolResolver] may execute this tool without invoking the LLM. */
+<span class="nc" id="L79">        val directExecutable: Boolean = false,</span>
+<span class="nc" id="L80">    )</span>
+
+<span class="nc" id="L82">    data class SystemInstruction(</span>
+<span class="nc" id="L83">        val instruction: String,</span>
+<span class="nc" id="L84">        val keywords: List&lt;String&gt;,</span>
+    )
+    
+    // Maps command prefix -&gt; ToolDefinition
+<span class="nc" id="L88">    private val activeTools = mutableMapOf&lt;String, ToolDefinition&gt;()</span>
+
+    /** BM25 index over the tool catalogue, rebuilt whenever the registry is (re)loaded. */
+<span class="nc" id="L91">    private var retrievalIndex: List&lt;ToolRetriever.Document&gt; = emptyList()</span>
+
+    /**
+     * Whole-word matchers per tool, compiled once at load time. Building them per query meant
+     * compiling a regex for every keyword of every tool on every turn.
+     */
+<span class="nc" id="L97">    private var keywordMatchers: Map&lt;String, List&lt;Regex&gt;&gt; = emptyMap()</span>
+
+    /** Keyword-gated instructions from the registry `system_instructions` array. */
+<span class="nc" id="L100">    private var systemInstructions: List&lt;SystemInstruction&gt; = emptyList()</span>
+
+<span class="nc" id="L102">    var isInitialized = false</span>
+        private set
+
+<span class="nc" id="L105">    var slidingWindowMaxChars: Int = AssistantConfig.Memory.DEFAULT_MAX_CHARS</span>
+        private set
+
+    /** Cap on BM25 fallback results; overridable from registry `config.max_relevant_tools`. */
+<span class="nc" id="L109">    var bm25TopK: Int = BM25_TOP_K</span>
+        private set
+
+    /** Cap on tools injected into the LLM prompt; overridable from `config.max_prompt_tools`. */
+<span class="nc" id="L113">    var maxPromptTools: Int = MAX_PROMPT_TOOLS</span>
+        private set
+
+    /** Policy for registry-driven direct execution; overridable from `config.direct_execution`. */
+<span class="nc" id="L117">    var directExecutionPolicy: DirectToolResolver.Policy = DirectToolResolver.Policy()</span>
+        private set
+
+    fun initialize(context: Context) {
+<span class="nc bnc" id="L121" title="All 2 branches missed.">        if (isInitialized) return</span>
+<span class="nc" id="L122">        try {</span>
+            // readBytes() drains the stream; available() plus a single read() can silently truncate
+            // the registry, which parses as a JSONException rather than as a short read.
+<span class="nc" id="L125">            val jsonStr = context.assets.open(&quot;vehicle_skills_registry.json&quot;).use { input -&gt;</span>
+<span class="nc" id="L126">                input.readBytes().toString(Charsets.UTF_8)</span>
+            }
+<span class="nc" id="L128">            val jsonObject = JSONObject(jsonStr)</span>
+
+<span class="nc bnc" id="L130" title="All 2 branches missed.">            if (jsonObject.has(&quot;config&quot;)) {</span>
+<span class="nc" id="L131">                val config = jsonObject.getJSONObject(&quot;config&quot;)</span>
+<span class="nc bnc" id="L132" title="All 2 branches missed.">                if (config.has(&quot;sliding_window_max_chars&quot;)) {</span>
+<span class="nc" id="L133">                    slidingWindowMaxChars = config.getInt(&quot;sliding_window_max_chars&quot;)</span>
+                }
+<span class="nc bnc" id="L135" title="All 2 branches missed.">                if (config.has(&quot;max_relevant_tools&quot;)) {</span>
+<span class="nc" id="L136">                    bm25TopK = config.getInt(&quot;max_relevant_tools&quot;).coerceAtLeast(1)</span>
+                }
+<span class="nc bnc" id="L138" title="All 2 branches missed.">                if (config.has(&quot;max_prompt_tools&quot;)) {</span>
+<span class="nc" id="L139">                    maxPromptTools = config.getInt(&quot;max_prompt_tools&quot;).coerceAtLeast(1)</span>
+                }
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                if (config.has(&quot;direct_execution&quot;)) {</span>
+<span class="nc" id="L142">                    val de = config.getJSONObject(&quot;direct_execution&quot;)</span>
+<span class="nc" id="L143">                    directExecutionPolicy = DirectToolResolver.Policy(</span>
+<span class="nc" id="L144">                        enabled = de.optBoolean(&quot;enabled&quot;, true),</span>
+<span class="nc" id="L145">                        minKeywordChars = de.optInt(&quot;min_keyword_chars&quot;, 5).coerceAtLeast(3),</span>
+<span class="nc" id="L146">                        maxQueryWords = de.optInt(&quot;max_query_words&quot;, 12).coerceAtLeast(3),</span>
+<span class="nc" id="L147">                        maxQueryChars = de.optInt(&quot;max_query_chars&quot;, 100).coerceAtLeast(20),</span>
+<span class="nc" id="L148">                        minKeywordMargin = de.optInt(&quot;min_keyword_margin&quot;, 3).coerceAtLeast(0),</span>
+                    )
+                }
+<span class="nc" id="L151">                ContextGuard.loadFromConfig(config)</span>
+            }
+
+<span class="nc" id="L154">            systemInstructions = parseSystemInstructions(jsonObject)</span>
+
+<span class="nc bnc" id="L156" title="All 2 branches missed.">            if (jsonObject.has(&quot;tools&quot;)) {</span>
+<span class="nc" id="L157">                val toolsArray = jsonObject.getJSONArray(&quot;tools&quot;)</span>
+<span class="nc bnc" id="L158" title="All 2 branches missed.">                for (i in 0 until toolsArray.length()) {</span>
+<span class="nc" id="L159">                    val toolObj = toolsArray.getJSONObject(i)</span>
+<span class="nc" id="L160">                    val promptString = toolObj.getString(&quot;prompt_string&quot;)</span>
+<span class="nc bnc" id="L161" title="All 2 branches missed.">                    val handlerType = if (toolObj.has(&quot;handler_type&quot;)) toolObj.getString(&quot;handler_type&quot;) else &quot;CUSTOM_KOTLIN&quot;</span>
+<span class="nc bnc" id="L162" title="All 2 branches missed.">                    val handlerKey = if (toolObj.has(&quot;handler_key&quot;)) toolObj.getString(&quot;handler_key&quot;) else null</span>
+                    
+<span class="nc bnc" id="L164" title="All 2 branches missed.">                    val commandName = handlerKey ?: promptString.substringAfter(&quot;&lt;TOOL&gt;&quot;).substringBefore(&quot;&lt;/TOOL&gt;&quot;).substringBefore(&quot;(&quot;)</span>
+                    
+<span class="nc bnc" id="L166" title="All 2 branches missed.">                    val propertyId = if (toolObj.has(&quot;property_id&quot;)) toolObj.getInt(&quot;property_id&quot;) else null</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">                    val dataType = if (toolObj.has(&quot;data_type&quot;)) toolObj.getString(&quot;data_type&quot;) else null</span>
+<span class="nc bnc" id="L168" title="All 2 branches missed.">                    val areaId = if (toolObj.has(&quot;area_id&quot;)) toolObj.getInt(&quot;area_id&quot;) else null</span>
+<span class="nc bnc" id="L169" title="All 2 branches missed.">                    val valueToWrite = if (toolObj.has(&quot;value_to_write&quot;)) toolObj.getString(&quot;value_to_write&quot;) else null</span>
+<span class="nc bnc" id="L170" title="All 2 branches missed.">                    val successMessage = if (toolObj.has(&quot;success_message&quot;)) toolObj.getString(&quot;success_message&quot;) else null</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">                    val errorMessage = if (toolObj.has(&quot;error_message&quot;)) toolObj.getString(&quot;error_message&quot;) else null</span>
+<span class="nc bnc" id="L172" title="All 2 branches missed.">                    val description = if (toolObj.has(&quot;description&quot;)) toolObj.getString(&quot;description&quot;) else null</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                    val instruction = if (toolObj.has(&quot;instruction&quot;)) toolObj.getString(&quot;instruction&quot;) else null</span>
+<span class="nc bnc" id="L174" title="All 2 branches missed.">                    val offlineCapable = if (toolObj.has(&quot;offline_capable&quot;)) toolObj.getBoolean(&quot;offline_capable&quot;) else false</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">                    val requiresVehicleState = if (toolObj.has(&quot;requires_vehicle_state&quot;)) toolObj.getBoolean(&quot;requires_vehicle_state&quot;) else false</span>
+
+<span class="nc" id="L177">                    val keywordsList = mutableListOf&lt;String&gt;()</span>
+<span class="nc bnc" id="L178" title="All 2 branches missed.">                    if (toolObj.has(&quot;keywords&quot;)) {</span>
+<span class="nc" id="L179">                        val arr = toolObj.getJSONArray(&quot;keywords&quot;)</span>
+<span class="nc bnc" id="L180" title="All 2 branches missed.">                        for (j in 0 until arr.length()) keywordsList.add(arr.getString(j).lowercase())</span>
+                    }
+                    
+<span class="nc" id="L183">                    val aliasesList = mutableListOf&lt;String&gt;()</span>
+<span class="nc bnc" id="L184" title="All 2 branches missed.">                    if (toolObj.has(&quot;aliases&quot;)) {</span>
+<span class="nc" id="L185">                        val arr = toolObj.getJSONArray(&quot;aliases&quot;)</span>
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                        for (j in 0 until arr.length()) {</span>
+<span class="nc" id="L187">                            val alias = arr.getString(j).lowercase()</span>
+<span class="nc" id="L188">                            aliasesList.add(alias)</span>
+                            // Only merge speakable utterance aliases into DirectTool keywords.
+                            // CamelCase API aliases (navigateTo → navigateto) are not user speech and
+                            // previously caused wrong matches (e.g. short &quot;navigate&quot; → &quot;me to …&quot;).
+<span class="nc bnc" id="L192" title="All 4 branches missed.">                            if (isSpeakableDirectKeyword(alias) &amp;&amp; !keywordsList.contains(alias)) {</span>
+<span class="nc" id="L193">                                keywordsList.add(alias)</span>
+                            }
+                        }
+                    }
+                    
+<span class="nc" id="L198">                    val constraintsList = mutableListOf&lt;Constraint&gt;()</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                    if (toolObj.has(&quot;constraints&quot;)) {</span>
+<span class="nc" id="L200">                        val arr = toolObj.getJSONArray(&quot;constraints&quot;)</span>
+<span class="nc bnc" id="L201" title="All 2 branches missed.">                        for (j in 0 until arr.length()) {</span>
+<span class="nc" id="L202">                            val cObj = arr.getJSONObject(j)</span>
+<span class="nc" id="L203">                            constraintsList.add(Constraint(</span>
+<span class="nc" id="L204">                                propertyId = cObj.getInt(&quot;property_id&quot;),</span>
+<span class="nc" id="L205">                                operator = cObj.getString(&quot;operator&quot;),</span>
+<span class="nc" id="L206">                                value = cObj.getDouble(&quot;value&quot;),</span>
+<span class="nc" id="L207">                                errorMsg = cObj.getString(&quot;error_msg&quot;)</span>
+                            ))
+                        }
+                    }
+
+<span class="nc" id="L212">                    activeTools[commandName] = ToolDefinition(</span>
+<span class="nc" id="L213">                        handlerType = handlerType,</span>
+<span class="nc" id="L214">                        promptString = promptString,</span>
+<span class="nc" id="L215">                        handlerKey = handlerKey,</span>
+<span class="nc" id="L216">                        propertyId = propertyId,</span>
+<span class="nc" id="L217">                        dataType = dataType,</span>
+<span class="nc" id="L218">                        areaId = areaId,</span>
+<span class="nc" id="L219">                        valueToWrite = valueToWrite,</span>
+<span class="nc" id="L220">                        successMessage = successMessage,</span>
+<span class="nc" id="L221">                        errorMessage = errorMessage,</span>
+<span class="nc" id="L222">                        description = description,</span>
+<span class="nc" id="L223">                        instruction = instruction,</span>
+<span class="nc bnc" id="L224" title="All 4 branches missed.">                        keywords = if (keywordsList.isNotEmpty()) keywordsList else null,</span>
+<span class="nc bnc" id="L225" title="All 4 branches missed.">                        aliases = if (aliasesList.isNotEmpty()) aliasesList else null,</span>
+<span class="nc bnc" id="L226" title="All 4 branches missed.">                        constraints = if (constraintsList.isNotEmpty()) constraintsList else null,</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">                        requiresConfirmation = if (toolObj.has(&quot;requires_confirmation&quot;)) toolObj.getBoolean(&quot;requires_confirmation&quot;) else false,</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">                        confirmationMessage = if (toolObj.has(&quot;confirmation_message&quot;)) toolObj.getString(&quot;confirmation_message&quot;) else null,</span>
+<span class="nc" id="L229">                        offlineCapable = offlineCapable,</span>
+<span class="nc" id="L230">                        requiresVehicleState = requiresVehicleState,</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                        requiresAgenticLoop = if (toolObj.has(&quot;requires_agentic_loop&quot;)) toolObj.getBoolean(&quot;requires_agentic_loop&quot;) else false,</span>
+<span class="nc" id="L232">                        directExecutable = toolObj.optBoolean(&quot;direct_executable&quot;, false),</span>
+                    )
+<span class="nc" id="L234">                    Log.i(TAG, &quot;Registered Tool: $commandName ($handlerType) -&gt; $promptString&quot;)</span>
+                }
+            }
+<span class="nc" id="L237">            retrievalIndex = buildRetrievalIndex()</span>
+<span class="nc" id="L238">            keywordMatchers = buildKeywordMatchers()</span>
+<span class="nc" id="L239">            val missing = com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.missingHandlers(activeTools)</span>
+<span class="nc bnc" id="L240" title="All 4 branches missed.">            if (missing.isNotEmpty()) {</span>
+<span class="nc" id="L241">                Log.e(TAG, &quot;CUSTOM_KOTLIN tools with no registered handler: $missing&quot;)</span>
+            }
+<span class="nc" id="L243">            isInitialized = true</span>
+<span class="nc" id="L244">            Log.i(TAG, &quot;Registered ${activeTools.size} tools; BM25 index holds ${retrievalIndex.size} documents.&quot;)</span>
+<span class="nc" id="L245">        } catch (e: Exception) {</span>
+<span class="nc" id="L246">            Log.e(TAG, &quot;Failed to parse tools from vehicle_skills_registry.json&quot;, e)</span>
+        }
+<span class="nc" id="L248">    }</span>
+
+    private fun parseSystemInstructions(jsonObject: JSONObject): List&lt;SystemInstruction&gt; {
+<span class="nc bnc" id="L251" title="All 2 branches missed.">        if (!jsonObject.has(&quot;system_instructions&quot;)) return emptyList()</span>
+<span class="nc" id="L252">        val arr = jsonObject.getJSONArray(&quot;system_instructions&quot;)</span>
+<span class="nc" id="L253">        val out = mutableListOf&lt;SystemInstruction&gt;()</span>
+<span class="nc bnc" id="L254" title="All 2 branches missed.">        for (i in 0 until arr.length()) {</span>
+<span class="nc" id="L255">            val obj = arr.getJSONObject(i)</span>
+<span class="nc" id="L256">            val instruction = obj.optString(&quot;instruction&quot;).trim()</span>
+<span class="nc bnc" id="L257" title="All 4 branches missed.">            if (instruction.isEmpty()) continue</span>
+<span class="nc" id="L258">            val keywords = mutableListOf&lt;String&gt;()</span>
+<span class="nc bnc" id="L259" title="All 2 branches missed.">            if (obj.has(&quot;keywords&quot;)) {</span>
+<span class="nc" id="L260">                val kw = obj.getJSONArray(&quot;keywords&quot;)</span>
+<span class="nc bnc" id="L261" title="All 2 branches missed.">                for (j in 0 until kw.length()) keywords.add(kw.getString(j).lowercase())</span>
+            }
+<span class="nc" id="L263">            out.add(SystemInstruction(instruction, keywords))</span>
+        }
+<span class="nc" id="L265">        return out</span>
+    }
+
+<span class="nc" id="L268">    private fun buildRetrievalIndex(): List&lt;ToolRetriever.Document&gt; = activeTools.map { (commandName, tool) -&gt;</span>
+<span class="nc" id="L269">        ToolRetriever.document(</span>
+<span class="nc" id="L270">            id = commandName,</span>
+<span class="nc" id="L271">            commandName,</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">            tool.keywords?.joinToString(&quot; &quot;),</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">            tool.aliases?.joinToString(&quot; &quot;),</span>
+<span class="nc" id="L274">            tool.description</span>
+<span class="nc" id="L275">        )</span>
+<span class="nc" id="L276">    }</span>
+
+<span class="nc" id="L278">    private fun buildKeywordMatchers(): Map&lt;String, List&lt;Regex&gt;&gt; = activeTools.mapValues { (_, tool) -&gt;</span>
+        // Aliases are already merged into keywords when the registry is parsed.
+<span class="nc bnc" id="L280" title="All 2 branches missed.">        tool.keywords.orEmpty().map { Regex(&quot;&quot;&quot;\b${Regex.escape(it)}\b&quot;&quot;&quot;) }</span>
+<span class="nc" id="L281">    }</span>
+
+    /**
+     * Tool retrieval for prompt construction, in three tiers:
+     *
+     * 1. Whole-word keyword/alias matches on the current user turn (cheap and precise).
+     * 2. For short follow-ups (&quot;make it warmer&quot;), keyword matches against the prior assistant turn,
+     *    because the current turn carries no routable nouns of its own.
+     * 3. BM25 ranking over the whole catalogue, used only when the first two tiers find nothing.
+     *
+     * Core tools are appended in every case so the model can always stop music or nudge the
+     * temperature, and the result is never empty for a non-blank query.
+     */
+<span class="nc" id="L294">    fun getRelevantTools(userQuery: String, conversationalContext: String = &quot;&quot;): List&lt;ToolDefinition&gt; {</span>
+<span class="nc" id="L295">        val combinedQuery = &quot;$conversationalContext $userQuery&quot;.trim()</span>
+<span class="nc bnc" id="L296" title="All 2 branches missed.">        if (combinedQuery.isBlank()) return activeTools.values.toList()</span>
+
+<span class="nc" id="L298">        val userTurn = userQuery.lowercase()</span>
+<span class="nc" id="L299">        val lexical = mutableListOf&lt;ToolDefinition&gt;()</span>
+
+        // Short follow-ups rely on the prior assistant context for tool routing.
+<span class="nc bnc" id="L302" title="All 4 branches missed.">        if (conversationalContext.isNotBlank() &amp;&amp;</span>
+<span class="nc bnc" id="L303" title="All 2 branches missed.">            MemoryManager.isFollowUpQuery(userQuery, conversationalContext)</span>
+        ) {
+<span class="nc" id="L305">            lexical += matchByKeyword(conversationalContext.lowercase())</span>
+        }
+
+        // Prefer keywords in the current turn; fall back to the turn plus its context.
+<span class="nc bnc" id="L309" title="All 2 branches missed.">        lexical += matchByKeyword(userTurn).ifEmpty { matchByKeyword(combinedQuery.lowercase()) }</span>
+
+        // Bare numbers and &quot;degrees&quot; only make sense as a climate setpoint.
+<span class="nc bnc" id="L312" title="All 2 branches missed.">        if (TEMPERATURE_VALUE.containsMatchIn(userTurn) ||</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">            userTurn.contains(&quot;degrees&quot;) ||</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">            TEMPERATURE_FAHRENHEIT.containsMatchIn(userTurn)</span>
+        ) {
+<span class="nc" id="L316">            lexical += activeTools.values.filter {</span>
+<span class="nc bnc" id="L317" title="All 4 branches missed.">                it.handlerKey?.contains(&quot;Temperature&quot;, ignoreCase = true) == true</span>
+            }
+        }
+
+        // Nothing matched lexically: rank the catalogue instead. Ranking only the user turn keeps
+        // history from swamping the scores, and a small top-K keeps the prompt short enough for the
+        // edge model's context window. Note this runs before core tools are added, since those
+        // would otherwise make the retrieved set look non-empty for every query.
+<span class="nc bnc" id="L325" title="All 2 branches missed.">        val retrieved = lexical.ifEmpty {</span>
+<span class="nc" id="L326">            ToolRetriever.rank(userQuery, retrievalIndex, bm25TopK).mapNotNull { activeTools[it.id] }</span>
+        }
+
+<span class="nc" id="L329">        val coreTools = activeTools.values.filter { it.handlerKey in CORE_HANDLER_KEYS }</span>
+<span class="nc" id="L330">        return (retrieved + coreTools).distinct()</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">            .ifEmpty { activeTools.values.take(maxPromptTools).toList() }</span>
+    }
+
+    private fun matchByKeyword(haystack: String): List&lt;ToolDefinition&gt; =
+<span class="nc" id="L335">        activeTools.entries</span>
+<span class="nc bnc" id="L336" title="All 4 branches missed.">            .filter { (name, _) -&gt; keywordMatchers[name]?.any { it.containsMatchIn(haystack) } == true }</span>
+<span class="nc" id="L337">            .map { it.value }</span>
+
+    fun getToolDefinition(rawToolCall: String): ToolDefinition? {
+<span class="nc" id="L340">        val toolCall = rawToolCall.replace(Regex(&quot;(?i)&lt;TOOL&gt;|&lt;/TOOL&gt;|&lt;\\|tool_call&gt;call:&quot;), &quot;&quot;).trim()</span>
+<span class="nc" id="L341">        val commandName = toolCall.substringBefore(&quot;(&quot;).trim()</span>
+<span class="nc" id="L342">        val directMatch = activeTools[commandName]</span>
+<span class="nc bnc" id="L343" title="All 2 branches missed.">        if (directMatch != null) return directMatch</span>
+        
+        // Check aliases if direct match fails
+<span class="nc bnc" id="L346" title="All 2 branches missed.">        for (tool in activeTools.values) {</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">            if (tool.aliases != null) {</span>
+<span class="nc" id="L348">                val aliasMatch = tool.aliases.any { alias -&gt; commandName.lowercase() == alias.lowercase() }</span>
+<span class="nc bnc" id="L349" title="All 2 branches missed.">                if (aliasMatch) return tool</span>
+            }
+        }
+<span class="nc" id="L352">        return null</span>
+    }
+    
+<span class="nc" id="L355">    fun getAllTools(): Map&lt;String, ToolDefinition&gt; = activeTools</span>
+
+    /**
+     * Registry-driven sub-second path: if [userQuery] uniquely matches a `direct_executable` tool
+     * with high keyword confidence, return an executable hit. Otherwise null and the caller should
+     * use the LLM.
+     */
+    fun resolveDirectHit(userQuery: String): DirectToolResolver.Hit? {
+<span class="nc bnc" id="L363" title="All 4 branches missed.">        if (!isInitialized || userQuery.isBlank()) return null</span>
+<span class="nc" id="L364">        val specs = activeTools.map { (id, tool) -&gt;</span>
+<span class="nc" id="L365">            DirectToolResolver.ToolSpec(</span>
+<span class="nc" id="L366">                id = id,</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">                handlerKey = tool.handlerKey ?: id,</span>
+<span class="nc" id="L368">                promptString = tool.promptString,</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">                keywords = tool.keywords.orEmpty(),</span>
+<span class="nc" id="L370">                successMessage = tool.successMessage,</span>
+<span class="nc" id="L371">                requiresConfirmation = tool.requiresConfirmation,</span>
+<span class="nc" id="L372">                requiresAgenticLoop = tool.requiresAgenticLoop,</span>
+<span class="nc" id="L373">                directExecutable = tool.directExecutable,</span>
+<span class="nc" id="L374">            )</span>
+        }
+<span class="nc" id="L376">        return when (val outcome = DirectToolResolver.resolve(userQuery, specs, directExecutionPolicy)) {</span>
+<span class="nc bnc" id="L377" title="All 2 branches missed.">            is DirectToolResolver.Outcome.Execute -&gt; outcome.hit</span>
+<span class="nc" id="L378">            is DirectToolResolver.Outcome.Skip -&gt; {</span>
+<span class="nc" id="L379">                Log.d(TAG, &quot;Direct execution skipped: ${outcome.rejection.reason} for '$userQuery'&quot;)</span>
+<span class="nc" id="L380">                null</span>
+            }
+        }
+    }
+
+    /**
+     * Renders the tool block for the LLM system prompt: one line per tool plus an explicit
+     * allow-list of callable names. Keyword-matched `system_instructions` from the registry are
+     * appended so OEM guidance reaches the model without a code change.
+     */
+<span class="nc" id="L390">    fun getLlmToolsPrompt(userQuery: String = &quot;&quot;, conversationalContext: String = &quot;&quot;): String {</span>
+<span class="nc bnc" id="L391" title="All 8 branches missed.">        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) {</span>
+<span class="nc" id="L392">            getRelevantTools(userQuery, conversationalContext).take(maxPromptTools)</span>
+        } else {
+<span class="nc" id="L394">            activeTools.values.take(maxPromptTools).toList()</span>
+        }
+<span class="nc bnc" id="L396" title="All 4 branches missed.">        if (relevantTools.isEmpty() &amp;&amp; systemInstructions.isEmpty()) return &quot;&quot;</span>
+        
+<span class="nc" id="L398">        val sb = StringBuilder()</span>
+<span class="nc" id="L399">        val toolNames = mutableListOf&lt;String&gt;()</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">        for (tool in relevantTools) {</span>
+<span class="nc" id="L401">            sb.append(&quot;- ${tool.promptString}&quot;)</span>
+            // Use technical description only, stripping any conversational questions
+<span class="nc bnc" id="L403" title="All 4 branches missed.">            val cleanDesc = tool.description?.substringBefore(&quot;?&quot;)?.trim()</span>
+<span class="nc bnc" id="L404" title="All 6 branches missed.">            if (!cleanDesc.isNullOrEmpty()) {</span>
+<span class="nc" id="L405">                sb.append(&quot;: $cleanDesc&quot;)</span>
+            }
+<span class="nc" id="L407">            sb.append(&quot;\n&quot;)</span>
+            
+<span class="nc" id="L409">            val match = Regex(&quot;(?i)&lt;TOOL&gt;([a-zA-Z0-9_]+)\\(&quot;).find(tool.promptString)</span>
+<span class="nc bnc" id="L410" title="All 2 branches missed.">            if (match != null) {</span>
+<span class="nc" id="L411">                toolNames.add(match.groupValues[1])</span>
+            }
+        }
+<span class="nc bnc" id="L414" title="All 4 branches missed.">        if (toolNames.isNotEmpty()) {</span>
+<span class="nc" id="L415">            sb.append(&quot;Allowed tools: &quot;)</span>
+<span class="nc" id="L416">            sb.append(toolNames.joinToString(&quot;, &quot;))</span>
+<span class="nc" id="L417">            sb.append(&quot;\n&quot;)</span>
+        }
+
+<span class="nc" id="L420">        val haystack = &quot;$conversationalContext $userQuery&quot;.lowercase()</span>
+<span class="nc" id="L421">        val matchedInstructions = systemInstructions.filter { inst -&gt;</span>
+<span class="nc bnc" id="L422" title="All 4 branches missed.">            inst.keywords.isEmpty() || inst.keywords.any { kw -&gt; haystack.contains(kw) }</span>
+        }
+<span class="nc bnc" id="L424" title="All 4 branches missed.">        if (matchedInstructions.isNotEmpty()) {</span>
+<span class="nc" id="L425">            sb.append(&quot;\nTool guidance:\n&quot;)</span>
+<span class="nc bnc" id="L426" title="All 2 branches missed.">            for (inst in matchedInstructions) {</span>
+<span class="nc" id="L427">                sb.append(&quot;- ${inst.instruction}\n&quot;)</span>
+            }
+        }
+<span class="nc" id="L430">        return sb.toString().trimEnd()</span>
+    }
+
+    /**
+     * Executes the requested tool call if it is enabled in vehicle_skills_registry.json.
+     * Returns a string summarizing the outcome for the chat UI.
+     */
+<span class="nc" id="L437">    suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -&gt; Unit)? = null): String {</span>
+<span class="nc" id="L438">        val toolCall = rawToolCall.replace(Regex(&quot;(?i)&lt;TOOL&gt;|&lt;/TOOL&gt;|&lt;\\|tool_call&gt;call:&quot;), &quot;&quot;).trim()</span>
+<span class="nc" id="L439">        Log.d(TAG, &quot;Executing toolCall: $toolCall&quot;)</span>
+<span class="nc" id="L440">        try {</span>
+            // Check if the requested tool corresponds to an enabled handler
+<span class="nc" id="L442">            var matchedTool: ToolDefinition? = null</span>
+<span class="nc bnc" id="L443" title="All 2 branches missed.">            for ((key, def) in activeTools) {</span>
+<span class="nc bnc" id="L444" title="All 2 branches missed.">                if (toolCall.lowercase().startsWith(key.lowercase())) {</span>
+<span class="nc" id="L445">                    matchedTool = def</span>
+<span class="nc" id="L446">                    break</span>
+                }
+                
+                // Allow matching against aliases to handle Edge model shorthand hallucinations!
+<span class="nc bnc" id="L450" title="All 2 branches missed.">                if (def.aliases != null) {</span>
+<span class="nc" id="L451">                    val aliasMatch = def.aliases.any { alias -&gt; toolCall.lowercase().startsWith(alias.lowercase()) }</span>
+<span class="nc bnc" id="L452" title="All 2 branches missed.">                    if (aliasMatch) {</span>
+<span class="nc" id="L453">                        matchedTool = def</span>
+<span class="nc" id="L454">                        break</span>
+                    }
+                }
+            }
+            
+<span class="nc bnc" id="L459" title="All 2 branches missed.">            if (matchedTool == null) {</span>
+<span class="nc" id="L460">                Log.w(TAG, &quot;Tool blocked or unrecognized: $toolCall&quot;)</span>
+<span class="nc" id="L461">                return &quot;System Error: The requested tool is not supported or is disabled by the manufacturer.&quot;</span>
+            }
+
+<span class="nc" id="L464">            Log.d(TAG, &quot;Matched tool handlerKey: ${matchedTool.handlerKey}, handlerType: ${matchedTool.handlerType}&quot;)</span>
+
+            // Safety Middleware Constraint Validation
+<span class="nc bnc" id="L467" title="All 2 branches missed.">            if (matchedTool.constraints != null) {</span>
+<span class="nc bnc" id="L468" title="All 2 branches missed.">                for (constraint in matchedTool.constraints) {</span>
+<span class="nc" id="L469">                    val currentValue = VehicleManager.getFloatProperty(constraint.propertyId)</span>
+<span class="nc bnc" id="L470" title="All 2 branches missed.">                    if (currentValue != null) {</span>
+<span class="nc bnc" id="L471" title="All 7 branches missed.">                        val failed = when (constraint.operator) {</span>
+<span class="nc bnc" id="L472" title="All 2 branches missed.">                            &quot;&lt;&quot; -&gt; currentValue.toDouble() &gt;= constraint.value</span>
+<span class="nc bnc" id="L473" title="All 2 branches missed.">                            &quot;&gt;&quot; -&gt; currentValue.toDouble() &lt;= constraint.value</span>
+<span class="nc bnc" id="L474" title="All 4 branches missed.">                            &quot;==&quot; -&gt; currentValue.toDouble() != constraint.value</span>
+<span class="nc bnc" id="L475" title="All 2 branches missed.">                            &quot;!=&quot; -&gt; currentValue.toDouble() == constraint.value</span>
+<span class="nc bnc" id="L476" title="All 2 branches missed.">                            &quot;&lt;=&quot; -&gt; currentValue.toDouble() &gt; constraint.value</span>
+<span class="nc bnc" id="L477" title="All 2 branches missed.">                            &quot;&gt;=&quot; -&gt; currentValue.toDouble() &lt; constraint.value</span>
+<span class="nc" id="L478">                            else -&gt; false</span>
+                        }
+<span class="nc bnc" id="L480" title="All 2 branches missed.">                        if (failed) {</span>
+<span class="nc" id="L481">                            Log.w(TAG, &quot;Safety Constraint Blocked Tool $toolCall: Property ${constraint.propertyId} is $currentValue. Condition `${constraint.operator} ${constraint.value}` failed. Message: ${constraint.errorMsg}&quot;)</span>
+<span class="nc" id="L482">                            return constraint.errorMsg</span>
+                        }
+                    } else {
+<span class="nc" id="L485">                        Log.w(TAG, &quot;Warning: Could not read property ${constraint.propertyId} for safety constraint evaluation.&quot;)</span>
+                    }
+                }
+            }
+
+<span class="nc bnc" id="L490" title="All 2 branches missed.">            if (matchedTool.handlerType == &quot;GENERIC_VHAL_WRITE&quot;) {</span>
+<span class="nc bnc" id="L491" title="All 2 branches missed.">                val propId = matchedTool.propertyId ?: return &quot;System Error: Missing property_id&quot;</span>
+<span class="nc bnc" id="L492" title="All 2 branches missed.">                val dataType = matchedTool.dataType ?: return &quot;System Error: Missing data_type&quot;</span>
+<span class="nc bnc" id="L493" title="All 2 branches missed.">                val areaId = matchedTool.areaId ?: 0</span>
+<span class="nc bnc" id="L494" title="All 2 branches missed.">                val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;)</span>
+                
+<span class="nc" id="L496">                val startToolTime = System.currentTimeMillis()</span>
+                
+                // Hardware confirmation logic with Emulator workaround
+<span class="nc bnc" id="L499" title="All 6 branches missed.">                val isAospEmulator = propId == 289410577 || propId == 354419973 || propId == 289410578</span>
+<span class="nc bnc" id="L500" title="All 2 branches missed.">                val success = if (isAospEmulator) {</span>
+<span class="nc" id="L501">                    VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)</span>
+<span class="nc" id="L502">                    true</span>
+                } else {
+<span class="nc" id="L504">                    VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)</span>
+                }
+                
+<span class="nc" id="L507">                val endToolTime = System.currentTimeMillis()</span>
+<span class="nc" id="L508">                val latency = endToolTime - startToolTime</span>
+<span class="nc" id="L509">                com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency</span>
+<span class="nc" id="L510">                com.tcs.vehicleassistant.LatencyLogger.log(&quot;ToolManager&quot;, &quot;Tool Execution Time for GENERIC_VHAL_WRITE ($propId): ${latency}ms&quot;)</span>
+                
+<span class="nc bnc" id="L512" title="All 2 branches missed.">                return if (success) {</span>
+<span class="nc bnc" id="L513" title="All 2 branches missed.">                    matchedTool.successMessage ?: &quot;Action completed successfully.&quot;</span>
+                } else {
+<span class="nc bnc" id="L515" title="All 2 branches missed.">                    matchedTool.errorMessage ?: &quot;I sent the command, but the vehicle hardware didn't confirm the change. Please check your system.&quot;</span>
+                }
+            }
+
+            // Delegate all CUSTOM_KOTLIN handlers to the modular ToolHandlerRegistry
+<span class="nc bnc" id="L520" title="All 2 branches missed.">            if (matchedTool.handlerType == &quot;CUSTOM_KOTLIN&quot;) {</span>
+<span class="nc" id="L521">                val handlerKey = matchedTool.handlerKey</span>
+<span class="nc bnc" id="L522" title="All 2 branches missed.">                if (handlerKey != null) {</span>
+<span class="nc" id="L523">                    val handler = com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.getHandler(handlerKey, matchedTool)</span>
+<span class="nc bnc" id="L524" title="All 2 branches missed.">                    if (handler != null) {</span>
+<span class="nc" id="L525">                        val args = toolCall.substringAfter(&quot;(&quot;).substringBeforeLast(&quot;)&quot;)</span>
+<span class="nc" id="L526">                        val startToolTime = System.currentTimeMillis()</span>
+<span class="nc" id="L527">                        val result = handler.execute(context, toolCall, args, intentHandler)</span>
+<span class="nc" id="L528">                        val endToolTime = System.currentTimeMillis()</span>
+<span class="nc" id="L529">                        val latency = endToolTime - startToolTime</span>
+<span class="nc" id="L530">                        com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency</span>
+<span class="nc" id="L531">                        com.tcs.vehicleassistant.LatencyLogger.log(&quot;ToolManager&quot;, &quot;Tool Execution Time for $handlerKey: ${latency}ms&quot;)</span>
+<span class="nc" id="L532">                        return result.message</span>
+                    } else {
+<span class="nc" id="L534">                        Log.w(TAG, &quot;No handler registered for key: $handlerKey&quot;)</span>
+<span class="nc" id="L535">                        return &quot;System Error: Handler not implemented for $handlerKey.&quot;</span>
+                    }
+                } else {
+<span class="nc" id="L538">                    return &quot;System Error: Missing handler_key for CUSTOM_KOTLIN tool.&quot;</span>
+                }
+            }
+
+<span class="nc" id="L542">            return &quot;System Error: Unknown handler type ${matchedTool.handlerType}.&quot;</span>
+<span class="nc" id="L543">        } catch (e: Exception) {</span>
+<span class="nc" id="L544">            Log.e(TAG, &quot;Exception during tool execution&quot;, e)</span>
+<span class="nc" id="L545">            return &quot;System Error: An exception occurred while executing the tool.&quot;</span>
+        }
+    }
+
+    /**
+     * Executes a dummy command for every registered tool to verify the VHAL pipeline.
+     */
+<span class="nc" id="L552">    suspend fun runSystemDiagnostics(context: Context): String {</span>
+<span class="nc" id="L553">        val sb = StringBuilder()</span>
+<span class="nc" id="L554">        sb.append(&quot;## System Diagnostics Report\n\n&quot;)</span>
+<span class="nc" id="L555">        sb.append(&quot;| Tool Name | Handler Type | Status | Note |\n&quot;)</span>
+<span class="nc" id="L556">        sb.append(&quot;|---|---|---|---|\n&quot;)</span>
+
+<span class="nc bnc" id="L558" title="All 2 branches missed.">        for ((key, def) in activeTools) {</span>
+<span class="nc" id="L559">            var status = &quot;✅ PASS&quot;</span>
+<span class="nc" id="L560">            var note = &quot;Executed successfully&quot;</span>
+<span class="nc" id="L561">            try {</span>
+                // Generate a dummy tool call string based on the required signature
+<span class="nc" id="L563">                val dummyCall = when {</span>
+<span class="nc bnc" id="L564" title="All 2 branches missed.">                    def.promptString.contains(&quot;VAL&quot;) -&gt; &quot;$key(72.0)&quot;</span>
+<span class="nc bnc" id="L565" title="All 2 branches missed.">                    def.promptString.contains(&quot;LEVEL&quot;) -&gt; &quot;$key(1)&quot;</span>
+<span class="nc bnc" id="L566" title="All 2 branches missed.">                    def.promptString.contains(&quot;PCT&quot;) -&gt; &quot;$key(50)&quot;</span>
+<span class="nc bnc" id="L567" title="All 2 branches missed.">                    def.promptString.contains(&quot;DEST&quot;) -&gt; &quot;$key(Home)&quot;</span>
+<span class="nc bnc" id="L568" title="All 2 branches missed.">                    def.promptString.contains(&quot;SONG&quot;) -&gt; &quot;$key(Test)&quot;</span>
+<span class="nc bnc" id="L569" title="All 2 branches missed.">                    def.promptString.contains(&quot;NAME&quot;) -&gt; &quot;$key(Mechanic)&quot;</span>
+<span class="nc bnc" id="L570" title="All 2 branches missed.">                    def.promptString.contains(&quot;FACT&quot;) -&gt; &quot;$key(TestFact)&quot;</span>
+<span class="nc" id="L571">                    else -&gt; &quot;$key()&quot; // No args</span>
+                }
+
+<span class="nc" id="L574">                val result = executeToolCall(context, dummyCall)</span>
+<span class="nc bnc" id="L575" title="All 4 branches missed.">                if (result.startsWith(&quot;System Error&quot;) || result.startsWith(&quot;Failed&quot;)) {</span>
+<span class="nc" id="L576">                    status = &quot;❌ FAIL&quot;</span>
+<span class="nc" id="L577">                    note = result</span>
+                }
+<span class="nc" id="L579">            } catch (e: Exception) {</span>
+<span class="nc" id="L580">                status = &quot;❌ CRASH&quot;</span>
+<span class="nc bnc" id="L581" title="All 2 branches missed.">                note = e.message ?: &quot;Unknown Exception&quot;</span>
+            }
+<span class="nc" id="L583">            sb.append(&quot;| $key | ${def.handlerType} | $status | $note |\n&quot;)</span>
+        }
+
+<span class="nc" id="L586">        sb.append(&quot;\n&quot;)</span>
+<span class="nc" id="L587">        sb.append(VehicleManager.runPropertyDiagnostics())</span>
+        
+<span class="nc" id="L589">        return sb.toString()</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

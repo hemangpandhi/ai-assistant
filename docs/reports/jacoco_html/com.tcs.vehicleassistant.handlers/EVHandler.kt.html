@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EVHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">EVHandler.kt</span></div><h1>EVHandler.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import android.content.Context
+import android.content.Intent
+import com.tcs.vehicleassistant.VehicleManager
+
+<span class="nc" id="L7">class EVHandler(override val handlerKey: String) : ToolHandler {</span>
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -&gt; Unit)?): ToolExecutionResult {
+<span class="nc bnc" id="L9" title="All 4 branches missed.">        return when (handlerKey) {</span>
+            &quot;suggestOptimizedChargingRate&quot; -&gt; {
+<span class="nc" id="L11">                ToolExecutionResult(true, &quot;Based on current battery temperature and destination, I recommend a charging rate of 150kW to optimize battery health and minimize charging time.&quot;)</span>
+            }
+            &quot;optimizeEnergyForRange&quot; -&gt; {
+<span class="nc" id="L14">                VehicleManager.writeTemperatureToVhalVerified(24f) // Eco temp</span>
+<span class="nc" id="L15">                VehicleManager.writeFanSpeedToVhalVerified(2) // Low fan</span>
+<span class="nc" id="L16">                VehicleManager.setPropertyVerified(289408012 /* REGEN_BRAKING_LEVEL */, 0, &quot;3&quot;, &quot;INT&quot;) // Max regen</span>
+<span class="nc" id="L17">                ToolExecutionResult(true, &quot;I have enabled Eco Mode. Non-essential climate and accessory power have been reduced, and regenerative braking has been maximized to extend your remaining range.&quot;)</span>
+            }
+            &quot;explainLowRange&quot; -&gt; {
+<span class="nc" id="L20">                ToolExecutionResult(true, &quot;Your range is lower than usual due to the cold weather and recent high-speed driving. Enabling Eco mode could help extend it.&quot;)</span>
+            }
+<span class="nc" id="L22">            else -&gt; ToolExecutionResult(false, &quot;System Error: EV Handler not recognized.&quot;)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

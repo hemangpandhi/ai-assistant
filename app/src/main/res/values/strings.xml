@@ -1,4 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name_placeholder">VehicleEdgeAssistant</string>
+    <string name="app_display_name">Vehicle AI Assistant</string>
+    <string name="accessibility_service_description">Enables the Vehicle Edge Assistant to use the microphone in the background to listen for your wake word, bypassing Android 11 background privacy restrictions.</string>
+    <string name="wake_word_notification_text">Listening for \"%1$s\"…</string>
+    <string name="agent_notification_title">Vehicle AI Agent</string>
+    <string name="agent_notification_text">Ready for voice commands</string>
+
+    <!-- Permission gating internal control of the wake-word foreground service. -->
+    <string name="permission_control_assistant_label">Control the vehicle assistant</string>
+    <string name="permission_control_assistant_description">Allows starting and stopping the vehicle assistant\'s wake-word microphone service.</string>
 </resources>

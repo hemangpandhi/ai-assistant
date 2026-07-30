@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DriverSafetyFragment.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">DriverSafetyFragment.kt</span></div><h1>DriverSafetyFragment.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.app.AlertDialog
+import android.os.Bundle
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.Button
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.fragment.app.Fragment
+import com.tcs.vehicleassistant.R
+
+<span class="nc" id="L15">class DriverSafetyFragment : Fragment() {</span>
+    private var tvIdentity: TextView? = null
+    private var tvSimScore: TextView? = null
+    private var btnRegisterFace: Button? = null
+
+<span class="nc" id="L20">    var visionService: CockpitVisionService? = null</span>
+
+    override fun onCreateView(
+        inflater: LayoutInflater, container: ViewGroup?,
+        savedInstanceState: Bundle?
+    ): View? {
+<span class="nc" id="L26">        val view = inflater.inflate(R.layout.fragment_driver_safety, container, false)</span>
+<span class="nc" id="L27">        tvIdentity = view.findViewById(R.id.tvIdentity)</span>
+<span class="nc" id="L28">        tvSimScore = view.findViewById(R.id.tvSimScore)</span>
+<span class="nc" id="L29">        btnRegisterFace = view.findViewById(R.id.btnRegisterFace)</span>
+
+<span class="nc bnc" id="L31" title="All 2 branches missed.">        btnRegisterFace?.setOnClickListener {</span>
+<span class="nc" id="L32">            showSaveFaceDialog()</span>
+<span class="nc" id="L33">        }</span>
+
+<span class="nc" id="L35">        return view</span>
+    }
+
+    private fun showSaveFaceDialog() {
+<span class="nc bnc" id="L39" title="All 2 branches missed.">        val ctx = context ?: return</span>
+<span class="nc" id="L40">        val layout = android.widget.LinearLayout(ctx).apply {</span>
+<span class="nc" id="L41">            orientation = android.widget.LinearLayout.VERTICAL</span>
+<span class="nc" id="L42">            setPadding(48, 24, 48, 24)</span>
+<span class="nc" id="L43">        }</span>
+
+<span class="nc" id="L45">        val etName = EditText(ctx).apply {</span>
+<span class="nc" id="L46">            hint = &quot;Driver Name (e.g. Driver 1)&quot;</span>
+<span class="nc" id="L47">            setText(&quot;Driver 1&quot;)</span>
+<span class="nc" id="L48">        }</span>
+<span class="nc" id="L49">        val etUserId = EditText(ctx).apply {</span>
+<span class="nc" id="L50">            hint = &quot;AAOS User ID (e.g. 10)&quot;</span>
+<span class="nc" id="L51">            setText(&quot;10&quot;)</span>
+<span class="nc" id="L52">            inputType = android.text.InputType.TYPE_CLASS_NUMBER</span>
+<span class="nc" id="L53">        }</span>
+<span class="nc" id="L54">        val etTemp = EditText(ctx).apply {</span>
+<span class="nc" id="L55">            hint = &quot;Preferred Temp °C (e.g. 19.0)&quot;</span>
+<span class="nc" id="L56">            setText(&quot;19.0&quot;)</span>
+<span class="nc" id="L57">            inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL</span>
+<span class="nc" id="L58">        }</span>
+
+<span class="nc" id="L60">        layout.addView(etName)</span>
+<span class="nc" id="L61">        layout.addView(etUserId)</span>
+<span class="nc" id="L62">        layout.addView(etTemp)</span>
+
+<span class="nc" id="L64">        AlertDialog.Builder(ctx)</span>
+<span class="nc" id="L65">            .setTitle(&quot;Save Driver Face &amp; AAOS Mapping&quot;)</span>
+<span class="nc" id="L66">            .setMessage(&quot;Configure AAOS User ID and cabin preference:&quot;)</span>
+<span class="nc" id="L67">            .setView(layout)</span>
+<span class="nc" id="L68">            .setPositiveButton(&quot;Save Profile&quot;) { _, _ -&gt;</span>
+<span class="nc" id="L69">                val name = etName.text.toString().trim()</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">                val userId = etUserId.text.toString().toIntOrNull() ?: 10</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                val temp = etTemp.text.toString().toFloatOrNull() ?: 20.0f</span>
+
+<span class="nc bnc" id="L73" title="All 4 branches missed.">                if (name.isNotEmpty()) {</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">                    visionService?.saveCurrentFace(name, userId, temp)</span>
+<span class="nc" id="L75">                    Toast.makeText(ctx, &quot;Face saved for $name (AAOS User $userId, Temp $temp°C)!&quot;, Toast.LENGTH_LONG).show()</span>
+                }
+<span class="nc" id="L77">            }</span>
+<span class="nc" id="L78">            .setNegativeButton(&quot;Cancel&quot;, null)</span>
+<span class="nc" id="L79">            .show()</span>
+<span class="nc" id="L80">    }</span>
+
+<span class="nc" id="L82">    fun updateStats(similarity: Float, userName: String = &quot;Guest&quot;) {</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">        tvSimScore?.text = &quot;Similarity: &quot; + String.format(&quot;%.2f&quot;, similarity)</span>
+<span class="nc bnc" id="L84" title="All 4 branches missed.">        if (similarity &gt; 0.6f &amp;&amp; userName != &quot;Guest&quot;) {</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">            tvIdentity?.text = &quot;Identity: Verified ($userName)&quot;</span>
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            tvIdentity?.setTextColor(android.graphics.Color.GREEN)</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">        } else if (similarity &gt; 0.0f) {</span>
+<span class="nc bnc" id="L88" title="All 2 branches missed.">            tvIdentity?.text = &quot;Identity: Unknown&quot;</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">            tvIdentity?.setTextColor(android.graphics.Color.RED)</span>
+        } else {
+<span class="nc bnc" id="L91" title="All 2 branches missed.">            tvIdentity?.text = &quot;Identity: Analyzing...&quot;</span>
+<span class="nc bnc" id="L92" title="All 2 branches missed.">            tvIdentity?.setTextColor(android.graphics.Color.WHITE)</span>
+        }
+<span class="nc" id="L94">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

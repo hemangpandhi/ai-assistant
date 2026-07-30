@@ -1,0 +1,409 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WakeWordService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">WakeWordService.kt</span></div><h1>WakeWordService.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.Manifest
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.Service
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.AudioFormat
+import android.media.AudioRecord
+import android.media.MediaRecorder
+import android.media.audiofx.NoiseSuppressor
+import android.os.Build
+import android.os.IBinder
+import android.util.Log
+import androidx.core.app.NotificationCompat
+import com.tcs.vehicleassistant.core.AssistantConfig
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.vosk.Model
+import org.vosk.Recognizer
+import java.io.File
+
+/**
+ * Foreground service for offline hotword detection using Vosk with a constrained grammar, so it
+ * only ever fires on the configured wake word.
+ *
+ * The service owns the microphone whenever it is listening, which means it must reliably hand the
+ * microphone off to the speech recognizer when a voice session opens and take it back when the
+ * session ends. Those transitions are driven by [AssistantConfig.WakeWordAction]; the action
+ * strings live there because the session used to send `ACTION_STOP_LISTENING` while this service
+ * only recognised `ACTION_STOP`, so the stop request fell through to the start branch and the
+ * wake-word microphone was never released — leaving two components contending for the mic.
+ */
+<span class="nc" id="L43">class WakeWordService : Service() {</span>
+
+<span class="nc" id="L45">    override fun onBind(intent: Intent?): IBinder? = null</span>
+
+    companion object {
+        private const val TAG = &quot;WakeWord&quot;
+        private const val NOTIFICATION_ID = 1001
+        private const val CHANNEL_ID = &quot;wake_word_channel&quot;
+
+        @Volatile
+        private var sharedModel: Model? = null
+
+        fun copyAssetFolder(assetManager: android.content.res.AssetManager, fromAssetPath: String, toPath: String) {
+<span class="nc" id="L56">            val files = assetManager.list(fromAssetPath)</span>
+<span class="nc bnc" id="L57" title="All 8 branches missed.">            if (files.isNullOrEmpty()) {</span>
+<span class="nc" id="L58">                assetManager.open(fromAssetPath).use { input -&gt;</span>
+<span class="nc" id="L59">                    File(toPath).outputStream().use { output -&gt;</span>
+<span class="nc" id="L60">                        input.copyTo(output)</span>
+<span class="nc" id="L61">                    }</span>
+                }
+            } else {
+<span class="nc" id="L64">                File(toPath).mkdirs()</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">                for (file in files) {</span>
+<span class="nc" id="L66">                    copyAssetFolder(assetManager, &quot;$fromAssetPath/$file&quot;, &quot;$toPath/$file&quot;)</span>
+                }
+            }
+<span class="nc" id="L69">        }</span>
+
+        @Synchronized
+        fun ensureModel(context: Context): Model? {
+<span class="nc bnc" id="L73" title="All 2 branches missed.">            sharedModel?.let { return it }</span>
+<span class="nc" id="L74">            return try {</span>
+<span class="nc" id="L75">                val destDir = File(context.filesDir, &quot;model&quot;)</span>
+<span class="nc bnc" id="L76" title="All 10 branches missed.">                if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {</span>
+<span class="nc" id="L77">                    copyAssetFolder(context.assets, &quot;model&quot;, destDir.absolutePath)</span>
+                }
+<span class="nc" id="L79">                Model(destDir.absolutePath).also { sharedModel = it }</span>
+<span class="nc" id="L80">            } catch (e: Exception) {</span>
+<span class="nc" id="L81">                Log.e(TAG, &quot;Failed to load Vosk model: ${e.message}&quot;, e)</span>
+<span class="nc" id="L82">                null</span>
+            }
+        }
+
+        @Synchronized
+        fun releaseModel() {
+<span class="nc" id="L88">            try {</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                sharedModel?.close()</span>
+<span class="nc" id="L90">            } catch (e: Exception) {</span>
+<span class="nc" id="L91">                Log.w(TAG, &quot;Failed to close Vosk model&quot;, e)</span>
+            }
+<span class="nc" id="L93">            sharedModel = null</span>
+<span class="nc" id="L94">        }</span>
+
+        /**
+         * True when [transcript] contains the configured wake word.
+         *
+         * Matching is deliberately strict — a partial or fuzzy match caused false triggers — and
+         * the Vosk out-of-vocabulary token never counts.
+         */
+        fun matchesWakeWord(transcript: String, configuredWakeWord: String): Boolean {
+<span class="fc" id="L103">            val text = transcript.lowercase().trim()</span>
+<span class="fc" id="L104">            val configured = configuredWakeWord.lowercase().trim()</span>
+<span class="fc bfc" id="L105" title="All 6 branches covered.">            if (text.isEmpty() || text == AssistantConfig.WakeWord.UNKNOWN_TOKEN) return false</span>
+<span class="fc bfc" id="L106" title="All 4 branches covered.">            if (configured.isEmpty()) return false</span>
+<span class="fc" id="L107">            return text.contains(configured)</span>
+        }
+
+        /** Extracts the transcript from a Vosk `{&quot;text&quot;: ...}` or `{&quot;partial&quot;: ...}` result. */
+        fun extractTranscript(voskJson: String): String =
+<span class="fc" id="L112">            Regex(&quot;&quot;&quot;&quot;(?:text|partial)&quot;\s*:\s*&quot;([^&quot;]*)&quot;&quot;&quot;&quot;)</span>
+<span class="fc" id="L113">                .find(voskJson.lowercase())</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">                ?.groupValues</span>
+<span class="pc bpc" id="L115" title="1 of 2 branches missed.">                ?.getOrNull(1)</span>
+<span class="pc bpc" id="L116" title="1 of 2 branches missed.">                ?.trim()</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">                .orEmpty()</span>
+    }
+
+    private var model: Model? = null
+<span class="nc" id="L121">    private var wakeWord = AssistantConfig.WakeWord.DEFAULT_WAKE_WORD</span>
+    private var customRecognizer: Recognizer? = null
+    private var customAudioRecord: AudioRecord? = null
+
+    @Volatile
+    private var isRecording = false
+
+    private var listeningJob: Job? = null
+    private var restartJob: Job? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
+
+    /** Owned scope so every coroutine this service starts is cancelled in [onDestroy]. */
+<span class="nc" id="L133">    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)</span>
+
+    override fun onCreate() {
+<span class="nc" id="L136">        super.onCreate()</span>
+<span class="nc" id="L137">        updateWakeWord()</span>
+<span class="nc" id="L138">    }</span>
+
+    private fun updateWakeWord() {
+<span class="nc" id="L141">        val prefs = getSharedPreferences(AssistantConfig.PREFS_NAME, MODE_PRIVATE)</span>
+<span class="nc bnc" id="L142" title="All 2 branches missed.">        wakeWord = prefs.getString(AssistantConfig.Prefs.WAKE_WORD, AssistantConfig.WakeWord.DEFAULT_WAKE_WORD)</span>
+<span class="nc" id="L143">            ?: AssistantConfig.WakeWord.DEFAULT_WAKE_WORD</span>
+<span class="nc" id="L144">    }</span>
+
+    private fun createNotification(): Notification {
+<span class="nc bnc" id="L147" title="All 2 branches missed.">        if (Build.VERSION.SDK_INT &gt;= Build.VERSION_CODES.O) {</span>
+<span class="nc" id="L148">            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">            if (manager.getNotificationChannel(CHANNEL_ID) == null) {</span>
+<span class="nc" id="L150">                manager.createNotificationChannel(</span>
+<span class="nc" id="L151">                    NotificationChannel(CHANNEL_ID, &quot;Wake Word Detection&quot;, NotificationManager.IMPORTANCE_LOW)</span>
+                )
+            }
+        }
+<span class="nc" id="L155">        return NotificationCompat.Builder(this, CHANNEL_ID)</span>
+<span class="nc" id="L156">            .setContentTitle(getString(R.string.app_display_name))</span>
+<span class="nc" id="L157">            .setContentText(getString(R.string.wake_word_notification_text, wakeWord))</span>
+<span class="nc" id="L158">            .setSmallIcon(R.drawable.ic_notification_waveform)</span>
+<span class="nc" id="L159">            .setPriority(NotificationCompat.PRIORITY_LOW)</span>
+<span class="nc" id="L160">            .build()</span>
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+<span class="nc" id="L164">        updateWakeWord()</span>
+<span class="nc bnc" id="L165" title="All 2 branches missed.">        val action = intent?.action</span>
+
+<span class="nc bnc" id="L167" title="All 2 branches missed.">        if (AssistantConfig.WakeWordAction.isStop(action)) {</span>
+<span class="nc" id="L168">            Log.i(TAG, &quot;Stop requested; releasing microphone and stopping service.&quot;)</span>
+<span class="nc" id="L169">            stopCustomListening()</span>
+            // stopSelf clears the pending startForeground obligation, so a stop that arrived via
+            // startForegroundService does not need the notification posted first.
+<span class="nc" id="L172">            stopSelf()</span>
+<span class="nc" id="L173">            return START_NOT_STICKY</span>
+        }
+
+        // Every branch that keeps the service alive has to post the notification. Callers reach
+        // this service through both startService and startForegroundService — the permission-grant
+        // path uses the latter with a restart action — and a startForegroundService that is never
+        // matched by startForeground is killed with ForegroundServiceDidNotStartInTimeException.
+<span class="nc bnc" id="L180" title="All 2 branches missed.">        if (!promoteToForeground()) return START_NOT_STICKY</span>
+
+<span class="nc" id="L182">        return when {</span>
+<span class="nc bnc" id="L183" title="All 2 branches missed.">            AssistantConfig.WakeWordAction.isPause(action) -&gt; {</span>
+                // A voice session is opening. Release the microphone but stay alive so the
+                // session can hand it straight back when it finishes.
+<span class="nc" id="L186">                Log.i(TAG, &quot;Pause requested; releasing microphone for the speech recognizer.&quot;)</span>
+<span class="nc" id="L187">                stopCustomListening()</span>
+<span class="nc" id="L188">                START_STICKY</span>
+            }
+
+<span class="nc bnc" id="L191" title="All 2 branches missed.">            AssistantConfig.WakeWordAction.isRestart(action) -&gt; {</span>
+<span class="nc" id="L192">                Log.i(TAG, &quot;Restart requested; re-acquiring microphone.&quot;)</span>
+<span class="nc bnc" id="L193" title="All 2 branches missed.">                restartJob?.cancel()</span>
+<span class="nc" id="L194">                restartJob = serviceScope.launch {</span>
+<span class="nc" id="L195">                    try {</span>
+<span class="nc" id="L196">                        stopCustomListening()</span>
+<span class="nc" id="L197">                        delay(AssistantConfig.WakeWord.RESTART_DELAY_MS)</span>
+<span class="nc" id="L198">                        ensureRecognizerAndListen()</span>
+<span class="nc" id="L199">                    } catch (e: Exception) {</span>
+<span class="nc" id="L200">                        Log.e(TAG, &quot;Failed to restart listening&quot;, e)</span>
+                    }
+<span class="nc" id="L202">                }</span>
+<span class="nc" id="L203">                START_STICKY</span>
+            }
+
+            else -&gt; {
+<span class="nc" id="L207">                serviceScope.launch { ensureRecognizerAndListen() }</span>
+<span class="nc" id="L208">                START_STICKY</span>
+            }
+        }
+    }
+
+    /**
+     * Posts the ongoing notification, or stops the service and returns false when it cannot.
+     *
+     * A `microphone` foreground service may not start without `RECORD_AUDIO` on API 34, so
+     * promoting before the user grants the permission throws instead of merely failing to record.
+     * There is nothing this service can do without the microphone, so it stops in that case.
+     */
+    private fun promoteToForeground(): Boolean {
+<span class="nc bnc" id="L221" title="All 2 branches missed.">        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {</span>
+<span class="nc" id="L222">            Log.w(TAG, &quot;RECORD_AUDIO not granted; wake word detection cannot run.&quot;)</span>
+<span class="nc" id="L223">            stopSelf()</span>
+<span class="nc" id="L224">            return false</span>
+        }
+<span class="nc" id="L226">        return try {</span>
+<span class="nc" id="L227">            startForeground(NOTIFICATION_ID, createNotification())</span>
+<span class="nc" id="L228">            true</span>
+<span class="nc" id="L229">        } catch (e: Exception) {</span>
+<span class="nc" id="L230">            Log.e(TAG, &quot;Could not enter the foreground; stopping wake word detection.&quot;, e)</span>
+<span class="nc" id="L231">            stopSelf()</span>
+<span class="nc" id="L232">            false</span>
+        }
+    }
+
+    /** Loads the model if needed, rebuilds the constrained grammar, and starts the mic loop. */
+<span class="nc" id="L237">    private suspend fun ensureRecognizerAndListen() {</span>
+<span class="nc bnc" id="L238" title="All 2 branches missed.">        if (model == null) {</span>
+<span class="nc bnc" id="L239" title="All 2 branches missed.">            model = withContext(Dispatchers.IO) { ensureModel(applicationContext) }</span>
+        }
+<span class="nc" id="L241">        val loadedModel = model</span>
+<span class="nc bnc" id="L242" title="All 2 branches missed.">        if (loadedModel == null) {</span>
+<span class="nc" id="L243">            Log.e(TAG, &quot;Vosk model unavailable; wake word detection is disabled.&quot;)</span>
+<span class="nc" id="L244">            return</span>
+        }
+
+<span class="nc bnc" id="L247" title="All 2 branches missed.">        if (customRecognizer == null) {</span>
+<span class="nc" id="L248">            try {</span>
+                // Constraining the grammar to the wake word plus [unk] is what keeps false
+                // triggers down; a free-form recognizer fired on unrelated speech.
+<span class="nc" id="L251">                val configuredWord = wakeWord.lowercase().trim()</span>
+<span class="nc bnc" id="L252" title="All 4 branches missed.">                    .ifEmpty { AssistantConfig.WakeWord.DEFAULT_WAKE_WORD }</span>
+<span class="nc" id="L253">                val grammarJson = setOf(configuredWord, AssistantConfig.WakeWord.UNKNOWN_TOKEN)</span>
+<span class="nc" id="L254">                    .joinToString(prefix = &quot;[&quot;, postfix = &quot;]&quot;) { &quot;\&quot;$it\&quot;&quot; }</span>
+
+<span class="nc" id="L256">                Log.d(TAG, &quot;Vosk recognizer grammar: $grammarJson&quot;)</span>
+<span class="nc" id="L257">                customRecognizer = Recognizer(</span>
+<span class="nc" id="L258">                    loadedModel,</span>
+<span class="nc" id="L259">                    AssistantConfig.Audio.SAMPLE_RATE_HZ.toFloat(),</span>
+<span class="nc" id="L260">                    grammarJson</span>
+                )
+<span class="nc" id="L262">            } catch (e: Exception) {</span>
+<span class="nc" id="L263">                Log.e(TAG, &quot;Failed to init recognizer: ${e.message}&quot;, e)</span>
+<span class="nc" id="L264">                return</span>
+            }
+        }
+
+<span class="nc" id="L268">        startCustomListening()</span>
+<span class="nc" id="L269">    }</span>
+
+    private fun startCustomListening() {
+<span class="nc bnc" id="L272" title="All 2 branches missed.">        if (isRecording) return</span>
+<span class="nc" id="L273">        isRecording = true</span>
+<span class="nc" id="L274">        listeningJob = serviceScope.launch { runMicrophoneLoop() }</span>
+<span class="nc" id="L275">    }</span>
+
+    private suspend fun runMicrophoneLoop() {
+<span class="nc" id="L278">        var record: AudioRecord? = null</span>
+<span class="nc" id="L279">        try {</span>
+<span class="nc" id="L280">            val bufferSize = AudioRecord.getMinBufferSize(</span>
+<span class="nc" id="L281">                AssistantConfig.Audio.SAMPLE_RATE_HZ,</span>
+<span class="nc" id="L282">                AudioFormat.CHANNEL_IN_MONO,</span>
+<span class="nc" id="L283">                AudioFormat.ENCODING_PCM_16BIT</span>
+<span class="nc" id="L284">            ) * 2</span>
+
+<span class="nc" id="L286">            record = AudioRecord(</span>
+<span class="nc" id="L287">                MediaRecorder.AudioSource.VOICE_RECOGNITION,</span>
+<span class="nc" id="L288">                AssistantConfig.Audio.SAMPLE_RATE_HZ,</span>
+<span class="nc" id="L289">                AudioFormat.CHANNEL_IN_MONO,</span>
+<span class="nc" id="L290">                AudioFormat.ENCODING_PCM_16BIT,</span>
+<span class="nc" id="L291">                bufferSize</span>
+            )
+<span class="nc" id="L293">            customAudioRecord = record</span>
+
+<span class="nc bnc" id="L295" title="All 2 branches missed.">            if (record.state != AudioRecord.STATE_INITIALIZED) {</span>
+<span class="nc" id="L296">                Log.e(TAG, &quot;AudioRecord init failed — mic permission missing or mic already in use.&quot;)</span>
+<span class="nc" id="L297">                return</span>
+            }
+
+<span class="nc bnc" id="L300" title="All 2 branches missed.">            if (NoiseSuppressor.isAvailable()) {</span>
+<span class="nc bnc" id="L301" title="All 2 branches missed.">                noiseSuppressor = NoiseSuppressor.create(record.audioSessionId)?.apply { enabled = true }</span>
+            }
+
+<span class="nc" id="L304">            record.startRecording()</span>
+<span class="nc" id="L305">            val buffer = ShortArray(bufferSize)</span>
+<span class="nc" id="L306">            var loopCount = 0</span>
+<span class="nc" id="L307">            var framesSinceLastSpeech = Int.MAX_VALUE / 2</span>
+
+<span class="nc bnc" id="L309" title="All 2 branches missed.">            while (isRecording) {</span>
+<span class="nc" id="L310">                val readSize = record.read(buffer, 0, buffer.size)</span>
+<span class="nc bnc" id="L311" title="All 2 branches missed.">                if (readSize &lt;= 0) {</span>
+<span class="nc" id="L312">                    delay(10)</span>
+<span class="nc" id="L313">                    continue</span>
+                }
+
+<span class="nc" id="L316">                var maxAmp = 0</span>
+<span class="nc bnc" id="L317" title="All 2 branches missed.">                for (i in 0 until readSize) {</span>
+<span class="nc" id="L318">                    val absVal = Math.abs(buffer[i].toInt())</span>
+<span class="nc bnc" id="L319" title="All 2 branches missed.">                    if (absVal &gt; maxAmp) maxAmp = absVal</span>
+                }
+
+<span class="nc bnc" id="L322" title="All 2 branches missed.">                framesSinceLastSpeech = if (maxAmp &gt; AssistantConfig.WakeWord.SPEECH_AMPLITUDE_THRESHOLD) {</span>
+<span class="nc" id="L323">                    0</span>
+                } else {
+<span class="nc" id="L325">                    framesSinceLastSpeech + 1</span>
+                }
+
+                // Only feed the recognizer around detected speech; decoding pure silence wasted
+                // CPU continuously in a service that runs for the whole drive.
+<span class="nc bnc" id="L330" title="All 2 branches missed.">                if (framesSinceLastSpeech &gt;= AssistantConfig.WakeWord.RECOGNITION_TAIL_FRAMES) {</span>
+<span class="nc" id="L331">                    loopCount++</span>
+<span class="nc" id="L332">                    continue</span>
+                }
+
+<span class="nc bnc" id="L335" title="All 2 branches missed.">                val recognizer = customRecognizer ?: break</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">                if (recognizer.acceptWaveForm(buffer, readSize)) {</span>
+<span class="nc" id="L337">                    handleTranscript(recognizer.result)</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">                } else if (loopCount % 10 == 0) {</span>
+<span class="nc" id="L339">                    handleTranscript(recognizer.partialResult)</span>
+                }
+<span class="nc" id="L341">                loopCount++</span>
+            }
+<span class="nc" id="L343">        } catch (e: Exception) {</span>
+<span class="nc" id="L344">            Log.e(TAG, &quot;Microphone loop error: ${e.message}&quot;, e)</span>
+        } finally {
+            // Release on every exit path. The previous version only released the noise
+            // suppressor here, so an early return leaked the AudioRecord and kept the mic held.
+<span class="nc" id="L348">            releaseAudioResources(record)</span>
+<span class="nc" id="L349">            isRecording = false</span>
+        }
+<span class="nc" id="L351">    }</span>
+
+    private fun releaseAudioResources(record: AudioRecord?) {
+<span class="nc" id="L354">        try {</span>
+<span class="nc bnc" id="L355" title="All 2 branches missed.">            noiseSuppressor?.release()</span>
+<span class="nc" id="L356">        } catch (e: Exception) {</span>
+<span class="nc" id="L357">            Log.w(TAG, &quot;Failed to release noise suppressor&quot;, e)</span>
+        }
+<span class="nc" id="L359">        noiseSuppressor = null</span>
+
+<span class="nc" id="L361">        try {</span>
+<span class="nc bnc" id="L362" title="All 6 branches missed.">            if (record?.state == AudioRecord.STATE_INITIALIZED) record.stop()</span>
+<span class="nc" id="L363">        } catch (e: Exception) {</span>
+<span class="nc" id="L364">            Log.w(TAG, &quot;Failed to stop AudioRecord&quot;, e)</span>
+        }
+<span class="nc" id="L366">        try {</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">            record?.release()</span>
+<span class="nc" id="L368">        } catch (e: Exception) {</span>
+<span class="nc" id="L369">            Log.w(TAG, &quot;Failed to release AudioRecord&quot;, e)</span>
+        }
+<span class="nc bnc" id="L371" title="All 2 branches missed.">        if (customAudioRecord === record) customAudioRecord = null</span>
+<span class="nc" id="L372">    }</span>
+
+    private fun stopCustomListening() {
+<span class="nc" id="L375">        isRecording = false</span>
+<span class="nc bnc" id="L376" title="All 2 branches missed.">        listeningJob?.cancel()</span>
+<span class="nc" id="L377">        listeningJob = null</span>
+<span class="nc" id="L378">        releaseAudioResources(customAudioRecord)</span>
+<span class="nc" id="L379">    }</span>
+
+    override fun onDestroy() {
+<span class="nc" id="L382">        isRecording = false</span>
+<span class="nc" id="L383">        stopCustomListening()</span>
+<span class="nc" id="L384">        try {</span>
+<span class="nc bnc" id="L385" title="All 2 branches missed.">            customRecognizer?.close()</span>
+<span class="nc" id="L386">        } catch (e: Exception) {</span>
+<span class="nc" id="L387">            Log.w(TAG, &quot;Failed to close recognizer&quot;, e)</span>
+        }
+<span class="nc" id="L389">        customRecognizer = null</span>
+<span class="nc" id="L390">        model = null</span>
+<span class="nc" id="L391">        releaseModel()</span>
+<span class="nc" id="L392">        serviceScope.cancel()</span>
+<span class="nc" id="L393">        super.onDestroy()</span>
+<span class="nc" id="L394">    }</span>
+
+    private fun handleTranscript(voskJson: String?) {
+<span class="nc bnc" id="L397" title="All 2 branches missed.">        val transcript = extractTranscript(voskJson.orEmpty())</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">        if (!matchesWakeWord(transcript, wakeWord)) return</span>
+
+<span class="nc" id="L400">        Log.i(TAG, &quot;Wake word matched: '$transcript'&quot;)</span>
+<span class="nc" id="L401">        sendBroadcast(</span>
+<span class="nc" id="L402">            Intent(AssistantConfig.WakeWordAction.DETECTED_BROADCAST).setPackage(packageName)</span>
+        )
+
+        // Release the mic immediately so the session's speech recognizer can acquire it.
+<span class="nc" id="L406">        stopCustomListening()</span>
+<span class="nc" id="L407">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

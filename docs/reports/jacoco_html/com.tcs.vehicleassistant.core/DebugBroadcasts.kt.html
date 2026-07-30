@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DebugBroadcasts.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.core</a> &gt; <span class="el_source">DebugBroadcasts.kt</span></div><h1>DebugBroadcasts.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.core
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.util.Log
+import androidx.core.content.ContextCompat
+import com.tcs.vehicleassistant.BuildConfig
+
+/**
+ * Registration for the broadcast hooks that exist purely so the app can be driven from
+ * `adb shell am broadcast` during development.
+ *
+ * Those broadcasts arrive from the shell UID, so the receivers have to be exported. In a release
+ * build that means any installed app can send them, and the diagnostics hook in particular runs
+ * every registered tool against the real VHAL -- setting the cabin temperature, moving windows and
+ * so on. Registration is therefore a no-op unless the build is debuggable.
+ */
+object DebugBroadcasts {
+
+    private const val TAG = &quot;DebugBroadcasts&quot;
+
+    const val ACTION_DIAGNOSTICS_DUMP = &quot;com.tcs.vehicleassistant.DIAGNOSTICS_DUMP&quot;
+    const val ACTION_TEST_QUERY = &quot;com.tcs.vehicleassistant.TEST_QUERY&quot;
+    const val ACTION_SIDELOAD_MODEL = &quot;com.tcs.vehicleassistant.SIDELOAD_MODEL&quot;
+
+    /** True when [register] will actually attach receivers. */
+<span class="fc" id="L28">    val isEnabled: Boolean get() = BuildConfig.DEBUG</span>
+
+    /**
+     * Registers [receiver] for [actions] as an exported receiver, but only in a debuggable build.
+     * Returns true when the receiver was attached, so callers know whether to unregister it.
+     */
+    fun register(context: Context, receiver: BroadcastReceiver, vararg actions: String): Boolean {
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        if (!isEnabled) return false</span>
+<span class="nc" id="L36">        val filter = IntentFilter().apply { actions.forEach(::addAction) }</span>
+<span class="nc" id="L37">        ContextCompat.registerReceiver(context, receiver, filter, ContextCompat.RECEIVER_EXPORTED)</span>
+<span class="nc" id="L38">        Log.i(TAG, &quot;Registered debug receiver for ${actions.joinToString()}&quot;)</span>
+<span class="nc" id="L39">        return true</span>
+    }
+
+    /** Unregisters a receiver attached by [register]; safe to call when registration never happened. */
+    fun unregister(context: Context, receiver: BroadcastReceiver) {
+<span class="nc" id="L44">        try {</span>
+<span class="nc" id="L45">            context.unregisterReceiver(receiver)</span>
+<span class="nc" id="L46">        } catch (e: IllegalArgumentException) {</span>
+            // Already gone, or never registered because this is a release build.
+        }
+<span class="nc" id="L49">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

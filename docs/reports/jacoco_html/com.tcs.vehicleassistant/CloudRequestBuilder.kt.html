@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CloudRequestBuilder.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">CloudRequestBuilder.kt</span></div><h1>CloudRequestBuilder.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * Builds the message arrays for the cloud LLM APIs from [MemoryManager] history.
+ *
+ * Both cloud managers used to read history directly and ignore their `userMessage` argument
+ * entirely, which silently depended on the orchestrator having already recorded the user turn. If
+ * that ordering ever changed the request would go out without the actual question. These builders
+ * append the current message when history does not already end with it.
+ */
+object CloudRequestBuilder {
+
+    private const val ROLE_USER = &quot;user&quot;
+    private const val ROLE_MODEL = &quot;model&quot;
+    private const val ROLE_ASSISTANT = &quot;assistant&quot;
+
+    /** Gemini `contents` array: `[{role, parts:[{text}]}]`. */
+    fun geminiContents(userMessage: String): List&lt;JSONObject&gt; =
+<span class="fc" id="L22">        withUserMessage(MemoryManager.snapshot(), userMessage).map { turn -&gt;</span>
+<span class="fc" id="L23">            JSONObject().apply {</span>
+<span class="fc bfc" id="L24" title="All 2 branches covered.">                put(&quot;role&quot;, if (isUser(turn.role)) ROLE_USER else ROLE_MODEL)</span>
+<span class="fc" id="L25">                put(&quot;parts&quot;, JSONArray().put(JSONObject().put(&quot;text&quot;, turn.content)))</span>
+<span class="fc" id="L26">            }</span>
+<span class="fc" id="L27">        }</span>
+
+    /** Anthropic `messages` array: `[{role, content}]`. */
+    fun anthropicMessages(userMessage: String): List&lt;JSONObject&gt; =
+<span class="fc" id="L31">        withUserMessage(MemoryManager.snapshot(), userMessage).map { turn -&gt;</span>
+<span class="fc" id="L32">            JSONObject().apply {</span>
+<span class="fc bfc" id="L33" title="All 2 branches covered.">                put(&quot;role&quot;, if (isUser(turn.role)) ROLE_USER else ROLE_ASSISTANT)</span>
+<span class="fc" id="L34">                put(&quot;content&quot;, turn.content)</span>
+<span class="fc" id="L35">            }</span>
+<span class="fc" id="L36">        }</span>
+
+    /**
+     * Guarantees the request ends with [userMessage] as a user turn. Both APIs reject a request
+     * whose final message is from the assistant, and an empty history is rejected outright.
+     */
+    internal fun withUserMessage(
+        history: List&lt;MemoryManager.Turn&gt;,
+        userMessage: String
+    ): List&lt;MemoryManager.Turn&gt; {
+<span class="fc" id="L46">        val trimmed = userMessage.trim()</span>
+<span class="fc bfc" id="L47" title="All 4 branches covered.">        if (trimmed.isEmpty()) return history</span>
+
+<span class="fc" id="L49">        val last = history.lastOrNull()</span>
+<span class="pc bpc" id="L50" title="1 of 6 branches missed.">        if (last != null &amp;&amp; isUser(last.role) &amp;&amp; last.content.trim() == trimmed) return history</span>
+
+<span class="fc" id="L52">        return history + MemoryManager.Turn(&quot;User&quot;, trimmed)</span>
+    }
+
+<span class="fc" id="L55">    private fun isUser(role: String) = role.equals(&quot;User&quot;, ignoreCase = true)</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

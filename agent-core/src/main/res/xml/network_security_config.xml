@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Replaces the blanket android:usesCleartextTraffic="true" that previously allowed any plaintext
+    HTTP request from the app, including the cloud LLM fallback traffic.
+
+    Cleartext is now denied by default and permitted only for loopback destinations, which is where
+    model sideloading serves from during bring-up. The debug source set re-enables cleartext
+    globally so the LAN MJPEG camera demo keeps working without TLS; release builds require an
+    https:// camera URL or a loopback proxy.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">localhost</domain>
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <!-- Host loopback as seen from the Android emulator. -->
+        <domain includeSubdomains="false">10.0.2.2</domain>
+    </domain-config>
+</network-security-config>

@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SherpaKwsManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.hardware</a> &gt; <span class="el_source">SherpaKwsManager.kt</span></div><h1>SherpaKwsManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.hardware
+
+import android.content.Context
+import android.util.Log
+import com.k2fsa.sherpa.onnx.*
+import java.io.File
+
+/**
+ * Manages Sherpa-ONNX Zipformer Neural Keyword Spotter (KWS).
+ * Provides high-accuracy wake-word detection for &quot;Hey Nissan&quot; with zero false positives.
+ */
+object SherpaKwsManager {
+    private const val TAG = &quot;SherpaKwsManager&quot;
+    private var spotter: KeywordSpotter? = null
+
+    @Synchronized
+    fun getKeywordSpotter(context: Context): KeywordSpotter? {
+<span class="nc bnc" id="L18" title="All 2 branches missed.">        if (spotter != null) return spotter</span>
+
+<span class="nc" id="L20">        return try {</span>
+<span class="nc" id="L21">            val kwsDir = File(context.filesDir, &quot;kws&quot;)</span>
+<span class="nc bnc" id="L22" title="All 2 branches missed.">            if (!kwsDir.exists()) kwsDir.mkdirs()</span>
+
+<span class="nc" id="L24">            val keywordsFile = File(kwsDir, &quot;keywords.txt&quot;)</span>
+<span class="nc" id="L25">            keywordsFile.writeText(</span>
+                &quot;&quot;&quot;
+                H EY N I S S A N : 3.0
+                N I S S A N : 2.5
+                H EY A S S I S T A N T : 2.0
+                H EY G E M I N I : 2.0
+                H EY S D I : 2.0
+<span class="nc" id="L32">                &quot;&quot;&quot;.trimIndent()</span>
+            )
+
+<span class="nc" id="L35">            val externalDir = File(&quot;/data/local/tmp/kws&quot;)</span>
+<span class="nc bnc" id="L36" title="All 4 branches missed.">            if (externalDir.exists() &amp;&amp; File(externalDir, &quot;encoder.onnx&quot;).exists()) {</span>
+<span class="nc" id="L37">                val config = KeywordSpotterConfig(</span>
+<span class="nc" id="L38">                    featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),</span>
+<span class="nc" id="L39">                    modelConfig = OnlineModelConfig(</span>
+<span class="nc" id="L40">                        zipformer2Ctc = OnlineZipformer2CtcModelConfig(</span>
+<span class="nc" id="L41">                            model = File(externalDir, &quot;encoder.onnx&quot;).absolutePath</span>
+                        ),
+<span class="nc" id="L43">                        tokens = File(externalDir, &quot;tokens.txt&quot;).absolutePath,</span>
+<span class="nc" id="L44">                        numThreads = 2,</span>
+<span class="nc" id="L45">                        debug = false</span>
+                    ),
+<span class="nc" id="L47">                    keywordsFile = keywordsFile.absolutePath</span>
+                )
+<span class="nc" id="L49">                spotter = KeywordSpotter(null, config)</span>
+<span class="nc" id="L50">                Log.d(TAG, &quot;Sherpa-ONNX KeywordSpotter initialized successfully from external /data/local/tmp/kws/&quot;)</span>
+            } else {
+<span class="nc" id="L52">                Log.i(TAG, &quot;Sherpa ONNX KWS files not found in /data/local/tmp/kws/. Vosk KWS fallback active.&quot;)</span>
+            }
+<span class="nc" id="L54">            spotter</span>
+<span class="nc" id="L55">        } catch (e: Exception) {</span>
+<span class="nc" id="L56">            Log.e(TAG, &quot;Failed to initialize Sherpa-ONNX KeywordSpotter&quot;, e)</span>
+<span class="nc" id="L57">            null</span>
+        }
+    }
+
+    fun release() {
+<span class="nc" id="L62">        try {</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            spotter?.release()</span>
+<span class="nc" id="L64">        } catch (e: Exception) {</span>
+<span class="nc" id="L65">            Log.e(TAG, &quot;Error releasing KeywordSpotter&quot;, e)</span>
+        }
+<span class="nc" id="L67">        spotter = null</span>
+<span class="nc" id="L68">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

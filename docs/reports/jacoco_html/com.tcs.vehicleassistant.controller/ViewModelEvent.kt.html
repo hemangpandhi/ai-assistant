@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ViewModelEvent.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.controller</a> &gt; <span class="el_source">ViewModelEvent.kt</span></div><h1>ViewModelEvent.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.controller
+
+import android.content.Intent
+
+/**
+ * One-shot events emitted by the ViewModel that the View must consume exactly once.
+ * These are NOT state — they are transient commands.
+ *
+ * Note: TTS operations (speak, playSilentUtterance) are handled directly by the
+ * ViewModel via IAudioManager and do NOT flow through events.
+ */
+sealed class ViewModelEvent {
+    /** Launch an intent after TTS finishes (e.g. Google Maps navigation). */
+<span class="nc" id="L14">    data class LaunchIntent(val intent: Intent) : ViewModelEvent()</span>
+    
+    /** Close the VoiceInteractionSession. */
+<span class="nc" id="L17">    object FinishSession : ViewModelEvent()</span>
+    
+    /** Auto-trigger the microphone for follow-up questions. */
+<span class="nc" id="L20">    object StartListening : ViewModelEvent()</span>
+    
+    /** Display a transient toast message. */
+<span class="nc" id="L23">    data class ShowToast(val message: String) : ViewModelEvent()</span>
+    
+    /** Enable/disable input controls. */
+<span class="nc" id="L26">    data class SetInputEnabled(val enabled: Boolean) : ViewModelEvent()</span>
+    
+    /** Sets the text in the input box. */
+<span class="nc" id="L29">    data class SetInputText(val text: String) : ViewModelEvent()</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,1073 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AgentOrchestrator.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.repository</a> &gt; <span class="el_source">AgentOrchestrator.kt</span></div><h1>AgentOrchestrator.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.repository
+
+import android.content.Context
+import android.content.Intent
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Message
+import com.google.ai.edge.litertlm.MessageCallback
+import com.tcs.vehicleassistant.*
+import com.tcs.vehicleassistant.CloudMessageCallback
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.CabinSnapshotReader
+import com.tcs.vehicleassistant.core.ConfirmationPolicy
+import com.tcs.vehicleassistant.core.ContextGuard
+import com.tcs.vehicleassistant.llm.ILLMProvider
+import com.tcs.vehicleassistant.utils.FollowUpRouter
+import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
+import com.tcs.vehicleassistant.utils.ToolCallParser
+import kotlinx.coroutines.*
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
+import kotlinx.coroutines.flow.asStateFlow
+
+sealed class OrchestratorState {
+<span class="nc" id="L27">    object Idle : OrchestratorState()</span>
+<span class="nc" id="L28">    data class Thinking(val query: String? = null) : OrchestratorState()</span>
+<span class="nc" id="L29">    data class Streaming(val displayMsg: String) : OrchestratorState()</span>
+<span class="nc" id="L30">    data class Speaking(val finalMsg: String) : OrchestratorState()</span>
+<span class="nc" id="L31">    data class Error(val message: String) : OrchestratorState()</span>
+}
+
+sealed class OrchestratorEvent {
+<span class="nc" id="L35">    data class ShowToast(val message: String) : OrchestratorEvent()</span>
+<span class="nc" id="L36">    data class SetInputEnabled(val enabled: Boolean) : OrchestratorEvent()</span>
+<span class="nc" id="L37">    data class LaunchIntent(val intent: Intent) : OrchestratorEvent()</span>
+<span class="nc" id="L38">    object StartListening : OrchestratorEvent()</span>
+<span class="nc" id="L39">    object FinishSession : OrchestratorEvent()</span>
+}
+
+<span class="nc" id="L42">class AgentOrchestrator(</span>
+<span class="nc" id="L43">    private val context: Context,</span>
+<span class="nc" id="L44">    private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager</span>
+) {
+<span class="nc" id="L46">    private val _state = MutableStateFlow&lt;OrchestratorState&gt;(OrchestratorState.Idle)</span>
+<span class="nc" id="L47">    val state: StateFlow&lt;OrchestratorState&gt; = _state.asStateFlow()</span>
+
+<span class="nc" id="L49">    private val _events = MutableSharedFlow&lt;OrchestratorEvent&gt;(extraBufferCapacity = 32)</span>
+<span class="nc" id="L50">    val events: SharedFlow&lt;OrchestratorEvent&gt; = _events.asSharedFlow()</span>
+
+<span class="nc" id="L52">    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)</span>
+
+    @Volatile
+<span class="nc" id="L55">    private var isQueryProcessed = true</span>
+    private var timeoutJob: Job? = null
+    private var pendingConfirmationTool: String? = null
+<span class="nc" id="L58">    private val pendingIntentsToLaunch = java.util.Collections.synchronizedList(mutableListOf&lt;Intent&gt;())</span>
+
+    /**
+     * Monotonically increasing turn id. LiteRT streams on its own thread and keeps delivering
+     * tokens after a turn is abandoned (timeout, hallucination cut-off, re-triggered session), so
+     * every callback checks its captured id against this before touching any state.
+     */
+<span class="nc" id="L65">    private val turnCounter = java.util.concurrent.atomic.AtomicLong(0)</span>
+
+    @Volatile
+    private var activeTurnId = 0L
+
+<span class="nc" id="L70">    @Volatile var ttsSpokenLength = 0</span>
+        private set
+<span class="nc" id="L72">    @Volatile var lastTtsUpdateTime = 0L</span>
+        private set
+
+<span class="nc" id="L75">    private val currentPendingTools = java.util.Collections.synchronizedList(mutableListOf&lt;Deferred&lt;String?&gt;&gt;())</span>
+
+    /**
+     * Per-turn streaming state. LiteRT invokes `onMessage` from a native thread while `onDone`
+     * work runs on the main dispatcher, so every field here is mutated under [lock] rather than
+     * from shared orchestrator fields as it was previously.
+     */
+<span class="nc" id="L82">    private class StreamState(val turnId: Long) {</span>
+<span class="nc" id="L83">        private val lock = Any()</span>
+<span class="nc" id="L84">        private val response = StringBuilder()</span>
+
+<span class="nc" id="L86">        var isHallucinating = false</span>
+            private set
+<span class="nc" id="L88">        var spokenLength = 0</span>
+            private set
+<span class="nc" id="L90">        var parsedLength = 0</span>
+            private set
+
+<span class="nc" id="L93">        @Volatile</span>
+<span class="nc" id="L94">        var isDoneCalled = false</span>
+
+<span class="nc" id="L96">        fun append(text: String): String = synchronized(lock) {</span>
+<span class="nc" id="L97">            response.append(text)</span>
+<span class="nc" id="L98">            response.toString()</span>
+<span class="nc" id="L99">        }</span>
+
+<span class="nc" id="L101">        fun replace(text: String): Unit = synchronized(lock) {</span>
+<span class="nc" id="L102">            response.setLength(0)</span>
+<span class="nc" id="L103">            response.append(text)</span>
+<span class="nc" id="L104">        }</span>
+
+<span class="nc" id="L106">        fun snapshot(): String = synchronized(lock) { response.toString() }</span>
+
+<span class="nc" id="L108">        fun clear(): Unit = synchronized(lock) { response.setLength(0) }</span>
+
+<span class="nc" id="L110">        fun markHallucinating() = synchronized(lock) { isHallucinating = true }</span>
+
+        /** Advances the TTS bookkeeping for one dispatched sentence, returning its start offset. */
+<span class="nc" id="L113">        fun consumeSentence(length: Int): Int = synchronized(lock) {</span>
+<span class="nc" id="L114">            val startOffset = parsedLength</span>
+<span class="nc" id="L115">            spokenLength += length</span>
+<span class="nc" id="L116">            parsedLength += length</span>
+<span class="nc" id="L117">            startOffset</span>
+<span class="nc" id="L118">        }</span>
+
+<span class="nc" id="L120">        fun markSpoken(length: Int) = synchronized(lock) { spokenLength += length }</span>
+    }
+
+<span class="nc" id="L123">    init {</span>
+<span class="nc" id="L124">        audioManager.setUtteranceListener(</span>
+            onStart = { utteranceId -&gt;
+<span class="nc bnc" id="L126" title="All 2 branches missed.">                if (utteranceId.startsWith(&quot;SENTENCE_&quot;)) {</span>
+<span class="nc" id="L127">                    lastTtsUpdateTime = System.currentTimeMillis()</span>
+                }
+<span class="nc" id="L129">            },</span>
+            onDone = { utteranceId -&gt;
+<span class="nc bnc" id="L131" title="All 2 branches missed.">                if (utteranceId.startsWith(&quot;SENTENCE_&quot;)) {</span>
+<span class="nc" id="L132">                    lastTtsUpdateTime = System.currentTimeMillis()</span>
+                }
+<span class="nc" id="L134">                onTtsFinalUtteranceDone(utteranceId)</span>
+<span class="nc" id="L135">            },</span>
+            onError = { utteranceId -&gt;
+<span class="nc" id="L137">                onTtsFinalUtteranceError(utteranceId)</span>
+<span class="nc" id="L138">            },</span>
+            onRangeStart = { utteranceId, start, end, frame -&gt;
+<span class="nc bnc" id="L140" title="All 2 branches missed.">                if (utteranceId.startsWith(&quot;SENTENCE_&quot;)) {</span>
+<span class="nc bnc" id="L141" title="All 2 branches missed.">                    val sentenceStartOffset = utteranceId.substringAfter(&quot;SENTENCE_&quot;).toIntOrNull() ?: 0</span>
+<span class="nc" id="L142">                    ttsSpokenLength = Math.max(ttsSpokenLength, sentenceStartOffset + end)</span>
+<span class="nc" id="L143">                    lastTtsUpdateTime = System.currentTimeMillis()</span>
+                }
+<span class="nc" id="L145">            }</span>
+        )
+<span class="nc" id="L147">    }</span>
+
+<span class="nc bnc" id="L149" title="All 2 branches missed.">    fun isProcessing(): Boolean = !isQueryProcessed</span>
+
+    fun triggerProactiveEvent(prompt: String) {
+<span class="nc" id="L152">        handleQuery(prompt)</span>
+<span class="nc" id="L153">    }</span>
+
+<span class="nc" id="L155">    fun handleQuery(query: String, retryCount: Int = 0) {</span>
+<span class="nc" id="L156">        val trimmedQuery = query.trim()</span>
+<span class="nc" id="L157">        val lowerQuery = trimmedQuery.lowercase().replace(Regex(&quot;[^a-z ]&quot;), &quot;&quot;).trim()</span>
+        
+        // Ghost Voice Filter: ignore silence hallucinations from Whisper.
+        // Affirmatives (&quot;yes&quot;/&quot;ok&quot;) must stay available for FollowUpRouter and ContextGuard confirms.
+<span class="nc" id="L161">        val ignoredHallucinations = setOf(</span>
+<span class="nc" id="L162">            &quot;you&quot;, &quot;thank you&quot;, &quot;bye&quot;, &quot;am&quot;, &quot;i&quot;, &quot;what&quot;, &quot;blank audio&quot;, &quot;thanks for watching&quot;, &quot;a&quot;</span>
+        )
+
+        // ContextGuard / OEM confirmation: honor yes/decline without waiting on LiteRT.
+<span class="nc bnc" id="L166" title="All 4 branches missed.">        if (pendingConfirmationTool != null &amp;&amp; !trimmedQuery.startsWith(&quot;[&quot;)) {</span>
+<span class="nc bnc" id="L167" title="All 3 branches missed.">            when (ConfirmationPolicy.classify(trimmedQuery)) {</span>
+                ConfirmationPolicy.Reply.DECLINE -&gt; {
+<span class="nc" id="L169">                    pendingConfirmationTool = null</span>
+<span class="nc" id="L170">                    LatencyLogger.reset()</span>
+<span class="nc" id="L171">                    beginTurn()</span>
+<span class="nc" id="L172">                    scope.launch {</span>
+<span class="nc" id="L173">                        finishGuardedTurn(</span>
+<span class="nc" id="L174">                            message = &quot;Okay, I won't change that.&quot;,</span>
+<span class="nc" id="L175">                            pathLabel = &quot;ContextGuardConfirm&quot;,</span>
+<span class="nc" id="L176">                            toolCall = &quot;cancelled&quot;,</span>
+<span class="nc" id="L177">                            policyId = &quot;user_declined&quot;,</span>
+<span class="nc" id="L178">                            asQuestion = false,</span>
+                        )
+<span class="nc" id="L180">                    }</span>
+<span class="nc" id="L181">                    return</span>
+                }
+                ConfirmationPolicy.Reply.AFFIRM -&gt; {
+<span class="nc" id="L184">                    val toolToExecute = pendingConfirmationTool!!</span>
+<span class="nc" id="L185">                    pendingConfirmationTool = null</span>
+<span class="nc" id="L186">                    LatencyLogger.reset()</span>
+<span class="nc" id="L187">                    LatencyLogger.log(&quot;Orchestrator&quot;, &quot;Query received&quot;)</span>
+<span class="nc" id="L188">                    beginTurn()</span>
+<span class="nc" id="L189">                    _state.value = OrchestratorState.Thinking(trimmedQuery)</span>
+<span class="nc" id="L190">                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))</span>
+<span class="nc" id="L191">                    scope.launch {</span>
+                        // skipGuard: user already confirmed; re-evaluating Confirm would loop forever.
+                        // Hard Block is still re-checked inside completeDirectToolTurn.
+<span class="nc" id="L194">                        completeDirectToolTurn(</span>
+<span class="nc" id="L195">                            query = trimmedQuery,</span>
+<span class="nc" id="L196">                            toolCall = toolToExecute,</span>
+<span class="nc" id="L197">                            preferredSpoken = null,</span>
+<span class="nc" id="L198">                            pathLabel = &quot;ContextGuardConfirm&quot;,</span>
+<span class="nc" id="L199">                            skipGuard = true,</span>
+                        )
+<span class="nc" id="L201">                    }</span>
+<span class="nc" id="L202">                    return</span>
+                }
+                ConfirmationPolicy.Reply.OTHER -&gt; {
+                    // Drop stale confirm so a new cabin command can DirectTool / LLM normally.
+<span class="nc" id="L206">                    pendingConfirmationTool = null</span>
+<span class="nc" id="L207">                    LatencyLogger.log(</span>
+<span class="nc" id="L208">                        &quot;Orchestrator&quot;,</span>
+<span class="nc" id="L209">                        &quot;Pending ContextGuard confirm superseded by: $trimmedQuery&quot;,</span>
+                    )
+                }
+            }
+        }
+        
+        // Let it pass if it's an internal system event (starts with '[')
+<span class="nc bnc" id="L216" title="All 2 branches missed.">        if (!trimmedQuery.startsWith(&quot;[&quot;)) {</span>
+<span class="nc bnc" id="L217" title="All 2 branches missed.">            if (MemoryManager.isAffirmative(trimmedQuery)) {</span>
+                // keep
+<span class="nc bnc" id="L219" title="All 6 branches missed.">            } else if (trimmedQuery.isBlank() || lowerQuery.length &lt; 3 || ignoredHallucinations.contains(lowerQuery)) {</span>
+<span class="nc" id="L220">                _events.tryEmit(OrchestratorEvent.FinishSession)</span>
+<span class="nc" id="L221">                resetState()</span>
+<span class="nc" id="L222">                return</span>
+            }
+        }
+
+        // Registry-driven direct path (sub-1s): never wait on LiteRT init or prefill.
+<span class="nc" id="L227">        LatencyLogger.reset()</span>
+<span class="nc" id="L228">        LatencyLogger.log(&quot;Orchestrator&quot;, &quot;Query received&quot;)</span>
+<span class="nc bnc" id="L229" title="All 4 branches missed.">        if (pendingConfirmationTool == null &amp;&amp; tryHandleDirectRegistryHit(trimmedQuery)) {</span>
+<span class="nc" id="L230">            return</span>
+        }
+
+<span class="nc bnc" id="L233" title="All 4 branches missed.">        if (pendingConfirmationTool == null &amp;&amp; tryHandleDirectFollowUp(trimmedQuery)) {</span>
+<span class="nc" id="L234">            return</span>
+        }
+
+<span class="nc bnc" id="L237" title="All 4 branches missed.">        if (!LocalLLMActivity.isCloudModelActive &amp;&amp; !LLMManager.isReady()) {</span>
+<span class="nc" id="L238">            _state.value = OrchestratorState.Thinking(query)</span>
+<span class="nc" id="L239">            _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))</span>
+<span class="nc" id="L240">            scope.launch {</span>
+<span class="nc" id="L241">                try {</span>
+<span class="nc" id="L242">                    val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()</span>
+<span class="nc" id="L243">                        .inject(org.koin.core.qualifier.named(&quot;edge&quot;))</span>
+<span class="nc" id="L244">                    edgeProvider.initialize(context, force = false)</span>
+<span class="nc" id="L245">                    handleQuery(query, retryCount)</span>
+<span class="nc" id="L246">                } catch (e: Exception) {</span>
+<span class="nc" id="L247">                    _state.value = OrchestratorState.Error(&quot;Model not loaded. Open the app to load a model.&quot;)</span>
+<span class="nc" id="L248">                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+                }
+<span class="nc" id="L250">            }</span>
+<span class="nc" id="L251">            return</span>
+        }
+
+<span class="nc" id="L254">        val turnId = beginTurn()</span>
+
+<span class="nc" id="L256">        _state.value = OrchestratorState.Thinking(query)</span>
+<span class="nc" id="L257">        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))</span>
+
+<span class="nc" id="L259">        scope.launch {</span>
+<span class="nc" id="L260">            processQuery(query, retryCount, turnId = turnId)</span>
+<span class="nc" id="L261">        }</span>
+<span class="nc" id="L262">    }</span>
+
+    /**
+     * Opens a new turn and invalidates any in-flight one, so late callbacks from an abandoned
+     * inference are dropped rather than overwriting the new turn's UI and TTS state.
+     */
+    private fun beginTurn(): Long {
+<span class="nc" id="L269">        val turnId = turnCounter.incrementAndGet()</span>
+<span class="nc" id="L270">        activeTurnId = turnId</span>
+<span class="nc" id="L271">        ttsSpokenLength = 0</span>
+<span class="nc" id="L272">        lastTtsUpdateTime = 0L</span>
+<span class="nc" id="L273">        isQueryProcessed = false</span>
+<span class="nc" id="L274">        return turnId</span>
+    }
+
+<span class="nc bnc" id="L277" title="All 2 branches missed.">    private fun isCurrentTurn(turnId: Long): Boolean = activeTurnId == turnId</span>
+
+    fun resetState() {
+<span class="nc" id="L280">        _state.value = OrchestratorState.Idle</span>
+<span class="nc" id="L281">    }</span>
+
+    private fun onTtsFinalUtteranceDone(utteranceId: String) {
+<span class="nc" id="L284">        scope.launch {</span>
+<span class="nc bnc" id="L285" title="All 4 branches missed.">            when (utteranceId) {</span>
+                &quot;QUESTION_FINAL&quot; -&gt; {
+<span class="nc" id="L287">                    delay(500)</span>
+<span class="nc" id="L288">                    _events.tryEmit(OrchestratorEvent.StartListening)</span>
+                }
+                &quot;STATEMENT_FINAL_TOOL&quot; -&gt; {
+<span class="nc bnc" id="L291" title="All 2 branches missed.">                    for (job in currentPendingTools) {</span>
+<span class="nc" id="L292">                        try { job.await() } catch (_: Exception) {}</span>
+                    }
+<span class="nc bnc" id="L294" title="All 2 branches missed.">                    for (intent in pendingIntentsToLaunch) {</span>
+<span class="nc" id="L295">                        _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))</span>
+                    }
+<span class="nc" id="L297">                    pendingIntentsToLaunch.clear()</span>
+<span class="nc" id="L298">                    delay(50)</span>
+<span class="nc" id="L299">                    _events.tryEmit(OrchestratorEvent.FinishSession)</span>
+                }
+                &quot;STATEMENT_FINAL&quot; -&gt; {
+<span class="nc" id="L302">                    delay(50)</span>
+<span class="nc" id="L303">                    _events.tryEmit(OrchestratorEvent.FinishSession)</span>
+                }
+            }
+<span class="nc" id="L306">        }</span>
+<span class="nc" id="L307">    }</span>
+
+    private fun onTtsFinalUtteranceError(utteranceId: String) {
+<span class="nc" id="L310">        scope.launch {</span>
+<span class="nc bnc" id="L311" title="All 4 branches missed.">            when (utteranceId) {</span>
+                &quot;QUESTION_FINAL&quot; -&gt; {
+<span class="nc" id="L313">                    delay(500)</span>
+<span class="nc" id="L314">                    _events.tryEmit(OrchestratorEvent.StartListening)</span>
+                }
+                &quot;STATEMENT_FINAL_TOOL&quot; -&gt; {
+<span class="nc bnc" id="L317" title="All 2 branches missed.">                    for (job in currentPendingTools) {</span>
+<span class="nc" id="L318">                        try { job.await() } catch (_: Exception) {}</span>
+                    }
+<span class="nc bnc" id="L320" title="All 2 branches missed.">                    for (intent in pendingIntentsToLaunch) {</span>
+<span class="nc" id="L321">                        _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))</span>
+                    }
+<span class="nc" id="L323">                    pendingIntentsToLaunch.clear()</span>
+<span class="nc" id="L324">                    delay(3000) // Artificial delay to allow user to read text since TTS failed</span>
+<span class="nc" id="L325">                    _events.tryEmit(OrchestratorEvent.FinishSession)</span>
+                }
+                &quot;STATEMENT_FINAL&quot; -&gt; {
+<span class="nc" id="L328">                    delay(4000) // Artificial delay to allow user to read text since TTS failed</span>
+<span class="nc" id="L329">                    _events.tryEmit(OrchestratorEvent.FinishSession)</span>
+                }
+            }
+<span class="nc" id="L332">        }</span>
+<span class="nc" id="L333">    }</span>
+
+    fun destroy() {
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        timeoutJob?.cancel()</span>
+<span class="nc" id="L337">        scope.cancel()</span>
+<span class="nc" id="L338">        EmergencyAlarmManager.stop()</span>
+<span class="nc" id="L339">    }</span>
+
+    private fun tryHandleDirectRegistryHit(query: String): Boolean {
+<span class="nc" id="L342">        val toolManager = try {</span>
+<span class="nc" id="L343">            org.koin.java.KoinJavaComponent.getKoin().get&lt;ToolManager&gt;()</span>
+<span class="nc" id="L344">        } catch (e: Exception) {</span>
+<span class="nc" id="L345">            return false</span>
+        }
+<span class="nc bnc" id="L347" title="All 2 branches missed.">        if (!toolManager.isInitialized) {</span>
+<span class="nc" id="L348">            toolManager.initialize(context.applicationContext)</span>
+        }
+<span class="nc bnc" id="L350" title="All 2 branches missed.">        val hit = toolManager.resolveDirectHit(query) ?: return false</span>
+
+<span class="nc" id="L352">        beginTurn()</span>
+<span class="nc" id="L353">        _state.value = OrchestratorState.Thinking(query)</span>
+<span class="nc" id="L354">        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))</span>
+<span class="nc" id="L355">        LatencyLogger.log(</span>
+<span class="nc" id="L356">            &quot;DirectTool&quot;,</span>
+<span class="nc" id="L357">            &quot;Matched ${hit.toolCall} via '${hit.matchedKeyword}' (${hit.reason})&quot;,</span>
+        )
+
+<span class="nc" id="L360">        scope.launch {</span>
+<span class="nc" id="L361">            completeDirectToolTurn(</span>
+<span class="nc" id="L362">                query = query,</span>
+<span class="nc" id="L363">                toolCall = hit.toolCall,</span>
+<span class="nc" id="L364">                preferredSpoken = hit.spokenResponse,</span>
+<span class="nc" id="L365">                pathLabel = &quot;DirectTool&quot;,</span>
+            )
+<span class="nc" id="L367">        }</span>
+<span class="nc" id="L368">        return true</span>
+    }
+
+    private fun tryHandleDirectFollowUp(query: String): Boolean {
+<span class="nc bnc" id="L372" title="All 2 branches missed.">        if (pendingConfirmationTool != null) return false</span>
+<span class="nc bnc" id="L373" title="All 2 branches missed.">        val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false</span>
+
+<span class="nc" id="L375">        beginTurn()</span>
+<span class="nc" id="L376">        _state.value = OrchestratorState.Thinking(query)</span>
+<span class="nc" id="L377">        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))</span>
+<span class="nc" id="L378">        LatencyLogger.log(&quot;FollowUp&quot;, &quot;Matched $toolCall&quot;)</span>
+
+<span class="nc" id="L380">        scope.launch {</span>
+<span class="nc bnc" id="L381" title="All 4 branches missed.">            if (toolCall.startsWith(&quot;handleDrowsyDriving&quot;) || FollowUpRouter.isDrowsyDriverQuery(query)) {</span>
+<span class="nc" id="L382">                EmergencyAlarmManager.start(context)</span>
+            }
+
+<span class="nc" id="L385">            val preferred = when {</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                toolCall.startsWith(&quot;handleDrowsyDriving&quot;) -&gt;</span>
+<span class="nc" id="L387">                    &quot;Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert.&quot;</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">                toolCall.startsWith(&quot;stopMusic&quot;) -&gt; &quot;No problem, I've stopped the music for you right away.&quot;</span>
+<span class="nc bnc" id="L389" title="All 2 branches missed.">                toolCall.startsWith(&quot;playMusic&quot;) -&gt; {</span>
+<span class="nc" id="L390">                    val song = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).trim()</span>
+<span class="nc" id="L391">                        .removeSurrounding(&quot;\&quot;&quot;)</span>
+<span class="nc bnc" id="L392" title="All 6 branches missed.">                    if (song.isNotBlank() &amp;&amp; !song.equals(&quot;music&quot;, ignoreCase = true)) {</span>
+<span class="nc" id="L393">                        &quot;Great choice — putting on $song for you!&quot;</span>
+                    } else {
+<span class="nc" id="L395">                        &quot;Great choice — putting some music on for you!&quot;</span>
+                    }
+                }
+<span class="nc bnc" id="L398" title="All 2 branches missed.">                toolCall.startsWith(&quot;increaseTemperature&quot;) -&gt; &quot;I'm warming up the cabin for you right away!&quot;</span>
+<span class="nc bnc" id="L399" title="All 2 branches missed.">                toolCall.startsWith(&quot;decreaseTemperature&quot;) -&gt; &quot;I'm cooling down the cabin for you right away!&quot;</span>
+<span class="nc" id="L400">                else -&gt; null</span>
+            }
+
+<span class="nc" id="L403">            completeDirectToolTurn(</span>
+<span class="nc" id="L404">                query = query,</span>
+<span class="nc" id="L405">                toolCall = toolCall,</span>
+<span class="nc" id="L406">                preferredSpoken = preferred,</span>
+<span class="nc" id="L407">                pathLabel = &quot;FollowUp&quot;,</span>
+            )
+<span class="nc" id="L409">        }</span>
+<span class="nc" id="L410">        return true</span>
+    }
+
+    /**
+     * Shared completion for DirectTool / FollowUp: ContextGuard → execute (or confirm/block),
+     * surface a short reply, speak it, and log whether the E2E budget was met.
+     *
+     * @param skipGuard when true (user already confirmed a ContextGuard prompt), do not ask Confirm
+     * again. Hard [ContextGuard.Decision.Block] is still honored for safety.
+     */
+<span class="nc" id="L420">    private suspend fun completeDirectToolTurn(</span>
+        query: String,
+        toolCall: String,
+        preferredSpoken: String?,
+        pathLabel: String,
+<span class="nc" id="L425">        skipGuard: Boolean = false,</span>
+    ) {
+<span class="nc" id="L427">        MemoryManager.captureLongTermFacts(context, query)</span>
+<span class="nc" id="L428">        MemoryManager.addTurn(&quot;User&quot;, query)</span>
+
+<span class="nc" id="L430">        when (val decision = evaluateContextGuard(toolCall)) {</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">            is ContextGuard.Decision.Confirm -&gt; {</span>
+<span class="nc bnc" id="L432" title="All 2 branches missed.">                if (skipGuard) {</span>
+                    // Already confirmed — fall through to execute.
+                } else {
+<span class="nc" id="L435">                    pendingConfirmationTool = decision.originalToolCall</span>
+<span class="nc" id="L436">                    finishGuardedTurn(</span>
+<span class="nc" id="L437">                        message = decision.message,</span>
+<span class="nc" id="L438">                        pathLabel = pathLabel,</span>
+<span class="nc" id="L439">                        toolCall = toolCall,</span>
+<span class="nc" id="L440">                        policyId = decision.policyId,</span>
+<span class="nc" id="L441">                        asQuestion = true,</span>
+                    )
+<span class="nc" id="L443">                    return</span>
+                }
+            }
+<span class="nc bnc" id="L446" title="All 2 branches missed.">            is ContextGuard.Decision.Block -&gt; {</span>
+<span class="nc" id="L447">                finishGuardedTurn(</span>
+<span class="nc" id="L448">                    message = decision.message,</span>
+<span class="nc" id="L449">                    pathLabel = pathLabel,</span>
+<span class="nc" id="L450">                    toolCall = toolCall,</span>
+<span class="nc" id="L451">                    policyId = decision.policyId,</span>
+<span class="nc" id="L452">                    asQuestion = false,</span>
+                )
+<span class="nc" id="L454">                return</span>
+            }
+<span class="nc bnc" id="L456" title="All 2 branches missed.">            is ContextGuard.Decision.Escalate -&gt; {</span>
+<span class="nc bnc" id="L457" title="All 2 branches missed.">                if (skipGuard) {</span>
+                    // Already confirmed — treat as allow this turn.
+                } else {
+<span class="nc" id="L460">                    finishGuardedTurn(</span>
+<span class="nc" id="L461">                        message = decision.message,</span>
+<span class="nc" id="L462">                        pathLabel = pathLabel,</span>
+<span class="nc" id="L463">                        toolCall = toolCall,</span>
+<span class="nc" id="L464">                        policyId = decision.policyId,</span>
+<span class="nc" id="L465">                        asQuestion = true,</span>
+                    )
+<span class="nc" id="L467">                    return</span>
+                }
+            }
+<span class="nc bnc" id="L470" title="All 2 branches missed.">            is ContextGuard.Decision.Allow -&gt; Unit</span>
+        }
+
+<span class="nc bnc" id="L473" title="All 2 branches missed.">        val feedback = executeToolCall(toolCall) ?: &quot;Action completed.&quot;</span>
+        // Prefer live handler feedback (destinations, setpoints, artist names) over static
+        // registry success_message / DirectTool &quot;Done.&quot; placeholders.
+<span class="nc" id="L476">        val finalMsg = when {</span>
+<span class="nc bnc" id="L477" title="All 4 branches missed.">            feedback.isNotBlank() &amp;&amp;</span>
+<span class="nc bnc" id="L478" title="All 2 branches missed.">                !feedback.startsWith(&quot;System Error&quot;, ignoreCase = true) &amp;&amp;</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">                !feedback.equals(&quot;Action completed.&quot;, ignoreCase = true) -&gt; feedback</span>
+<span class="nc bnc" id="L480" title="All 6 branches missed.">            !preferredSpoken.isNullOrBlank() &amp;&amp;</span>
+<span class="nc bnc" id="L481" title="All 2 branches missed.">                !preferredSpoken.equals(&quot;Done.&quot;, ignoreCase = true) -&gt; preferredSpoken</span>
+<span class="nc bnc" id="L482" title="All 4 branches missed.">            feedback.isNotBlank() -&gt; feedback</span>
+<span class="nc bnc" id="L483" title="All 6 branches missed.">            !preferredSpoken.isNullOrBlank() -&gt; preferredSpoken</span>
+<span class="nc" id="L484">            else -&gt; &quot;Okay.&quot;</span>
+        }
+
+<span class="nc" id="L487">        MemoryManager.addTurn(&quot;Assistant&quot;, finalMsg)</span>
+<span class="nc" id="L488">        LLMManager.lastAiResponse = finalMsg</span>
+<span class="nc" id="L489">        _state.value = OrchestratorState.Speaking(finalMsg)</span>
+<span class="nc" id="L490">        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L491">        isQueryProcessed = true</span>
+
+<span class="nc" id="L493">        val elapsed = LatencyLogger.getTotalTime()</span>
+<span class="nc" id="L494">        val budget = AssistantConfig.Session.END_TO_END_BUDGET_MS</span>
+<span class="nc bnc" id="L495" title="All 4 branches missed.">        val met = elapsed in 0..budget</span>
+<span class="nc" id="L496">        LatencyLogger.log(</span>
+<span class="nc" id="L497">            pathLabel,</span>
+<span class="nc bnc" id="L498" title="All 2 branches missed.">            &quot;E2E ${elapsed}ms (budget ${budget}ms, ${if (met) &quot;MET&quot; else &quot;MISS&quot;}) tool=$toolCall&quot;,</span>
+        )
+
+<span class="nc bnc" id="L501" title="All 4 branches missed.">        if (finalMsg.isNotBlank()) {</span>
+<span class="nc" id="L502">            audioManager.speak(finalMsg, &quot;SENTENCE_0&quot;)</span>
+<span class="nc bnc" id="L503" title="All 2 branches missed.">            val isQuestion = finalMsg.trim().endsWith(&quot;?&quot;) ||</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">                finalMsg.contains(&quot;which one&quot;, ignoreCase = true)</span>
+<span class="nc bnc" id="L505" title="All 2 branches missed.">            val finalUtterance = if (isQuestion) &quot;QUESTION_FINAL&quot; else &quot;STATEMENT_FINAL_TOOL&quot;</span>
+<span class="nc" id="L506">            audioManager.playSilentUtterance(10, finalUtterance)</span>
+        }
+<span class="nc" id="L508">    }</span>
+
+    private suspend fun finishGuardedTurn(
+        message: String,
+        pathLabel: String,
+        toolCall: String,
+        policyId: String?,
+        asQuestion: Boolean,
+    ) {
+<span class="nc" id="L517">        MemoryManager.addTurn(&quot;Assistant&quot;, message)</span>
+<span class="nc" id="L518">        LLMManager.lastAiResponse = message</span>
+<span class="nc" id="L519">        _state.value = OrchestratorState.Speaking(message)</span>
+<span class="nc" id="L520">        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L521">        isQueryProcessed = true</span>
+<span class="nc" id="L522">        LatencyLogger.log(</span>
+<span class="nc" id="L523">            pathLabel,</span>
+<span class="nc" id="L524">            &quot;ContextGuard policy=$policyId tool=$toolCall msg=$message&quot;,</span>
+        )
+<span class="nc bnc" id="L526" title="All 4 branches missed.">        if (message.isNotBlank()) {</span>
+<span class="nc" id="L527">            audioManager.speak(message, &quot;SENTENCE_0&quot;)</span>
+<span class="nc" id="L528">            audioManager.playSilentUtterance(</span>
+<span class="nc" id="L529">                10,</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">                if (asQuestion) &quot;QUESTION_FINAL&quot; else &quot;STATEMENT_FINAL_TOOL&quot;,</span>
+            )
+        }
+<span class="nc" id="L533">    }</span>
+
+    private fun evaluateContextGuard(toolCall: String): ContextGuard.Decision {
+<span class="nc" id="L536">        return try {</span>
+<span class="nc" id="L537">            val snapshot = CabinSnapshotReader.capture(context.applicationContext)</span>
+<span class="nc" id="L538">            ContextGuard.evaluate(toolCall, snapshot)</span>
+<span class="nc" id="L539">        } catch (e: Exception) {</span>
+<span class="nc" id="L540">            android.util.Log.w(TAG, &quot;ContextGuard snapshot failed; allowing $toolCall&quot;, e)</span>
+<span class="nc" id="L541">            ContextGuard.Decision.Allow()</span>
+        }
+    }
+
+<span class="nc" id="L545">    private suspend fun processQuery(</span>
+        query: String,
+<span class="nc" id="L547">        retryCount: Int = 0,</span>
+<span class="nc" id="L548">        loopCount: Int = 0,</span>
+<span class="nc" id="L549">        isAgenticObservation: Boolean = false,</span>
+<span class="nc" id="L550">        previousExecutedTools: Set&lt;String&gt; = emptySet(),</span>
+        turnId: Long
+    ) {
+<span class="nc bnc" id="L553" title="All 2 branches missed.">        if (!isCurrentTurn(turnId)) return</span>
+        
+        // Wait for any background native inference to drain before touching the engine state.
+        // Preemptively closing the conversation while LiteRT is generating tokens corrupts the GPU context.
+<span class="nc bnc" id="L557" title="All 2 branches missed.">        while (com.tcs.vehicleassistant.LLMManager.hasActiveInference()) {</span>
+<span class="nc bnc" id="L558" title="All 2 branches missed.">            if (!isCurrentTurn(turnId)) return</span>
+<span class="nc" id="L559">            kotlinx.coroutines.delay(100)</span>
+        }
+
+<span class="nc bnc" id="L562" title="All 2 branches missed.">        timeoutJob?.cancel()</span>
+<span class="nc" id="L563">        timeoutJob = scope.launch {</span>
+<span class="nc bnc" id="L564" title="All 2 branches missed.">            val timeoutDuration = if (LLMManager.isFirstMessage) {</span>
+<span class="nc" id="L565">                AssistantConfig.Llm.FIRST_INFERENCE_TIMEOUT_MS</span>
+            } else {
+<span class="nc" id="L567">                AssistantConfig.Llm.INFERENCE_TIMEOUT_MS</span>
+            }
+<span class="nc" id="L569">            delay(timeoutDuration)</span>
+<span class="nc bnc" id="L570" title="All 4 branches missed.">            if (!isQueryProcessed &amp;&amp; isCurrentTurn(turnId)) {</span>
+<span class="nc" id="L571">                _state.value = OrchestratorState.Error(&quot;Timeout - Restarting Model...&quot;)</span>
+<span class="nc" id="L572">                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))</span>
+                // Drain the hung stream before tearing the engine down; force-close mid-generation
+                // corrupts the OpenCL/GPU context.
+<span class="nc bnc" id="L575" title="All 2 branches missed.">                if (!LLMManager.awaitInferenceDrain()) {</span>
+<span class="nc" id="L576">                    _state.value = OrchestratorState.Error(&quot;Model still busy after timeout.&quot;)</span>
+<span class="nc" id="L577">                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L578">                    isQueryProcessed = true</span>
+<span class="nc" id="L579">                    return@launch</span>
+                }
+<span class="nc" id="L581">                LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {</span>
+                    override fun onSuccess() {
+<span class="nc" id="L583">                        _state.value = OrchestratorState.Idle</span>
+<span class="nc" id="L584">                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L585">                        isQueryProcessed = true</span>
+<span class="nc" id="L586">                    }</span>
+                    override fun onError(e: Exception) {
+<span class="nc" id="L588">                        _state.value = OrchestratorState.Error(&quot;Error restarting.&quot;)</span>
+<span class="nc" id="L589">                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L590">                        isQueryProcessed = true</span>
+<span class="nc" id="L591">                    }</span>
+                })
+            }
+<span class="nc" id="L594">        }</span>
+
+<span class="nc" id="L596">        var interceptedQuery = query</span>
+
+<span class="nc bnc" id="L598" title="All 2 branches missed.">        if (pendingConfirmationTool != null) {</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">            if (MemoryManager.isDecline(query)) {</span>
+<span class="nc" id="L600">                pendingConfirmationTool = null</span>
+<span class="nc" id="L601">                interceptedQuery = &quot;System: Action aborted by user. User originally said: $query&quot;</span>
+<span class="nc bnc" id="L602" title="All 2 branches missed.">            } else if (MemoryManager.isAffirmative(query)) {</span>
+                // Already confirmed — execute without re-entering ContextGuard.
+<span class="nc" id="L604">                val toolToExecute = pendingConfirmationTool!!</span>
+<span class="nc" id="L605">                pendingConfirmationTool = null</span>
+<span class="nc" id="L606">                val feedback = executeToolCall(toolToExecute)</span>
+<span class="nc" id="L607">                interceptedQuery = &quot;System: Executed $toolToExecute. Result: $feedback. User originally said 'yes'.&quot;</span>
+            } else {
+<span class="nc" id="L609">                pendingConfirmationTool = null</span>
+<span class="nc" id="L610">                interceptedQuery = &quot;System: Action aborted by user. User originally said: $query&quot;</span>
+            }
+        }
+
+<span class="nc bnc" id="L614" title="All 2 branches missed.">        val finalPrompt: String = withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L615">            val toolManager = org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;()</span>
+<span class="nc" id="L616">            val maxHistoryChars = toolManager.slidingWindowMaxChars</span>
+<span class="nc" id="L617">            val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)</span>
+<span class="nc bnc" id="L618" title="All 4 branches missed.">            val historyCap = if (isFollowUp || interceptedQuery.length &lt; 30) maxHistoryChars else minOf(1000, maxHistoryChars)</span>
+<span class="nc" id="L619">            val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)</span>
+
+<span class="nc bnc" id="L621" title="All 2 branches missed.">            if (isAgenticObservation) {</span>
+<span class="nc" id="L622">                MemoryManager.addTurn(&quot;System&quot;, interceptedQuery)</span>
+            } else {
+<span class="nc" id="L624">                MemoryManager.captureLongTermFacts(context, interceptedQuery)</span>
+<span class="nc" id="L625">                MemoryManager.addTurn(&quot;User&quot;, interceptedQuery)</span>
+            }
+
+<span class="nc" id="L628">            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)</span>
+<span class="nc bnc" id="L629" title="All 6 branches missed.">            val needsTelemetry = !isAgenticObservation &amp;&amp; (interceptedQuery.length &gt;= 25 || isFollowUp)</span>
+<span class="nc bnc" id="L630" title="All 2 branches missed.">            val dynamicState = if (needsTelemetry) {</span>
+<span class="nc" id="L631">                SmartContextInjector.getInjectedContext(interceptedQuery, context)</span>
+            } else {
+<span class="nc" id="L633">                &quot;&quot;</span>
+            }
+<span class="nc bnc" id="L635" title="All 4 branches missed.">            val isHandoffModel = LLMManager.currentModelPath?.contains(&quot;handoff&quot;, ignoreCase = true) == true</span>
+<span class="nc bnc" id="L636" title="All 4 branches missed.">            val vehicleState = if (dynamicState.isNotEmpty()) {</span>
+<span class="nc" id="L637">                &quot;[Internal Vehicle Telemetry (Do NOT speak or repeat to user): $dynamicState]&quot;</span>
+<span class="nc" id="L638">            } else &quot;&quot;</span>
+
+<span class="nc bnc" id="L640" title="All 6 branches missed.">            val stateInject = if (vehicleState.isNotEmpty() &amp;&amp; vehicleState != LLMManager.lastVehicleState) {</span>
+<span class="nc" id="L641">                LLMManager.lastVehicleState = vehicleState</span>
+<span class="nc" id="L642">                &quot;$vehicleState\n&quot;</span>
+<span class="nc" id="L643">            } else &quot;&quot;</span>
+
+<span class="nc bnc" id="L645" title="All 12 branches missed.">            val isLlama = LLMManager.currentModelPath?.contains(&quot;llama&quot;, ignoreCase = true) == true &amp;&amp; LLMManager.currentModelPath?.contains(&quot;handoff&quot;, ignoreCase = true) == false</span>
+
+<span class="nc bnc" id="L647" title="All 4 branches missed.">            val historyBlock = if (priorHistory.isNotEmpty()) {</span>
+<span class="nc" id="L648">                &quot;\n[Recent Conversation]\n$priorHistory\n&quot;</span>
+            } else {
+<span class="nc" id="L650">                &quot;&quot;</span>
+            }
+
+<span class="nc bnc" id="L653" title="All 2 branches missed.">            if (isLlama) {</span>
+<span class="nc" id="L654">                val relevantToolsList = toolManager.getRelevantTools(interceptedQuery, LLMManager.lastAiResponse)</span>
+<span class="nc" id="L655">                val toolsJsonArr = relevantToolsList.map { &quot;\&quot;${it.handlerKey}\&quot;&quot; }.joinToString(&quot;,&quot;, &quot;[&quot;, &quot;]&quot;)</span>
+<span class="nc" id="L656">                &quot;&quot;&quot;{&quot;user_input&quot;:&quot;${interceptedQuery.replace(&quot;\&quot;&quot;, &quot;\\\&quot;&quot;)}&quot;,&quot;available_tools&quot;:$toolsJsonArr,&quot;vehicle_context&quot;:{},&quot;dialog_state&quot;:{}}&quot;&quot;&quot;</span>
+            } else {
+<span class="nc bnc" id="L658" title="All 6 branches missed.">                val formattedQuery = if (LLMManager.currentModelPath?.contains(&quot;handoff&quot;, ignoreCase = true) == true) {</span>
+<span class="nc" id="L659">                    &quot;User: $interceptedQuery&quot;</span>
+                } else {
+<span class="nc" id="L661">                    interceptedQuery</span>
+                }
+
+                // Tools and identity rules are query-dependent. On turn 1 they ride inside the full
+                // system prompt; on later turns LiteRT only sees the bare user text unless we
+                // re-inject them — which is when the model starts saying it is a text-only AI that
+                // cannot play music.
+<span class="nc" id="L668">                val toolsForTurn = toolManager.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)</span>
+<span class="nc bnc" id="L669" title="All 4 branches missed.">                val toolsBlock = if (toolsForTurn.isNotBlank()) {</span>
+<span class="nc" id="L670">                    &quot;=== AVAILABLE TOOLS ===\n$toolsForTurn\n&quot;</span>
+                } else {
+<span class="nc" id="L672">                    &quot;&quot;</span>
+                }
+
+<span class="nc bnc" id="L675" title="All 2 branches missed.">                if (LLMManager.isFirstMessage) {</span>
+<span class="nc" id="L676">                    LLMManager.isFirstMessage = false</span>
+<span class="nc" id="L677">                    buildString {</span>
+<span class="nc" id="L678">                        append(sysPrompt)</span>
+<span class="nc bnc" id="L679" title="All 4 branches missed.">                        if (historyBlock.isNotBlank()) append(historyBlock)</span>
+<span class="nc bnc" id="L680" title="All 4 branches missed.">                        if (stateInject.isNotBlank()) append('\n').append(stateInject)</span>
+<span class="nc" id="L681">                        append('\n').append(formattedQuery)</span>
+<span class="nc" id="L682">                    }.trim()</span>
+                } else {
+                    // Re-inject tools + a bounded history slice. LiteRT KV cache alone is not enough
+                    // after conversation resets or long multi-turn chats.
+<span class="nc" id="L686">                    buildString {</span>
+<span class="nc" id="L687">                        append(LLMManager.capabilityReminder())</span>
+<span class="nc" id="L688">                        append(toolsBlock)</span>
+<span class="nc bnc" id="L689" title="All 4 branches missed.">                        if (historyBlock.isNotBlank()) append(historyBlock)</span>
+<span class="nc bnc" id="L690" title="All 4 branches missed.">                        if (stateInject.isNotBlank()) append(stateInject)</span>
+<span class="nc" id="L691">                        append(formattedQuery)</span>
+<span class="nc" id="L692">                    }.trim()</span>
+                }
+<span class="nc" id="L694">            }</span>
+        }
+
+<span class="nc" id="L697">        val executedTools = mutableSetOf&lt;String&gt;()</span>
+<span class="nc" id="L698">        executedTools.addAll(previousExecutedTools)</span>
+<span class="nc" id="L699">        val toolFeedbacks = mutableListOf&lt;String&gt;()</span>
+<span class="nc" id="L700">        currentPendingTools.clear()</span>
+
+<span class="nc" id="L702">        val stream = StreamState(turnId)</span>
+<span class="nc" id="L703">        val startTime = System.currentTimeMillis()</span>
+<span class="nc" id="L704">        val firstTokenTime = java.util.concurrent.atomic.AtomicLong(-1L)</span>
+
+<span class="nc" id="L706">        val onToken: (String) -&gt; Unit = { chunkText -&gt;</span>
+            // Invoked on LiteRT's native streaming thread. Bail out for abandoned turns so a
+            // stale inference cannot overwrite the UI or queue TTS for a question already gone.
+<span class="nc bnc" id="L709" title="All 6 branches missed.">            if (!stream.isHallucinating &amp;&amp; isCurrentTurn(turnId) &amp;&amp; !isQueryProcessed) {</span>
+<span class="nc bnc" id="L710" title="All 2 branches missed.">                if (firstTokenTime.compareAndSet(-1L, System.currentTimeMillis())) {</span>
+<span class="nc" id="L711">                    LatencyLogger.log(&quot;Orchestrator&quot;, &quot;TTFT: ${firstTokenTime.get() - startTime}ms&quot;)</span>
+                }
+
+<span class="nc" id="L714">                var currentText = stream.append(chunkText)</span>
+
+<span class="nc" id="L716">                var stripped = true</span>
+<span class="nc bnc" id="L717" title="All 2 branches missed.">                while (stripped) {</span>
+<span class="nc" id="L718">                    stripped = false</span>
+<span class="nc bnc" id="L719" title="All 2 branches missed.">                    for (prefix in ROLE_PREFIXES) {</span>
+<span class="nc bnc" id="L720" title="All 2 branches missed.">                        if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {</span>
+<span class="nc" id="L721">                            currentText = currentText.trimStart().substring(prefix.length).trimStart()</span>
+<span class="nc" id="L722">                            stripped = true</span>
+                        }
+                    }
+                }
+
+                // Strip trailing, inline, or mangled chat-template tokens. Tool tags are preserved
+                // here because onDone still needs them to extract tool calls.
+<span class="nc" id="L729">                currentText = currentText</span>
+<span class="nc" id="L730">                    .replace(SPECIAL_TOKEN_REGEX, &quot;&quot;)</span>
+<span class="nc" id="L731">                    .replace(ROLE_TOKEN_REGEX, &quot;&quot;)</span>
+<span class="nc" id="L732">                stream.replace(currentText)</span>
+
+<span class="nc" id="L734">                val userIdx = currentText.indexOf(&quot;\nUser:&quot;)</span>
+<span class="nc bnc" id="L735" title="All 2 branches missed.">                if (userIdx != -1) {</span>
+<span class="nc" id="L736">                    stream.markHallucinating()</span>
+<span class="nc" id="L737">                    currentText = currentText.substring(0, userIdx)</span>
+<span class="nc" id="L738">                    stream.replace(currentText)</span>
+<span class="nc bnc" id="L739" title="All 2 branches missed.">                } else if (currentText.trim().endsWith(&quot;User:&quot;)) {</span>
+<span class="nc" id="L740">                    stream.markHallucinating()</span>
+<span class="nc" id="L741">                    currentText = currentText.substringBeforeLast(&quot;User:&quot;)</span>
+<span class="nc" id="L742">                    stream.replace(currentText)</span>
+                }
+
+<span class="nc bnc" id="L745" title="All 2 branches missed.">                if (currentText.length &gt; AssistantConfig.Streaming.REPETITION_SCAN_MIN_LENGTH) {</span>
+<span class="nc bnc" id="L746" title="All 2 branches missed.">                    if (isRunawayGeneration(currentText)) {</span>
+<span class="nc" id="L747">                        stream.markHallucinating()</span>
+                    }
+                }
+
+<span class="nc" id="L751">                val displayMsg = normalizeForDisplay(ToolCallParser.stripToolTags(currentText))</span>
+
+<span class="nc bnc" id="L753" title="All 4 branches missed.">                if (displayMsg.isNotEmpty()) {</span>
+<span class="nc" id="L754">                    _state.value = OrchestratorState.Streaming(displayMsg)</span>
+                }
+
+<span class="nc" id="L757">                var remainingText = displayMsg.substring(Math.min(stream.spokenLength, displayMsg.length))</span>
+<span class="nc" id="L758">                var match = SENTENCE_REGEX.find(remainingText)</span>
+<span class="nc bnc" id="L759" title="All 2 branches missed.">                while (match != null) {</span>
+<span class="nc" id="L760">                    val sentence = match.value</span>
+<span class="nc" id="L761">                    val sentenceStartOffset = stream.consumeSentence(sentence.length)</span>
+<span class="nc" id="L762">                    audioManager.speak(sentence, &quot;SENTENCE_$sentenceStartOffset&quot;)</span>
+
+<span class="nc" id="L764">                    val nextStart = Math.min(stream.spokenLength, displayMsg.length)</span>
+<span class="nc" id="L765">                    remainingText = displayMsg.substring(nextStart)</span>
+<span class="nc" id="L766">                    match = SENTENCE_REGEX.find(remainingText)</span>
+                }
+            }
+<span class="nc" id="L769">        }</span>
+
+<span class="nc" id="L771">        val onDone: (String) -&gt; Unit = {</span>
+<span class="nc bnc" id="L772" title="All 4 branches missed.">            if (!stream.isDoneCalled &amp;&amp; isCurrentTurn(turnId)) {</span>
+<span class="nc" id="L773">                stream.isDoneCalled = true</span>
+
+<span class="nc" id="L775">                val tempFinalMsg = stream.snapshot()</span>
+
+<span class="nc" id="L777">                scope.launch {</span>
+<span class="nc bnc" id="L778" title="All 2 branches missed.">                    timeoutJob?.cancel()</span>
+
+<span class="nc bnc" id="L780" title="All 2 branches missed.">                    if (FollowUpRouter.responseRequestsAlarm(tempFinalMsg)) {</span>
+<span class="nc" id="L781">                        EmergencyAlarmManager.start(context)</span>
+                    }
+
+<span class="nc" id="L784">                    MemoryManager.addTurn(&quot;Assistant&quot;, tempFinalMsg.trim())</span>
+
+<span class="nc" id="L786">                    var finalMsg = normalizeForDisplay(ToolCallParser.stripToolTags(tempFinalMsg))</span>
+
+<span class="nc bnc" id="L788" title="All 2 branches missed.">                    val isQuestion = finalMsg.trim().endsWith(&quot;?&quot;) ||</span>
+<span class="nc bnc" id="L789" title="All 2 branches missed.">                        finalMsg.contains(&quot;would you like&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L790" title="All 2 branches missed.">                        finalMsg.contains(&quot;if you'd like&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L791" title="All 2 branches missed.">                        finalMsg.contains(&quot;do you want&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L792" title="All 2 branches missed.">                        finalMsg.contains(&quot;shall i&quot;, ignoreCase = true)</span>
+
+<span class="nc" id="L794">                    LLMManager.lastAiResponse = finalMsg</span>
+                    
+                    // Don't emit empty finalMsg to avoid clearing the UI
+<span class="nc bnc" id="L797" title="All 2 branches missed.">                    val displayFinalMsg = if (finalMsg.isBlank()) TAKING_ACTION_PLACEHOLDER else finalMsg</span>
+<span class="nc" id="L798">                    _state.value = OrchestratorState.Speaking(displayFinalMsg)</span>
+
+                    // Keep input disabled until tools (and any agentic follow-up) finish. Marking the
+                    // turn complete here used to let a new query clear currentPendingTools mid-flight.
+
+                    // Flush any remaining text to TTS FIRST before extracting tools
+<span class="nc bnc" id="L804" title="All 4 branches missed.">                    if (finalMsg.isNotBlank()) {</span>
+<span class="nc" id="L805">                        val safeIndex = Math.min(stream.spokenLength, finalMsg.length)</span>
+<span class="nc" id="L806">                        val remainingSentence = finalMsg.substring(safeIndex).trim()</span>
+<span class="nc bnc" id="L807" title="All 4 branches missed.">                        if (remainingSentence.isNotEmpty()) {</span>
+<span class="nc" id="L808">                            val sentenceStartOffset = stream.consumeSentence(remainingSentence.length)</span>
+<span class="nc" id="L809">                            audioManager.speak(remainingSentence, &quot;SENTENCE_$sentenceStartOffset&quot;)</span>
+                        }
+                    }
+
+                    // Now parse tools — use a turn-local list so a newer turn cannot clear ours.
+<span class="nc" id="L814">                    val pendingTools = mutableListOf&lt;Deferred&lt;String?&gt;&gt;()</span>
+<span class="nc" id="L815">                    val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)</span>
+<span class="nc bnc" id="L816" title="All 2 branches missed.">                    for (parsed in parsedTools) {</span>
+<span class="nc" id="L817">                        val toolCall = &quot;${parsed.toolName}(${parsed.args})&quot;</span>
+<span class="nc bnc" id="L818" title="All 2 branches missed.">                        if (executedTools.add(toolCall)) {</span>
+<span class="nc" id="L819">                            val toolDef = org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().getToolDefinition(toolCall)</span>
+<span class="nc bnc" id="L820" title="All 6 branches missed.">                            if (toolDef?.requiresConfirmation == true) {</span>
+<span class="nc" id="L821">                                pendingConfirmationTool = toolCall</span>
+                            } else {
+<span class="nc" id="L823">                                val job = scope.async(Dispatchers.IO) {</span>
+<span class="nc" id="L824">                                    audioManager.waitUntilFinishedSpeaking()</span>
+<span class="nc bnc" id="L825" title="All 2 branches missed.">                                    withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {</span>
+<span class="nc" id="L826">                                        when (val decision = evaluateContextGuard(toolCall)) {</span>
+<span class="nc bnc" id="L827" title="All 2 branches missed.">                                            is ContextGuard.Decision.Confirm -&gt; {</span>
+<span class="nc" id="L828">                                                pendingConfirmationTool = decision.originalToolCall</span>
+<span class="nc" id="L829">                                                decision.message</span>
+                                            }
+<span class="nc bnc" id="L831" title="All 2 branches missed.">                                            is ContextGuard.Decision.Block -&gt; decision.message</span>
+<span class="nc bnc" id="L832" title="All 2 branches missed.">                                            is ContextGuard.Decision.Escalate -&gt; decision.message</span>
+<span class="nc" id="L833">                                            is ContextGuard.Decision.Allow -&gt; executeToolCall(toolCall)</span>
+<span class="nc" id="L834">                                        }</span>
+<span class="nc" id="L835">                                    } ?: &quot;System Error: Tool execution timed out.&quot;</span>
+                                }
+<span class="nc" id="L837">                                pendingTools.add(job)</span>
+<span class="nc" id="L838">                                currentPendingTools.add(job)</span>
+                            }
+                        }
+                    }
+
+<span class="nc bnc" id="L843" title="All 4 branches missed.">                    if (pendingTools.isNotEmpty()) {</span>
+                        // Do NOT emit Thinking here, as it clears the UI screen and causes flickering.
+<span class="nc" id="L845">                        val feedbacks = awaitAll(*pendingTools.toTypedArray()).filterNotNull()</span>
+<span class="nc" id="L846">                        toolFeedbacks.addAll(feedbacks)</span>
+                    }
+
+<span class="nc bnc" id="L849" title="All 2 branches missed.">                    if (executedTools.any { it.startsWith(&quot;handleDrowsyDriving&quot;, ignoreCase = true) }) {</span>
+<span class="nc" id="L850">                        EmergencyAlarmManager.start(context)</span>
+                    }
+
+<span class="nc bnc" id="L853" title="All 4 branches missed.">                    if (pendingTools.isNotEmpty()) {</span>
+<span class="nc" id="L854">                        val isAgenticLoopEnabled = context</span>
+<span class="nc" id="L855">                            .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L856">                            .getBoolean(AssistantConfig.Prefs.AGENTIC_LOOP, true)</span>
+
+<span class="nc" id="L858">                        val rawResponse = stream.snapshot()</span>
+<span class="nc" id="L859">                        val responseWithoutTags = ToolCallParser.stripToolTags(rawResponse)</span>
+<span class="nc bnc" id="L860" title="All 2 branches missed.">                        val hasConversationalText = responseWithoutTags.length &gt; 5</span>
+<span class="nc bnc" id="L861" title="All 6 branches missed.">                        val hasError = toolFeedbacks.any { it.contains(&quot;Error&quot;, true) || it.contains(&quot;Failed&quot;, true) || it.contains(&quot;couldn't&quot;, true) }</span>
+
+<span class="nc" id="L863">                        val isQueryTool = executedTools.any {</span>
+<span class="nc bnc" id="L864" title="All 4 branches missed.">                            it.contains(&quot;search&quot;, ignoreCase = true) || it.contains(&quot;check&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L865" title="All 4 branches missed.">                            it.contains(&quot;get&quot;, ignoreCase = true) || it.contains(&quot;diagnos&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L866" title="All 4 branches missed.">                            it.contains(&quot;read&quot;, ignoreCase = true) || it.contains(&quot;find&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L867" title="All 2 branches missed.">                            it.contains(&quot;recommend&quot;, ignoreCase = true)</span>
+                        }
+<span class="nc bnc" id="L869" title="All 6 branches missed.">                        val isTerminalTool = executedTools.isNotEmpty() &amp;&amp; !isQueryTool</span>
+<span class="nc bnc" id="L870" title="All 4 branches missed.">                        val requiresAgenticLoop = executedTools.any { org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().getToolDefinition(it)?.requiresAgenticLoop == true }</span>
+<span class="nc bnc" id="L871" title="All 2 branches missed.">                        val shouldRunAgenticLoop = isAgenticLoopEnabled &amp;&amp;</span>
+<span class="nc bnc" id="L872" title="All 2 branches missed.">                            loopCount &lt; AssistantConfig.Llm.MAX_AGENTIC_LOOPS &amp;&amp;</span>
+<span class="nc bnc" id="L873" title="All 10 branches missed.">                            (hasError || isQueryTool || requiresAgenticLoop || (!hasConversationalText &amp;&amp; !isTerminalTool))</span>
+
+<span class="nc bnc" id="L875" title="All 2 branches missed.">                        if (shouldRunAgenticLoop) {</span>
+<span class="nc" id="L876">                            val feedbackString = toolFeedbacks.joinToString(&quot;\n&quot;)</span>
+<span class="nc" id="L877">                            val observation = &quot;System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another &lt;TOOL&gt; call.&quot;</span>
+
+<span class="nc" id="L879">                            currentPendingTools.removeAll(pendingTools.toSet())</span>
+<span class="nc" id="L880">                            stream.clear()</span>
+<span class="nc" id="L881">                            processQuery(</span>
+<span class="nc" id="L882">                                observation,</span>
+<span class="nc" id="L883">                                retryCount,</span>
+<span class="nc" id="L884">                                loopCount + 1,</span>
+<span class="nc" id="L885">                                isAgenticObservation = true,</span>
+<span class="nc" id="L886">                                previousExecutedTools = executedTools,</span>
+<span class="nc" id="L887">                                turnId = turnId</span>
+                            )
+<span class="nc" id="L889">                            return@launch</span>
+                        }
+                    }
+
+                    // Append error feedback if needed, but DO NOT speak it automatically if we already spoke the main text.
+<span class="nc" id="L894">                    var finalDisplayMsg = finalMsg</span>
+<span class="nc bnc" id="L895" title="All 6 branches missed.">                    if (finalMsg.isEmpty() || finalMsg == TAKING_ACTION_PLACEHOLDER) {</span>
+<span class="nc bnc" id="L896" title="All 4 branches missed.">                        finalDisplayMsg = if (toolFeedbacks.isNotEmpty()) {</span>
+<span class="nc" id="L897">                            toolFeedbacks.distinct().joinToString(&quot; &quot;)</span>
+                        } else {
+<span class="nc" id="L899">                            GENERIC_ACTION_ACK</span>
+                        }
+                        // Speak it since it wasn't spoken earlier
+<span class="nc" id="L902">                        audioManager.speak(finalDisplayMsg, &quot;SENTENCE_FINAL_FB&quot;)</span>
+<span class="nc bnc" id="L903" title="All 4 branches missed.">                    } else if (toolFeedbacks.isNotEmpty()) {</span>
+<span class="nc" id="L904">                        val hasError = toolFeedbacks.any {</span>
+<span class="nc bnc" id="L905" title="All 4 branches missed.">                            it.contains(&quot;Error&quot;, true) || it.contains(&quot;Failed&quot;, true) ||</span>
+<span class="nc bnc" id="L906" title="All 4 branches missed.">                            it.contains(&quot;couldn't&quot;, true) || it.contains(&quot;didn't confirm&quot;, true)</span>
+                        }
+<span class="nc bnc" id="L908" title="All 2 branches missed.">                        if (hasError) {</span>
+<span class="nc" id="L909">                            val errorMsg = toolFeedbacks.joinToString(&quot; &quot;)</span>
+<span class="nc" id="L910">                            finalDisplayMsg += &quot; &quot; + errorMsg</span>
+<span class="nc" id="L911">                            audioManager.speak(errorMsg, &quot;SENTENCE_FINAL_ERR&quot;)</span>
+                        }
+                    }
+
+                    // Update UI with the final resulting message
+<span class="nc" id="L916">                    _state.value = OrchestratorState.Speaking(finalDisplayMsg)</span>
+
+<span class="nc bnc" id="L918" title="All 2 branches missed.">                    val finalUtterance = if (isQuestion) &quot;QUESTION_FINAL&quot;</span>
+<span class="nc bnc" id="L919" title="All 8 branches missed.">                        else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) &quot;STATEMENT_FINAL_TOOL&quot;</span>
+<span class="nc" id="L920">                        else &quot;STATEMENT_FINAL&quot;</span>
+<span class="nc" id="L921">                    audioManager.playSilentUtterance(10, finalUtterance)</span>
+
+                    // Only now is the turn finished — re-enable input for the next utterance.
+<span class="nc bnc" id="L924" title="All 4 branches missed.">                    if (finalMsg.isBlank() &amp;&amp; isQuestion) {</span>
+<span class="nc" id="L925">                        _events.tryEmit(OrchestratorEvent.StartListening)</span>
+                    }
+<span class="nc" id="L927">                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L928">                    isQueryProcessed = true</span>
+<span class="nc" id="L929">                    currentPendingTools.removeAll(pendingTools.toSet())</span>
+<span class="nc" id="L930">                }</span>
+            }
+<span class="nc" id="L932">        }</span>
+
+<span class="nc bnc" id="L934" title="All 2 branches missed.">        val onError: (Exception) -&gt; Unit = { throwable -&gt;</span>
+<span class="nc bnc" id="L935" title="All 4 branches missed.">            if (!stream.isDoneCalled &amp;&amp; isCurrentTurn(turnId)) {</span>
+<span class="nc" id="L936">                stream.isDoneCalled = true</span>
+<span class="nc" id="L937">                scope.launch {</span>
+<span class="nc bnc" id="L938" title="All 2 branches missed.">                    timeoutJob?.cancel()</span>
+<span class="nc bnc" id="L939" title="All 2 branches missed.">                    if (retryCount &lt; 1) {</span>
+<span class="nc" id="L940">                        _state.value = OrchestratorState.Error(&quot;Initializing model...&quot;)</span>
+<span class="nc" id="L941">                        try {</span>
+<span class="nc bnc" id="L942" title="All 2 branches missed.">                            if (!LLMManager.awaitInferenceDrain()) {</span>
+<span class="nc" id="L943">                                _state.value = OrchestratorState.Error(&quot;Model still busy — try again.&quot;)</span>
+<span class="nc" id="L944">                                _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L945">                                isQueryProcessed = true</span>
+<span class="nc" id="L946">                                return@launch</span>
+                            }
+<span class="nc bnc" id="L948" title="All 2 branches missed.">                            if (LocalLLMActivity.isCloudModelActive) {</span>
+<span class="nc" id="L949">                                val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named(&quot;cloud&quot;))</span>
+<span class="nc" id="L950">                                cloudProvider.initialize(context, force = true)</span>
+                            } else {
+<span class="nc" id="L952">                                val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named(&quot;edge&quot;))</span>
+<span class="nc" id="L953">                                edgeProvider.initialize(context, force = true)</span>
+                            }
+<span class="nc" id="L955">                            _state.value = OrchestratorState.Thinking()</span>
+<span class="nc" id="L956">                            processQuery(</span>
+<span class="nc" id="L957">                                query,</span>
+<span class="nc" id="L958">                                retryCount + 1,</span>
+<span class="nc" id="L959">                                loopCount,</span>
+<span class="nc" id="L960">                                isAgenticObservation,</span>
+<span class="nc" id="L961">                                previousExecutedTools,</span>
+<span class="nc" id="L962">                                turnId = turnId</span>
+                            )
+<span class="nc" id="L964">                        } catch (e: Exception) {</span>
+<span class="nc" id="L965">                            android.util.Log.e(TAG, &quot;Recovery re-initialization failed&quot;, e)</span>
+<span class="nc" id="L966">                            _state.value = OrchestratorState.Error(&quot;Hardware Recovery Failed.&quot;)</span>
+<span class="nc" id="L967">                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L968">                            isQueryProcessed = true</span>
+                        }
+                    } else {
+<span class="nc bnc" id="L971" title="All 6 branches missed.">                        if (throwable.message?.contains(&quot;Cancellation&quot;) != true) {</span>
+<span class="nc" id="L972">                            android.util.Log.e(TAG, &quot;Inference failed after retry&quot;, throwable)</span>
+<span class="nc" id="L973">                            _state.value = OrchestratorState.Error(&quot;Model Inference Failed: ${throwable.message}&quot;)</span>
+<span class="nc" id="L974">                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))</span>
+<span class="nc" id="L975">                            isQueryProcessed = true</span>
+                        }
+                    }
+<span class="nc" id="L978">                }</span>
+            }
+<span class="nc" id="L980">        }</span>
+
+<span class="nc" id="L982">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L983">            try {</span>
+<span class="nc bnc" id="L984" title="All 2 branches missed.">                if (LocalLLMActivity.isCloudModelActive) {</span>
+<span class="nc" id="L985">                    val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named(&quot;cloud&quot;))</span>
+<span class="nc" id="L986">                    cloudProvider.initialize(context, force = false)</span>
+<span class="nc" id="L987">                    cloudProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)</span>
+                } else {
+<span class="nc" id="L989">                    val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named(&quot;edge&quot;))</span>
+<span class="nc" id="L990">                    edgeProvider.initialize(context, force = false)</span>
+                    
+<span class="nc bnc" id="L992" title="All 2 branches missed.">                    if ((LLMManager.currentModelPath.contains(&quot;gemma&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L993" title="All 2 branches missed.">                            LLMManager.currentModelPath.contains(&quot;handoff&quot;, ignoreCase = true)) &amp;&amp;</span>
+<span class="nc bnc" id="L994" title="All 2 branches missed.">                        MemoryManager.turnCount() &gt; AssistantConfig.Llm.CONVERSATION_RESET_TURNS</span>
+                    ) {
+<span class="nc bnc" id="L996" title="All 4 branches missed.">                        if (LLMManager.awaitInferenceDrain() &amp;&amp; LLMManager.resetConversation(context)) {</span>
+<span class="nc" id="L997">                            MemoryManager.clearMemory()</span>
+                        } else {
+<span class="nc" id="L999">                            android.util.Log.w(TAG, &quot;Deferred conversation reset; inference still active&quot;)</span>
+                        }
+                    }
+
+<span class="nc" id="L1003">                    edgeProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)</span>
+                }
+<span class="nc" id="L1005">            } catch (e: Exception) {</span>
+<span class="nc bnc" id="L1006" title="All 2 branches missed.">                if (!e.message.toString().contains(&quot;Cancellation&quot;)) {</span>
+<span class="nc" id="L1007">                    onError(e)</span>
+                }
+            }
+<span class="nc" id="L1010">        }</span>
+<span class="nc" id="L1011">    }</span>
+
+    private suspend fun executeToolCall(toolCall: String): String? {
+<span class="nc" id="L1014">        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;()</span>
+<span class="nc" id="L1015">        return toolManager.executeToolCall(context.applicationContext, toolCall) { intent -&gt;</span>
+<span class="nc" id="L1016">            pendingIntentsToLaunch.add(intent)</span>
+<span class="nc" id="L1017">        }</span>
+    }
+
+    companion object {
+        private const val TAG = &quot;AgentOrchestrator&quot;
+
+        private const val TAKING_ACTION_PLACEHOLDER = &quot;Taking action...&quot;
+        private const val GENERIC_ACTION_ACK = &quot;Done — that's taken care of.&quot;
+
+        /**
+         * Chat-template role markers the model sometimes echoes back. Stripping them keeps the
+         * spoken response free of transcript scaffolding.
+         */
+<span class="fc" id="L1030">        private val ROLE_PREFIXES = listOf(</span>
+<span class="fc" id="L1031">            &quot;Assistant:&quot;, &quot;Response:&quot;, &quot;User:&quot;, &quot;Assistant :&quot;, &quot;Response :&quot;, &quot;User :&quot;,</span>
+<span class="fc" id="L1032">            &quot;System:&quot;, &quot;System :&quot;, &quot;&lt;start_of_turn&gt;&quot;, &quot;&lt;end_of_turn&gt;&quot;, &quot;model\n&quot;, &quot;user\n&quot;,</span>
+<span class="fc" id="L1033">            &quot;model&quot;, &quot;user&quot;</span>
+        )
+
+        private val SPECIAL_TOKEN_REGEX =
+<span class="fc" id="L1037">            Regex(&quot;(?i)&lt;start_of_turn&gt;|&lt;end_of_turn&gt;|start_of_turn|end_of_turn|start of turn|end of turn&quot;)</span>
+<span class="fc" id="L1038">        private val ROLE_TOKEN_REGEX = Regex(&quot;(?i)\\bmodel\\b\\n?|\\buser\\b\\n?&quot;)</span>
+
+        /** Splits streamed text into speakable sentences at terminal punctuation or newlines. */
+        private val SENTENCE_REGEX =
+<span class="fc" id="L1042">            &quot;^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?&lt;=[a-zA-Z\\)\\]\\\&quot;])[.,!?](?:\\s+|$))&quot;.toRegex()</span>
+
+<span class="fc" id="L1044">        private val LEADING_I_REGEX = Regex(&quot;^i\\s+&quot;)</span>
+<span class="fc" id="L1045">        private val BARE_I_REGEX = Regex(&quot;^i\\b&quot;)</span>
+<span class="fc" id="L1046">        private val DOUBLED_I_REGEX = Regex(&quot;\\biI\\b&quot;)</span>
+<span class="fc" id="L1047">        private val I_CAN_I_REGEX = Regex(&quot;\\bi can I\\b&quot;, RegexOption.IGNORE_CASE)</span>
+
+        /**
+         * Repairs the lowercase-`i` and doubled-pronoun artifacts this model emits mid-stream, so
+         * both the on-screen text and the TTS input read as natural English.
+         */
+<span class="fc" id="L1053">        internal fun normalizeForDisplay(text: String): String = text</span>
+<span class="fc" id="L1054">            .replace(DOUBLED_I_REGEX, &quot;I&quot;)</span>
+<span class="fc" id="L1055">            .replace(I_CAN_I_REGEX, &quot;I can&quot;)</span>
+<span class="fc" id="L1056">            .replace(LEADING_I_REGEX, &quot;&quot;)</span>
+<span class="fc" id="L1057">            .replace(BARE_I_REGEX, &quot;I&quot;)</span>
+<span class="fc" id="L1058">            .trim()</span>
+
+        /**
+         * True when generation has degenerated into a repetition loop or blown past the length
+         * ceiling, both of which mean the stream should be cut off rather than spoken.
+         */
+        internal fun isRunawayGeneration(text: String): Boolean {
+<span class="fc bfc" id="L1065" title="All 2 branches covered.">            if (text.length &gt; AssistantConfig.Streaming.RUNAWAY_LENGTH) return true</span>
+<span class="fc bfc" id="L1066" title="All 2 branches covered.">            if (text.length &lt;= AssistantConfig.Streaming.REPETITION_SCAN_MIN_LENGTH) return false</span>
+<span class="fc" id="L1067">            val window = AssistantConfig.Streaming.REPETITION_WINDOW</span>
+<span class="fc" id="L1068">            val lastWords = text.trim().split(Regex(&quot;\\s+&quot;)).takeLast(window)</span>
+<span class="fc bfc" id="L1069" title="All 4 branches covered.">            return lastWords.size == window &amp;&amp; lastWords.distinct().size == 1</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EdgeLLMProvider.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.llm</a> &gt; <span class="el_source">EdgeLLMProvider.kt</span></div><h1>EdgeLLMProvider.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.llm
+
+import android.content.Context
+import android.util.Log
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
+import com.tcs.vehicleassistant.LLMManager
+import com.tcs.vehicleassistant.LatencyLogger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * Thin facade over [LLMManager] — ensures a single on-device engine instance
+ * is shared across the voice overlay, config UI, and wake-word prewarm path.
+ */
+<span class="nc" id="L17">class EdgeLLMProvider : ILLMProvider {</span>
+
+    override suspend fun initialize(context: Context, force: Boolean) {
+<span class="nc bnc" id="L20" title="All 4 branches missed.">        if (!force &amp;&amp; LLMManager.isReady()) return</span>
+
+<span class="nc" id="L22">        var initError: Exception? = null</span>
+<span class="nc bnc" id="L23" title="All 2 branches missed.">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L24">            LLMManager.autoInitialize(</span>
+<span class="nc" id="L25">                context,</span>
+<span class="nc" id="L26">                force = force,</span>
+<span class="nc" id="L27">                callback = object : LLMManager.InitCallback {</span>
+<span class="nc" id="L28">                    override fun onSuccess() {}</span>
+                    override fun onError(e: Exception) {
+<span class="nc" id="L30">                        initError = e</span>
+<span class="nc" id="L31">                    }</span>
+                }
+            )
+<span class="nc" id="L34">        }</span>
+<span class="nc bnc" id="L35" title="All 2 branches missed.">        initError?.let { throw it }</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (!LLMManager.isReady()) {</span>
+<span class="nc" id="L37">            throw Exception(&quot;Edge LLM failed to initialize — no model found on device.&quot;)</span>
+        }
+<span class="nc" id="L39">    }</span>
+
+    override suspend fun generateStream(
+        context: Context,
+        prompt: String,
+        userQuery: String,
+        onToken: (String) -&gt; Unit,
+        onDone: (String) -&gt; Unit,
+        onError: (Exception) -&gt; Unit
+    ) {
+<span class="nc bnc" id="L49" title="All 2 branches missed.">        if (!LLMManager.isReady()) {</span>
+<span class="nc" id="L50">            onError(Exception(&quot;Edge LLM not initialized&quot;))</span>
+<span class="nc" id="L51">            return</span>
+        }
+
+        // The system prompt and model-specific wrappers (&lt;start_of_turn&gt;) are already injected 
+        // by AgentOrchestrator for Gemma. But for Llama, it only outputs JSON, so we must wrap it here.
+<span class="nc bnc" id="L56" title="All 12 branches missed.">        val isLlama = LLMManager.currentModelPath?.contains(&quot;llama&quot;, ignoreCase = true) == true || LLMManager.currentModelPath?.contains(&quot;handoff&quot;, ignoreCase = true) == true</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">        val promptToUse = if (isLlama) {</span>
+<span class="nc" id="L58">            &quot;&lt;|start_header_id|&gt;user&lt;|end_header_id|&gt;\n\n$prompt&lt;|eot_id|&gt;&lt;|start_header_id|&gt;assistant&lt;|end_header_id|&gt;\n\n&quot;</span>
+        } else {
+<span class="nc" id="L60">            prompt</span>
+        }
+
+        // Claim the engine for the duration of this inference so a concurrent unload() or
+        // re-initialization cannot close the native conversation under the streaming callbacks.
+<span class="nc" id="L65">        val activeConversation = LLMManager.beginInference()</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">        if (activeConversation == null) {</span>
+<span class="nc" id="L67">            onError(Exception(&quot;Edge LLM engine was released before inference could start&quot;))</span>
+<span class="nc" id="L68">            return</span>
+        }
+
+<span class="nc" id="L71">        val responseBuilder = StringBuilder()</span>
+<span class="nc" id="L72">        val streamStart = System.currentTimeMillis()</span>
+<span class="nc" id="L73">        var firstTokenAt = -1L</span>
+<span class="nc" id="L74">        var tokenChunks = 0</span>
+
+        // LiteRT's sendMessageAsync returns immediately and streams on its own thread. Awaiting
+        // completion here keeps the inference inside the caller's coroutine, so cancellation and
+        // the engine claim above both have a well-defined scope.
+<span class="nc" id="L79">        val completion = CompletableDeferred&lt;Unit&gt;()</span>
+
+<span class="nc" id="L81">        try {</span>
+<span class="nc" id="L82">            activeConversation.sendMessageAsync(</span>
+<span class="nc" id="L83">                Contents.of(Content.Text(promptToUse)),</span>
+<span class="nc" id="L84">                object : com.google.ai.edge.litertlm.MessageCallback {</span>
+                    override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
+<span class="nc bnc" id="L86" title="All 6 branches missed.">                        val textContent = message.contents?.contents?.firstOrNull() as? Content.Text</span>
+<span class="nc bnc" id="L87" title="All 4 branches missed.">                        val text = textContent?.text ?: &quot;&quot;</span>
+<span class="nc bnc" id="L88" title="All 4 branches missed.">                        if (text.isEmpty()) return</span>
+
+<span class="nc" id="L90">                        tokenChunks++</span>
+<span class="nc bnc" id="L91" title="All 2 branches missed.">                        if (firstTokenAt &lt; 0) {</span>
+<span class="nc" id="L92">                            firstTokenAt = System.currentTimeMillis()</span>
+<span class="nc" id="L93">                            LatencyLogger.log(&quot;EdgeLLM&quot;, &quot;TTFT: ${firstTokenAt - streamStart}ms&quot;)</span>
+                        }
+
+<span class="nc" id="L96">                        responseBuilder.append(text)</span>
+<span class="nc" id="L97">                        try {</span>
+<span class="nc" id="L98">                            onToken(text)</span>
+<span class="nc" id="L99">                        } catch (e: Exception) {</span>
+<span class="nc" id="L100">                            Log.e(&quot;EdgeLLMProvider&quot;, &quot;onToken consumer threw; continuing stream&quot;, e)</span>
+                        }
+<span class="nc" id="L102">                    }</span>
+
+                    override fun onDone() {
+<span class="nc" id="L105">                        val elapsed = System.currentTimeMillis() - streamStart</span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">                        if (tokenChunks &gt; 0 &amp;&amp; elapsed &gt; 0) {</span>
+<span class="nc" id="L107">                            val tps = tokenChunks * 1000.0 / elapsed</span>
+<span class="nc" id="L108">                            LatencyLogger.log(&quot;EdgeLLM&quot;, &quot;Chunks: $tokenChunks, throughput: ${&quot;%.1f&quot;.format(tps)}/s&quot;)</span>
+                        }
+<span class="nc" id="L110">                        try {</span>
+<span class="nc" id="L111">                            onDone(responseBuilder.toString())</span>
+                        } finally {
+<span class="nc" id="L113">                            completion.complete(Unit)</span>
+                        }
+<span class="nc" id="L115">                    }</span>
+
+                    override fun onError(throwable: Throwable) {
+<span class="nc" id="L118">                        try {</span>
+<span class="nc" id="L119">                            onError(Exception(throwable))</span>
+                        } finally {
+<span class="nc" id="L121">                            completion.complete(Unit)</span>
+                        }
+<span class="nc" id="L123">                    }</span>
+                },
+<span class="nc" id="L125">                emptyMap()</span>
+            )
+<span class="nc" id="L127">            completion.await()</span>
+<span class="nc" id="L128">        } catch (e: Exception) {</span>
+<span class="nc" id="L129">            onError(e)</span>
+        } finally {
+<span class="nc" id="L131">            LLMManager.endInference()</span>
+        }
+<span class="nc" id="L133">    }</span>
+
+    override fun unload() {
+<span class="nc" id="L136">        LLMManager.unload()</span>
+<span class="nc" id="L137">        Log.i(&quot;EdgeLLMProvider&quot;, &quot;Delegated unload to LLMManager&quot;)</span>
+<span class="nc" id="L138">    }</span>
+
+    override fun resetConversation() {
+<span class="nc" id="L141">        LLMManager.resetConversation()</span>
+<span class="nc" id="L142">    }</span>
+
+<span class="nc" id="L144">    override fun isReady(): Boolean = LLMManager.isReady()</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

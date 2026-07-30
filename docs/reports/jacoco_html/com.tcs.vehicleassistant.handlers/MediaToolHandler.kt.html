@@ -1,0 +1,269 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MediaToolHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">MediaToolHandler.kt</span></div><h1>MediaToolHandler.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import android.content.Context
+import android.content.Intent
+import android.media.session.MediaSessionManager
+import android.provider.MediaStore
+import android.util.Log
+import android.net.Uri
+
+<span class="nc" id="L10">class MediaToolHandler(override val handlerKey: String) : ToolHandler {</span>
+<span class="nc" id="L11">    private val TAG = &quot;MediaToolHandler&quot;</span>
+
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -&gt; Unit)?): ToolExecutionResult {
+<span class="nc" id="L14">        val mediaSessionManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager</span>
+        
+<span class="nc bnc" id="L16" title="All 7 branches missed.">        return when (handlerKey) {</span>
+            &quot;playMusic&quot; -&gt; {
+<span class="nc" id="L18">                val rawArg = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).replace(&quot;\&quot;&quot;, &quot;&quot;).trim()</span>
+<span class="nc bnc" id="L19" title="All 6 branches missed.">                val query = if (rawArg.isBlank() || rawArg.equals(&quot;SONG&quot;, ignoreCase = true) || rawArg.equals(&quot;music&quot;, ignoreCase = true)) {</span>
+<span class="nc" id="L20">                    &quot;popular music&quot;</span>
+                } else {
+<span class="nc" id="L22">                    rawArg</span>
+                }
+
+                // Artist focus only for person-like queries; genres/moods stay generic search.
+<span class="nc" id="L26">                val genreOrMood = listOf(</span>
+<span class="nc" id="L27">                    &quot;rock&quot;, &quot;jazz&quot;, &quot;pop&quot;, &quot;classical&quot;, &quot;classic&quot;, &quot;hip hop&quot;, &quot;hip-hop&quot;, &quot;rap&quot;,</span>
+<span class="nc" id="L28">                    &quot;blues&quot;, &quot;country&quot;, &quot;metal&quot;, &quot;edm&quot;, &quot;dance&quot;, &quot;lofi&quot;, &quot;lo-fi&quot;, &quot;ambient&quot;,</span>
+<span class="nc" id="L29">                    &quot;bollywood&quot;, &quot;soundtrack&quot;, &quot;instrumental&quot;, &quot;podcast&quot;,</span>
+                )
+<span class="nc" id="L31">                val looksLikeGenre = genreOrMood.any { token -&gt;</span>
+<span class="nc bnc" id="L32" title="All 2 branches missed.">                    query.equals(token, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L33" title="All 2 branches missed.">                        query.contains(token, ignoreCase = true)</span>
+                }
+<span class="nc bnc" id="L35" title="All 2 branches missed.">                val looksLikeArtist = !looksLikeGenre &amp;&amp;</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">                    !query.contains(&quot; - &quot;) &amp;&amp;</span>
+<span class="nc bnc" id="L37" title="All 6 branches missed.">                    query.split(' ').size in 1..4 &amp;&amp;</span>
+<span class="nc bnc" id="L38" title="All 2 branches missed.">                    !query.equals(&quot;popular music&quot;, ignoreCase = true) &amp;&amp;</span>
+<span class="nc bnc" id="L39" title="All 2 branches missed.">                    !query.endsWith(&quot; music&quot;, ignoreCase = true) &amp;&amp;</span>
+<span class="nc bnc" id="L40" title="All 2 branches missed.">                    !query.endsWith(&quot; songs&quot;, ignoreCase = true)</span>
+
+<span class="nc" id="L42">                val searchExtras = android.os.Bundle().apply {</span>
+<span class="nc bnc" id="L43" title="All 2 branches missed.">                    if (looksLikeArtist) {</span>
+<span class="nc" id="L44">                        putString(MediaStore.EXTRA_MEDIA_FOCUS, MediaStore.Audio.Artists.ENTRY_CONTENT_TYPE)</span>
+<span class="nc" id="L45">                        putString(MediaStore.EXTRA_MEDIA_ARTIST, query)</span>
+                    } else {
+<span class="nc" id="L47">                        putString(MediaStore.EXTRA_MEDIA_FOCUS, MediaStore.Audio.Media.ENTRY_CONTENT_TYPE)</span>
+<span class="nc" id="L48">                        putString(MediaStore.EXTRA_MEDIA_TITLE, query)</span>
+                    }
+<span class="nc" id="L50">                    putString(android.app.SearchManager.QUERY, query)</span>
+<span class="nc" id="L51">                }</span>
+                
+<span class="nc" id="L53">                var success = false</span>
+<span class="nc" id="L54">                try {</span>
+<span class="nc" id="L55">                    val controllers = mediaSessionManager.getActiveSessions(null)</span>
+<span class="nc bnc" id="L56" title="All 4 branches missed.">                    var spotifyController = controllers.find { it.packageName.contains(&quot;spotify&quot;, ignoreCase = true) }</span>
+                    
+<span class="nc bnc" id="L58" title="All 2 branches missed.">                    if (spotifyController != null) {</span>
+<span class="nc" id="L59">                        Log.i(TAG, &quot;playFromSearch via Spotify query='$query' artistFocus=$looksLikeArtist&quot;)</span>
+<span class="nc" id="L60">                        spotifyController.transportControls.playFromSearch(query, searchExtras)</span>
+<span class="nc" id="L61">                        success = true</span>
+<span class="nc bnc" id="L62" title="All 4 branches missed.">                    } else if (controllers.isNotEmpty()) {</span>
+<span class="nc" id="L63">                        Log.i(TAG, &quot;playFromSearch via ${controllers[0].packageName} query='$query'&quot;)</span>
+<span class="nc" id="L64">                        controllers[0].transportControls.playFromSearch(query, searchExtras)</span>
+<span class="nc" id="L65">                        success = true</span>
+                    } else {
+                        // Fallback: Launch intent silently if possible, or normally if no active sessions exist
+<span class="nc" id="L68">                        val searchIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)</span>
+<span class="nc" id="L69">                        searchIntent.putExtras(searchExtras)</span>
+<span class="nc" id="L70">                        searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+                        
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                        if (searchIntent.resolveActivity(context.packageManager) != null) {</span>
+<span class="nc bnc" id="L73" title="All 2 branches missed.">                            if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)</span>
+<span class="nc" id="L74">                            success = true</span>
+                        } else {
+<span class="nc bnc" id="L76" title="All 2 branches missed.">                            val musicAppIntent = context.packageManager.getLaunchIntentForPackage(&quot;com.android.music&quot;) ?: </span>
+<span class="nc" id="L77">                                                 context.packageManager.getLaunchIntentForPackage(&quot;com.android.car.media&quot;)</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">                            if (musicAppIntent != null) {</span>
+<span class="nc" id="L79">                                musicAppIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                                if (intentHandler != null) intentHandler(musicAppIntent) else context.startActivity(musicAppIntent)</span>
+<span class="nc" id="L81">                                success = true</span>
+                            } else {
+<span class="nc" id="L83">                                Log.e(TAG, &quot;No app found to handle MEDIA_PLAY_FROM_SEARCH or default music app.&quot;)</span>
+<span class="nc" id="L84">                                success = false</span>
+                            }
+                        }
+                    }
+<span class="nc" id="L88">                } catch (e: Exception) {</span>
+<span class="nc" id="L89">                    Log.e(TAG, &quot;MediaSession search failed, using fallback intent&quot;, e)</span>
+<span class="nc" id="L90">                    try {</span>
+<span class="nc" id="L91">                        val searchIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)</span>
+<span class="nc" id="L92">                        searchIntent.putExtras(searchExtras)</span>
+<span class="nc" id="L93">                        searchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+                        
+<span class="nc bnc" id="L95" title="All 2 branches missed.">                        if (searchIntent.resolveActivity(context.packageManager) != null) {</span>
+<span class="nc bnc" id="L96" title="All 2 branches missed.">                            if (intentHandler != null) intentHandler(searchIntent) else context.startActivity(searchIntent)</span>
+<span class="nc" id="L97">                            success = true</span>
+                        } else {
+<span class="nc" id="L99">                            val musicAppIntent = Intent(Intent.ACTION_MAIN)</span>
+<span class="nc" id="L100">                            musicAppIntent.addCategory(Intent.CATEGORY_APP_MUSIC)</span>
+<span class="nc" id="L101">                            musicAppIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+<span class="nc bnc" id="L102" title="All 2 branches missed.">                            if (intentHandler != null) intentHandler(musicAppIntent) else context.startActivity(musicAppIntent)</span>
+<span class="nc" id="L103">                            success = true</span>
+                        }
+<span class="nc" id="L105">                    } catch (e2: Exception) {</span>
+<span class="nc" id="L106">                        Log.e(TAG, &quot;Fallback intent failed&quot;, e2)</span>
+<span class="nc" id="L107">                        success = false</span>
+                    }
+                }
+<span class="nc bnc" id="L110" title="All 2 branches missed.">                if (success) {</span>
+<span class="nc bnc" id="L111" title="All 2 branches missed.">                    val msg = if (query.equals(&quot;popular music&quot;, ignoreCase = true)) {</span>
+<span class="nc" id="L112">                        &quot;Great choice — putting some music on for you!&quot;</span>
+                    } else {
+<span class="nc" id="L114">                        &quot;Great choice — putting on $query for you!&quot;</span>
+                    }
+<span class="nc" id="L116">                    ToolExecutionResult(true, msg)</span>
+                } else {
+<span class="nc" id="L118">                    ToolExecutionResult(false, &quot;System Error: Could not start media.&quot;)</span>
+                }
+            }
+            &quot;pauseMusic&quot;, &quot;stopMusic&quot; -&gt; {
+<span class="nc" id="L122">                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager</span>
+<span class="nc" id="L123">                var reachedSession = false</span>
+
+                // 1. Dispatch MediaSessionManager controller commands
+<span class="nc" id="L126">                try {</span>
+<span class="nc" id="L127">                    val controllers = mediaSessionManager.getActiveSessions(null)</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                    reachedSession = controllers.isNotEmpty()</span>
+<span class="nc bnc" id="L129" title="All 2 branches missed.">                    for (controller in controllers) {</span>
+<span class="nc" id="L130">                        try { controller.transportControls.pause() } catch (_: Exception) {}</span>
+<span class="nc" id="L131">                        try { controller.transportControls.stop() } catch (_: Exception) {}</span>
+                    }
+<span class="nc" id="L133">                } catch (e: Exception) {</span>
+<span class="nc" id="L134">                    Log.e(TAG, &quot;Failed to stop media via MediaSessionManager&quot;, e)</span>
+                }
+
+                // 2. Dispatch explicit hardware pause and stop key events (do NOT send PLAY_PAUSE toggle!)
+<span class="nc" id="L138">                try {</span>
+<span class="nc" id="L139">                    val keycodes = intArrayOf(</span>
+<span class="nc" id="L140">                        android.view.KeyEvent.KEYCODE_MEDIA_PAUSE,</span>
+<span class="nc" id="L141">                        android.view.KeyEvent.KEYCODE_MEDIA_STOP</span>
+                    )
+<span class="nc bnc" id="L143" title="All 2 branches missed.">                    for (code in keycodes) {</span>
+<span class="nc" id="L144">                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, code))</span>
+<span class="nc" id="L145">                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, code))</span>
+                    }
+<span class="nc" id="L147">                } catch (e: Exception) {</span>
+<span class="nc" id="L148">                    Log.e(TAG, &quot;Failed to dispatch media key events&quot;, e)</span>
+                }
+
+                // 3. Broadcast android music service pause intent
+<span class="nc" id="L152">                try {</span>
+<span class="nc" id="L153">                    val cmdIntent = Intent(&quot;com.android.music.musicservicecommand&quot;)</span>
+<span class="nc" id="L154">                    cmdIntent.putExtra(&quot;command&quot;, &quot;pause&quot;)</span>
+<span class="nc" id="L155">                    context.sendBroadcast(cmdIntent)</span>
+<span class="nc" id="L156">                } catch (_: Exception) {}</span>
+
+<span class="nc bnc" id="L158" title="All 2 branches missed.">                if (!reachedSession) {</span>
+<span class="nc" id="L159">                    return ToolExecutionResult(</span>
+<span class="nc" id="L160">                        false,</span>
+<span class="nc" id="L161">                        &quot;I couldn't find an active media session to control. Is music playing?&quot;</span>
+                    )
+                }
+<span class="nc bnc" id="L164" title="All 2 branches missed.">                val feedback = if (handlerKey == &quot;stopMusic&quot;) &quot;Music stopped.&quot; else &quot;Music paused.&quot;</span>
+<span class="nc" id="L165">                ToolExecutionResult(true, feedback)</span>
+            }
+            &quot;nextTrack&quot; -&gt; {
+<span class="nc" id="L168">                try {</span>
+<span class="nc" id="L169">                    val controllers = mediaSessionManager.getActiveSessions(null)</span>
+<span class="nc bnc" id="L170" title="All 4 branches missed.">                    if (controllers.isNotEmpty()) {</span>
+<span class="nc" id="L171">                        controllers[0].transportControls.skipToNext()</span>
+<span class="nc" id="L172">                        ToolExecutionResult(true, &quot;Playing next track.&quot;)</span>
+                    } else {
+<span class="nc" id="L174">                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager</span>
+<span class="nc" id="L175">                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_NEXT))</span>
+<span class="nc" id="L176">                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_NEXT))</span>
+<span class="nc" id="L177">                        ToolExecutionResult(</span>
+<span class="nc" id="L178">                            true,</span>
+<span class="nc" id="L179">                            &quot;I sent a skip command, but no media session confirmed it.&quot;</span>
+                        )
+                    }
+<span class="nc" id="L182">                } catch (e: Exception) {</span>
+<span class="nc" id="L183">                    Log.e(TAG, &quot;Failed to skip media next&quot;, e)</span>
+<span class="nc" id="L184">                    ToolExecutionResult(false, &quot;I couldn't skip to the next track.&quot;)</span>
+                }
+            }
+            &quot;prevTrack&quot; -&gt; {
+<span class="nc" id="L188">                try {</span>
+<span class="nc" id="L189">                    val controllers = mediaSessionManager.getActiveSessions(null)</span>
+<span class="nc bnc" id="L190" title="All 4 branches missed.">                    if (controllers.isNotEmpty()) {</span>
+<span class="nc" id="L191">                        controllers[0].transportControls.skipToPrevious()</span>
+<span class="nc" id="L192">                        ToolExecutionResult(true, &quot;Playing the previous track.&quot;)</span>
+                    } else {
+<span class="nc" id="L194">                        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager</span>
+<span class="nc" id="L195">                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_DOWN, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS))</span>
+<span class="nc" id="L196">                        audioManager.dispatchMediaKeyEvent(android.view.KeyEvent(android.view.KeyEvent.ACTION_UP, android.view.KeyEvent.KEYCODE_MEDIA_PREVIOUS))</span>
+<span class="nc" id="L197">                        ToolExecutionResult(</span>
+<span class="nc" id="L198">                            true,</span>
+<span class="nc" id="L199">                            &quot;I sent a previous-track command, but no media session confirmed it.&quot;</span>
+                        )
+                    }
+<span class="nc" id="L202">                } catch (e: Exception) {</span>
+<span class="nc" id="L203">                    Log.e(TAG, &quot;Failed to skip media previous&quot;, e)</span>
+<span class="nc" id="L204">                    ToolExecutionResult(false, &quot;I couldn't go to the previous track.&quot;)</span>
+                }
+            }
+            &quot;adjustBgmForSituation&quot; -&gt; {
+<span class="nc" id="L208">                ToolExecutionResult(</span>
+<span class="nc" id="L209">                    false,</span>
+<span class="nc" id="L210">                    &quot;Situational BGM adjustment isn't wired to a real playlist engine on this build.&quot;</span>
+                )
+            }
+            &quot;setVolumeLevel&quot; -&gt; {
+<span class="nc" id="L214">                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager</span>
+<span class="nc" id="L215">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).replace(&quot;\&quot;&quot;, &quot;&quot;).trim()</span>
+                
+<span class="nc bnc" id="L217" title="All 6 branches missed.">                if (argStr.isBlank() || argStr.equals(&quot;UP&quot;, ignoreCase = true) || argStr.equals(&quot;DOWN&quot;, ignoreCase = true)) {</span>
+<span class="nc bnc" id="L218" title="All 4 branches missed.">                    val isDecrease = toolCall.contains(&quot;decrease&quot;, ignoreCase = true) || argStr.equals(&quot;DOWN&quot;, ignoreCase = true)</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">                    val direction = if (isDecrease) android.media.AudioManager.ADJUST_LOWER else android.media.AudioManager.ADJUST_RAISE</span>
+<span class="nc" id="L220">                    audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, direction, 0)</span>
+                    
+<span class="nc" id="L222">                    val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)</span>
+<span class="nc" id="L223">                    val newVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)</span>
+<span class="nc" id="L224">                    val percentage = Math.round((newVol.toFloat() / maxVol) * 100)</span>
+<span class="nc" id="L225">                    return ToolExecutionResult(true, &quot;I've set the volume to $percentage%.&quot;)</span>
+                }
+
+<span class="nc" id="L228">                val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)</span>
+<span class="nc" id="L229">                val curVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)</span>
+<span class="nc" id="L230">                var targetVol = curVol</span>
+
+<span class="nc bnc" id="L232" title="All 2 branches missed.">                if (argStr.equals(&quot;MAX&quot;, ignoreCase = true)) {</span>
+<span class="nc" id="L233">                    targetVol = maxVol</span>
+<span class="nc bnc" id="L234" title="All 4 branches missed.">                } else if (argStr.startsWith(&quot;+&quot;) || argStr.startsWith(&quot;-&quot;)) {</span>
+<span class="nc" id="L235">                    val hasPercentSign = argStr.contains(&quot;%&quot;)</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">                    val parsedNum = argStr.replace(&quot;%&quot;, &quot;&quot;).toIntOrNull() ?: 0</span>
+<span class="nc bnc" id="L237" title="All 4 branches missed.">                    val delta = if (hasPercentSign || Math.abs(parsedNum) &gt; maxVol) {</span>
+<span class="nc" id="L238">                        Math.round((parsedNum / 100f) * maxVol).toInt()</span>
+                    } else {
+<span class="nc" id="L240">                        parsedNum</span>
+                    }
+<span class="nc" id="L242">                    targetVol = Math.max(0, Math.min(maxVol, curVol + delta))</span>
+                } else {
+<span class="nc" id="L244">                    val hasPercentSign = argStr.contains(&quot;%&quot;)</span>
+<span class="nc" id="L245">                    val parsedNum = argStr.replace(&quot;%&quot;, &quot;&quot;).replace(&quot;+&quot;, &quot;&quot;).toIntOrNull()</span>
+<span class="nc bnc" id="L246" title="All 2 branches missed.">                    if (parsedNum != null) {</span>
+<span class="nc bnc" id="L247" title="All 4 branches missed.">                        if (hasPercentSign || parsedNum &gt; maxVol) {</span>
+                            // Treat as percentage
+<span class="nc" id="L249">                            targetVol = Math.round((parsedNum / 100f) * maxVol).toInt()</span>
+                        } else {
+                            // Treat as absolute hardware index
+<span class="nc" id="L252">                            targetVol = parsedNum</span>
+                        }
+<span class="nc" id="L254">                        targetVol = Math.max(0, Math.min(maxVol, targetVol))</span>
+                    } else {
+<span class="nc" id="L256">                        val isDecrease = toolCall.contains(&quot;decrease&quot;, ignoreCase = true)</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                        targetVol = if (isDecrease) Math.max(0, curVol - 1) else Math.min(maxVol, curVol + 1)</span>
+                    }
+                }
+
+<span class="nc" id="L261">                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVol, 0)</span>
+<span class="nc" id="L262">                val finalPercentage = Math.round((targetVol.toFloat() / maxVol) * 100)</span>
+<span class="nc" id="L263">                ToolExecutionResult(true, &quot;I've set the volume to $finalPercentage%.&quot;)</span>
+            }
+<span class="nc" id="L265">            else -&gt; ToolExecutionResult(false, &quot;System Error: Media Handler not recognized.&quot;)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

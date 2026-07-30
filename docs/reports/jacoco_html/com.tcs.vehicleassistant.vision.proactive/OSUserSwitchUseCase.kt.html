@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OSUserSwitchUseCase.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision.proactive</a> &gt; <span class="el_source">OSUserSwitchUseCase.kt</span></div><h1>OSUserSwitchUseCase.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision.proactive
+
+import android.content.Context
+import android.os.UserManager
+import android.util.Log
+import com.tcs.vehicleassistant.VehicleManager
+import java.lang.reflect.Method
+
+<span class="nc" id="L9">class OSUserSwitchUseCase(private val context: Context) : IProactiveUseCase {</span>
+<span class="nc" id="L10">    override val name = &quot;Zero-Touch OS Switch&quot;</span>
+<span class="nc" id="L11">    override val priority = PriorityLevel.CRITICAL_SAFETY</span>
+
+<span class="nc" id="L13">    private var lastRecognizedUser = &quot;&quot;</span>
+    private var guestCounter = 0
+
+    override fun evaluate(cabinContext: CabinContext): TriggerResult? {
+<span class="nc" id="L17">        val recognizedUser = cabinContext.recognizedUser</span>
+
+<span class="nc bnc" id="L19" title="All 12 branches missed.">        if (recognizedUser != &quot;Guest&quot; &amp;&amp; recognizedUser?.isNotBlank() == true &amp;&amp; recognizedUser != lastRecognizedUser) {</span>
+<span class="nc bnc" id="L20" title="All 2 branches missed.">            lastRecognizedUser = recognizedUser ?: &quot;&quot;</span>
+<span class="nc" id="L21">            guestCounter = 0</span>
+            
+            // 1. Trigger OS Switch via ActivityManager reflection
+<span class="nc" id="L24">            try {</span>
+<span class="nc" id="L25">                Log.d(&quot;OSUserSwitchUseCase&quot;, &quot;Attempting Zero-Touch profile switch to: $recognizedUser&quot;)</span>
+                // In a real AAOS, we'd find the user ID corresponding to recognizedUser.
+                // For demo, we mock switching to user ID 10 (often the first secondary user).
+<span class="nc" id="L28">                val activityManagerClass = Class.forName(&quot;android.app.ActivityManager&quot;)</span>
+<span class="nc" id="L29">                val getServiceMethod: Method = activityManagerClass.getMethod(&quot;getService&quot;)</span>
+<span class="nc" id="L30">                val iActivityManager = getServiceMethod.invoke(null)</span>
+<span class="nc" id="L31">                val switchUserMethod: Method = iActivityManager.javaClass.getMethod(&quot;switchUser&quot;, Int::class.javaPrimitiveType)</span>
+<span class="nc" id="L32">                switchUserMethod.invoke(iActivityManager, 10)</span>
+<span class="nc" id="L33">            } catch (e: Exception) {</span>
+<span class="nc" id="L34">                Log.e(&quot;OSUserSwitchUseCase&quot;, &quot;Failed to switch OS user via reflection. (Expected if not system signed)&quot;, e)</span>
+            }
+
+            // 2. Trigger Millimeter-Perfect VHAL adjustments
+<span class="nc bnc" id="L38" title="All 2 branches missed.">            VehicleManager.applySavedCabinPreferences(recognizedUser ?: &quot;&quot;)</span>
+
+<span class="nc" id="L40">            val prompt = &quot;[SYSTEM EVENT: Face ID matched the Android OS Profile for $recognizedUser. The system automatically switched OS users, applied their millimeter-perfect seat and mirror preferences, and unlocked all vehicle features. Proactively welcome them and mention you adjusted the cabin to their exact specifications.]&quot;</span>
+<span class="nc" id="L41">            return TriggerResult(prompt, priority)</span>
+            
+<span class="nc bnc" id="L43" title="All 2 branches missed.">        } else if (recognizedUser == &quot;Guest&quot;) {</span>
+<span class="nc" id="L44">            guestCounter++</span>
+            // If unknown face detected for ~10 frames (~1 second) and someone else was driving
+<span class="nc bnc" id="L46" title="All 4 branches missed.">            if (guestCounter == 10 &amp;&amp; lastRecognizedUser != &quot;Guest&quot;) {</span>
+<span class="nc" id="L47">                lastRecognizedUser = &quot;Guest&quot;</span>
+                
+                // 1. Switch to Guest Profile (User 0 or 11)
+<span class="nc" id="L50">                try {</span>
+<span class="nc" id="L51">                    val activityManagerClass = Class.forName(&quot;android.app.ActivityManager&quot;)</span>
+<span class="nc" id="L52">                    val getServiceMethod: Method = activityManagerClass.getMethod(&quot;getService&quot;)</span>
+<span class="nc" id="L53">                    val iActivityManager = getServiceMethod.invoke(null)</span>
+<span class="nc" id="L54">                    val switchUserMethod: Method = iActivityManager.javaClass.getMethod(&quot;switchUser&quot;, Int::class.javaPrimitiveType)</span>
+<span class="nc" id="L55">                    switchUserMethod.invoke(iActivityManager, 11) // Mock Guest ID</span>
+<span class="nc" id="L56">                } catch (e: Exception) {</span>
+<span class="nc" id="L57">                    Log.e(&quot;OSUserSwitchUseCase&quot;, &quot;Failed to switch to Guest OS user.&quot;, e)</span>
+                }
+
+                // 2. Trigger VHAL Lockdown
+<span class="nc" id="L61">                VehicleManager.lockdownValetMode()</span>
+
+<span class="nc" id="L63">                val prompt = &quot;[SYSTEM EVENT: An unrecognized face is in the driver seat. The system automatically switched the OS to Valet/Guest Mode. The glovebox is electronically locked, trunk access is disabled, and top speed is limited. Inform the user they are in Valet Mode.]&quot;</span>
+<span class="nc" id="L64">                return TriggerResult(prompt, priority)</span>
+            }
+        }
+
+<span class="nc" id="L68">        return null</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

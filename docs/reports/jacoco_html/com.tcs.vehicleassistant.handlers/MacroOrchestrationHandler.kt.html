@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MacroOrchestrationHandler.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">MacroOrchestrationHandler.kt</span></div><h1>MacroOrchestrationHandler.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import android.content.Context
+import android.content.Intent
+import com.tcs.vehicleassistant.VehicleManager
+
+<span class="nc" id="L7">class MacroOrchestrationHandler(override val handlerKey: String) : ToolHandler {</span>
+    override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -&gt; Unit)?): ToolExecutionResult {
+<span class="nc bnc" id="L9" title="All 13 branches missed.">        return when (handlerKey) {</span>
+            &quot;prepareForCommute&quot; -&gt; {
+                // Set reasonable temp, etc.
+<span class="nc" id="L12">                VehicleManager.writeTemperatureToVhalVerified(21f) // 21C</span>
+<span class="nc" id="L13">                ToolExecutionResult(true, &quot;I've set the temperature to 21 degrees and optimized the cabin for your commute.&quot;)</span>
+            }
+            &quot;optimizeCabinForLongDrive&quot; -&gt; {
+<span class="nc" id="L16">                VehicleManager.writeSeatMassagerToVhalVerified(1) // turn on slight massage</span>
+<span class="nc" id="L17">                ToolExecutionResult(true, &quot;I've turned on the seat massager and set a comfortable climate for your long drive.&quot;)</span>
+            }
+            &quot;makeTripEnjoyable&quot; -&gt; {
+                // Stub
+<span class="nc" id="L21">                ToolExecutionResult(true, &quot;I've adjusted the cabin lighting and climate to make this trip more enjoyable.&quot;)</span>
+            }
+            &quot;prepareForElderlyPassengers&quot; -&gt; {
+                // Warmer temp, maybe turn off direct face air
+<span class="nc" id="L25">                VehicleManager.writeTemperatureToVhalVerified(23f) </span>
+<span class="nc" id="L26">                ToolExecutionResult(true, &quot;I've raised the temperature to 23 degrees to ensure your elderly passengers are comfortable.&quot;)</span>
+            }
+            &quot;prepareForImportantMeeting&quot; -&gt; {
+                // Cooler temp for focus
+<span class="nc" id="L30">                VehicleManager.writeTemperatureToVhalVerified(20f)</span>
+<span class="nc" id="L31">                ToolExecutionResult(true, &quot;I've cooled the cabin slightly to help you stay focused for your meeting.&quot;)</span>
+            }
+            &quot;prepareForArrival&quot; -&gt; {
+                // Turn on cabin lights so they can see when they get out
+<span class="nc" id="L35">                VehicleManager.setGenericVhalProperty(android.car.VehiclePropertyIds.CABIN_LIGHTS_SWITCH, 0, &quot;1&quot;, &quot;INT&quot;)</span>
+<span class="nc" id="L36">                ToolExecutionResult(true, &quot;I've turned on the cabin lights to help you gather your things upon arrival.&quot;)</span>
+            }
+            &quot;enableAdaptiveNightMode&quot; -&gt; {
+                // Dim screens
+<span class="nc" id="L40">                ToolExecutionResult(true, &quot;Adaptive night mode is enabled. I've dimmed the screens to reduce glare.&quot;)</span>
+            }
+            &quot;prepareForAirportTrip&quot; -&gt; {
+<span class="nc" id="L43">                ToolExecutionResult(true, &quot;I've prepared the cabin for your airport trip.&quot;)</span>
+            }
+            &quot;enhanceNiceEvening&quot; -&gt; {
+<span class="nc" id="L46">                VehicleManager.writeWindowPositionToVhalVerified(30) // crack windows</span>
+<span class="nc" id="L47">                ToolExecutionResult(true, &quot;I've cracked the windows so you can enjoy the evening breeze.&quot;)</span>
+            }
+            &quot;prepareForIncomingRain&quot; -&gt; {
+<span class="nc" id="L50">                VehicleManager.writeWindowPositionToVhalVerified(0) // close windows (0 = fully closed)</span>
+<span class="nc" id="L51">                VehicleManager.setGenericVhalProperty(android.car.VehiclePropertyIds.HVAC_DEFROSTER, 0, &quot;true&quot;, &quot;BOOLEAN&quot;) // Front defroster</span>
+<span class="nc" id="L52">                VehicleManager.setGenericVhalProperty(320865544, 0, &quot;true&quot;, &quot;BOOLEAN&quot;) // Rear defroster (HVAC_ELECTRIC_DEFROSTER_ON)</span>
+<span class="nc" id="L53">                ToolExecutionResult(true, &quot;I've made sure all windows are securely closed and activated the defrosters since rain is expected.&quot;)</span>
+            }
+            &quot;prepareForParking&quot; -&gt; {
+<span class="nc" id="L56">                ToolExecutionResult(true, &quot;I'm ready to assist with parking maneuvers.&quot;)</span>
+            }
+            &quot;handleEmergencyFeeling&quot; -&gt; {
+<span class="nc" id="L59">                ToolExecutionResult(true, &quot;I am monitoring all vehicle sensors. Please pull over safely if you feel the vehicle is unsafe to drive.&quot;)</span>
+            }
+<span class="nc" id="L61">            else -&gt; ToolExecutionResult(false, &quot;System Error: Macro Orchestration Handler not recognized.&quot;)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>GpuBackendResolver.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.core</a> &gt; <span class="el_source">GpuBackendResolver.kt</span></div><h1>GpuBackendResolver.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.core
+
+/**
+ * Pure backend-selection policy, kept free of Android APIs so it can be asserted directly in JVM
+ * unit tests. [DeviceCapabilities] supplies the hardware facts; this object decides what to do
+ * with them.
+ */
+object GpuBackendResolver {
+
+    /**
+     * Backend LiteRT should be configured with for a [requested] preference.
+     *
+     * - `&quot;Auto&quot;` picks GPU when an OpenCL driver exists, otherwise CPU.
+     * - An explicit `&quot;GPU&quot;` request is downgraded to CPU when no OpenCL driver exists, because
+     *   `Backend.GPU()` cannot initialize without one.
+     * - `&quot;NPU&quot;` and `&quot;CPU&quot;` are honoured as-is; unrecognised values behave like `&quot;Auto&quot;`.
+     */
+<span class="fc bfc" id="L18" title="All 4 branches covered.">    fun resolve(requested: String, openClAvailable: Boolean): String = when (requested) {</span>
+<span class="fc" id="L19">        AssistantConfig.Backend.CPU -&gt; AssistantConfig.Backend.CPU</span>
+<span class="fc" id="L20">        AssistantConfig.Backend.NPU -&gt; AssistantConfig.Backend.NPU</span>
+        AssistantConfig.Backend.GPU -&gt;
+<span class="fc bfc" id="L22" title="All 2 branches covered.">            if (openClAvailable) AssistantConfig.Backend.GPU else AssistantConfig.Backend.CPU</span>
+        else -&gt;
+<span class="fc bfc" id="L24" title="All 2 branches covered.">            if (openClAvailable) AssistantConfig.Backend.GPU else AssistantConfig.Backend.CPU</span>
+<span class="fc" id="L25">    }</span>
+
+    /**
+     * Ordered backends to attempt for [requested]. The first entry is [resolve]'s answer; CPU is
+     * always the final entry so initialization has a guaranteed terminal fallback.
+     */
+    fun fallbackChain(requested: String, openClAvailable: Boolean): List&lt;String&gt; {
+<span class="fc" id="L32">        val primary = resolve(requested, openClAvailable)</span>
+<span class="fc" id="L33">        val chain = mutableListOf(primary)</span>
+<span class="fc bfc" id="L34" title="All 4 branches covered.">        if (primary == AssistantConfig.Backend.NPU &amp;&amp; openClAvailable) {</span>
+<span class="fc" id="L35">            chain.add(AssistantConfig.Backend.GPU)</span>
+        }
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (!chain.contains(AssistantConfig.Backend.CPU)) {</span>
+<span class="fc" id="L38">            chain.add(AssistantConfig.Backend.CPU)</span>
+        }
+<span class="fc" id="L40">        return chain</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

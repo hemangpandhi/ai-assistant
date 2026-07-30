@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AssistantVoiceInteractionService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">AssistantVoiceInteractionService.kt</span></div><h1>AssistantVoiceInteractionService.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.os.Bundle
+import android.service.voice.VoiceInteractionService
+import android.service.voice.VoiceInteractionSession
+import com.tcs.vehicleassistant.core.AssistantConfig
+
+<span class="nc" id="L12">class AssistantVoiceInteractionService : VoiceInteractionService() {</span>
+
+    companion object {
+<span class="nc" id="L15">        var instance: AssistantVoiceInteractionService? = null</span>
+        
+<span class="nc" id="L17">        fun triggerSession(context: Context? = null) {</span>
+<span class="nc" id="L18">            android.util.Log.d(&quot;WakeWord&quot;, &quot;triggerSession called. instance is $instance&quot;)</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">            if (instance != null) {</span>
+<span class="nc bnc" id="L20" title="All 2 branches missed.">                instance?.showSession(Bundle(), VoiceInteractionSession.SHOW_WITH_ASSIST)</span>
+<span class="nc bnc" id="L21" title="All 2 branches missed.">            } else if (context != null) {</span>
+<span class="nc" id="L22">                android.util.Log.w(&quot;WakeWord&quot;, &quot;VoiceInteractionService unbound! Launching fallback Activity.&quot;)</span>
+<span class="nc" id="L23">                val intent = Intent(context, LocalLLMActivity::class.java)</span>
+<span class="nc" id="L24">                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP</span>
+<span class="nc" id="L25">                intent.putExtra(&quot;auto_trigger_mic&quot;, true)</span>
+<span class="nc" id="L26">                context.startActivity(intent)</span>
+            }
+<span class="nc" id="L28">        }</span>
+    }
+
+<span class="nc" id="L31">    private val receiver = object : BroadcastReceiver() {</span>
+        override fun onReceive(context: Context, intent: Intent) {
+<span class="nc bnc" id="L33" title="All 2 branches missed.">            if (intent.action == AssistantConfig.WakeWordAction.DETECTED_BROADCAST) {</span>
+<span class="nc" id="L34">                triggerSession(context)</span>
+            }
+<span class="nc" id="L36">        }</span>
+    }
+
+    override fun onCreate() {
+<span class="nc" id="L40">        super.onCreate()</span>
+<span class="nc" id="L41">        instance = this</span>
+        // Only this app broadcasts the wake-word event, across its own process boundary, so the
+        // receiver must stay unexported: an exported one would let any app open the assistant.
+<span class="nc" id="L44">        registerReceiver(</span>
+<span class="nc" id="L45">            receiver,</span>
+<span class="nc" id="L46">            IntentFilter(AssistantConfig.WakeWordAction.DETECTED_BROADCAST),</span>
+<span class="nc" id="L47">            Context.RECEIVER_NOT_EXPORTED</span>
+        )
+<span class="nc" id="L49">    }</span>
+
+    override fun onReady() {
+<span class="nc" id="L52">        super.onReady()</span>
+<span class="nc" id="L53">        VehicleManager.initialize(this) // 'this' is a Service, which is a valid Context for Car Service binding!</span>
+
+        // Starting the microphone service unconditionally here re-enabled wake-word listening on
+        // every boot even after the user turned it off in settings.
+<span class="nc" id="L57">        val enabled = getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L58">            .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)</span>
+<span class="nc bnc" id="L59" title="All 2 branches missed.">        if (!enabled) {</span>
+<span class="nc" id="L60">            android.util.Log.i(&quot;WakeWord&quot;, &quot;Wake word disabled in settings; not starting the listener.&quot;)</span>
+<span class="nc" id="L61">            return</span>
+        }
+<span class="nc" id="L63">        try {</span>
+<span class="nc" id="L64">            startService(Intent(this, WakeWordService::class.java))</span>
+<span class="nc" id="L65">        } catch (e: Exception) {</span>
+<span class="nc" id="L66">            android.util.Log.w(&quot;WakeWord&quot;, &quot;Could not start the wake word service&quot;, e)</span>
+        }
+<span class="nc" id="L68">    }</span>
+
+    override fun onShutdown() {
+<span class="nc" id="L71">        super.onShutdown()</span>
+<span class="nc" id="L72">        try {</span>
+<span class="nc" id="L73">            unregisterReceiver(receiver)</span>
+<span class="nc" id="L74">        } catch (e: IllegalArgumentException) {</span>
+            // Never registered; nothing to detach.
+        }
+        // Clearing the static handle keeps a destroyed service from leaking and stops
+        // triggerSession() from calling showSession() on a dead instance.
+<span class="nc bnc" id="L79" title="All 2 branches missed.">        if (instance === this) instance = null</span>
+<span class="nc" id="L80">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

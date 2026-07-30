@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VehicleApplication.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">VehicleApplication.kt</span></div><h1>VehicleApplication.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant
+
+import android.app.Application
+import com.tcs.vehicleassistant.di.appModule
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
+<span class="nc" id="L12">class VehicleApplication : Application() {</span>
+    override fun onCreate() {
+<span class="nc" id="L14">        super.onCreate()</span>
+
+<span class="nc" id="L16">        startKoin {</span>
+<span class="nc" id="L17">            androidLogger()</span>
+<span class="nc" id="L18">            androidContext(this@VehicleApplication)</span>
+<span class="nc" id="L19">            modules(appModule)</span>
+<span class="nc" id="L20">        }</span>
+
+<span class="nc" id="L22">        DemoSettingsPresets.ensureDefaults(this)</span>
+        
+        // Silently pre-compile the AI models in the background when the main app process boots.
+        // This eliminates the 20-60 second initialization hang when the user opens the popup.
+<span class="nc bnc" id="L26" title="All 2 branches missed.">        if (android.app.Application.getProcessName() == packageName) {</span>
+<span class="nc" id="L27">            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {</span>
+<span class="nc" id="L28">                com.tcs.vehicleassistant.LLMManager.autoInitialize(this@VehicleApplication)</span>
+<span class="nc" id="L29">            }</span>
+        }
+<span class="nc" id="L31">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

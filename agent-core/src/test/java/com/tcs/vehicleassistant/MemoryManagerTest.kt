@@ -10,7 +10,16 @@ class MemoryManagerTest {
         assertTrue(MemoryManager.isAffirmative("yes"))
         assertTrue(MemoryManager.isAffirmative("Sure"))
         assertTrue(MemoryManager.isAffirmative("do it"))
+        assertTrue(MemoryManager.isAffirmative("yes please"))
+        assertFalse(MemoryManager.isAffirmative("please"))
         assertFalse(MemoryManager.isAffirmative("maybe later"))
+    }
+
+    @Test
+    fun isDecline_isTight() {
+        assertTrue(MemoryManager.isDecline("no"))
+        assertTrue(MemoryManager.isDecline("never mind"))
+        assertFalse(MemoryManager.isDecline("I don't want louder music, turn on AC"))
     }
 
     @Test

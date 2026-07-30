@@ -40,6 +40,21 @@
         android:layout_height="wrap_content"
         android:text="Enable Cloud Fallback"
         android:textColor="#DDDDDD"
+        android:layout_marginBottom="8dp"/>
+
+    <Switch
+        android:id="@+id/switchSpeculativeDecoding"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Speculative decoding / MTP (GPU; requires model reload)"
+        android:textColor="#DDDDDD"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnRunLiteRtBenchmark"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Run LiteRT Benchmark (TTFT / tok/s)"
         android:layout_marginBottom="16dp"/>
 
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Max KV Cache Tokens (Requires Reload)" android:textColor="#DDDDDD" />
@@ -104,17 +119,34 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Voice AI Settings"
+        android:text="Cabin TTS (Sherpa / Piper)"
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="8dp"/>
 
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Speaking Rate / Tempo (0.9 - 1.05)" android:textColor="#DDDDDD" />
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Voice model (bundled + /data/local/tmp/tts)" android:textColor="#DDDDDD" />
+    <Spinner android:id="@+id/spinnerTtsVoice" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="4dp"/>
+    <TextView android:id="@+id/tvTtsVoiceHint" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#AAAAAA" android:textSize="12sp" android:text="Sideload: adb push .onnx + tokens.txt (+ .onnx.json) to /data/local/tmp/tts/&lt;id&gt;/" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Speaker ID (multi-speaker models, e.g. LibriTTS-R)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <EditText android:id="@+id/etTtsSpeakerId" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="number" android:hint="0" />
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Speaking Rate (0.5 – 2.0, cabin Piper)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
     <EditText android:id="@+id/etSpeakingRate" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal" />
 
-    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pitch (-1.5 to +0.5)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Legacy Android TTS (debug UI only)"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Pitch (Android TTS only; cabin uses Piper)" android:textColor="#DDDDDD"/>
     <EditText android:id="@+id/etPitch" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#FFFFFF" android:inputType="numberDecimal|numberSigned" />
 
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Volume / Gain (-2.0 to -0.5 dB)" android:textColor="#DDDDDD" android:layout_marginTop="8dp"/>

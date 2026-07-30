@@ -1,0 +1,757 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VehicleManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant</a> &gt; <span class="el_source">VehicleManager.kt</span></div><h1>VehicleManager.kt</h1><pre class="source lang-java linenums">
+package com.tcs.vehicleassistant
+import kotlinx.coroutines.cancelChildren
+import kotlinx.coroutines.launch
+
+import android.car.Car
+import android.car.VehiclePropertyIds
+import android.car.hardware.CarPropertyValue
+import android.car.hardware.property.CarPropertyManager
+import android.content.Context
+import android.util.Log
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+object VehicleManager {
+    private var carPropertyManager: CarPropertyManager? = null
+
+    /** Retained so [cleanup] can disconnect; the Car binder was previously never released. */
+    private var car: Car? = null
+<span class="nc" id="L20">    var isInitialized = false</span>
+        private set
+
+    private var currentSpeed: Float = 0f
+    private var currentSeatHeaterLevel: Int = 0
+<span class="nc" id="L25">    private var currentTemperature: Float = 22f // Store raw VHAL value (usually Celsius)</span>
+<span class="nc" id="L26">    private var currentFuelLevel: Float = 50f</span>
+<span class="nc" id="L27">    private var currentGear: Int = 4</span>
+<span class="nc" id="L28">    var isHvacPowerOn: Boolean = false</span>
+<span class="nc" id="L29">    var isHvacAutoOn: Boolean = false</span>
+<span class="nc" id="L30">    var isHvacAcOn: Boolean = false</span>
+<span class="nc" id="L31">    private var currentFanSpeed: Int = 3</span>
+<span class="nc" id="L32">    var isDefrosterOn: Boolean = false</span>
+    
+    // Dynamic Custom JSON Properties
+    // Maps integer ID -&gt; Property Name (e.g., 639631617 -&gt; &quot;ADAS_OSE_DOOR_ALERT&quot;)
+<span class="nc" id="L36">    private val customPropertyIdToName = mutableMapOf&lt;Int, String&gt;()</span>
+<span class="nc" id="L37">    private val customPropertyIdToType = mutableMapOf&lt;Int, String&gt;()</span>
+    // Maps Property Name -&gt; Latest Value (e.g., &quot;ADAS_OSE_DOOR_ALERT&quot; -&gt; &quot;true&quot;)
+<span class="nc" id="L39">    private val customPropertyValues = mutableMapOf&lt;String, String&gt;()</span>
+    // Maps Property Name -&gt; AI Instruction
+<span class="nc" id="L41">    private val customPropertyInstructions = mutableListOf&lt;String&gt;()</span>
+    
+    fun getCustomPropertiesString(): String {
+<span class="nc bnc" id="L44" title="All 2 branches missed.">        if (customPropertyValues.isEmpty()) return &quot;&quot;</span>
+<span class="nc" id="L45">        return customPropertyValues.entries.joinToString(&quot;, &quot;) { &quot;${it.key}: ${it.value}&quot; }</span>
+    }
+    
+    fun getCustomPropertyInstructions(): List&lt;String&gt; {
+<span class="nc" id="L49">        return customPropertyInstructions</span>
+    }
+
+    /** Latest value for a registry property name, or null when it has never been observed. */
+<span class="nc" id="L53">    fun getCustomPropertyValue(name: String): String? = customPropertyValues[name]</span>
+
+    /**
+     * Human-readable window closure report from [VehiclePropertyIds.WINDOW_POS].
+     * Convention matches the registry instruction: 0 = fully closed, higher = more open.
+     */
+    fun getWindowClosureStatus(): String {
+<span class="nc" id="L60">        val pct = getMaxWindowOpenPct()</span>
+<span class="nc" id="L61">        return when {</span>
+<span class="nc bnc" id="L62" title="All 2 branches missed.">            pct &lt; 0 -&gt; &quot;I can't read the window sensors right now.&quot;</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            pct == 0 -&gt; &quot;I've checked the sensors. All windows are currently closed.&quot;</span>
+<span class="nc" id="L64">            else -&gt; &quot;Some windows are open (up to $pct%).&quot;</span>
+        }
+    }
+
+    /**
+     * Highest window openness across areas (0–100). Returns -1 when sensors are unavailable.
+     */
+    fun getMaxWindowOpenPct(): Int {
+<span class="nc bnc" id="L72" title="All 2 branches missed.">        val manager = carPropertyManager ?: return -1</span>
+<span class="nc" id="L73">        return try {</span>
+<span class="nc bnc" id="L74" title="All 2 branches missed.">            val config = manager.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS) ?: return -1</span>
+<span class="nc" id="L75">            var maxOpen = 0</span>
+<span class="nc" id="L76">            var sawAny = false</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">            for (areaId in config.areaIds) {</span>
+<span class="nc" id="L78">                val pos = try {</span>
+<span class="nc" id="L79">                    manager.getIntProperty(VehiclePropertyIds.WINDOW_POS, areaId)</span>
+<span class="nc" id="L80">                } catch (_: Exception) {</span>
+<span class="nc" id="L81">                    continue</span>
+                }
+<span class="nc" id="L83">                sawAny = true</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                if (pos &gt; maxOpen) maxOpen = pos</span>
+            }
+<span class="nc bnc" id="L86" title="All 2 branches missed.">            if (sawAny) maxOpen.coerceIn(0, 100) else -1</span>
+<span class="nc" id="L87">        } catch (e: Exception) {</span>
+<span class="nc" id="L88">            Log.w(&quot;VehicleManager&quot;, &quot;Failed to read WINDOW_POS&quot;, e)</span>
+<span class="nc" id="L89">            -1</span>
+        }
+    }
+    
+    fun getLLMContextString(context: Context): String {
+<span class="nc" id="L94">        val prefs = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">        val diningPref = prefs.getString(&quot;dining_pref&quot;, &quot;Pure Vegetarian&quot;) ?: &quot;Pure Vegetarian&quot;</span>
+<span class="nc" id="L96">        val customProps = getCustomPropertiesString()</span>
+<span class="nc bnc" id="L97" title="All 4 branches missed.">        val customPropsStr = if (customProps.isNotEmpty()) &quot;, $customProps&quot; else &quot;&quot;</span>
+        
+<span class="nc bnc" id="L99" title="All 8 branches missed.">        return &quot;Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Fan: $currentFanSpeed, Heater: ${getRealSeatHeaterLevel()}, AC: ${if (isHvacAcOn) &quot;ON&quot; else &quot;OFF&quot;}, Power: ${if (isHvacPowerOn) &quot;ON&quot; else &quot;OFF&quot;}, Auto: ${if (isHvacAutoOn) &quot;ON&quot; else &quot;OFF&quot;}, Defrost: ${if (isDefrosterOn) &quot;ON&quot; else &quot;OFF&quot;}, City: ${LocationManager.getCurrentCity(context)}$customPropsStr&quot;</span>
+    }
+
+<span class="nc" id="L102">    private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {</span>
+        override fun onChangeEvent(value: CarPropertyValue&lt;*&gt;) {
+<span class="nc bnc" id="L104" title="All 2 branches missed.">            if (customPropertyIdToName.containsKey(value.propertyId)) {</span>
+<span class="nc" id="L105">                val name = customPropertyIdToName[value.propertyId]!!</span>
+<span class="nc bnc" id="L106" title="All 4 branches missed.">                customPropertyValues[name] = value.value?.toString() ?: &quot;null&quot;</span>
+<span class="nc" id="L107">                Log.d(&quot;VehicleManager&quot;, &quot;Custom property updated: $name = ${customPropertyValues[name]}&quot;)</span>
+<span class="nc" id="L108">                return</span>
+            }
+
+<span class="nc bnc" id="L111" title="All 11 branches missed.">            when (value.propertyId) {</span>
+<span class="nc bnc" id="L112" title="All 4 branches missed.">                VehiclePropertyIds.PERF_VEHICLE_SPEED -&gt; currentSpeed = value.value as? Float ?: 0f</span>
+<span class="nc bnc" id="L113" title="All 4 branches missed.">                VehiclePropertyIds.HVAC_SEAT_TEMPERATURE -&gt; currentSeatHeaterLevel = value.value as? Int ?: 0</span>
+<span class="nc bnc" id="L114" title="All 4 branches missed.">                VehiclePropertyIds.HVAC_TEMPERATURE_SET -&gt; currentTemperature = (value.value as? Number)?.toFloat() ?: 22f</span>
+<span class="nc bnc" id="L115" title="All 4 branches missed.">                VehiclePropertyIds.FUEL_LEVEL -&gt; currentFuelLevel = value.value as? Float ?: 50f</span>
+<span class="nc bnc" id="L116" title="All 4 branches missed.">                VehiclePropertyIds.GEAR_SELECTION -&gt; currentGear = value.value as? Int ?: 4</span>
+<span class="nc bnc" id="L117" title="All 4 branches missed.">                VehiclePropertyIds.HVAC_POWER_ON -&gt; isHvacPowerOn = value.value as? Boolean ?: false</span>
+<span class="nc bnc" id="L118" title="All 4 branches missed.">                VehiclePropertyIds.HVAC_AUTO_ON -&gt; isHvacAutoOn = value.value as? Boolean ?: false</span>
+<span class="nc bnc" id="L119" title="All 4 branches missed.">                VehiclePropertyIds.HVAC_AC_ON -&gt; isHvacAcOn = value.value as? Boolean ?: false</span>
+<span class="nc bnc" id="L120" title="All 4 branches missed.">                VehiclePropertyIds.HVAC_FAN_SPEED -&gt; currentFanSpeed = value.value as? Int ?: 3</span>
+<span class="nc bnc" id="L121" title="All 4 branches missed.">                VehiclePropertyIds.HVAC_DEFROSTER -&gt; isDefrosterOn = value.value as? Boolean ?: false</span>
+            }
+<span class="nc" id="L123">        }</span>
+
+        override fun onErrorEvent(propertyId: Int, zone: Int) {
+<span class="nc" id="L126">            Log.e(&quot;VehicleManager&quot;, &quot;Error reading propertyId: $propertyId for zone: $zone&quot;)</span>
+<span class="nc" id="L127">        }</span>
+    }
+
+    fun initialize(context: Context) {
+<span class="nc bnc" id="L131" title="All 2 branches missed.">        if (isInitialized) return</span>
+<span class="nc" id="L132">        try {</span>
+<span class="nc" id="L133">            org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().initialize(context)</span>
+
+<span class="nc" id="L135">            val createdCar = Car.createCar(context)</span>
+<span class="nc" id="L136">            car = createdCar</span>
+<span class="nc" id="L137">            carPropertyManager = createdCar.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager</span>
+            
+<span class="nc" id="L139">            val propertiesToRegister = listOf(</span>
+<span class="nc" id="L140">                VehiclePropertyIds.PERF_VEHICLE_SPEED,</span>
+<span class="nc" id="L141">                VehiclePropertyIds.HVAC_SEAT_TEMPERATURE,</span>
+<span class="nc" id="L142">                VehiclePropertyIds.HVAC_TEMPERATURE_SET,</span>
+<span class="nc" id="L143">                VehiclePropertyIds.HVAC_POWER_ON,</span>
+<span class="nc" id="L144">                VehiclePropertyIds.HVAC_AUTO_ON,</span>
+<span class="nc" id="L145">                VehiclePropertyIds.HVAC_AC_ON,</span>
+<span class="nc" id="L146">                VehiclePropertyIds.HVAC_FAN_SPEED,</span>
+<span class="nc" id="L147">                VehiclePropertyIds.HVAC_DEFROSTER,</span>
+<span class="nc" id="L148">                VehiclePropertyIds.FUEL_LEVEL,</span>
+<span class="nc" id="L149">                VehiclePropertyIds.GEAR_SELECTION,</span>
+<span class="nc" id="L150">                VehiclePropertyIds.WINDOW_POS</span>
+            )
+<span class="nc bnc" id="L152" title="All 2 branches missed.">            for (propId in propertiesToRegister) {</span>
+<span class="nc" id="L153">                try {</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                    carPropertyManager?.registerCallback(carPropertyCallback, propId, CarPropertyManager.SENSOR_RATE_ONCHANGE)</span>
+<span class="nc" id="L155">                } catch (e: Exception) {</span>
+<span class="nc" id="L156">                    Log.w(&quot;VehicleManager&quot;, &quot;Could not register callback for property ID: $propId - ${e.message}&quot;)</span>
+                }
+            }
+            
+            // Dynamic JSON Properties
+<span class="nc" id="L161">            try {</span>
+<span class="nc" id="L162">                val jsonStr = context.assets.open(&quot;vehicle_skills_registry.json&quot;).use { input -&gt;</span>
+<span class="nc" id="L163">                    input.readBytes().toString(Charsets.UTF_8)</span>
+                }
+<span class="nc" id="L165">                val jsonObject = org.json.JSONObject(jsonStr)</span>
+<span class="nc" id="L166">                val propertiesArray = jsonObject.getJSONArray(&quot;properties&quot;)</span>
+                
+<span class="nc bnc" id="L168" title="All 2 branches missed.">                for (i in 0 until propertiesArray.length()) {</span>
+<span class="nc" id="L169">                    val prop = propertiesArray.getJSONObject(i)</span>
+<span class="nc" id="L170">                    val name = prop.getString(&quot;name&quot;)</span>
+<span class="nc" id="L171">                    val id = prop.getInt(&quot;id&quot;)</span>
+<span class="nc" id="L172">                    val type = prop.getString(&quot;type&quot;)</span>
+<span class="nc bnc" id="L173" title="All 2 branches missed.">                    if (prop.has(&quot;instruction&quot;)) {</span>
+<span class="nc" id="L174">                        customPropertyInstructions.add(prop.getString(&quot;instruction&quot;))</span>
+                    }
+<span class="nc" id="L176">                    customPropertyIdToName[id] = name</span>
+<span class="nc" id="L177">                    customPropertyIdToType[id] = type</span>
+<span class="nc" id="L178">                    customPropertyValues[name] = &quot;Unknown&quot; // Initial state</span>
+                    
+<span class="nc" id="L180">                    try {</span>
+<span class="nc bnc" id="L181" title="All 2 branches missed.">                        carPropertyManager?.registerCallback(carPropertyCallback, id, CarPropertyManager.SENSOR_RATE_ONCHANGE)</span>
+<span class="nc" id="L182">                        Log.i(&quot;VehicleManager&quot;, &quot;Registered custom JSON property: $name ($id)&quot;)</span>
+<span class="nc" id="L183">                    } catch (e: Exception) {</span>
+<span class="nc" id="L184">                        Log.e(&quot;VehicleManager&quot;, &quot;Failed to register custom property: $name ($id)&quot;, e)</span>
+                    }
+                }
+<span class="nc" id="L187">            } catch (e: Exception) {</span>
+<span class="nc" id="L188">                Log.e(&quot;VehicleManager&quot;, &quot;Error parsing vehicle_skills_registry.json&quot;, e)</span>
+            }
+            
+<span class="nc" id="L191">            currentSpeed = getFloatPropertyQuietly(VehiclePropertyIds.PERF_VEHICLE_SPEED, 0f)</span>
+<span class="nc" id="L192">            currentSeatHeaterLevel = getIntPropertyQuietly(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, 0)</span>
+<span class="nc" id="L193">            currentTemperature = getFloatPropertyQuietly(VehiclePropertyIds.HVAC_TEMPERATURE_SET, 22f)</span>
+<span class="nc" id="L194">            currentFuelLevel = getFloatPropertyQuietly(VehiclePropertyIds.FUEL_LEVEL, 50f)</span>
+<span class="nc" id="L195">            currentGear = getIntPropertyQuietly(VehiclePropertyIds.GEAR_SELECTION, 4)</span>
+<span class="nc" id="L196">            isHvacPowerOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_POWER_ON, false)</span>
+<span class="nc" id="L197">            isHvacAutoOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_AUTO_ON, false)</span>
+<span class="nc" id="L198">            isHvacAcOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_AC_ON, false)</span>
+<span class="nc" id="L199">            currentFanSpeed = getIntPropertyQuietly(VehiclePropertyIds.HVAC_FAN_SPEED, 3)</span>
+<span class="nc" id="L200">            isDefrosterOn = getBooleanPropertyQuietly(VehiclePropertyIds.HVAC_DEFROSTER, false)</span>
+
+<span class="nc" id="L202">            isInitialized = true</span>
+<span class="nc" id="L203">        } catch (e: Exception) {</span>
+<span class="nc" id="L204">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to initialize CarPropertyManager&quot;, e)</span>
+        }
+<span class="nc" id="L206">    }</span>
+
+    private fun getFloatPropertyQuietly(propertyId: Int, default: Float): Float {
+<span class="nc" id="L209">        return try {</span>
+<span class="nc bnc" id="L210" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(propertyId)</span>
+<span class="nc bnc" id="L211" title="All 6 branches missed.">            val areaId = config?.areaIds?.firstOrNull() ?: 0</span>
+<span class="nc bnc" id="L212" title="All 2 branches missed.">            carPropertyManager?.getFloatProperty(propertyId, areaId) ?: default</span>
+<span class="nc" id="L213">        } catch (e: Exception) { default }</span>
+    }
+
+    fun getFloatProperty(propertyId: Int): Float? {
+<span class="nc" id="L217">        return try {</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(propertyId)</span>
+<span class="nc bnc" id="L219" title="All 6 branches missed.">            val areaId = config?.areaIds?.firstOrNull() ?: 0</span>
+<span class="nc bnc" id="L220" title="All 2 branches missed.">            carPropertyManager?.getFloatProperty(propertyId, areaId)</span>
+<span class="nc" id="L221">        } catch (e: Exception) { null }</span>
+    }
+
+    private fun getIntPropertyQuietly(propertyId: Int, default: Int): Int {
+<span class="nc" id="L225">        return try {</span>
+<span class="nc bnc" id="L226" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(propertyId)</span>
+<span class="nc bnc" id="L227" title="All 6 branches missed.">            val areaId = config?.areaIds?.firstOrNull() ?: 0</span>
+<span class="nc bnc" id="L228" title="All 2 branches missed.">            carPropertyManager?.getIntProperty(propertyId, areaId) ?: default</span>
+<span class="nc" id="L229">        } catch (e: Exception) { default }</span>
+    }
+
+    private fun getBooleanPropertyQuietly(propertyId: Int, default: Boolean): Boolean {
+<span class="nc" id="L233">        return try {</span>
+<span class="nc bnc" id="L234" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(propertyId)</span>
+<span class="nc bnc" id="L235" title="All 6 branches missed.">            val areaId = config?.areaIds?.firstOrNull() ?: 0</span>
+<span class="nc bnc" id="L236" title="All 2 branches missed.">            carPropertyManager?.getBooleanProperty(propertyId, areaId) ?: default</span>
+<span class="nc" id="L237">        } catch (e: Exception) { default }</span>
+    }
+
+<span class="nc" id="L240">    fun getRealSpeed(): Int = currentSpeed.toInt()</span>
+<span class="nc" id="L241">    fun getRealSeatHeaterLevel(): Int = currentSeatHeaterLevel</span>
+<span class="nc" id="L242">    fun getRealTemperature(zone: String = &quot;driver&quot;): Int {</span>
+<span class="nc" id="L243">        var temp = currentTemperature</span>
+<span class="nc" id="L244">        try {</span>
+<span class="nc bnc" id="L245" title="All 4 branches missed.">            var areaIds = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds</span>
+<span class="nc bnc" id="L246" title="All 6 branches missed.">            if (areaIds == null || areaIds.isEmpty()) {</span>
+<span class="nc" id="L247">                areaIds = intArrayOf(49, 68)</span>
+            }
+            
+<span class="nc" id="L250">            var targetAreaId = areaIds.first()</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">            for (areaId in areaIds) {</span>
+<span class="nc bnc" id="L252" title="All 4 branches missed.">                if (zone == &quot;driver&quot; &amp;&amp; (areaId and 4) == 4) {</span>
+<span class="nc" id="L253">                    targetAreaId = areaId</span>
+<span class="nc" id="L254">                    break</span>
+                }
+<span class="nc bnc" id="L256" title="All 4 branches missed.">                if (zone == &quot;passenger&quot; &amp;&amp; (areaId and 1) == 1) {</span>
+<span class="nc" id="L257">                    targetAreaId = areaId</span>
+<span class="nc" id="L258">                    break</span>
+                }
+            }
+            
+<span class="nc bnc" id="L262" title="All 2 branches missed.">            val readTemp = carPropertyManager?.getFloatProperty(android.car.VehiclePropertyIds.HVAC_TEMPERATURE_SET, targetAreaId)</span>
+<span class="nc bnc" id="L263" title="All 4 branches missed.">            if (readTemp != null &amp;&amp; readTemp &gt; 0) {</span>
+<span class="nc" id="L264">                temp = readTemp</span>
+            }
+<span class="nc" id="L266">        } catch (e: Exception) {</span>
+            // fallback to cached currentTemperature
+        }
+
+        // VHAL usually stores in Celsius (e.g. 16-32)
+<span class="nc bnc" id="L271" title="All 2 branches missed.">        if (temp &gt;= 50f) {</span>
+<span class="nc" id="L272">            return Math.round(temp)</span>
+        }
+        
+<span class="nc" id="L275">        return Math.round((temp * 9.0f / 5.0f) + 32.0f)</span>
+    }
+<span class="nc" id="L277">    fun getRawTemperature(): Float = currentTemperature</span>
+<span class="nc" id="L278">    fun getFuelLevel(): Float = currentFuelLevel</span>
+    
+    fun getRealFanSpeed(): Int {
+<span class="nc" id="L281">        return getIntPropertyQuietly(android.car.VehiclePropertyIds.HVAC_FAN_SPEED, 3)</span>
+    }
+    fun getGearSelection(): String {
+<span class="nc bnc" id="L284" title="All 5 branches missed.">        return when (currentGear) {</span>
+<span class="nc" id="L285">            1 -&gt; &quot;Neutral&quot;</span>
+<span class="nc" id="L286">            2 -&gt; &quot;Reverse&quot;</span>
+<span class="nc" id="L287">            4 -&gt; &quot;Park&quot;</span>
+<span class="nc" id="L288">            8 -&gt; &quot;Drive&quot;</span>
+<span class="nc" id="L289">            else -&gt; &quot;Unknown&quot;</span>
+        }
+    }
+
+    // Mock Telemetry Setters (for testing)
+<span class="nc" id="L294">    fun setMockSpeed(speed: Float) { currentSpeed = speed }</span>
+
+<span class="nc" id="L296">    suspend fun writeTemperatureToVhalVerified(temp: Float, zone: String = &quot;all&quot;): Boolean {</span>
+<span class="nc" id="L297">        try {</span>
+<span class="nc bnc" id="L298" title="All 4 branches missed.">            var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds</span>
+<span class="nc bnc" id="L299" title="All 6 branches missed.">            if (areaIds == null || areaIds.isEmpty()) {</span>
+<span class="nc" id="L300">                areaIds = intArrayOf(49, 68) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP</span>
+            }
+            
+            // Filter areaIds based on the requested zone
+<span class="nc" id="L304">            val targetAreaIds = mutableListOf&lt;Int&gt;()</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">            for (areaId in areaIds) {</span>
+<span class="nc bnc" id="L306" title="All 4 branches missed.">                if (zone == &quot;driver&quot; &amp;&amp; (areaId and 4) != 4) continue</span>
+<span class="nc bnc" id="L307" title="All 4 branches missed.">                if (zone == &quot;passenger&quot; &amp;&amp; (areaId and 1) != 1) continue</span>
+<span class="nc" id="L308">                targetAreaIds.add(areaId)</span>
+            }
+            
+<span class="nc bnc" id="L311" title="All 2 branches missed.">            if (targetAreaIds.isEmpty()) {</span>
+<span class="nc" id="L312">                Log.w(&quot;VehicleManager&quot;, &quot;No matching area IDs found for zone: $zone&quot;)</span>
+<span class="nc" id="L313">                return false</span>
+            }
+
+<span class="nc" id="L316">            Log.d(&quot;VehicleManager&quot;, &quot;writeTemperatureToVhal called with $temp, zone: $zone. Target Area IDs: ${targetAreaIds.joinToString()}&quot;)</span>
+<span class="nc" id="L317">            var anySuccess = false</span>
+            
+<span class="nc" id="L319">            targetAreaIds.forEach { areaId -&gt;</span>
+<span class="nc" id="L320">                var finalTemp = temp</span>
+                
+<span class="nc" id="L322">                try {</span>
+<span class="nc bnc" id="L323" title="All 4 branches missed.">                    val configArray = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.configArray</span>
+<span class="nc" id="L324">                    var isVhalFahrenheit = false</span>
+                    
+<span class="nc bnc" id="L326" title="All 4 branches missed.">                    if (configArray != null &amp;&amp; configArray.size &gt;= 2) {</span>
+<span class="nc" id="L327">                        val minTemp = configArray[0] / 10f</span>
+<span class="nc" id="L328">                        val maxTemp = configArray[1] / 10f</span>
+<span class="nc bnc" id="L329" title="All 2 branches missed.">                        val increment = if (configArray.size &gt;= 3) configArray[2] / 10f else 0.5f</span>
+                        
+                        // If max temp is &gt; 50, the VHAL natively expects Fahrenheit
+<span class="nc bnc" id="L332" title="All 4 branches missed.">                        if (maxTemp &gt; 50f || currentTemperature &gt; 50f) {</span>
+<span class="nc" id="L333">                            isVhalFahrenheit = true</span>
+                        }
+                        
+                        // If requested temp is Fahrenheit but VHAL expects Celsius, convert to Celsius
+<span class="nc bnc" id="L337" title="All 4 branches missed.">                        if (!isVhalFahrenheit &amp;&amp; finalTemp &gt; 30f) {</span>
+                            // Convert requested Fahrenheit to Celsius using standard math
+<span class="nc" id="L339">                            finalTemp = (finalTemp - 32.0f) * 5.0f / 9.0f</span>
+                        }
+                        
+<span class="nc bnc" id="L342" title="All 2 branches missed.">                        if (isVhalFahrenheit) {</span>
+<span class="nc" id="L343">                            finalTemp = Math.round(finalTemp).toFloat()</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">                        } else if (increment &gt; 0) {</span>
+<span class="nc" id="L345">                            finalTemp = Math.round(finalTemp / increment) * increment</span>
+                        }
+                        
+                        // Clamp
+<span class="nc bnc" id="L349" title="All 2 branches missed.">                        if (finalTemp &gt; maxTemp) finalTemp = maxTemp</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">                        if (finalTemp &lt; minTemp) finalTemp = minTemp</span>
+                    } else {
+                        // Fallback
+<span class="nc bnc" id="L353" title="All 2 branches missed.">                        if (currentTemperature &gt; 50f) {</span>
+                            // Assume VHAL is natively Fahrenheit
+<span class="nc" id="L355">                            finalTemp = Math.round(finalTemp).toFloat()</span>
+<span class="nc bnc" id="L356" title="All 2 branches missed.">                            if (finalTemp &gt; 85.0f) finalTemp = 85.0f</span>
+<span class="nc bnc" id="L357" title="All 2 branches missed.">                            if (finalTemp &lt; 60.0f) finalTemp = 60.0f</span>
+                        } else {
+                            // Assume VHAL is natively Celsius
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                            if (finalTemp &gt; 30f) {</span>
+<span class="nc" id="L361">                                finalTemp = (finalTemp - 32.0f) * 5.0f / 9.0f</span>
+                            }
+<span class="nc" id="L363">                            finalTemp = Math.round(finalTemp * 2.0f) / 2.0f</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">                            if (finalTemp &gt; 28.0f) finalTemp = 28.0f</span>
+<span class="nc bnc" id="L365" title="All 2 branches missed.">                            if (finalTemp &lt; 16.0f) finalTemp = 16.0f</span>
+                        }
+                    }
+<span class="nc" id="L368">                } catch (e: Exception) {</span>
+                    // Safety fallback
+<span class="nc bnc" id="L370" title="All 2 branches missed.">                    if (finalTemp &gt; 30f) {</span>
+<span class="nc" id="L371">                        finalTemp = (finalTemp - 32f) * 5f / 9f</span>
+                    }
+<span class="nc" id="L373">                    finalTemp = Math.round(finalTemp * 2.0f) / 2.0f</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">                    if (finalTemp &gt; 28.0f) finalTemp = 28.0f</span>
+<span class="nc bnc" id="L375" title="All 2 branches missed.">                    if (finalTemp &lt; 16.0f) finalTemp = 16.0f</span>
+                }
+
+<span class="nc" id="L378">                try {</span>
+<span class="nc" id="L379">                    Log.d(&quot;VehicleManager&quot;, &quot;Setting temp for area $areaId to $finalTemp&quot;)</span>
+<span class="nc" id="L380">                    val success = setPropertyVerified(VehiclePropertyIds.HVAC_TEMPERATURE_SET, areaId, finalTemp.toString(), &quot;FLOAT&quot;)</span>
+<span class="nc bnc" id="L381" title="All 2 branches missed.">                    if (success) {</span>
+<span class="nc" id="L382">                        anySuccess = true</span>
+                    }
+<span class="nc" id="L384">                } catch (e: Exception) {</span>
+<span class="nc" id="L385">                    Log.e(&quot;VehicleManager&quot;, &quot;Failed to set temp for area $areaId (tried $finalTemp)&quot;, e)</span>
+                }
+<span class="nc" id="L387">            }</span>
+<span class="nc" id="L388">            return anySuccess</span>
+<span class="nc" id="L389">        } catch (e: Exception) {</span>
+<span class="nc" id="L390">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write VHAL temp&quot;, e)</span>
+<span class="nc" id="L391">            return false</span>
+        }
+    }
+    
+    suspend fun writeFanSpeedToVhalVerified(speedLevel: Int): Boolean {
+<span class="nc" id="L396">        try {</span>
+<span class="nc bnc" id="L397" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_FAN_SPEED)</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">            var areaIds = config?.areaIds</span>
+<span class="nc bnc" id="L399" title="All 6 branches missed.">            if (areaIds == null || areaIds.isEmpty()) {</span>
+<span class="nc" id="L400">                areaIds = intArrayOf(117) // Fallback for HVAC_FAN_SPEED</span>
+            }
+            
+<span class="nc" id="L403">            ensureHvacPowerOn()</span>
+            
+<span class="nc" id="L405">            var anySuccess = false</span>
+<span class="nc" id="L406">            areaIds.forEach { areaId -&gt;</span>
+<span class="nc" id="L407">                var finalLevel = speedLevel</span>
+<span class="nc" id="L408">                var maxLvl = 7</span>
+<span class="nc" id="L409">                var minLvl = 1</span>
+<span class="nc" id="L410">                try {</span>
+<span class="nc bnc" id="L411" title="All 6 branches missed.">                    maxLvl = config?.getMaxValue(areaId) as? Int ?: 7</span>
+<span class="nc bnc" id="L412" title="All 6 branches missed.">                    minLvl = config?.getMinValue(areaId) as? Int ?: 1</span>
+<span class="nc" id="L413">                } catch (e: Exception) {}</span>
+                
+<span class="nc bnc" id="L415" title="All 2 branches missed.">                if (finalLevel &gt; maxLvl) finalLevel = maxLvl</span>
+<span class="nc bnc" id="L416" title="All 2 branches missed.">                if (finalLevel &lt; minLvl) finalLevel = minLvl</span>
+                
+<span class="nc" id="L418">                val success = setPropertyVerified(android.car.VehiclePropertyIds.HVAC_FAN_SPEED, areaId, finalLevel.toString(), &quot;INT&quot;)</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                if (success) anySuccess = true</span>
+<span class="nc" id="L420">            }</span>
+<span class="nc" id="L421">            return anySuccess</span>
+<span class="nc" id="L422">        } catch (e: Exception) {</span>
+<span class="nc" id="L423">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write VHAL fan speed&quot;, e)</span>
+<span class="nc" id="L424">            return false</span>
+        }
+    }
+    
+    suspend fun writeAirflowDirectionToVhalVerified(direction: Int): Boolean {
+<span class="nc" id="L429">        try {</span>
+<span class="nc" id="L430">            val propertyId = 356517121 // HVAC_FAN_DIRECTION</span>
+<span class="nc bnc" id="L431" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(propertyId)</span>
+<span class="nc bnc" id="L432" title="All 2 branches missed.">            var areaIds = config?.areaIds</span>
+<span class="nc bnc" id="L433" title="All 6 branches missed.">            if (areaIds == null || areaIds.isEmpty()) {</span>
+<span class="nc" id="L434">                areaIds = intArrayOf(49, 68) // Fallback for ROW_1_LEFT/RIGHT</span>
+            }
+            
+<span class="nc" id="L437">            ensureHvacPowerOn()</span>
+            
+<span class="nc" id="L439">            var anySuccess = false</span>
+<span class="nc" id="L440">            areaIds.forEach { areaId -&gt;</span>
+<span class="nc" id="L441">                val success = setPropertyVerified(propertyId, areaId, direction.toString(), &quot;INT&quot;)</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">                if (success) anySuccess = true</span>
+<span class="nc" id="L443">            }</span>
+<span class="nc" id="L444">            return anySuccess</span>
+<span class="nc" id="L445">        } catch (e: Exception) {</span>
+<span class="nc" id="L446">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write VHAL airflow direction&quot;, e)</span>
+<span class="nc" id="L447">            return false</span>
+        }
+    }
+    fun setGenericVhalProperty(propertyId: Int, areaId: Int, value: String, dataType: String): Boolean {
+<span class="nc" id="L451">        try {</span>
+<span class="nc" id="L452">            var targetAreaId = areaId</span>
+            // If areaId is 0 (global/unassigned), try to fetch the first valid areaId from the config
+<span class="nc bnc" id="L454" title="All 2 branches missed.">            if (targetAreaId == 0) {</span>
+<span class="nc bnc" id="L455" title="All 2 branches missed.">                val config = carPropertyManager?.getCarPropertyConfig(propertyId)</span>
+<span class="nc bnc" id="L456" title="All 8 branches missed.">                if (config != null &amp;&amp; config.areaIds.isNotEmpty()) {</span>
+<span class="nc" id="L457">                    targetAreaId = config.areaIds.first()</span>
+                }
+            }
+
+<span class="nc bnc" id="L461" title="All 5 branches missed.">            when (dataType.uppercase()) {</span>
+<span class="nc bnc" id="L462" title="All 4 branches missed.">                &quot;INT&quot; -&gt; carPropertyManager?.setIntProperty(propertyId, targetAreaId, value.toFloatOrNull()?.toInt() ?: value.toInt())</span>
+<span class="nc bnc" id="L463" title="All 2 branches missed.">                &quot;FLOAT&quot; -&gt; carPropertyManager?.setFloatProperty(propertyId, targetAreaId, value.toFloat())</span>
+<span class="nc bnc" id="L464" title="All 2 branches missed.">                &quot;BOOLEAN&quot; -&gt; carPropertyManager?.setBooleanProperty(propertyId, targetAreaId, value.toBoolean())</span>
+<span class="nc bnc" id="L465" title="All 2 branches missed.">                &quot;STRING&quot; -&gt; carPropertyManager?.setProperty(Any::class.java, propertyId, targetAreaId, value)</span>
+<span class="nc" id="L466">                else -&gt; return false</span>
+            }
+<span class="nc" id="L468">            return true</span>
+<span class="nc" id="L469">        } catch (e: Exception) {</span>
+<span class="nc" id="L470">            Log.e(&quot;VehicleManager&quot;, &quot;Failed generic write for property $propertyId&quot;, e)</span>
+<span class="nc" id="L471">            return false</span>
+        }
+    }
+    
+    suspend fun writeDefrosterToVhalVerified(on: Boolean): Boolean {
+<span class="nc" id="L476">        try {</span>
+<span class="nc bnc" id="L477" title="All 4 branches missed.">            var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_DEFROSTER)?.areaIds</span>
+<span class="nc bnc" id="L478" title="All 6 branches missed.">            if (areaIds == null || areaIds.isEmpty()) {</span>
+<span class="nc" id="L479">                areaIds = intArrayOf(1, 2) // Fallback for WINDOW_FRONT and WINDOW_REAR</span>
+            }
+            
+<span class="nc" id="L482">            var anySuccess = false</span>
+<span class="nc" id="L483">            areaIds.forEach { areaId -&gt;</span>
+<span class="nc bnc" id="L484" title="All 2 branches missed.">                val success = setPropertyVerified(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on.toString(), &quot;BOOLEAN&quot;)</span>
+<span class="nc bnc" id="L485" title="All 2 branches missed.">                if (success) anySuccess = true</span>
+<span class="nc" id="L486">            }</span>
+<span class="nc" id="L487">            return anySuccess</span>
+<span class="nc" id="L488">        } catch (e: Exception) {</span>
+<span class="nc" id="L489">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write VHAL defroster&quot;, e)</span>
+<span class="nc" id="L490">            return false</span>
+        }
+    }
+
+    suspend fun writeRearDefrosterToVhalVerified(on: Boolean): Boolean {
+<span class="nc" id="L495">        try {</span>
+            // Android Automotive uses HVAC_ELECTRIC_DEFROSTER_ON (0x13200514) for the rear window defroster
+<span class="nc" id="L497">            val HVAC_ELECTRIC_DEFROSTER_ON = 320865556</span>
+<span class="nc bnc" id="L498" title="All 4 branches missed.">            var areaIds = carPropertyManager?.getCarPropertyConfig(HVAC_ELECTRIC_DEFROSTER_ON)?.areaIds</span>
+<span class="nc bnc" id="L499" title="All 6 branches missed.">            if (areaIds == null || areaIds.isEmpty()) {</span>
+<span class="nc" id="L500">                areaIds = intArrayOf(2) // Fallback for WINDOW_REAR</span>
+            }
+<span class="nc" id="L502">            var anySuccess = false</span>
+<span class="nc" id="L503">            areaIds.forEach { areaId -&gt;</span>
+<span class="nc bnc" id="L504" title="All 2 branches missed.">                val success = setPropertyVerified(HVAC_ELECTRIC_DEFROSTER_ON, areaId, on.toString(), &quot;BOOLEAN&quot;)</span>
+<span class="nc bnc" id="L505" title="All 2 branches missed.">                if (success) anySuccess = true</span>
+<span class="nc" id="L506">            }</span>
+<span class="nc" id="L507">            return anySuccess</span>
+<span class="nc" id="L508">        } catch (e: Exception) {</span>
+<span class="nc" id="L509">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write VHAL rear defroster&quot;, e)</span>
+<span class="nc" id="L510">            return false</span>
+        }
+    }
+
+    suspend fun writeSeatHeaterToVhalVerified(level: Int): Boolean {
+<span class="nc" id="L515">        try {</span>
+<span class="nc bnc" id="L516" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)</span>
+<span class="nc bnc" id="L517" title="All 2 branches missed.">            var areaIds = config?.areaIds</span>
+<span class="nc bnc" id="L518" title="All 6 branches missed.">            if (areaIds == null || areaIds.isEmpty()) {</span>
+<span class="nc" id="L519">                areaIds = intArrayOf(1, 4) // Fallback for SEAT_1_LEFT and SEAT_1_RIGHT</span>
+            }
+            
+<span class="nc" id="L522">            ensureHvacPowerOn()</span>
+            
+<span class="nc" id="L524">            var anySuccess = false</span>
+<span class="nc" id="L525">            areaIds.forEach { areaId -&gt;</span>
+<span class="nc" id="L526">                var finalLevel = level</span>
+<span class="nc" id="L527">                var maxLvl = 3</span>
+<span class="nc" id="L528">                var minLvl = -3</span>
+<span class="nc" id="L529">                try {</span>
+<span class="nc bnc" id="L530" title="All 6 branches missed.">                    maxLvl = config?.getMaxValue(areaId) as? Int ?: 3</span>
+<span class="nc bnc" id="L531" title="All 6 branches missed.">                    minLvl = config?.getMinValue(areaId) as? Int ?: -3</span>
+<span class="nc" id="L532">                } catch (e: Exception) { }</span>
+<span class="nc bnc" id="L533" title="All 2 branches missed.">                if (finalLevel &gt; maxLvl) finalLevel = maxLvl</span>
+<span class="nc bnc" id="L534" title="All 2 branches missed.">                if (finalLevel &lt; minLvl) finalLevel = minLvl</span>
+<span class="nc" id="L535">                val success = setPropertyVerified(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel.toString(), &quot;INT&quot;)</span>
+<span class="nc bnc" id="L536" title="All 2 branches missed.">                if (success) anySuccess = true</span>
+<span class="nc" id="L537">            }</span>
+<span class="nc" id="L538">            return anySuccess</span>
+<span class="nc" id="L539">        } catch (e: Exception) {</span>
+<span class="nc" id="L540">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write VHAL seat heater&quot;, e)</span>
+<span class="nc" id="L541">            return false</span>
+        }
+    }
+
+    suspend fun writeSeatMassagerToVhalVerified(level: Int): Boolean {
+<span class="nc" id="L546">        try {</span>
+            // Seat Massage is a hidden API (added in API 33) 
+<span class="nc" id="L548">            Log.i(&quot;VehicleManager&quot;, &quot;Setting Seat Massager to level $level&quot;)</span>
+<span class="nc bnc" id="L549" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(356519253) // 0x15400D55 (SEAT_MASSAGE)</span>
+            
+<span class="nc" id="L551">            ensureHvacPowerOn()</span>
+            
+<span class="nc bnc" id="L553" title="All 4 branches missed.">            config?.areaIds?.forEach { areaId -&gt;</span>
+<span class="nc" id="L554">                var finalLevel = level</span>
+<span class="nc" id="L555">                var maxLvl = 3</span>
+<span class="nc" id="L556">                var minLvl = 0</span>
+<span class="nc" id="L557">                try {</span>
+<span class="nc bnc" id="L558" title="All 6 branches missed.">                    maxLvl = config?.getMaxValue(areaId) as? Int ?: 3</span>
+<span class="nc bnc" id="L559" title="All 6 branches missed.">                    minLvl = config?.getMinValue(areaId) as? Int ?: 0</span>
+<span class="nc" id="L560">                } catch (e: Exception) { }</span>
+<span class="nc bnc" id="L561" title="All 2 branches missed.">                if (finalLevel &gt; maxLvl) finalLevel = maxLvl</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">                if (finalLevel &lt; minLvl) finalLevel = minLvl</span>
+<span class="nc" id="L563">                val success = setPropertyVerified(356519253, areaId, finalLevel.toString(), &quot;INT&quot;)</span>
+<span class="nc bnc" id="L564" title="All 2 branches missed.">                if (!success) return false</span>
+<span class="nc" id="L565">            }</span>
+<span class="nc" id="L566">            return true</span>
+<span class="nc" id="L567">        } catch (e: Exception) {</span>
+<span class="nc" id="L568">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write VHAL seat massager. Possibly unsupported by current HAL.&quot;, e)</span>
+<span class="nc" id="L569">            return false</span>
+        }
+    }
+
+    suspend fun writeWindowPositionToVhalVerified(percentage: Int): Boolean {
+<span class="nc" id="L574">        try {</span>
+<span class="nc bnc" id="L575" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS)</span>
+<span class="nc bnc" id="L576" title="All 4 branches missed.">            config?.areaIds?.forEach { areaId -&gt;</span>
+                // Assuming percentage is 0-100
+<span class="nc" id="L578">                val success = setPropertyVerified(VehiclePropertyIds.WINDOW_POS, areaId, percentage.toString(), &quot;INT&quot;)</span>
+<span class="nc bnc" id="L579" title="All 2 branches missed.">                if (!success) return false</span>
+<span class="nc" id="L580">            }</span>
+<span class="nc" id="L581">            return true</span>
+<span class="nc" id="L582">        } catch (e: Exception) {</span>
+<span class="nc" id="L583">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to write window position&quot;, e)</span>
+<span class="nc" id="L584">            return false</span>
+        }
+    }
+
+    fun runPropertyDiagnostics(): String {
+<span class="nc" id="L589">        val sb = StringBuilder()</span>
+<span class="nc" id="L590">        sb.append(&quot;## Telemetry Property Diagnostics\n\n&quot;)</span>
+<span class="nc" id="L591">        sb.append(&quot;| Property Name | Type | Status | Value / Error |\n&quot;)</span>
+<span class="nc" id="L592">        sb.append(&quot;|---|---|---|---|\n&quot;)</span>
+
+<span class="nc bnc" id="L594" title="All 2 branches missed.">        for ((id, name) in customPropertyIdToName) {</span>
+<span class="nc bnc" id="L595" title="All 2 branches missed.">            val type = customPropertyIdToType[id] ?: &quot;UNKNOWN&quot;</span>
+<span class="nc" id="L596">            var status = &quot;✅ PASS&quot;</span>
+<span class="nc" id="L597">            var note = &quot;N/A&quot;</span>
+<span class="nc" id="L598">            try {</span>
+<span class="nc bnc" id="L599" title="All 2 branches missed.">                val config = carPropertyManager?.getCarPropertyConfig(id)</span>
+<span class="nc bnc" id="L600" title="All 2 branches missed.">                if (config == null) {</span>
+<span class="nc" id="L601">                    status = &quot;⚠️ UNSUPPORTED&quot;</span>
+<span class="nc" id="L602">                    note = &quot;Hardware lacks VHAL support for this property&quot;</span>
+                } else {
+<span class="nc bnc" id="L604" title="All 2 branches missed.">                    val areaId = config.areaIds.firstOrNull() ?: 0</span>
+<span class="nc bnc" id="L605" title="All 5 branches missed.">                    val value = when (type.uppercase()) {</span>
+<span class="nc bnc" id="L606" title="All 2 branches missed.">                        &quot;FLOAT&quot; -&gt; carPropertyManager?.getFloatProperty(id, areaId).toString()</span>
+<span class="nc bnc" id="L607" title="All 2 branches missed.">                        &quot;INT&quot; -&gt; carPropertyManager?.getIntProperty(id, areaId).toString()</span>
+<span class="nc bnc" id="L608" title="All 2 branches missed.">                        &quot;BOOLEAN&quot; -&gt; carPropertyManager?.getBooleanProperty(id, areaId).toString()</span>
+<span class="nc bnc" id="L609" title="All 8 branches missed.">                        &quot;STRING&quot; -&gt; carPropertyManager?.getProperty&lt;Any&gt;(Any::class.java, id, areaId)?.value?.toString() ?: &quot;null&quot;</span>
+<span class="nc" id="L610">                        else -&gt; &quot;Unknown Type&quot;</span>
+                    }
+<span class="nc" id="L612">                    note = &quot;Read successful: $value&quot;</span>
+                }
+<span class="nc" id="L614">            } catch (e: Exception) {</span>
+<span class="nc" id="L615">                status = &quot;❌ CRASH&quot;</span>
+<span class="nc bnc" id="L616" title="All 2 branches missed.">                note = e.message ?: &quot;Exception&quot;</span>
+            }
+<span class="nc" id="L618">            sb.append(&quot;| $name | $type | $status | $note |\n&quot;)</span>
+        }
+<span class="nc" id="L620">        return sb.toString()</span>
+    }
+
+    private suspend fun ensureHvacPowerOn() {
+<span class="nc" id="L624">        try {</span>
+            // First try area 117 (0x75), then area 1
+<span class="nc bnc" id="L626" title="All 2 branches missed.">            if (!setPropertyVerified(android.car.VehiclePropertyIds.HVAC_POWER_ON, 117, &quot;true&quot;, &quot;BOOLEAN&quot;, 100)) {</span>
+<span class="nc" id="L627">                setPropertyVerified(android.car.VehiclePropertyIds.HVAC_POWER_ON, 1, &quot;true&quot;, &quot;BOOLEAN&quot;, 100)</span>
+            }
+<span class="nc" id="L629">        } catch (e: Exception) {</span>
+<span class="nc" id="L630">            Log.w(&quot;VehicleManager&quot;, &quot;Failed to ensure HVAC power on: ${e.message}&quot;)</span>
+        }
+<span class="nc" id="L632">    }</span>
+
+<span class="nc" id="L634">    suspend fun setPropertyVerified(propertyId: Int, targetAreaIdParam: Int, value: String, dataType: String, timeoutMs: Long = 500, maxRetries: Int = 2): Boolean {</span>
+<span class="nc" id="L635">        var targetAreaId = targetAreaIdParam</span>
+<span class="nc bnc" id="L636" title="All 2 branches missed.">        if (targetAreaId == 0) {</span>
+<span class="nc bnc" id="L637" title="All 2 branches missed.">            val config = carPropertyManager?.getCarPropertyConfig(propertyId)</span>
+<span class="nc bnc" id="L638" title="All 8 branches missed.">            if (config != null &amp;&amp; config.areaIds.isNotEmpty()) {</span>
+<span class="nc" id="L639">                targetAreaId = config.areaIds.first()</span>
+            }
+        }
+        
+        // Pre-check if the value is already set to avoid VHAL timeout (VHAL doesn't fire onChange if value didn't change)
+<span class="nc" id="L644">        try {</span>
+<span class="nc bnc" id="L645" title="All 5 branches missed.">            val currentValue = when (dataType.uppercase()) {</span>
+<span class="nc bnc" id="L646" title="All 2 branches missed.">                &quot;INT&quot; -&gt; carPropertyManager?.getIntProperty(propertyId, targetAreaId)?.toString()</span>
+<span class="nc bnc" id="L647" title="All 2 branches missed.">                &quot;FLOAT&quot; -&gt; carPropertyManager?.getFloatProperty(propertyId, targetAreaId)?.toString()</span>
+<span class="nc bnc" id="L648" title="All 4 branches missed.">                &quot;BOOLEAN&quot; -&gt; carPropertyManager?.getBooleanProperty(propertyId, targetAreaId)?.toString()</span>
+<span class="nc bnc" id="L649" title="All 6 branches missed.">                &quot;STRING&quot; -&gt; carPropertyManager?.getProperty&lt;Any&gt;(Any::class.java, propertyId, targetAreaId)?.value?.toString()</span>
+<span class="nc" id="L650">                else -&gt; null</span>
+            }
+            
+<span class="nc bnc" id="L653" title="All 4 branches missed.">            val matches = when (dataType.uppercase()) {</span>
+<span class="nc bnc" id="L654" title="All 6 branches missed.">                &quot;INT&quot; -&gt; currentValue?.toFloatOrNull()?.toInt() == value.toFloatOrNull()?.toInt()</span>
+<span class="nc bnc" id="L655" title="All 2 branches missed.">                &quot;FLOAT&quot; -&gt; currentValue?.toFloatOrNull() == value.toFloatOrNull()</span>
+<span class="nc bnc" id="L656" title="All 4 branches missed.">                &quot;BOOLEAN&quot; -&gt; currentValue?.toBoolean() == value.toBoolean()</span>
+<span class="nc" id="L657">                else -&gt; currentValue == value</span>
+            }
+            
+<span class="nc bnc" id="L660" title="All 2 branches missed.">            if (matches) {</span>
+<span class="nc" id="L661">                Log.d(&quot;VehicleManager&quot;, &quot;Property $propertyId area $targetAreaId is already $value. Skipping write.&quot;)</span>
+<span class="nc" id="L662">                return true</span>
+            }
+<span class="nc" id="L664">        } catch (e: Exception) {</span>
+<span class="nc" id="L665">            Log.w(&quot;VehicleManager&quot;, &quot;Failed pre-check for property $propertyId&quot;, e)</span>
+        }
+
+<span class="nc" id="L668">        var currentDelay = 500L</span>
+<span class="nc bnc" id="L669" title="All 2 branches missed.">        repeat(maxRetries) { attempt -&gt;</span>
+<span class="nc bnc" id="L670" title="All 2 branches missed.">            val success = kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {</span>
+<span class="nc" id="L671">                try {</span>
+<span class="nc" id="L672">                    val writeSuccess = setGenericVhalProperty(propertyId, targetAreaId, value, dataType)</span>
+<span class="nc bnc" id="L673" title="All 2 branches missed.">                    if (!writeSuccess) return@withTimeoutOrNull false</span>
+
+<span class="nc" id="L675">                    while (true) {</span>
+<span class="nc" id="L676">                        val manuallyVerified = try {</span>
+<span class="nc bnc" id="L677" title="All 5 branches missed.">                            val currentCheck = when (dataType.uppercase()) {</span>
+<span class="nc bnc" id="L678" title="All 2 branches missed.">                                &quot;INT&quot; -&gt; carPropertyManager?.getIntProperty(propertyId, targetAreaId)?.toString()</span>
+<span class="nc bnc" id="L679" title="All 2 branches missed.">                                &quot;FLOAT&quot; -&gt; carPropertyManager?.getFloatProperty(propertyId, targetAreaId)?.toString()</span>
+<span class="nc bnc" id="L680" title="All 4 branches missed.">                                &quot;BOOLEAN&quot; -&gt; carPropertyManager?.getBooleanProperty(propertyId, targetAreaId)?.toString()</span>
+<span class="nc bnc" id="L681" title="All 6 branches missed.">                                &quot;STRING&quot; -&gt; carPropertyManager?.getProperty&lt;Any&gt;(Any::class.java, propertyId, targetAreaId)?.value?.toString()</span>
+<span class="nc" id="L682">                                else -&gt; null</span>
+                            }
+
+<span class="nc bnc" id="L685" title="All 4 branches missed.">                            when (dataType.uppercase()) {</span>
+<span class="nc bnc" id="L686" title="All 6 branches missed.">                                &quot;INT&quot; -&gt; currentCheck?.toFloatOrNull()?.toInt() == value.toFloatOrNull()?.toInt()</span>
+<span class="nc bnc" id="L687" title="All 2 branches missed.">                                &quot;FLOAT&quot; -&gt; currentCheck?.toFloatOrNull() == value.toFloatOrNull()</span>
+<span class="nc bnc" id="L688" title="All 4 branches missed.">                                &quot;BOOLEAN&quot; -&gt; currentCheck?.toBoolean() == value.toBoolean()</span>
+<span class="nc" id="L689">                                else -&gt; currentCheck == value</span>
+                            }
+<span class="nc" id="L691">                        } catch (e: Exception) { false }</span>
+
+<span class="nc bnc" id="L693" title="All 2 branches missed.">                        if (manuallyVerified) return@withTimeoutOrNull true</span>
+<span class="nc" id="L694">                        kotlinx.coroutines.delay(50)</span>
+                    }
+                    false
+<span class="nc" id="L697">                } catch (e: kotlinx.coroutines.CancellationException) {</span>
+<span class="nc" id="L698">                    throw e</span>
+<span class="nc" id="L699">                } catch (e: Exception) {</span>
+<span class="nc" id="L700">                    Log.e(&quot;VehicleManager&quot;, &quot;Hardware Exception in setGenericVhalProperty for $propertyId&quot;, e)</span>
+<span class="nc" id="L701">                    false</span>
+<span class="nc" id="L702">                }</span>
+<span class="nc" id="L703">            } ?: false</span>
+            
+<span class="nc bnc" id="L705" title="All 2 branches missed.">            if (success) return true</span>
+            
+<span class="nc bnc" id="L707" title="All 2 branches missed.">            if (attempt &lt; maxRetries - 1) {</span>
+<span class="nc" id="L708">                Log.w(&quot;VehicleManager&quot;, &quot;Hardware command failed for property $propertyId. Retrying in ${currentDelay}ms (Attempt ${attempt + 1}/$maxRetries)...&quot;)</span>
+<span class="nc" id="L709">                kotlinx.coroutines.delay(currentDelay)</span>
+<span class="nc" id="L710">                currentDelay *= 2</span>
+            }
+<span class="nc" id="L712">        }</span>
+<span class="nc" id="L713">        return false</span>
+    }
+
+    /**
+     * Scope for fire-and-forget VHAL writes. Replaces GlobalScope so [cleanup] can cancel pending
+     * property writes instead of leaving them to outlive the component that requested them.
+     */
+<span class="nc" id="L720">    private val vhalScope = kotlinx.coroutines.CoroutineScope(</span>
+<span class="nc" id="L721">        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO</span>
+    )
+
+    fun cleanup() {
+<span class="nc" id="L725">        try {</span>
+<span class="nc bnc" id="L726" title="All 2 branches missed.">            carPropertyManager?.unregisterCallback(carPropertyCallback)</span>
+<span class="nc" id="L727">        } catch (e: Exception) {</span>
+<span class="nc" id="L728">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to unregister car property callback&quot;, e)</span>
+        }
+<span class="nc" id="L730">        vhalScope.coroutineContext.cancelChildren()</span>
+<span class="nc" id="L731">        try {</span>
+<span class="nc bnc" id="L732" title="All 2 branches missed.">            car?.disconnect()</span>
+<span class="nc" id="L733">        } catch (e: Exception) {</span>
+<span class="nc" id="L734">            Log.e(&quot;VehicleManager&quot;, &quot;Failed to disconnect from Car service&quot;, e)</span>
+        }
+<span class="nc" id="L736">        car = null</span>
+<span class="nc" id="L737">        carPropertyManager = null</span>
+<span class="nc" id="L738">    }</span>
+
+    fun setTemperature(temp: Float) {
+<span class="nc" id="L741">        vhalScope.launch {</span>
+<span class="nc" id="L742">            writeTemperatureToVhalVerified(temp)</span>
+<span class="nc" id="L743">        }</span>
+<span class="nc" id="L744">    }</span>
+    fun setAmbientColor(r: Int, g: Int, b: Int) {
+        // Not implemented in VHAL mock yet, but we'll print a log
+<span class="nc" id="L747">        android.util.Log.d(&quot;VehicleManager&quot;, &quot;Setting ambient color to R:$r G:$g B:$b&quot;)</span>
+<span class="nc" id="L748">    }</span>
+<span class="nc" id="L749">    fun applySavedCabinPreferences(user: String, targetTemp: Float = 20.0f) {</span>
+<span class="nc" id="L750">        android.util.Log.d(&quot;VehicleManager&quot;, &quot;Applying saved preferences for user: $user (Target Temp: $targetTemp°C)&quot;)</span>
+<span class="nc" id="L751">        setTemperature(targetTemp)</span>
+<span class="nc" id="L752">    }</span>
+    fun lockdownValetMode() {
+<span class="nc" id="L754">        android.util.Log.d(&quot;VehicleManager&quot;, &quot;Locking down Valet Mode&quot;)</span>
+<span class="nc" id="L755">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

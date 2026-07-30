@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ConfirmationPolicy.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.core</a> &gt; <span class="el_source">ConfirmationPolicy.kt</span></div><h1>ConfirmationPolicy.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.core
+
+/**
+ * Pure classification of short replies while a ContextGuard / OEM confirmation is pending.
+ * Kept out of [com.tcs.vehicleassistant.repository.AgentOrchestrator] so JVM tests can lock behavior.
+ */
+object ConfirmationPolicy {
+
+    enum class Reply {
+        /** User accepted the pending tool. */
+<span class="fc" id="L11">        AFFIRM,</span>
+        /** User explicitly rejected the pending tool. */
+<span class="fc" id="L13">        DECLINE,</span>
+        /** Anything else — pending should be cleared and the new utterance handled normally. */
+<span class="fc" id="L15">        OTHER,</span>
+    }
+
+    fun classify(query: String): Reply {
+<span class="fc" id="L19">        val trimmed = query.trim()</span>
+<span class="pc bpc" id="L20" title="3 of 6 branches missed.">        if (trimmed.isEmpty() || trimmed.startsWith(&quot;[&quot;)) return Reply.OTHER</span>
+        // Decline before affirm so ambiguous &quot;yes… no…&quot; never writes.
+<span class="fc bfc" id="L22" title="All 2 branches covered.">        if (isDecline(trimmed)) return Reply.DECLINE</span>
+<span class="fc bfc" id="L23" title="All 2 branches covered.">        if (isAffirmative(trimmed)) return Reply.AFFIRM</span>
+<span class="fc" id="L24">        return Reply.OTHER</span>
+    }
+
+    fun isAffirmative(query: String): Boolean {
+<span class="fc bfc" id="L28" title="All 2 branches covered.">        if (isDecline(query)) return false</span>
+<span class="fc" id="L29">        val q = normalize(query)</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (q in AFFIRM_EXACT) return true</span>
+        // ASR politeness: &quot;yes please&quot;, &quot;yeah sure&quot;, &quot;ok go ahead&quot; — not bare &quot;please&quot;.
+<span class="pc bpc" id="L32" title="1 of 4 branches missed.">        return AFFIRM_PREFIXES.any { q.startsWith(it) } &amp;&amp; q.split(' ').size &lt;= 4</span>
+    }
+
+    fun isDecline(query: String): Boolean {
+<span class="fc" id="L36">        val q = normalize(query)</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (q in DECLINE_EXACT) return true</span>
+<span class="pc bpc" id="L38" title="3 of 6 branches missed.">        if (q.startsWith(&quot;no &quot;) || q.startsWith(&quot;nope &quot;) || q.startsWith(&quot;nah &quot;)) return true</span>
+        // Ambiguous &quot;yes … no …&quot; → decline for cabin safety.
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (Regex(&quot;&quot;&quot;\byes\b&quot;&quot;&quot;).containsMatchIn(q) &amp;&amp;</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(no|nope|nah)\b&quot;&quot;&quot;).containsMatchIn(q)</span>
+        ) {
+<span class="fc" id="L43">            return true</span>
+        }
+        // Whole-utterance / word-boundary — avoid &quot;I don't want X, do Y&quot; false declines via loose contains.
+<span class="fc" id="L46">        val declinePhrase = Regex(</span>
+<span class="fc" id="L47">            &quot;&quot;&quot;^(?:no|nope|nah|cancel|never\s*mind)(?:\s+.*)?$|^(?:don'?t|do\s+not)\s+(?:do\s+that|change|increase|open|unlock).*$&quot;&quot;&quot;,</span>
+<span class="fc" id="L48">            RegexOption.IGNORE_CASE,</span>
+        )
+<span class="fc" id="L50">        return declinePhrase.containsMatchIn(q)</span>
+    }
+
+    private fun normalize(query: String): String =
+<span class="fc" id="L54">        query.lowercase().trim()</span>
+<span class="fc" id="L55">            .trimEnd('.', '!', ',', '?')</span>
+<span class="fc" id="L56">            .trim()</span>
+
+<span class="fc" id="L58">    private val AFFIRM_EXACT = setOf(</span>
+<span class="fc" id="L59">        &quot;yes&quot;, &quot;yeah&quot;, &quot;yep&quot;, &quot;yup&quot;, &quot;sure&quot;, &quot;ok&quot;, &quot;okay&quot;, &quot;do it&quot;, &quot;go ahead&quot;,</span>
+    )
+
+<span class="fc" id="L62">    private val AFFIRM_PREFIXES = listOf(</span>
+<span class="fc" id="L63">        &quot;yes &quot;, &quot;yeah &quot;, &quot;yep &quot;, &quot;yup &quot;, &quot;sure &quot;, &quot;ok &quot;, &quot;okay &quot;,</span>
+    )
+
+<span class="fc" id="L66">    private val DECLINE_EXACT = setOf(</span>
+<span class="fc" id="L67">        &quot;no&quot;, &quot;nope&quot;, &quot;nah&quot;, &quot;cancel&quot;, &quot;never mind&quot;, &quot;nevermind&quot;, &quot;don't&quot;, &quot;do not&quot;,</span>
+<span class="fc" id="L68">        &quot;no thanks&quot;, &quot;no thank you&quot;, &quot;not now&quot;, &quot;not really&quot;, &quot;stop&quot;,</span>
+    )
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -8,7 +8,7 @@ This repo is a single Android Automotive OS (AAOS) app — `VehicleEdgeAssistant
 `:assistant-ext` (UI/UX / TTFR extensions), `:assistant-ui` (Compose face/overlay),
 and `:assistant-api` (host-neutral LLM/tool ports).
 There is no backend/server to run; the "product" is an installable APK. See
-`README.md` and `ARCHITECTURE.md` for product/architecture details and
+`README.md` and `docs/ARCHITECTURE.md` for product/architecture details and
 `app/build.gradle.kts` for the module config.
 
 ### Hard rule: do not modify `origin/master`-owned classes

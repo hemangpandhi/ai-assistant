@@ -1,0 +1,721 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>AndroidAudioManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.hardware</a> &gt; <span class="el_source">AndroidAudioManager.kt</span></div><h1>AndroidAudioManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.hardware
+
+import android.content.Context
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
+import android.util.Log
+import com.tcs.vehicleassistant.LatencyLogger
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.TtsVoiceCatalog
+import kotlinx.coroutines.*
+import com.k2fsa.sherpa.onnx.*
+
+<span class="nc" id="L14">class AndroidAudioManager(private val context: Context) : IAudioManager {</span>
+
+    private companion object {
+        const val TAG = &quot;AndroidAudioManager&quot;
+    }
+
+    private var offlineTts: OfflineTts? = null
+    @Volatile private var ttsSpeakerId: Int = 0
+<span class="nc" id="L22">    @Volatile private var ttsSpeed: Float = 1.0f</span>
+<span class="nc" id="L23">    @Volatile private var loadedVoiceId: String = TtsVoiceCatalog.BUNDLED_AMY_ID</span>
+
+    // TTS callbacks
+    private var onTtsStart: ((String) -&gt; Unit)? = null
+    private var onTtsDone: ((String) -&gt; Unit)? = null
+    private var onTtsError: ((String) -&gt; Unit)? = null
+    private var onTtsRangeStart: ((String, Int, Int, Int) -&gt; Unit)? = null
+    
+    // STT callbacks (full lifecycle)
+    private var onSttReadyForSpeech: (() -&gt; Unit)? = null
+    private var onSttBeginningOfSpeech: (() -&gt; Unit)? = null
+    private var onSttEndOfSpeech: (() -&gt; Unit)? = null
+    private var onSttResult: ((String) -&gt; Unit)? = null
+    private var onSttEmptyResult: (() -&gt; Unit)? = null
+    private var onSttError: ((Int) -&gt; Unit)? = null
+    private var onSttPartial: ((String) -&gt; Unit)? = null
+
+    private fun copyEspeakData(): String {
+<span class="nc" id="L41">        val outDir = java.io.File(context.filesDir, &quot;espeak-ng-data&quot;)</span>
+<span class="nc bnc" id="L42" title="All 4 branches missed.">        if (outDir.exists() &amp;&amp; java.io.File(outDir, &quot;phontab&quot;).exists()) return outDir.absolutePath</span>
+<span class="nc" id="L43">        outDir.mkdirs()</span>
+        
+        fun copyAssetsToDir(assetPath: String, destDir: java.io.File) {
+<span class="nc" id="L46">            val list = context.assets.list(assetPath)</span>
+<span class="nc bnc" id="L47" title="All 8 branches missed.">            if (list.isNullOrEmpty()) {</span>
+<span class="nc" id="L48">                try {</span>
+<span class="nc" id="L49">                    context.assets.open(assetPath).use { input -&gt;</span>
+<span class="nc" id="L50">                        java.io.FileOutputStream(destDir).use { output -&gt;</span>
+<span class="nc" id="L51">                            input.copyTo(output)</span>
+<span class="nc" id="L52">                        }</span>
+                    }
+<span class="nc" id="L54">                } catch(e: Exception) {}</span>
+            } else {
+<span class="nc" id="L56">                destDir.mkdirs()</span>
+<span class="nc bnc" id="L57" title="All 2 branches missed.">                for (file in list) {</span>
+<span class="nc" id="L58">                    copyAssetsToDir(&quot;$assetPath/$file&quot;, java.io.File(destDir, file))</span>
+                }
+            }
+<span class="nc" id="L61">        }</span>
+<span class="nc" id="L62">        copyAssetsToDir(&quot;sherpa-onnx-tts/espeak-ng-data&quot;, outDir)</span>
+<span class="nc" id="L63">        return outDir.absolutePath</span>
+    }
+
+    private fun readVoicePrefs() {
+<span class="nc" id="L67">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L68">        ttsSpeed = prefs.getFloat(AssistantConfig.Prefs.VOICE_RATE, 1.0f).coerceIn(0.5f, 2.0f)</span>
+<span class="nc" id="L69">        ttsSpeakerId = prefs.getInt(AssistantConfig.Prefs.TTS_SPEAKER_ID, 0).coerceAtLeast(0)</span>
+<span class="nc" id="L70">    }</span>
+
+    private fun buildOfflineTts(): OfflineTts {
+<span class="nc" id="L73">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L74">        val voice = TtsVoiceCatalog.findById(context, prefs.getString(AssistantConfig.Prefs.TTS_VOICE_ID, null))</span>
+<span class="nc" id="L75">        val espeakDataPath = copyEspeakData()</span>
+<span class="nc" id="L76">        val vitsConfig = OfflineTtsVitsModelConfig(</span>
+<span class="nc" id="L77">            model = voice.modelPath,</span>
+<span class="nc" id="L78">            tokens = voice.tokensPath,</span>
+<span class="nc" id="L79">            lexicon = &quot;&quot;,</span>
+<span class="nc" id="L80">            dataDir = espeakDataPath,</span>
+<span class="nc" id="L81">            dictDir = &quot;&quot;,</span>
+<span class="nc" id="L82">            noiseScale = 0.667f,</span>
+<span class="nc" id="L83">            noiseScaleW = 0.8f,</span>
+<span class="nc" id="L84">            lengthScale = 1.0f</span>
+        )
+<span class="nc" id="L86">        val modelConfig = OfflineTtsModelConfig(</span>
+<span class="nc" id="L87">            vits = vitsConfig,</span>
+<span class="nc" id="L88">            numThreads = 1,</span>
+<span class="nc" id="L89">            debug = false,</span>
+<span class="nc" id="L90">            provider = &quot;cpu&quot;</span>
+        )
+<span class="nc" id="L92">        val config = OfflineTtsConfig(</span>
+<span class="nc" id="L93">            model = modelConfig,</span>
+<span class="nc" id="L94">            ruleFsts = &quot;&quot;,</span>
+<span class="nc" id="L95">            maxNumSentences = 1</span>
+        )
+<span class="nc" id="L97">        loadedVoiceId = voice.id</span>
+<span class="nc" id="L98">        Log.i(TAG, &quot;Loading TTS voice id=${voice.id} assets=${voice.fromAssets} catalogSpeakers=${voice.numSpeakers} speed=$ttsSpeed&quot;)</span>
+<span class="nc bnc" id="L99" title="All 2 branches missed.">        val tts = if (voice.fromAssets) {</span>
+<span class="nc" id="L100">            OfflineTts(context.assets, config)</span>
+        } else {
+<span class="nc" id="L102">            OfflineTts(assetManager = null, config = config)</span>
+        }
+<span class="nc" id="L104">        val speakers = tts.numSpeakers().coerceAtLeast(1)</span>
+<span class="nc" id="L105">        ttsSpeakerId = ttsSpeakerId.coerceIn(0, speakers - 1)</span>
+<span class="nc" id="L106">        return tts</span>
+    }
+
+    override fun initialize(onSuccess: () -&gt; Unit, onError: () -&gt; Unit) {
+<span class="nc" id="L110">        try {</span>
+<span class="nc" id="L111">            readVoicePrefs()</span>
+<span class="nc" id="L112">            offlineTts = buildOfflineTts()</span>
+<span class="nc" id="L113">            onSuccess()</span>
+<span class="nc" id="L114">        } catch (e: Exception) {</span>
+<span class="nc" id="L115">            Log.e(TAG, &quot;Failed to initialize offline TTS&quot;, e)</span>
+            // Fall back to bundled Amy if a sideloaded voice is broken.
+<span class="nc" id="L117">            try {</span>
+<span class="nc" id="L118">                val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L119">                prefs.edit().putString(AssistantConfig.Prefs.TTS_VOICE_ID, TtsVoiceCatalog.BUNDLED_AMY_ID).apply()</span>
+<span class="nc" id="L120">                offlineTts = buildOfflineTts()</span>
+<span class="nc" id="L121">                onSuccess()</span>
+<span class="nc" id="L122">            } catch (fallback: Exception) {</span>
+<span class="nc" id="L123">                Log.e(TAG, &quot;Bundled Amy TTS also failed&quot;, fallback)</span>
+<span class="nc" id="L124">                onError()</span>
+            }
+        }
+<span class="nc" id="L127">    }</span>
+
+    override fun reloadTtsFromPrefs() {
+<span class="nc bnc" id="L130" title="All 2 branches missed.">        ttsChannel.trySend {</span>
+<span class="nc" id="L131">            try {</span>
+<span class="nc" id="L132">                readVoicePrefs()</span>
+<span class="nc bnc" id="L133" title="All 2 branches missed.">                offlineTts?.release()</span>
+<span class="nc" id="L134">            } catch (e: Exception) {</span>
+<span class="nc" id="L135">                Log.w(TAG, &quot;Failed to release previous TTS&quot;, e)</span>
+            }
+<span class="nc" id="L137">            offlineTts = null</span>
+<span class="nc" id="L138">            try {</span>
+<span class="nc" id="L139">                offlineTts = buildOfflineTts()</span>
+<span class="nc" id="L140">                Log.i(TAG, &quot;Reloaded TTS voice=$loadedVoiceId sid=$ttsSpeakerId speed=$ttsSpeed&quot;)</span>
+<span class="nc" id="L141">            } catch (e: Exception) {</span>
+<span class="nc" id="L142">                Log.e(TAG, &quot;TTS reload failed; restoring Amy&quot;, e)</span>
+<span class="nc" id="L143">                try {</span>
+<span class="nc" id="L144">                    val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L145">                    prefs.edit().putString(AssistantConfig.Prefs.TTS_VOICE_ID, TtsVoiceCatalog.BUNDLED_AMY_ID).apply()</span>
+<span class="nc" id="L146">                    offlineTts = buildOfflineTts()</span>
+<span class="nc" id="L147">                } catch (fallback: Exception) {</span>
+<span class="nc" id="L148">                    Log.e(TAG, &quot;TTS Amy fallback failed&quot;, fallback)</span>
+<span class="nc" id="L149">                    offlineTts = null</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">                    onTtsError?.invoke(&quot;Cabin voice failed to load. Check TTS settings.&quot;)</span>
+                }
+            }
+<span class="nc" id="L153">        }</span>
+<span class="nc" id="L154">    }</span>
+
+    /** Polled by the capture loop on an IO thread and written from the main thread. */
+    @Volatile
+    private var isListening = false
+    private var sherpaRecognizer: OfflineRecognizer? = null
+    private var audioRecord: android.media.AudioRecord? = null
+    private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
+    private var acousticEchoCanceler: android.media.audiofx.AcousticEchoCanceler? = null
+    private var listeningJob: Job? = null
+
+    private fun initSpeechRecognizer() {
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (sherpaRecognizer != null) return</span>
+
+        // Try Whisper Base (74M params, much more accurate) from device filesystem first
+<span class="nc" id="L169">        val baseEncoder = java.io.File(&quot;/data/local/tmp/stt/base.en-encoder.int8.onnx&quot;)</span>
+<span class="nc" id="L170">        val baseDecoder = java.io.File(&quot;/data/local/tmp/stt/base.en-decoder.int8.onnx&quot;)</span>
+<span class="nc" id="L171">        val baseTokens = java.io.File(&quot;/data/local/tmp/stt/base.en-tokens.txt&quot;)</span>
+<span class="nc bnc" id="L172" title="All 6 branches missed.">        val useBase = baseEncoder.exists() &amp;&amp; baseDecoder.exists() &amp;&amp; baseTokens.exists()</span>
+
+<span class="nc" id="L174">        try {</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">            if (useBase) {</span>
+<span class="nc" id="L176">                android.util.Log.i(&quot;AndroidAudioManager&quot;, &quot;Using Whisper Base model (high accuracy)&quot;)</span>
+<span class="nc" id="L177">                val whisperConfig = OfflineWhisperModelConfig(</span>
+<span class="nc" id="L178">                    encoder = baseEncoder.absolutePath,</span>
+<span class="nc" id="L179">                    decoder = baseDecoder.absolutePath,</span>
+<span class="nc" id="L180">                    language = &quot;en&quot;,</span>
+<span class="nc" id="L181">                    task = &quot;transcribe&quot;,</span>
+<span class="nc" id="L182">                    tailPaddings = -1</span>
+                )
+<span class="nc" id="L184">                val modelConfig = OfflineModelConfig(</span>
+<span class="nc" id="L185">                    whisper = whisperConfig,</span>
+<span class="nc" id="L186">                    tokens = baseTokens.absolutePath,</span>
+<span class="nc" id="L187">                    numThreads = 4,</span>
+<span class="nc" id="L188">                    debug = false,</span>
+<span class="nc" id="L189">                    provider = &quot;cpu&quot;,</span>
+<span class="nc" id="L190">                    modelType = &quot;whisper&quot;</span>
+                )
+<span class="nc" id="L192">                val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)</span>
+<span class="nc" id="L193">                val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)</span>
+                // sherpa-onnx requires assetManager=null for absolute filesystem paths.
+                // Use the (AssetManager?, Config) constructor with null.
+                @Suppress(&quot;NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS&quot;)
+<span class="nc" id="L197">                sherpaRecognizer = OfflineRecognizer(null, config)</span>
+            } else {
+<span class="nc" id="L199">                android.util.Log.w(&quot;AndroidAudioManager&quot;, &quot;Whisper Base not found, falling back to Tiny from assets&quot;)</span>
+<span class="nc" id="L200">                val whisperConfig = OfflineWhisperModelConfig(</span>
+<span class="nc" id="L201">                    encoder = &quot;sherpa-onnx-whisper/tiny.en-encoder.int8.onnx&quot;,</span>
+<span class="nc" id="L202">                    decoder = &quot;sherpa-onnx-whisper/tiny.en-decoder.int8.onnx&quot;,</span>
+<span class="nc" id="L203">                    language = &quot;en&quot;,</span>
+<span class="nc" id="L204">                    task = &quot;transcribe&quot;,</span>
+<span class="nc" id="L205">                    tailPaddings = -1</span>
+                )
+<span class="nc" id="L207">                val modelConfig = OfflineModelConfig(</span>
+<span class="nc" id="L208">                    whisper = whisperConfig,</span>
+<span class="nc" id="L209">                    tokens = &quot;sherpa-onnx-whisper/tiny.en-tokens.txt&quot;,</span>
+<span class="nc" id="L210">                    numThreads = 4,</span>
+<span class="nc" id="L211">                    debug = false,</span>
+<span class="nc" id="L212">                    provider = &quot;cpu&quot;,</span>
+<span class="nc" id="L213">                    modelType = &quot;whisper&quot;</span>
+                )
+<span class="nc" id="L215">                val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)</span>
+<span class="nc" id="L216">                val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)</span>
+<span class="nc" id="L217">                sherpaRecognizer = OfflineRecognizer(context.assets, config)</span>
+            }
+<span class="nc" id="L219">        } catch (e: Exception) {</span>
+<span class="nc" id="L220">            android.util.Log.e(&quot;AndroidAudioManager&quot;, &quot;Failed to init Sherpa-ONNX: ${e.message}&quot;, e)</span>
+        }
+<span class="nc" id="L222">    }</span>
+
+    private var sherpaVad: Vad? = null
+
+    private fun initVad() {
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        if (sherpaVad != null) return</span>
+<span class="nc" id="L228">        try {</span>
+<span class="nc" id="L229">            val sileroConfig = SileroVadModelConfig(</span>
+<span class="nc" id="L230">                model = &quot;silero_vad.onnx&quot;,</span>
+<span class="nc" id="L231">                threshold = 0.5f,</span>
+<span class="nc" id="L232">                minSilenceDuration = AssistantConfig.Audio.VAD_MIN_SILENCE_DURATION_SEC,</span>
+<span class="nc" id="L233">                minSpeechDuration = AssistantConfig.Audio.VAD_MIN_SPEECH_DURATION_SEC,</span>
+<span class="nc" id="L234">                windowSize = 512,</span>
+<span class="nc" id="L235">                maxSpeechDuration = 15.0f</span>
+            )
+<span class="nc" id="L237">            val vadConfig = VadModelConfig(</span>
+<span class="nc" id="L238">                sileroVadModelConfig = sileroConfig,</span>
+<span class="nc" id="L239">                sampleRate = 16000,</span>
+<span class="nc" id="L240">                numThreads = 1,</span>
+<span class="nc" id="L241">                provider = &quot;cpu&quot;,</span>
+<span class="nc" id="L242">                debug = false</span>
+            )
+<span class="nc" id="L244">            sherpaVad = Vad(context.assets, vadConfig)</span>
+<span class="nc" id="L245">            android.util.Log.i(&quot;AndroidAudioManager&quot;, &quot;Silero VAD initialized successfully&quot;)</span>
+<span class="nc" id="L246">        } catch (e: Exception) {</span>
+<span class="nc" id="L247">            android.util.Log.e(&quot;AndroidAudioManager&quot;, &quot;Failed to init Silero VAD: ${e.message}&quot;, e)</span>
+        }
+<span class="nc" id="L249">    }</span>
+
+    /**
+     * Owned scope for the microphone capture loop. Previously each [startListening] created a
+     * detached `CoroutineScope(Dispatchers.IO)`, so [shutdown] could not stop an in-flight capture.
+     */
+<span class="nc" id="L255">    private val listeningScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)</span>
+
+    override fun startListening() {
+<span class="nc bnc" id="L258" title="All 2 branches missed.">        if (isListening) return</span>
+        // Ensure any prior capture loop fully released AudioRecord before we open a new one.
+<span class="nc bnc" id="L260" title="All 2 branches missed.">        listeningJob?.cancel()</span>
+<span class="nc" id="L261">        listeningJob = null</span>
+<span class="nc" id="L262">        isListening = true</span>
+
+<span class="nc" id="L264">        listeningJob = listeningScope.launch {</span>
+<span class="nc" id="L265">            try {</span>
+<span class="nc" id="L266">                initSpeechRecognizer()</span>
+<span class="nc" id="L267">                initVad()</span>
+<span class="nc bnc" id="L268" title="All 2 branches missed.">                if (sherpaRecognizer == null) {</span>
+<span class="nc bnc" id="L269" title="All 2 branches missed.">                    withContext(Dispatchers.Main) { </span>
+<span class="nc" id="L270">                        isListening = false</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">                        onSttError?.invoke(0)</span>
+                    }
+<span class="nc" id="L273">                    return@launch</span>
+                }
+                
+<span class="nc bnc" id="L276" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
+<span class="nc bnc" id="L277" title="All 2 branches missed.">                    onSttReadyForSpeech?.invoke()</span>
+                }
+                
+<span class="nc" id="L280">                val bufferSize = android.media.AudioRecord.getMinBufferSize(</span>
+<span class="nc" id="L281">                    AssistantConfig.Audio.SAMPLE_RATE_HZ,</span>
+<span class="nc" id="L282">                    android.media.AudioFormat.CHANNEL_IN_MONO,</span>
+<span class="nc" id="L283">                    android.media.AudioFormat.ENCODING_PCM_16BIT</span>
+<span class="nc" id="L284">                ) * 2</span>
+
+                // Retry loop covers the handoff window while the :wakeword process releases the mic.
+<span class="nc" id="L287">                var audioRecordAttempts = 0</span>
+<span class="nc bnc" id="L288" title="All 6 branches missed.">                while (audioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED &amp;&amp;</span>
+<span class="nc bnc" id="L289" title="All 2 branches missed.">                    audioRecordAttempts &lt; AssistantConfig.Audio.AUDIO_RECORD_MAX_ATTEMPTS</span>
+                ) {
+<span class="nc bnc" id="L291" title="All 2 branches missed.">                    if (audioRecordAttempts &gt; 0) delay(AssistantConfig.Audio.AUDIO_RECORD_RETRY_DELAY_MS)</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">                    try { audioRecord?.release() } catch (_: Exception) {}</span>
+<span class="nc" id="L293">                    audioRecord = android.media.AudioRecord(</span>
+<span class="nc" id="L294">                        android.media.MediaRecorder.AudioSource.VOICE_RECOGNITION,</span>
+<span class="nc" id="L295">                        AssistantConfig.Audio.SAMPLE_RATE_HZ,</span>
+<span class="nc" id="L296">                        android.media.AudioFormat.CHANNEL_IN_MONO,</span>
+<span class="nc" id="L297">                        android.media.AudioFormat.ENCODING_PCM_16BIT,</span>
+<span class="nc" id="L298">                        bufferSize</span>
+                    )
+<span class="nc" id="L300">                    audioRecordAttempts++</span>
+                }
+                
+<span class="nc bnc" id="L303" title="All 6 branches missed.">                if (audioRecord?.state != android.media.AudioRecord.STATE_INITIALIZED) {</span>
+<span class="nc" id="L304">                    android.util.Log.e(&quot;AndroidAudioManager&quot;, &quot;Failed to initialize AudioRecord after $audioRecordAttempts attempts.&quot;)</span>
+<span class="nc bnc" id="L305" title="All 2 branches missed.">                    withContext(Dispatchers.Main) {</span>
+<span class="nc" id="L306">                        isListening = false</span>
+<span class="nc bnc" id="L307" title="All 2 branches missed.">                        onSttError?.invoke(0)</span>
+                    }
+<span class="nc" id="L309">                    return@launch</span>
+                }
+
+<span class="nc bnc" id="L312" title="All 2 branches missed.">                audioRecord?.audioSessionId?.let { sessionId -&gt;</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                    if (android.media.audiofx.NoiseSuppressor.isAvailable()) {</span>
+<span class="nc" id="L314">                        noiseSuppressor = android.media.audiofx.NoiseSuppressor.create(sessionId)</span>
+<span class="nc bnc" id="L315" title="All 2 branches missed.">                        noiseSuppressor?.enabled = true</span>
+                    }
+<span class="nc bnc" id="L317" title="All 2 branches missed.">                    if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {</span>
+<span class="nc" id="L318">                        acousticEchoCanceler = android.media.audiofx.AcousticEchoCanceler.create(sessionId)</span>
+<span class="nc bnc" id="L319" title="All 2 branches missed.">                        acousticEchoCanceler?.enabled = true</span>
+                    }
+<span class="nc" id="L321">                }</span>
+                
+<span class="nc bnc" id="L323" title="All 2 branches missed.">                audioRecord?.startRecording()</span>
+<span class="nc" id="L324">                val buffer = ShortArray(bufferSize)</span>
+                
+<span class="nc" id="L326">                var hasSpoken = false</span>
+<span class="nc" id="L327">                var silenceFrames = 0</span>
+<span class="nc" id="L328">                var silenceStartedAtMs = 0L</span>
+<span class="nc" id="L329">                var noSpeechStartedAtMs = 0L</span>
+<span class="nc" id="L330">                val listenStartedAtMs = System.currentTimeMillis()</span>
+<span class="nc" id="L331">                val audioBuffer = mutableListOf&lt;Float&gt;()</span>
+<span class="nc bnc" id="L332" title="All 2 branches missed.">                sherpaVad?.reset()</span>
+                
+<span class="nc" id="L334">                var noSpeechFrames = 0</span>
+<span class="nc bnc" id="L335" title="All 2 branches missed.">                while (isListening) {</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">                    val readSize = audioRecord?.read(buffer, 0, buffer.size) ?: 0</span>
+<span class="nc bnc" id="L337" title="All 2 branches missed.">                    if (readSize &gt; 0) {</span>
+<span class="nc bnc" id="L338" title="All 2 branches missed.">                        val floatSamples = FloatArray(readSize) { buffer[it].toFloat() / 32768.0f }</span>
+<span class="nc bnc" id="L339" title="All 2 branches missed.">                        for (f in floatSamples) audioBuffer.add(f)</span>
+
+                        // Feed float samples to Silero Neural VAD
+<span class="nc" id="L342">                        val vad = sherpaVad</span>
+<span class="nc" id="L343">                        val now = System.currentTimeMillis()</span>
+<span class="nc bnc" id="L344" title="All 2 branches missed.">                        if (vad != null) {</span>
+<span class="nc" id="L345">                            vad.acceptWaveform(floatSamples)</span>
+<span class="nc" id="L346">                            val isSpeech = vad.isSpeechDetected()</span>
+<span class="nc bnc" id="L347" title="All 2 branches missed.">                            if (isSpeech) {</span>
+<span class="nc" id="L348">                                silenceFrames = 0</span>
+<span class="nc" id="L349">                                silenceStartedAtMs = 0L</span>
+<span class="nc" id="L350">                                noSpeechFrames = 0</span>
+<span class="nc" id="L351">                                noSpeechStartedAtMs = 0L</span>
+<span class="nc bnc" id="L352" title="All 2 branches missed.">                                if (!hasSpoken) {</span>
+<span class="nc" id="L353">                                    hasSpoken = true</span>
+<span class="nc" id="L354">                                    LatencyLogger.log(&quot;STT&quot;, &quot;Beginning of speech&quot;)</span>
+<span class="nc bnc" id="L355" title="All 4 branches missed.">                                    withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }</span>
+                                }
+                            } else {
+<span class="nc bnc" id="L358" title="All 2 branches missed.">                                if (hasSpoken) {</span>
+<span class="nc" id="L359">                                    silenceFrames++</span>
+<span class="nc bnc" id="L360" title="All 2 branches missed.">                                    if (silenceStartedAtMs == 0L) silenceStartedAtMs = now</span>
+                                } else {
+<span class="nc" id="L362">                                    noSpeechFrames++</span>
+<span class="nc bnc" id="L363" title="All 2 branches missed.">                                    if (noSpeechStartedAtMs == 0L) noSpeechStartedAtMs = now</span>
+                                }
+                            }
+                        } else {
+                            // Fallback to basic volume threshold if VAD init failed
+<span class="nc" id="L368">                            var sumSquares = 0.0</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">                            for (i in 0 until readSize) {</span>
+<span class="nc" id="L370">                                val s = buffer[i].toDouble()</span>
+<span class="nc" id="L371">                                sumSquares += s * s</span>
+                            }
+<span class="nc" id="L373">                            val rms = Math.sqrt(sumSquares / readSize)</span>
+<span class="nc bnc" id="L374" title="All 2 branches missed.">                            if (rms &gt; 200.0) {</span>
+<span class="nc" id="L375">                                silenceFrames = 0</span>
+<span class="nc" id="L376">                                silenceStartedAtMs = 0L</span>
+<span class="nc" id="L377">                                noSpeechFrames = 0</span>
+<span class="nc" id="L378">                                noSpeechStartedAtMs = 0L</span>
+<span class="nc bnc" id="L379" title="All 2 branches missed.">                                if (!hasSpoken) {</span>
+<span class="nc" id="L380">                                    hasSpoken = true</span>
+<span class="nc" id="L381">                                    LatencyLogger.log(&quot;STT&quot;, &quot;Beginning of speech&quot;)</span>
+<span class="nc bnc" id="L382" title="All 4 branches missed.">                                    withContext(Dispatchers.Main) { onSttBeginningOfSpeech?.invoke() }</span>
+                                }
+<span class="nc bnc" id="L384" title="All 2 branches missed.">                            } else if (hasSpoken) {</span>
+<span class="nc" id="L385">                                silenceFrames++</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">                                if (silenceStartedAtMs == 0L) silenceStartedAtMs = now</span>
+                            } else {
+<span class="nc" id="L388">                                noSpeechFrames++</span>
+<span class="nc bnc" id="L389" title="All 2 branches missed.">                                if (noSpeechStartedAtMs == 0L) noSpeechStartedAtMs = now</span>
+                            }
+                        }
+                        
+                        // Close the utterance when the VAD reports end-of-segment, when trailing
+                        // silence exceeds the wall-clock budget, or when the user never spoke.
+<span class="nc bnc" id="L395" title="All 4 branches missed.">                        val isSegmentFinished = sherpaVad?.empty() == false</span>
+<span class="nc bnc" id="L396" title="All 2 branches missed.">                        val trailingSilenceElapsed = silenceStartedAtMs &gt; 0L &amp;&amp;</span>
+<span class="nc bnc" id="L397" title="All 2 branches missed.">                            (now - silenceStartedAtMs) &gt;= AssistantConfig.Audio.TRAILING_SILENCE_MS</span>
+<span class="nc bnc" id="L398" title="All 2 branches missed.">                        val noSpeechTimeout = noSpeechStartedAtMs &gt; 0L &amp;&amp;</span>
+<span class="nc bnc" id="L399" title="All 2 branches missed.">                            (now - noSpeechStartedAtMs) &gt;= AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS</span>
+<span class="nc bnc" id="L400" title="All 8 branches missed.">                        if ((hasSpoken &amp;&amp; (isSegmentFinished || trailingSilenceElapsed)) || noSpeechTimeout) {</span>
+<span class="nc" id="L401">                            val eosReason = when {</span>
+<span class="nc bnc" id="L402" title="All 2 branches missed.">                                noSpeechTimeout -&gt; &quot;no_speech_timeout&quot;</span>
+<span class="nc bnc" id="L403" title="All 2 branches missed.">                                isSegmentFinished -&gt; &quot;vad_segment&quot;</span>
+<span class="nc" id="L404">                                else -&gt; &quot;trailing_silence_ms&quot;</span>
+                            }
+<span class="nc" id="L406">                            LatencyLogger.log(</span>
+<span class="nc" id="L407">                                &quot;STT&quot;,</span>
+<span class="nc" id="L408">                                &quot;End of speech ($eosReason) listen=${now - listenStartedAtMs}ms&quot;,</span>
+                            )
+<span class="nc bnc" id="L410" title="All 2 branches missed.">                            withContext(Dispatchers.Main) {</span>
+<span class="nc bnc" id="L411" title="All 2 branches missed.">                                onSttEndOfSpeech?.invoke()</span>
+                            }
+                            
+<span class="nc bnc" id="L414" title="All 2 branches missed.">                            val stream = sherpaRecognizer?.createStream()</span>
+<span class="nc bnc" id="L415" title="All 4 branches missed.">                            if (stream != null &amp;&amp; hasSpoken) {</span>
+<span class="nc" id="L416">                                val decodeStarted = System.currentTimeMillis()</span>
+<span class="nc" id="L417">                                val floatArray = audioBuffer.toFloatArray()</span>
+<span class="nc" id="L418">                                stream.acceptWaveform(floatArray, 16000)</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                                sherpaRecognizer?.decode(stream)</span>
+<span class="nc bnc" id="L420" title="All 8 branches missed.">                                val result = sherpaRecognizer?.getResult(stream)?.text?.trim() ?: &quot;&quot;</span>
+<span class="nc" id="L421">                                stream.release()</span>
+<span class="nc" id="L422">                                LatencyLogger.log(</span>
+<span class="nc" id="L423">                                    &quot;STT&quot;,</span>
+<span class="nc" id="L424">                                    &quot;Transcript ready in ${System.currentTimeMillis() - decodeStarted}ms result='${result.take(48)}'&quot;,</span>
+                                )
+<span class="nc" id="L426">                                android.util.Log.d(&quot;AndroidAudioManager&quot;, &quot;STT result='$result'&quot;)</span>
+                                
+<span class="nc bnc" id="L428" title="All 2 branches missed.">                                withContext(Dispatchers.Main) {</span>
+<span class="nc bnc" id="L429" title="All 4 branches missed.">                                    if (result.isNotBlank()) {</span>
+<span class="nc bnc" id="L430" title="All 2 branches missed.">                                        onSttResult?.invoke(result)</span>
+                                    } else {
+<span class="nc bnc" id="L432" title="All 2 branches missed.">                                        onSttEmptyResult?.invoke()</span>
+<span class="nc" id="L433">                                    }</span>
+                                }
+                            } else {
+<span class="nc bnc" id="L436" title="All 4 branches missed.">                                withContext(Dispatchers.Main) { onSttEmptyResult?.invoke() }</span>
+                            }
+<span class="nc" id="L438">                            isListening = false</span>
+<span class="nc" id="L439">                            break</span>
+                        }
+                    } else {
+<span class="nc" id="L442">                        delay(10)</span>
+                    }
+                }
+<span class="nc" id="L445">            } catch (e: CancellationException) {</span>
+<span class="nc" id="L446">                isListening = false</span>
+<span class="nc" id="L447">                throw e</span>
+<span class="nc" id="L448">            } catch (e: Exception) {</span>
+<span class="nc" id="L449">                android.util.Log.e(TAG, &quot;Microphone capture failed&quot;, e)</span>
+<span class="nc bnc" id="L450" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
+<span class="nc" id="L451">                    isListening = false</span>
+<span class="nc bnc" id="L452" title="All 2 branches missed.">                    onSttError?.invoke(0)</span>
+                }
+            } finally {
+<span class="nc" id="L455">                releaseCaptureResources()</span>
+            }
+<span class="nc" id="L457">        }</span>
+<span class="nc" id="L458">    }</span>
+
+    private fun releaseCaptureResources() {
+<span class="nc" id="L461">        try {</span>
+<span class="nc bnc" id="L462" title="All 8 branches missed.">            if (audioRecord?.state == android.media.AudioRecord.STATE_INITIALIZED) audioRecord?.stop()</span>
+<span class="nc" id="L463">        } catch (e: Exception) {</span>
+<span class="nc" id="L464">            android.util.Log.w(TAG, &quot;Failed to stop AudioRecord&quot;, e)</span>
+        }
+<span class="nc bnc" id="L466" title="All 2 branches missed.">        try { audioRecord?.release() } catch (e: Exception) {</span>
+<span class="nc" id="L467">            android.util.Log.w(TAG, &quot;Failed to release AudioRecord&quot;, e)</span>
+        }
+<span class="nc" id="L469">        audioRecord = null</span>
+<span class="nc bnc" id="L470" title="All 2 branches missed.">        try { noiseSuppressor?.release() } catch (e: Exception) {</span>
+<span class="nc" id="L471">            android.util.Log.w(TAG, &quot;Failed to release noise suppressor&quot;, e)</span>
+        }
+<span class="nc" id="L473">        noiseSuppressor = null</span>
+<span class="nc bnc" id="L474" title="All 2 branches missed.">        try { acousticEchoCanceler?.release() } catch (e: Exception) {</span>
+<span class="nc" id="L475">            android.util.Log.w(TAG, &quot;Failed to release echo canceler&quot;, e)</span>
+        }
+<span class="nc" id="L477">        acousticEchoCanceler = null</span>
+<span class="nc" id="L478">    }</span>
+
+    override fun stopListening() {
+<span class="nc bnc" id="L481" title="All 2 branches missed.">        if (!isListening) return</span>
+<span class="nc" id="L482">        isListening = false</span>
+<span class="nc bnc" id="L483" title="All 2 branches missed.">        listeningJob?.cancel()</span>
+<span class="nc" id="L484">        listeningJob = null</span>
+<span class="nc" id="L485">    }</span>
+
+    override fun destroySpeechRecognizer() {
+<span class="nc" id="L488">        stopListening()</span>
+<span class="nc" id="L489">        try {</span>
+<span class="nc bnc" id="L490" title="All 2 branches missed.">            sherpaRecognizer?.release()</span>
+<span class="nc" id="L491">        } catch (e: Exception) {</span>
+<span class="nc" id="L492">            android.util.Log.w(TAG, &quot;Failed to release Sherpa recognizer&quot;, e)</span>
+        }
+<span class="nc" id="L494">        sherpaRecognizer = null</span>
+<span class="nc" id="L495">        try {</span>
+<span class="nc bnc" id="L496" title="All 2 branches missed.">            sherpaVad?.release()</span>
+<span class="nc" id="L497">        } catch (e: Exception) {</span>
+<span class="nc" id="L498">            android.util.Log.w(TAG, &quot;Failed to release Silero VAD&quot;, e)</span>
+        }
+<span class="nc" id="L500">        sherpaVad = null</span>
+<span class="nc" id="L501">    }</span>
+
+<span class="nc" id="L503">    private val ttsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)</span>
+<span class="nc" id="L504">    private var ttsChannel = kotlinx.coroutines.channels.Channel&lt;suspend CoroutineScope.() -&gt; Unit&gt;(kotlinx.coroutines.channels.Channel.UNLIMITED)</span>
+    private var ttsLoopJob: Job? = null
+    private var globalAudioTrack: AudioTrack? = null
+
+    /** Callers parked in [waitUntilFinishedSpeaking], so discarding the queue can release them. */
+    private val speechDrainWaiters =
+<span class="nc" id="L510">        java.util.concurrent.ConcurrentHashMap.newKeySet&lt;kotlinx.coroutines.CompletableDeferred&lt;Unit&gt;&gt;()</span>
+
+<span class="nc" id="L512">    init {</span>
+<span class="nc" id="L513">        startTtsLoop()</span>
+<span class="nc" id="L514">    }</span>
+
+    private fun startTtsLoop() {
+<span class="nc bnc" id="L517" title="All 4 branches missed.">        ttsLoopJob = ttsScope.launch {</span>
+<span class="nc bnc" id="L518" title="All 4 branches missed.">            for (task in ttsChannel) {</span>
+<span class="nc bnc" id="L519" title="All 2 branches missed.">                if (!isActive) break</span>
+<span class="nc" id="L520">                try {</span>
+<span class="nc bnc" id="L521" title="All 2 branches missed.">                    task()</span>
+<span class="nc" id="L522">                } catch (e: CancellationException) {</span>
+<span class="nc" id="L523">                    break</span>
+<span class="nc" id="L524">                } catch (e: Exception) {}</span>
+            }
+<span class="nc" id="L526">        }</span>
+<span class="nc" id="L527">    }</span>
+
+    override fun speak(text: String, utteranceId: String) {
+<span class="nc bnc" id="L530" title="All 5 branches missed.">        ttsChannel.trySend {</span>
+<span class="nc" id="L531">            try {</span>
+<span class="nc" id="L532">                val cleanText = text.replace(&quot;*&quot;, &quot;&quot;).replace(&quot;#&quot;, &quot;&quot;).replace(&quot;_&quot;, &quot;&quot;)</span>
+<span class="nc bnc" id="L533" title="All 2 branches missed.">                val sentences = cleanText.split(Regex(&quot;(?&lt;=[.!?])\\s+&quot;)).filter { it.isNotBlank() }</span>
+<span class="nc bnc" id="L534" title="All 2 branches missed.">                if (sentences.isEmpty()) return@trySend</span>
+
+<span class="nc" id="L536">                var isFirstSentence = true</span>
+
+<span class="nc bnc" id="L538" title="All 2 branches missed.">                for (sentence in sentences) {</span>
+<span class="nc bnc" id="L539" title="All 2 branches missed.">                    if (!isActive) break</span>
+<span class="nc bnc" id="L540" title="All 4 branches missed.">                    val audio = offlineTts?.generate(sentence, sid = ttsSpeakerId, speed = ttsSpeed) ?: continue</span>
+<span class="nc" id="L541">                    val samples = audio.samples</span>
+<span class="nc" id="L542">                    val sampleRate = audio.sampleRate</span>
+                    
+<span class="nc bnc" id="L544" title="All 4 branches missed.">                    if (globalAudioTrack == null || globalAudioTrack!!.sampleRate != sampleRate) {</span>
+<span class="nc bnc" id="L545" title="All 2 branches missed.">                        globalAudioTrack?.release()</span>
+<span class="nc" id="L546">                        val minBufferSize = AudioTrack.getMinBufferSize(sampleRate, AudioFormat.CHANNEL_OUT_MONO, AudioFormat.ENCODING_PCM_16BIT)</span>
+<span class="nc" id="L547">                        val audioAttributes = android.media.AudioAttributes.Builder()</span>
+<span class="nc" id="L548">                            .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)</span>
+<span class="nc" id="L549">                            .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)</span>
+<span class="nc" id="L550">                            .build()</span>
+<span class="nc" id="L551">                        val audioFormat = android.media.AudioFormat.Builder()</span>
+<span class="nc" id="L552">                            .setSampleRate(sampleRate)</span>
+<span class="nc" id="L553">                            .setEncoding(android.media.AudioFormat.ENCODING_PCM_16BIT)</span>
+<span class="nc" id="L554">                            .setChannelMask(android.media.AudioFormat.CHANNEL_OUT_MONO)</span>
+<span class="nc" id="L555">                            .build()</span>
+<span class="nc" id="L556">                        globalAudioTrack = AudioTrack.Builder()</span>
+<span class="nc" id="L557">                            .setAudioAttributes(audioAttributes)</span>
+<span class="nc" id="L558">                            .setAudioFormat(audioFormat)</span>
+<span class="nc" id="L559">                            .setBufferSizeInBytes(minBufferSize * 4)</span>
+<span class="nc" id="L560">                            .setTransferMode(AudioTrack.MODE_STREAM)</span>
+<span class="nc" id="L561">                            .build()</span>
+<span class="nc bnc" id="L562" title="All 2 branches missed.">                        globalAudioTrack?.play()</span>
+                    }
+                    
+<span class="nc bnc" id="L565" title="All 6 branches missed.">                    if (globalAudioTrack?.playState != AudioTrack.PLAYSTATE_PLAYING) {</span>
+<span class="nc bnc" id="L566" title="All 2 branches missed.">                        globalAudioTrack?.play()</span>
+                    }
+
+<span class="nc bnc" id="L569" title="All 2 branches missed.">                    if (isFirstSentence) {</span>
+<span class="nc" id="L570">                        isFirstSentence = false</span>
+<span class="nc bnc" id="L571" title="All 6 branches missed.">                        withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }</span>
+                    }
+                    
+<span class="nc" id="L574">                    val shortSamples = ShortArray(samples.size)</span>
+<span class="nc bnc" id="L575" title="All 2 branches missed.">                    for (i in samples.indices) {</span>
+<span class="nc" id="L576">                        var v = samples[i]</span>
+<span class="nc bnc" id="L577" title="All 4 branches missed.">                        if (v &gt; 1.0f || v &lt; -1.0f) {</span>
+<span class="nc bnc" id="L578" title="All 2 branches missed.">                            if (v &gt; 32767f) v = 32767f</span>
+<span class="nc bnc" id="L579" title="All 2 branches missed.">                            if (v &lt; -32768f) v = -32768f</span>
+                        } else {
+<span class="nc" id="L581">                            v *= 32767f</span>
+                        }
+<span class="nc" id="L583">                        shortSamples[i] = v.toInt().toShort()</span>
+                    }
+<span class="nc bnc" id="L585" title="All 2 branches missed.">                    globalAudioTrack?.write(shortSamples, 0, shortSamples.size)</span>
+                }
+                
+<span class="nc bnc" id="L588" title="All 2 branches missed.">                if (isActive) {</span>
+<span class="nc bnc" id="L589" title="All 6 branches missed.">                    withContext(Dispatchers.Main) { onTtsDone?.invoke(utteranceId) }</span>
+                }
+<span class="nc" id="L591">            } catch (e: Exception) {</span>
+<span class="nc bnc" id="L592" title="All 2 branches missed.">                if (isActive) {</span>
+<span class="nc bnc" id="L593" title="All 6 branches missed.">                    withContext(Dispatchers.Main) { onTtsError?.invoke(utteranceId) }</span>
+                }
+            }
+<span class="nc" id="L596">        }</span>
+<span class="nc" id="L597">    }</span>
+
+    /**
+     * Waits for queued speech to drain by putting a marker on the TTS queue.
+     *
+     * The wait is bounded because [stopSpeaking] and [shutdown] discard the queue: a barge-in while
+     * a tool call was waiting here left the marker unrun and the caller suspended forever, wedging
+     * the turn in `AgentOrchestrator`.
+     */
+<span class="nc" id="L606">    override suspend fun waitUntilFinishedSpeaking() {</span>
+<span class="nc" id="L607">        val deferred = kotlinx.coroutines.CompletableDeferred&lt;Unit&gt;()</span>
+<span class="nc" id="L608">        val result = ttsChannel.trySend {</span>
+<span class="nc" id="L609">            delay(500)</span>
+<span class="nc" id="L610">            deferred.complete(Unit)</span>
+<span class="nc" id="L611">        }</span>
+<span class="nc bnc" id="L612" title="All 2 branches missed.">        if (!result.isSuccess) return</span>
+
+<span class="nc" id="L614">        speechDrainWaiters.add(deferred)</span>
+<span class="nc" id="L615">        try {</span>
+<span class="nc" id="L616">            val drained = withTimeoutOrNull(AssistantConfig.Audio.SPEECH_DRAIN_TIMEOUT_MS) {</span>
+<span class="nc" id="L617">                deferred.await()</span>
+<span class="nc" id="L618">            }</span>
+<span class="nc bnc" id="L619" title="All 2 branches missed.">            if (drained == null) {</span>
+<span class="nc" id="L620">                android.util.Log.w(TAG, &quot;Speech queue did not drain in time; continuing.&quot;)</span>
+            }
+        } finally {
+<span class="nc" id="L623">            speechDrainWaiters.remove(deferred)</span>
+        }
+<span class="nc" id="L625">    }</span>
+
+    /** Releases anyone blocked in [waitUntilFinishedSpeaking] when the queue is thrown away. */
+    private fun releaseSpeechDrainWaiters() {
+<span class="nc" id="L629">        val waiters = speechDrainWaiters.toList()</span>
+<span class="nc" id="L630">        speechDrainWaiters.clear()</span>
+<span class="nc bnc" id="L631" title="All 2 branches missed.">        for (waiter in waiters) waiter.complete(Unit)</span>
+<span class="nc" id="L632">    }</span>
+
+    override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
+<span class="nc bnc" id="L635" title="All 5 branches missed.">        ttsChannel.trySend {</span>
+<span class="nc bnc" id="L636" title="All 6 branches missed.">            withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }</span>
+<span class="nc bnc" id="L637" title="All 2 branches missed.">            delay(durationMs)</span>
+<span class="nc bnc" id="L638" title="All 2 branches missed.">            if (isActive) {</span>
+<span class="nc bnc" id="L639" title="All 6 branches missed.">                withContext(Dispatchers.Main) { onTtsDone?.invoke(utteranceId) }</span>
+            }
+<span class="nc" id="L641">        }</span>
+<span class="nc" id="L642">    }</span>
+
+    override fun stopSpeaking() {
+<span class="nc bnc" id="L645" title="All 2 branches missed.">        ttsLoopJob?.cancel()</span>
+<span class="nc" id="L646">        ttsChannel.close()</span>
+<span class="nc" id="L647">        releaseSpeechDrainWaiters()</span>
+<span class="nc" id="L648">        ttsChannel = kotlinx.coroutines.channels.Channel&lt;suspend CoroutineScope.() -&gt; Unit&gt;(kotlinx.coroutines.channels.Channel.UNLIMITED)</span>
+<span class="nc" id="L649">        try {</span>
+<span class="nc bnc" id="L650" title="All 2 branches missed.">            globalAudioTrack?.pause()</span>
+<span class="nc bnc" id="L651" title="All 2 branches missed.">            globalAudioTrack?.flush()</span>
+<span class="nc" id="L652">        } catch (e: Exception) {</span>
+<span class="nc" id="L653">            android.util.Log.w(TAG, &quot;Failed to flush AudioTrack&quot;, e)</span>
+        }
+<span class="nc" id="L655">        startTtsLoop()</span>
+<span class="nc" id="L656">    }</span>
+
+    /**
+     * Terminal teardown. This releases every native handle the manager owns and cancels its
+     * scopes — the previous implementation left the [AudioTrack], the Silero VAD, and [ttsScope]
+     * alive, so each service restart leaked an audio track and an ONNX session.
+     */
+    override fun shutdown() {
+<span class="nc" id="L664">        isListening = false</span>
+<span class="nc bnc" id="L665" title="All 2 branches missed.">        ttsLoopJob?.cancel()</span>
+<span class="nc" id="L666">        ttsChannel.close()</span>
+<span class="nc" id="L667">        releaseSpeechDrainWaiters()</span>
+<span class="nc" id="L668">        ttsScope.cancel()</span>
+<span class="nc" id="L669">        listeningScope.cancel()</span>
+
+<span class="nc" id="L671">        try {</span>
+<span class="nc bnc" id="L672" title="All 2 branches missed.">            globalAudioTrack?.pause()</span>
+<span class="nc bnc" id="L673" title="All 2 branches missed.">            globalAudioTrack?.flush()</span>
+<span class="nc bnc" id="L674" title="All 2 branches missed.">            globalAudioTrack?.release()</span>
+<span class="nc" id="L675">        } catch (e: Exception) {</span>
+<span class="nc" id="L676">            android.util.Log.w(TAG, &quot;Failed to release AudioTrack&quot;, e)</span>
+        }
+<span class="nc" id="L678">        globalAudioTrack = null</span>
+
+<span class="nc" id="L680">        try {</span>
+<span class="nc bnc" id="L681" title="All 2 branches missed.">            offlineTts?.release()</span>
+<span class="nc" id="L682">        } catch (e: Exception) {</span>
+<span class="nc" id="L683">            android.util.Log.w(TAG, &quot;Failed to release offline TTS&quot;, e)</span>
+        }
+<span class="nc" id="L685">        offlineTts = null</span>
+
+<span class="nc" id="L687">        releaseCaptureResources()</span>
+<span class="nc" id="L688">        destroySpeechRecognizer()</span>
+<span class="nc" id="L689">    }</span>
+
+    override fun setUtteranceListener(
+        onStart: (String) -&gt; Unit,
+        onDone: (String) -&gt; Unit,
+        onError: (String) -&gt; Unit,
+        onRangeStart: (String, Int, Int, Int) -&gt; Unit
+    ) {
+<span class="nc" id="L697">        this.onTtsStart = onStart</span>
+<span class="nc" id="L698">        this.onTtsDone = onDone</span>
+<span class="nc" id="L699">        this.onTtsError = onError</span>
+<span class="nc" id="L700">        this.onTtsRangeStart = onRangeStart</span>
+<span class="nc" id="L701">    }</span>
+
+    override fun setRecognitionListener(
+        onReadyForSpeech: () -&gt; Unit,
+        onBeginningOfSpeech: () -&gt; Unit,
+        onEndOfSpeech: () -&gt; Unit,
+        onResult: (String) -&gt; Unit,
+        onEmptyResult: () -&gt; Unit,
+        onError: (Int) -&gt; Unit,
+        onPartial: (String) -&gt; Unit
+    ) {
+<span class="nc" id="L712">        this.onSttReadyForSpeech = onReadyForSpeech</span>
+<span class="nc" id="L713">        this.onSttBeginningOfSpeech = onBeginningOfSpeech</span>
+<span class="nc" id="L714">        this.onSttEndOfSpeech = onEndOfSpeech</span>
+<span class="nc" id="L715">        this.onSttResult = onResult</span>
+<span class="nc" id="L716">        this.onSttEmptyResult = onEmptyResult</span>
+<span class="nc" id="L717">        this.onSttError = onError</span>
+<span class="nc" id="L718">        this.onSttPartial = onPartial</span>
+<span class="nc" id="L719">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

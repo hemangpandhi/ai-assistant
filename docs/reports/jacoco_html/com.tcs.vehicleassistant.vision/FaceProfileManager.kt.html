@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FaceProfileManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">FaceProfileManager.kt</span></div><h1>FaceProfileManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.content.Context
+import android.content.SharedPreferences
+import android.util.Log
+import org.json.JSONObject
+import java.io.File
+
+/**
+ * Manages persistent storage of FaceNet embeddings and mapped user settings for multiple users.
+ *
+ * Embeddings live in device-protected storage so the vision service can match a face before the
+ * user unlocks the device. A JSON side-file mirrors the preferences because the preference store is
+ * keyed per name and cannot carry the per-profile metadata (OS user id, target temperature) as a
+ * single record.
+ *
+ * These are biometric templates, so they stay in app-private storage. An earlier revision mirrored
+ * them to `/sdcard/FaceProfiles.json` to share profiles across Android OS users; that cannot work
+ * on the target image — the app holds no storage permission and scoped storage blocks the write, so
+ * every access threw and fell back here anyway. Genuine cross-user sharing needs a platform-signed
+ * `ContentProvider`, not world-readable storage.
+ */
+<span class="nc" id="L23">class FaceProfileManager(context: Context) {</span>
+
+<span class="nc bnc" id="L25" title="All 2 branches missed.">    private val deviceContext: Context = if (android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.N) {</span>
+<span class="nc" id="L26">        context.createDeviceProtectedStorageContext()</span>
+    } else {
+<span class="nc" id="L28">        context</span>
+    }
+
+<span class="nc" id="L31">    private val prefs: SharedPreferences = deviceContext.getSharedPreferences(&quot;FaceProfiles&quot;, Context.MODE_PRIVATE)</span>
+
+<span class="nc" id="L33">    private val sharedFile: File = File(deviceContext.filesDir, &quot;FaceProfiles.json&quot;)</span>
+
+<span class="nc" id="L35">    fun saveProfile(name: String, embedding: FloatArray, osUserId: Int = 10, targetTemp: Float = 20.0f) {</span>
+<span class="nc" id="L36">        val serialized = embedding.joinToString(&quot;,&quot;)</span>
+        
+        // 1. Save to local SharedPreferences
+<span class="nc" id="L39">        prefs.edit()</span>
+<span class="nc" id="L40">            .putString(name, serialized)</span>
+<span class="nc" id="L41">            .putInt(&quot;userid_$name&quot;, osUserId)</span>
+<span class="nc" id="L42">            .putFloat(&quot;temp_$name&quot;, targetTemp)</span>
+<span class="nc" id="L43">            .apply()</span>
+
+        // 2. Mirror to the JSON side-file, which carries the per-profile metadata as one record.
+<span class="nc" id="L46">        try {</span>
+<span class="nc" id="L47">            val json = readSharedJsonFile()</span>
+<span class="nc" id="L48">            val userObj = JSONObject().apply {</span>
+<span class="nc" id="L49">                put(&quot;embedding&quot;, serialized)</span>
+<span class="nc" id="L50">                put(&quot;osUserId&quot;, osUserId)</span>
+<span class="nc" id="L51">                put(&quot;targetTemp&quot;, targetTemp.toDouble())</span>
+<span class="nc" id="L52">            }</span>
+<span class="nc" id="L53">            json.put(name, userObj)</span>
+<span class="nc" id="L54">            writeSharedJsonFile(json)</span>
+<span class="nc" id="L55">            Log.d(&quot;FaceProfileManager&quot;, &quot;Saved profile '$name' to ${sharedFile.absolutePath}&quot;)</span>
+<span class="nc" id="L56">        } catch (e: Exception) {</span>
+<span class="nc" id="L57">            Log.e(&quot;FaceProfileManager&quot;, &quot;Failed to sync to shared file: ${e.message}&quot;)</span>
+        }
+<span class="nc" id="L59">    }</span>
+
+    fun getOsUserId(name: String): Int {
+<span class="nc" id="L62">        val fromPrefs = prefs.getInt(&quot;userid_$name&quot;, -1)</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">        if (fromPrefs != -1) return fromPrefs</span>
+
+<span class="nc" id="L65">        return try {</span>
+<span class="nc" id="L66">            val json = readSharedJsonFile()</span>
+<span class="nc bnc" id="L67" title="All 2 branches missed.">            if (json.has(name)) {</span>
+<span class="nc" id="L68">                json.getJSONObject(name).optInt(&quot;osUserId&quot;, 10)</span>
+<span class="nc" id="L69">            } else 10</span>
+<span class="nc" id="L70">        } catch (e: Exception) { 10 }</span>
+    }
+
+    fun getTargetTemp(name: String): Float {
+<span class="nc" id="L74">        val fromPrefs = prefs.getFloat(&quot;temp_$name&quot;, -1f)</span>
+<span class="nc bnc" id="L75" title="All 4 branches missed.">        if (fromPrefs != -1f) return fromPrefs</span>
+
+<span class="nc" id="L77">        return try {</span>
+<span class="nc" id="L78">            val json = readSharedJsonFile()</span>
+<span class="nc bnc" id="L79" title="All 2 branches missed.">            if (json.has(name)) {</span>
+<span class="nc" id="L80">                json.getJSONObject(name).optDouble(&quot;targetTemp&quot;, 20.0).toFloat()</span>
+<span class="nc" id="L81">            } else 20.0f</span>
+<span class="nc" id="L82">        } catch (e: Exception) { 20.0f }</span>
+    }
+
+    fun getAllProfiles(): Map&lt;String, FloatArray&gt; {
+<span class="nc" id="L86">        val profiles = mutableMapOf&lt;String, FloatArray&gt;()</span>
+
+        // 1. Load from SharedPreferences
+<span class="nc" id="L89">        val allEntries = prefs.all</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">        for ((key, value) in allEntries) {</span>
+<span class="nc bnc" id="L91" title="All 6 branches missed.">            if (value is String &amp;&amp; !key.startsWith(&quot;userid_&quot;) &amp;&amp; !key.startsWith(&quot;temp_&quot;)) {</span>
+<span class="nc" id="L92">                try {</span>
+<span class="nc" id="L93">                    val floats = value.split(&quot;,&quot;).map { it.toFloat() }.toFloatArray()</span>
+<span class="nc bnc" id="L94" title="All 4 branches missed.">                    if (floats.size == 128 || floats.size == 512) {</span>
+<span class="nc" id="L95">                        profiles[key] = floats</span>
+                    }
+<span class="nc" id="L97">                } catch (e: Exception) {}</span>
+            }
+        }
+
+        // 2. Merge in anything the side-file has that the preference store does not.
+<span class="nc" id="L102">        try {</span>
+<span class="nc" id="L103">            val json = readSharedJsonFile()</span>
+<span class="nc" id="L104">            val keys = json.keys()</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">            while (keys.hasNext()) {</span>
+<span class="nc" id="L106">                val name = keys.next()</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">                if (!profiles.containsKey(name)) {</span>
+<span class="nc" id="L108">                    val userObj = json.getJSONObject(name)</span>
+<span class="nc" id="L109">                    val embStr = userObj.getString(&quot;embedding&quot;)</span>
+<span class="nc" id="L110">                    val floats = embStr.split(&quot;,&quot;).map { it.toFloat() }.toFloatArray()</span>
+<span class="nc bnc" id="L111" title="All 4 branches missed.">                    if (floats.size == 128 || floats.size == 512) {</span>
+<span class="nc" id="L112">                        profiles[name] = floats</span>
+                    }
+                }
+            }
+<span class="nc" id="L116">        } catch (e: Exception) {</span>
+<span class="nc" id="L117">            Log.w(&quot;FaceProfileManager&quot;, &quot;Could not read shared JSON file: ${e.message}&quot;)</span>
+        }
+
+<span class="nc" id="L120">        return profiles</span>
+    }
+
+    private fun readSharedJsonFile(): JSONObject {
+<span class="nc" id="L124">        return try {</span>
+<span class="nc" id="L125">            val file = sharedFile</span>
+<span class="nc bnc" id="L126" title="All 4 branches missed.">            if (file.exists() &amp;&amp; file.length() &gt; 0) {</span>
+<span class="nc" id="L127">                JSONObject(file.readText())</span>
+            } else {
+<span class="nc" id="L129">                JSONObject()</span>
+            }
+<span class="nc" id="L131">        } catch (e: Exception) {</span>
+<span class="nc" id="L132">            JSONObject()</span>
+        }
+    }
+
+    private fun writeSharedJsonFile(json: JSONObject) {
+<span class="nc" id="L137">        try {</span>
+<span class="nc" id="L138">            val file = sharedFile</span>
+<span class="nc" id="L139">            file.writeText(json.toString(2))</span>
+<span class="nc" id="L140">        } catch (e: Exception) {</span>
+<span class="nc" id="L141">            Log.e(&quot;FaceProfileManager&quot;, &quot;Error writing shared JSON: ${e.message}&quot;)</span>
+        }
+<span class="nc" id="L143">    }</span>
+
+    fun clearAllProfiles() {
+<span class="nc" id="L146">        prefs.edit().clear().apply()</span>
+<span class="nc" id="L147">        try { sharedFile.delete() } catch (e: Exception) {}</span>
+<span class="nc" id="L148">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

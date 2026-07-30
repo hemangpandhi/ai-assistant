@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DeescalationUseCase.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision.proactive</a> &gt; <span class="el_source">DeescalationUseCase.kt</span></div><h1>DeescalationUseCase.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision.proactive
+
+import android.util.Log
+
+<span class="nc" id="L5">class DeescalationUseCase : IProactiveUseCase {</span>
+<span class="nc" id="L6">    override val name = &quot;Cabin Deescalation&quot;</span>
+<span class="nc" id="L7">    override val priority = PriorityLevel.COMFORT</span>
+    
+    private var lastTrigger = 0L
+<span class="nc" id="L10">    private val DEBOUNCE_MS = 300_000L // 5 minutes</span>
+
+    override fun evaluate(context: CabinContext): TriggerResult? {
+<span class="nc bnc" id="L13" title="All 2 branches missed.">        val feedback = context.gestureFeedback ?: return null</span>
+<span class="nc" id="L14">        val mood = feedback.mood</span>
+<span class="nc" id="L15">        val passengerDetected = feedback.passengerDetected</span>
+<span class="nc" id="L16">        val now = context.timestamp</span>
+
+<span class="nc bnc" id="L18" title="All 6 branches missed.">        if ((mood.contains(&quot;Angry&quot;, ignoreCase = true) || mood.contains(&quot;Frustrated&quot;, ignoreCase = true)) &amp;&amp; passengerDetected) {</span>
+<span class="nc bnc" id="L19" title="All 2 branches missed.">            if (now - lastTrigger &gt; DEBOUNCE_MS) {</span>
+<span class="nc" id="L20">                lastTrigger = now</span>
+<span class="nc" id="L21">                Log.d(&quot;VisionOrchestrator&quot;, &quot;Angry mood + Passenger detected = Tension!&quot;)</span>
+<span class="nc" id="L22">                val prompt = &quot;[SYSTEM EVENT: An angry/frustrated mood was detected in the cabin while a passenger is present. Act as a friendly mediator to defuse tension. Proactively say EXACTLY: 'It seems a bit tense in the cabin today. How about we lighten the mood? I can play some relaxing music or start a fun trivia game if you'd like?']&quot;</span>
+<span class="nc" id="L23">                return TriggerResult(prompt, priority)</span>
+            }
+        }
+<span class="nc" id="L26">        return null</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

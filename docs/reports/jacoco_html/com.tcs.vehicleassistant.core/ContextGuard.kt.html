@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ContextGuard.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.core</a> &gt; <span class="el_source">ContextGuard.kt</span></div><h1>ContextGuard.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.core
+
+import android.util.Log
+import org.json.JSONArray
+import org.json.JSONObject
+
+/**
+ * Registry-driven gate in front of every tool actuation. Policies live in
+ * `vehicle_skills_registry.json` → `config.context_policies` so OEMs can add rules without
+ * hardcoding `if (volume)` branches in Kotlin.
+ *
+ * Decisions:
+ * - [Decision.Allow] — execute immediately
+ * - [Decision.Confirm] — speak [Decision.message], stash tool for FollowUp &quot;yes&quot;
+ * - [Decision.Block] — speak reason, do not execute
+ * - [Decision.Escalate] — speak facts-only prompt; caller may fall through to LLM
+ */
+object ContextGuard {
+
+    private const val TAG = &quot;ContextGuard&quot;
+
+    enum class Action {
+<span class="fc" id="L23">        ALLOW, CONFIRM, BLOCK, ESCALATE</span>
+    }
+
+<span class="fc" id="L26">    data class SensorCondition(</span>
+<span class="fc" id="L27">        val source: String,</span>
+<span class="fc" id="L28">        val op: String,</span>
+<span class="fc" id="L29">        val value: Double,</span>
+    )
+
+<span class="fc" id="L32">    data class PolicyRule(</span>
+<span class="fc" id="L33">        val id: String,</span>
+<span class="fc" id="L34">        val appliesTo: List&lt;String&gt;,</span>
+<span class="fc" id="L35">        val argMatches: List&lt;String&gt;,</span>
+<span class="fc" id="L36">        val sensors: List&lt;SensorCondition&gt;,</span>
+<span class="fc" id="L37">        val requireMediaPlaying: Boolean?,</span>
+        /** When non-null, requires [CabinSnapshot.navActive] to match. */
+<span class="fc" id="L39">        val requireNavActive: Boolean? = null,</span>
+        /** When true, tool args must equal/contain the active nav destination. */
+<span class="fc" id="L41">        val requireNavDestMatchesArg: Boolean = false,</span>
+        /** When true, nav is active and args do *not* match the active destination. */
+<span class="fc" id="L43">        val requireNavDestDiffersArg: Boolean = false,</span>
+<span class="fc" id="L44">        val action: Action,</span>
+<span class="fc" id="L45">        val message: String,</span>
+<span class="fc" id="L46">        val enabled: Boolean = true,</span>
+<span class="pc" id="L47">        val priority: Int = 100,</span>
+<span class="fc" id="L48">    )</span>
+
+    sealed class Decision {
+        abstract val policyId: String?
+
+<span class="pc" id="L53">        data class Allow(override val policyId: String? = null) : Decision()</span>
+<span class="fc" id="L54">        data class Confirm(</span>
+<span class="fc" id="L55">            val message: String,</span>
+<span class="fc" id="L56">            override val policyId: String,</span>
+<span class="fc" id="L57">            val originalToolCall: String,</span>
+<span class="fc" id="L58">        ) : Decision()</span>
+<span class="fc" id="L59">        data class Block(</span>
+<span class="fc" id="L60">            val message: String,</span>
+<span class="fc" id="L61">            override val policyId: String,</span>
+<span class="fc" id="L62">        ) : Decision()</span>
+<span class="fc" id="L63">        data class Escalate(</span>
+<span class="pc" id="L64">            val message: String,</span>
+<span class="pc" id="L65">            override val policyId: String,</span>
+<span class="fc" id="L66">        ) : Decision()</span>
+    }
+
+    @Volatile
+<span class="fc" id="L70">    private var rules: List&lt;PolicyRule&gt; = emptyList()</span>
+
+<span class="fc" id="L72">    @Volatile</span>
+<span class="fc" id="L73">    var enabled: Boolean = true</span>
+        private set
+
+    fun loadFromConfig(config: JSONObject?) {
+<span class="pc bpc" id="L77" title="1 of 4 branches missed.">        if (config == null || !config.has(&quot;context_policies&quot;)) {</span>
+<span class="fc" id="L78">            rules = emptyList()</span>
+<span class="fc" id="L79">            enabled = true</span>
+<span class="fc" id="L80">            return</span>
+        }
+<span class="fc" id="L82">        val root = config.getJSONObject(&quot;context_policies&quot;)</span>
+<span class="fc" id="L83">        enabled = root.optBoolean(&quot;enabled&quot;, true)</span>
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">        val arr = root.optJSONArray(&quot;rules&quot;) ?: JSONArray()</span>
+<span class="fc" id="L85">        val parsed = mutableListOf&lt;PolicyRule&gt;()</span>
+<span class="fc bfc" id="L86" title="All 2 branches covered.">        for (i in 0 until arr.length()) {</span>
+<span class="fc" id="L87">            val o = arr.getJSONObject(i)</span>
+<span class="pc bpc" id="L88" title="2 of 4 branches missed.">            val action = when (o.optString(&quot;action&quot;, &quot;allow&quot;).lowercase()) {</span>
+<span class="fc" id="L89">                &quot;confirm&quot; -&gt; Action.CONFIRM</span>
+<span class="nc" id="L90">                &quot;block&quot;, &quot;adjust&quot; -&gt; Action.BLOCK</span>
+<span class="fc" id="L91">                &quot;escalate&quot; -&gt; Action.ESCALATE</span>
+<span class="nc" id="L92">                else -&gt; Action.ALLOW</span>
+            }
+<span class="pc bpc" id="L94" title="1 of 4 branches missed.">            val sensorsArr = o.optJSONObject(&quot;when&quot;)?.optJSONArray(&quot;sensors&quot;) ?: JSONArray()</span>
+<span class="fc" id="L95">            val sensors = mutableListOf&lt;SensorCondition&gt;()</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            for (j in 0 until sensorsArr.length()) {</span>
+<span class="fc" id="L97">                val s = sensorsArr.getJSONObject(j)</span>
+<span class="fc" id="L98">                sensors += SensorCondition(</span>
+<span class="fc" id="L99">                    source = s.getString(&quot;source&quot;),</span>
+<span class="fc" id="L100">                    op = s.optString(&quot;op&quot;, &quot;&gt;=&quot;),</span>
+<span class="fc" id="L101">                    value = s.getDouble(&quot;value&quot;),</span>
+                )
+            }
+<span class="fc" id="L104">            val whenObj = o.optJSONObject(&quot;when&quot;)</span>
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">            val argMatches = jsonStringList(whenObj?.optJSONArray(&quot;arg_matches&quot;))</span>
+<span class="fc" id="L106">            val requirePlaying = when {</span>
+<span class="pc bpc" id="L107" title="1 of 4 branches missed.">                whenObj == null || !whenObj.has(&quot;media_playing&quot;) -&gt; null</span>
+<span class="fc" id="L108">                else -&gt; whenObj.optBoolean(&quot;media_playing&quot;)</span>
+            }
+<span class="fc" id="L110">            val requireNavActive = when {</span>
+<span class="pc bpc" id="L111" title="2 of 4 branches missed.">                whenObj == null || !whenObj.has(&quot;nav_active&quot;) -&gt; null</span>
+<span class="nc" id="L112">                else -&gt; whenObj.optBoolean(&quot;nav_active&quot;)</span>
+            }
+<span class="fc" id="L114">            parsed += PolicyRule(</span>
+<span class="fc" id="L115">                id = o.getString(&quot;id&quot;),</span>
+<span class="fc" id="L116">                appliesTo = jsonStringList(o.optJSONArray(&quot;applies_to&quot;)),</span>
+<span class="fc" id="L117">                argMatches = argMatches,</span>
+<span class="fc" id="L118">                sensors = sensors,</span>
+<span class="fc" id="L119">                requireMediaPlaying = requirePlaying,</span>
+<span class="fc" id="L120">                requireNavActive = requireNavActive,</span>
+<span class="pc bpc" id="L121" title="2 of 4 branches missed.">                requireNavDestMatchesArg = whenObj?.optBoolean(&quot;nav_dest_matches_arg&quot;, false) == true,</span>
+<span class="pc bpc" id="L122" title="2 of 4 branches missed.">                requireNavDestDiffersArg = whenObj?.optBoolean(&quot;nav_dest_differs_arg&quot;, false) == true,</span>
+<span class="fc" id="L123">                action = action,</span>
+<span class="fc" id="L124">                message = o.optString(&quot;message&quot;, &quot;Please confirm.&quot;),</span>
+<span class="fc" id="L125">                enabled = o.optBoolean(&quot;enabled&quot;, true),</span>
+<span class="fc" id="L126">                priority = o.optInt(&quot;priority&quot;, 100),</span>
+            )
+        }
+<span class="fc" id="L129">        rules = parsed.sortedBy { it.priority }</span>
+<span class="fc" id="L130">        Log.i(TAG, &quot;Loaded ${rules.size} context policies (enabled=$enabled)&quot;)</span>
+<span class="fc" id="L131">    }</span>
+
+    /** Test / OEM injection without JSON. */
+<span class="fc" id="L134">    fun replaceRulesForTest(testRules: List&lt;PolicyRule&gt;, policiesEnabled: Boolean = true) {</span>
+<span class="fc" id="L135">        rules = testRules.sortedBy { it.priority }</span>
+<span class="fc" id="L136">        enabled = policiesEnabled</span>
+<span class="fc" id="L137">    }</span>
+
+    fun clearRulesForTest() {
+<span class="fc" id="L140">        rules = emptyList()</span>
+<span class="fc" id="L141">        enabled = true</span>
+<span class="fc" id="L142">    }</span>
+
+    fun evaluate(toolCall: String, snapshot: CabinSnapshot): Decision {
+<span class="fc bfc" id="L145" title="All 4 branches covered.">        if (!enabled || rules.isEmpty()) return Decision.Allow()</span>
+
+<span class="fc" id="L147">        val handler = toolCall.substringBefore(&quot;(&quot;).trim()</span>
+<span class="fc" id="L148">        val args = toolCall.substringAfter(&quot;(&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L149">            .substringBefore(&quot;)&quot;)</span>
+<span class="fc" id="L150">            .trim()</span>
+<span class="fc" id="L151">            .removeSurrounding(&quot;\&quot;&quot;)</span>
+<span class="fc" id="L152">            .lowercase()</span>
+
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        for (rule in rules) {</span>
+<span class="pc bpc" id="L155" title="1 of 2 branches missed.">            if (!rule.enabled) continue</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">            if (rule.appliesTo.none { it.equals(handler, ignoreCase = true) }) continue</span>
+<span class="fc bfc" id="L157" title="All 4 branches covered.">            if (rule.argMatches.isNotEmpty()) {</span>
+<span class="fc" id="L158">                val argOk = rule.argMatches.any { token -&gt;</span>
+<span class="fc" id="L159">                    val t = token.lowercase()</span>
+<span class="pc bpc" id="L160" title="1 of 4 branches missed.">                    args == t || args.contains(t) ||</span>
+<span class="pc bpc" id="L161" title="2 of 6 branches missed.">                        (t == &quot;up&quot; &amp;&amp; (args.contains(&quot;up&quot;) || args.contains(&quot;increase&quot;) ||</span>
+<span class="pc bpc" id="L162" title="4 of 8 branches missed.">                            args.contains(&quot;+&quot;) || args.contains(&quot;louder&quot;) || args.isEmpty())) ||</span>
+<span class="pc bpc" id="L163" title="5 of 6 branches missed.">                        (t == &quot;down&quot; &amp;&amp; (args.contains(&quot;down&quot;) || args.contains(&quot;decrease&quot;) ||</span>
+<span class="pc bnc" id="L164" title="All 4 branches missed.">                            args.contains(&quot;-&quot;) || args.contains(&quot;quieter&quot;)))</span>
+                }
+<span class="fc bfc" id="L166" title="All 2 branches covered.">                if (!argOk) continue</span>
+            }
+<span class="pc bpc" id="L168" title="1 of 4 branches missed.">            if (rule.requireMediaPlaying != null &amp;&amp; rule.requireMediaPlaying != snapshot.mediaPlaying) {</span>
+<span class="nc" id="L169">                continue</span>
+            }
+<span class="fc bfc" id="L171" title="All 4 branches covered.">            if (rule.requireNavActive != null &amp;&amp; rule.requireNavActive != snapshot.navActive) {</span>
+<span class="fc" id="L172">                continue</span>
+            }
+<span class="fc bfc" id="L174" title="All 2 branches covered.">            if (rule.requireNavDestMatchesArg) {</span>
+<span class="pc bpc" id="L175" title="3 of 6 branches missed.">                val active = snapshot.navActiveDest?.lowercase()?.trim().orEmpty()</span>
+<span class="pc bpc" id="L176" title="2 of 6 branches missed.">                if (active.isEmpty() || !destMatches(args, active)) continue</span>
+            }
+<span class="fc bfc" id="L178" title="All 2 branches covered.">            if (rule.requireNavDestDiffersArg) {</span>
+<span class="pc bpc" id="L179" title="3 of 6 branches missed.">                val active = snapshot.navActiveDest?.lowercase()?.trim().orEmpty()</span>
+<span class="pc bpc" id="L180" title="3 of 6 branches missed.">                if (active.isEmpty() || destMatches(args, active)) continue</span>
+            }
+<span class="fc bfc" id="L182" title="All 2 branches covered.">            if (!sensorsMatch(rule.sensors, snapshot)) continue</span>
+
+<span class="fc" id="L184">            val message = snapshot.interpolate(rule.message)</span>
+<span class="fc" id="L185">            Log.i(TAG, &quot;Policy hit id=${rule.id} action=${rule.action} tool=$toolCall&quot;)</span>
+<span class="pc bpc" id="L186" title="1 of 4 branches missed.">            return when (rule.action) {</span>
+<span class="nc" id="L187">                Action.ALLOW -&gt; Decision.Allow(rule.id)</span>
+<span class="fc" id="L188">                Action.CONFIRM -&gt; Decision.Confirm(message, rule.id, toolCall)</span>
+<span class="fc" id="L189">                Action.BLOCK -&gt; Decision.Block(message, rule.id)</span>
+<span class="fc" id="L190">                Action.ESCALATE -&gt; Decision.Escalate(message, rule.id)</span>
+            }
+        }
+<span class="fc" id="L193">        return Decision.Allow()</span>
+    }
+
+    private fun sensorsMatch(sensors: List&lt;SensorCondition&gt;, snapshot: CabinSnapshot): Boolean {
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        if (sensors.isEmpty()) return true</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        for (s in sensors) {</span>
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">            val actual = snapshot.sensor(s.source) ?: return false</span>
+<span class="pc bpc" id="L200" title="16 of 22 branches missed.">            val ok = when (s.op) {</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">                &quot;&gt;=&quot; -&gt; actual &gt;= s.value</span>
+<span class="nc bnc" id="L202" title="All 2 branches missed.">                &quot;&gt;&quot; -&gt; actual &gt; s.value</span>
+<span class="pc bpc" id="L203" title="1 of 2 branches missed.">                &quot;&lt;=&quot; -&gt; actual &lt;= s.value</span>
+<span class="nc bnc" id="L204" title="All 2 branches missed.">                &quot;&lt;&quot; -&gt; actual &lt; s.value</span>
+<span class="fc bfc" id="L205" title="All 2 branches covered.">                &quot;==&quot;, &quot;=&quot; -&gt; actual == s.value</span>
+<span class="nc bnc" id="L206" title="All 4 branches missed.">                &quot;!=&quot; -&gt; actual != s.value</span>
+<span class="nc" id="L207">                else -&gt; false</span>
+            }
+<span class="fc bfc" id="L209" title="All 2 branches covered.">            if (!ok) return false</span>
+        }
+<span class="fc" id="L211">        return true</span>
+    }
+
+    private fun destMatches(toolArgs: String, activeDest: String): Boolean {
+<span class="fc" id="L215">        val a = toolArgs.lowercase().trim().removeSurrounding(&quot;\&quot;&quot;)</span>
+<span class="fc" id="L216">        val b = activeDest.lowercase().trim().removeSurrounding(&quot;\&quot;&quot;)</span>
+<span class="pc bpc" id="L217" title="4 of 8 branches missed.">        if (a.isEmpty() || b.isEmpty()) return false</span>
+<span class="pc bpc" id="L218" title="2 of 6 branches missed.">        return a == b || a.contains(b) || b.contains(a)</span>
+    }
+
+    private fun jsonStringList(arr: JSONArray?): List&lt;String&gt; {
+<span class="fc bfc" id="L222" title="All 2 branches covered.">        if (arr == null) return emptyList()</span>
+<span class="fc" id="L223">        return (0 until arr.length()).map { arr.getString(it) }</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

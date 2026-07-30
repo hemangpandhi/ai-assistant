@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CameraStreamManager.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.vision</a> &gt; <span class="el_source">CameraStreamManager.kt</span></div><h1>CameraStreamManager.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.vision
+
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Log
+import java.io.BufferedInputStream
+import java.net.HttpURLConnection
+import java.net.URL
+
+<span class="nc" id="L10">class CameraStreamManager(</span>
+<span class="nc" id="L11">    private val onFrame: (Bitmap) -&gt; Unit,</span>
+<span class="nc" id="L12">    private val onConnected: () -&gt; Unit,</span>
+<span class="nc" id="L13">    private val onError: (String) -&gt; Unit</span>
+) {
+
+    private var isRunning = false
+    private var streamThread: Thread? = null
+
+    fun startStream(urlStr: String) {
+<span class="nc" id="L20">        stop() // Stop any existing stream</span>
+<span class="nc" id="L21">        isRunning = true</span>
+        
+<span class="nc" id="L23">        streamThread = Thread {</span>
+<span class="nc" id="L24">            var connection: HttpURLConnection? = null</span>
+<span class="nc" id="L25">            var bis: BufferedInputStream? = null</span>
+            
+<span class="nc" id="L27">            try {</span>
+<span class="nc" id="L28">                Log.d(&quot;CameraStream&quot;, &quot;Attempting connection to $urlStr&quot;)</span>
+<span class="nc" id="L29">                val url = URL(urlStr)</span>
+<span class="nc" id="L30">                connection = url.openConnection() as HttpURLConnection</span>
+<span class="nc" id="L31">                connection.readTimeout = 5000</span>
+<span class="nc" id="L32">                connection.connectTimeout = 5000</span>
+                
+<span class="nc" id="L34">                val responseCode = connection.responseCode</span>
+<span class="nc" id="L35">                Log.d(&quot;CameraStream&quot;, &quot;Response Code: $responseCode&quot;)</span>
+                
+<span class="nc bnc" id="L37" title="All 2 branches missed.">                if (responseCode == 200) {</span>
+<span class="nc" id="L38">                    onConnected()</span>
+<span class="nc" id="L39">                    bis = BufferedInputStream(connection.inputStream)</span>
+                    
+<span class="nc" id="L41">                    val buffer = ByteArray(1024 * 1024) // 1MB buffer</span>
+<span class="nc" id="L42">                    var readIdx = 0</span>
+<span class="nc" id="L43">                    var totalRead = 0L</span>
+                    
+<span class="nc bnc" id="L45" title="All 2 branches missed.">                    while (isRunning) {</span>
+<span class="nc" id="L46">                        val read = bis.read(buffer, readIdx, buffer.size - readIdx)</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                        if (read == -1) {</span>
+<span class="nc" id="L48">                             Log.e(&quot;CameraStream&quot;, &quot;End of stream&quot;)</span>
+<span class="nc" id="L49">                             break</span>
+                        }
+<span class="nc" id="L51">                        readIdx += read</span>
+<span class="nc" id="L52">                        totalRead += read</span>
+                        
+<span class="nc bnc" id="L54" title="All 2 branches missed.">                        if (totalRead % 200000 == 0L) Log.d(&quot;CameraStream&quot;, &quot;Streaming data... Total: $totalRead&quot;)</span>
+                    
+                        // Search for JPEG SOI (Start of Image) FF D8 and EOI (End of Image) FF D9
+<span class="nc" id="L57">                        var frameStart = -1</span>
+<span class="nc" id="L58">                        var frameEnd = -1</span>
+                        
+<span class="nc bnc" id="L60" title="All 2 branches missed.">                        for (i in 0 until readIdx - 1) {</span>
+<span class="nc bnc" id="L61" title="All 4 branches missed.">                            if (buffer[i] == 0xFF.toByte() &amp;&amp; buffer[i+1] == 0xD8.toByte()) {</span>
+<span class="nc" id="L62">                                frameStart = i</span>
+<span class="nc" id="L63">                                break</span>
+                            }
+                        }
+                        
+<span class="nc bnc" id="L67" title="All 2 branches missed.">                        if (frameStart != -1) {</span>
+<span class="nc bnc" id="L68" title="All 2 branches missed.">                            for (i in frameStart until readIdx - 1) {</span>
+<span class="nc bnc" id="L69" title="All 4 branches missed.">                                 if (buffer[i] == 0xFF.toByte() &amp;&amp; buffer[i+1] == 0xD9.toByte()) {</span>
+<span class="nc" id="L70">                                    frameEnd = i + 2</span>
+<span class="nc" id="L71">                                    break</span>
+                                }
+                            }
+                        }
+                        
+<span class="nc bnc" id="L76" title="All 4 branches missed.">                        if (frameStart != -1 &amp;&amp; frameEnd != -1) {</span>
+                            // Full frame found
+<span class="nc" id="L78">                            val length = frameEnd - frameStart</span>
+<span class="nc" id="L79">                            try {</span>
+<span class="nc" id="L80">                                val options = BitmapFactory.Options().apply {</span>
+<span class="nc" id="L81">                                    inSampleSize = 4 // Downsample by 4 (e.g. 1920x1080 -&gt; 480x270). severe speedup.</span>
+<span class="nc" id="L82">                                }</span>
+<span class="nc" id="L83">                                val rawBitmap = BitmapFactory.decodeByteArray(buffer, frameStart, length, options)</span>
+<span class="nc bnc" id="L84" title="All 2 branches missed.">                                if (rawBitmap != null) {</span>
+<span class="nc" id="L85">                                    val matrix = android.graphics.Matrix()</span>
+<span class="nc" id="L86">                                    matrix.postRotate(270f) // Rotation 3 (270 degrees)</span>
+<span class="nc" id="L87">                                    val bitmap = android.graphics.Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)</span>
+<span class="nc" id="L88">                                    onFrame(bitmap)</span>
+                                }
+<span class="nc" id="L90">                            } catch (e: Exception) {</span>
+<span class="nc" id="L91">                                Log.e(&quot;CameraStream&quot;, &quot;Decode error: ${e.message}&quot;)</span>
+                            }
+                            
+                            // Shift remaining data to start
+<span class="nc" id="L95">                            val remaining = readIdx - frameEnd</span>
+<span class="nc" id="L96">                            System.arraycopy(buffer, frameEnd, buffer, 0, remaining)</span>
+<span class="nc" id="L97">                            readIdx = remaining</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">                        } else if (readIdx == buffer.size) {</span>
+                            // Buffer full but no full frame, resetting
+<span class="nc" id="L100">                            readIdx = 0</span>
+<span class="nc" id="L101">                            Log.w(&quot;CameraStream&quot;, &quot;Buffer overflow&quot;)</span>
+                        }
+                    }
+                } else {
+<span class="nc" id="L105">                    onError(&quot;Connection Failed: HTTP $responseCode&quot;)</span>
+                }
+<span class="nc" id="L107">            } catch (e: Exception) {</span>
+<span class="nc" id="L108">                Log.e(&quot;CameraStream&quot;, &quot;Stream error: ${e.message}&quot;)</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">                onError(e.message ?: &quot;Connection Error&quot;)</span>
+            } finally {
+<span class="nc bnc" id="L111" title="All 4 branches missed.">                try { bis?.close() } catch (e: Exception) {}</span>
+<span class="nc bnc" id="L112" title="All 2 branches missed.">                try { connection?.disconnect() } catch (e: Exception) {}</span>
+<span class="nc" id="L113">            }</span>
+<span class="nc" id="L114">        }</span>
+<span class="nc bnc" id="L115" title="All 2 branches missed.">        streamThread?.start()</span>
+<span class="nc" id="L116">    }</span>
+
+    fun stop() {
+<span class="nc" id="L119">        isRunning = false</span>
+<span class="nc" id="L120">        try {</span>
+<span class="nc bnc" id="L121" title="All 2 branches missed.">            streamThread?.join(500)</span>
+<span class="nc" id="L122">        } catch (e: InterruptedException) {</span>
+<span class="nc" id="L123">            e.printStackTrace()</span>
+        }
+<span class="nc" id="L125">        streamThread = null</span>
+<span class="nc" id="L126">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

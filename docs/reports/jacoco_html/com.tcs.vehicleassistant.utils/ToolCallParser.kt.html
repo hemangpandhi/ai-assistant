@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ToolCallParser.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.utils</a> &gt; <span class="el_source">ToolCallParser.kt</span></div><h1>ToolCallParser.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.utils
+
+<span class="fc" id="L3">data class ParsedToolCall(</span>
+<span class="pc" id="L4">    val fullTag: String,</span>
+<span class="fc" id="L5">    val toolName: String,</span>
+<span class="fc" id="L6">    val args: String</span>
+)
+
+object ToolCallParser {
+
+    /**
+     * Extracts all valid tool calls from the LLM output.
+     * We look for the exact format: &lt;TOOL&gt;toolName(args)&lt;/TOOL&gt;
+     * Malformed or incomplete tags are ignored to prevent execution errors.
+     */
+    fun extractToolCalls(llmOutput: String): List&lt;ParsedToolCall&gt; {
+<span class="fc" id="L17">        val calls = mutableListOf&lt;ParsedToolCall&gt;()</span>
+        
+        // 1. XML Tag Format: &lt;TOOL&gt;toolName(args)&lt;/TOOL&gt;
+<span class="fc" id="L20">        val xmlRegex = Regex(&quot;(?i)&lt;TOOL&gt;\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:&lt;/TOOL&gt;|&lt;/TOOL|$)&quot;, RegexOption.DOT_MATCHES_ALL)</span>
+<span class="fc bfc" id="L21" title="All 2 branches covered.">        for (match in xmlRegex.findAll(llmOutput)) {</span>
+<span class="fc" id="L22">            val fullTag = match.value</span>
+<span class="pc bpc" id="L23" title="3 of 6 branches missed.">            val toolName = match.groups[1]?.value?.trim() ?: continue</span>
+<span class="pc bpc" id="L24" title="2 of 6 branches missed.">            val args = match.groups[2]?.value?.trim() ?: &quot;&quot;</span>
+<span class="fc" id="L25">            calls.add(ParsedToolCall(fullTag, toolName, args))</span>
+        }
+
+        // 2. Native JSON Format: &lt;tool_call&gt;{&quot;name&quot;: &quot;toolName&quot;, &quot;arguments&quot;: {...}}&lt;/tool_call&gt;
+<span class="fc" id="L29">        val jsonRegex = Regex(&quot;&quot;&quot;(?i)&lt;tool_call&gt;\s*\{[\s\S]*?&quot;name&quot;\s*:\s*&quot;([^&quot;]+)&quot;[\s\S]*?\}\s*&lt;/tool_call&gt;&quot;&quot;&quot;)</span>
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        for (match in jsonRegex.findAll(llmOutput)) {</span>
+<span class="fc" id="L31">            val fullTag = match.value</span>
+<span class="pc bpc" id="L32" title="3 of 6 branches missed.">            val toolName = match.groups[1]?.value?.trim() ?: continue</span>
+            // Extract raw arguments inside JSON
+<span class="pc bpc" id="L34" title="1 of 2 branches missed.">            val args = if (fullTag.contains(&quot;\&quot;arguments\&quot;&quot;)) {</span>
+<span class="fc" id="L35">                fullTag.substringAfter(&quot;\&quot;arguments\&quot;&quot;).substringAfter(&quot;:&quot;).substringBefore(&quot;}&quot;).replace(&quot;\&quot;&quot;, &quot;&quot;).replace(&quot;{&quot;, &quot;&quot;).trim()</span>
+<span class="nc" id="L36">            } else &quot;&quot;</span>
+<span class="fc" id="L37">            calls.add(ParsedToolCall(fullTag, toolName, args))</span>
+        }
+        // 3. Fallback Function Call Syntax: toolName(args) or call:toolName(args) without explicit XML wrapping
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if (calls.isEmpty()) {</span>
+<span class="fc" id="L41">            val funcRegex = Regex(&quot;&quot;&quot;\b([a-zA-Z0-9_]+)\((.*?)\)&quot;&quot;&quot;)</span>
+<span class="fc bfc" id="L42" title="All 2 branches covered.">            for (match in funcRegex.findAll(llmOutput)) {</span>
+<span class="fc" id="L43">                val fullTag = match.value</span>
+<span class="pc bpc" id="L44" title="3 of 6 branches missed.">                val toolName = match.groups[1]?.value?.trim() ?: continue</span>
+<span class="pc bpc" id="L45" title="3 of 6 branches missed.">                val args = match.groups[2]?.value?.trim() ?: &quot;&quot;</span>
+<span class="fc" id="L46">                val toolManager = try {</span>
+<span class="nc" id="L47">                    org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;()</span>
+<span class="fc" id="L48">                } catch (_: Exception) { null }</span>
+<span class="pc bpc" id="L49" title="2 of 4 branches missed.">                if (toolManager?.getToolDefinition(toolName) != null) {</span>
+<span class="nc" id="L50">                    calls.add(ParsedToolCall(fullTag, toolName, args))</span>
+                }
+            }
+        }
+
+<span class="fc" id="L55">        return calls</span>
+    }
+
+    /**
+     * Strips all tool tags (complete and incomplete) from the LLM output,
+     * leaving only the conversational text for the TTS engine.
+     */
+    fun stripToolTags(llmOutput: String): String {
+        // Strip complete XML and JSON tool tags
+<span class="fc" id="L64">        var cleaned = llmOutput</span>
+<span class="fc" id="L65">            .replace(Regex(&quot;(?i)&lt;TOOL&gt;[\\s\\S]*?(&lt;/TOOL&gt;?|$)&quot;), &quot;&quot;)</span>
+<span class="fc" id="L66">            .replace(Regex(&quot;(?i)&lt;tool_call&gt;[\\s\\S]*?(&lt;/tool_call&gt;?|$)&quot;), &quot;&quot;)</span>
+        
+        // Strip trailing incomplete tags
+<span class="fc" id="L69">        val finalLastTagIndex = cleaned.lastIndexOf(&quot;&lt;&quot;)</span>
+<span class="fc bfc" id="L70" title="All 2 branches covered.">        if (finalLastTagIndex != -1) {</span>
+<span class="fc" id="L71">            val potentialTag = cleaned.substring(finalLastTagIndex).uppercase()</span>
+<span class="pc bpc" id="L72" title="1 of 4 branches missed.">            if (potentialTag.startsWith(&quot;&lt;T&quot;) || potentialTag.startsWith(&quot;&lt;/T&quot;) || </span>
+<span class="pc bpc" id="L73" title="3 of 4 branches missed.">                &quot;&lt;TOOL&quot;.startsWith(potentialTag) || &quot;&lt;/TOOL&quot;.startsWith(potentialTag) ||</span>
+<span class="nc bnc" id="L74" title="All 4 branches missed.">                &quot;&lt;TOOL_CALL&quot;.startsWith(potentialTag) || &quot;&lt;/TOOL_CALL&quot;.startsWith(potentialTag)) {</span>
+<span class="fc" id="L75">                cleaned = cleaned.substring(0, finalLastTagIndex)</span>
+            }
+        }
+        
+<span class="fc" id="L79">        return cleaned.trim()</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
