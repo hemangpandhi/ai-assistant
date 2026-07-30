@@ -30,4 +30,20 @@ class InferenceLifecycleContractTest {
         assertFalse(LLMManager.hasActiveInference())
         assertEquals(false, LLMManager.isReady())
     }
+
+    @Test
+    fun `unload clears nativeTurnsSinceReset`() {
+        LLMManager.nativeTurnsSinceReset = AssistantConfig.Llm.CONVERSATION_RESET_TURNS
+        assertTrue(LLMManager.unload())
+        assertEquals(0, LLMManager.nativeTurnsSinceReset)
+        assertTrue(LLMManager.isFirstMessage)
+    }
+
+    @Test
+    fun `resetConversation clears nativeTurnsSinceReset`() {
+        LLMManager.nativeTurnsSinceReset = AssistantConfig.Llm.CONVERSATION_RESET_TURNS
+        assertTrue(LLMManager.resetConversation())
+        assertEquals(0, LLMManager.nativeTurnsSinceReset)
+        assertTrue(LLMManager.isFirstMessage)
+    }
 }

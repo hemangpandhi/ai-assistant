@@ -155,7 +155,8 @@
                  android:foregroundServiceType="camera"
                  android:exported="false" />
                  
-        <service android:name="audio.soniqo.speech.service.SpeechRecognitionService"
+        <!-- Platform-required RecognitionService for VoiceInteractionService; cabin STT uses Sherpa. -->
+        <service android:name=".speech.StubRecognitionService"
                  android:permission="android.permission.BIND_RECOGNITION_SERVICE"
                  android:exported="true">
             <intent-filter>

@@ -559,7 +559,11 @@ object LLMManager {
      */
     fun resetConversation(context: Context? = null): Boolean {
         synchronized(inferenceLock) {
-            if (engine == null) return true
+            if (engine == null) {
+                isFirstMessage = true
+                nativeTurnsSinceReset = 0
+                return true
+            }
             if (activeInferences > 0) {
                 Log.w(TAG, "Skipping conversation reset: $activeInferences inference(s) still in flight")
                 return false
@@ -614,6 +618,7 @@ object LLMManager {
                 conversation = null
                 engine = null
                 isFirstMessage = true
+                nativeTurnsSinceReset = 0
                 isPrewarmed = false
                 lastAiResponse = ""
                 activeInferences = 0

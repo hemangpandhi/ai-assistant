@@ -158,16 +158,6 @@ class LocalLLMActivity : AppCompatActivity() {
         loadRuntimePrefs(this)
         VehicleManager.initialize(this)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                Log.i("Soniqo", "Starting Soniqo model download/verification...")
-                audio.soniqo.speech.ModelManager.ensureModels(this@LocalLLMActivity)
-                Log.i("Soniqo", "Soniqo models are ready!")
-            } catch (e: Exception) {
-                Log.e("Soniqo", "Failed to ensure Soniqo models: ${e.message}")
-            }
-        }
-        
         setContentView(R.layout.activity_main)
 
         inputText = findViewById(R.id.inputText)
