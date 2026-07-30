@@ -177,6 +177,7 @@ fun ImmersiveAssistantOverlay(
     val thumbsTick = stage.thumbsTick
     val contextGlyph = stage.contextGlyph
     val glyphGazeActive = stage.glyphGazeActive
+    val faceCues = stage.faceCues
     val lastError = stage.lastError
 
     fun summon(origin: ImmersiveSummonOrigin) {
@@ -532,11 +533,14 @@ fun ImmersiveAssistantOverlay(
                         highContrast = highContrast,
                         gesture = gesture,
                         contextGlyph = contextGlyph,
+                        // Main overlay: icons live inside the face via [faceCues], not floating HUD.
+                        floatContextGlyph = false,
                         showFace = faceKind != AssistantFaceKind.None,
                         faceRise = faceRise.value,
                         faceScale = faceScale.value,
                         faceAlpha = faceAlpha.value,
                         transcriptAlpha = transcriptAlpha.value,
+                        faceCues = faceCues,
                     )
                 }
 

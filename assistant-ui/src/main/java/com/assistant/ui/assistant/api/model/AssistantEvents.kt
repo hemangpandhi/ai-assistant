@@ -25,6 +25,12 @@ sealed interface AssistantSessionEvent {
     /** Weather / climate context glyph for Fusion Eyes; null clears. */
     data class ContextGlyph(val glyph: AssistantContextGlyph?) : AssistantSessionEvent
 
+    /**
+     * LLM-owned anatomy cues (per-eye / mouth / L-R accents).
+     * Null or [AssistantFaceCues.Empty] clears back to geometric face parts.
+     */
+    data class FaceCuesChanged(val cues: AssistantFaceCues?) : AssistantSessionEvent
+
     data class PresentationHint(val hint: AssistantPresentationHint) : AssistantSessionEvent
 
     /** Host should mirror a glanceable status to the cluster. */

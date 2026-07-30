@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.graphics.shapes.Morph
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -45,6 +46,8 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
+import com.assistant.ui.assistant.api.AssistantFaceCueIcon
+import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
@@ -222,6 +225,7 @@ private val PoseSpring = spring<Float>(
  * @param gesture nod / shake micro-expressions for yes/no
  * @param eyeGlow when non-null, capsule eyes use this EPORO-style purple glow ring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
+ * @param faceCues optional LLM anatomy icons; null slots keep geometric eyes/mouth
  */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -235,7 +239,35 @@ fun ImmersiveEyesFace(
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color? = null,
+    faceCues: AssistantFaceCues? = null,
 ) {
+    val cues = faceCues?.takeUnless { it.isEmpty }
+    val leftEyeIcon = cues?.leftEye
+    val rightEyeIcon = cues?.rightEye
+    val mouthIcon = cues?.mouth
+    val leftAccentIcon = cues?.leftAccent
+    val rightAccentIcon = cues?.rightAccent
+    // Always remember painters (Compose hook order); draw only when the slot is set.
+    val leftEyePainter = rememberVectorPainter(
+        (leftEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
+    )
+    val rightEyePainter = rememberVectorPainter(
+        (rightEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
+    )
+    val mouthPainter = rememberVectorPainter(
+        (mouthIcon ?: AssistantFaceCueIcon.Music).imageVector(),
+    )
+    val leftAccentPainter = rememberVectorPainter(
+        (leftAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
+    )
+    val rightAccentPainter = rememberVectorPainter(
+        (rightAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
+    )
+    val leftEyeTint = leftEyeIcon?.glyphTint(highContrast)
+    val rightEyeTint = rightEyeIcon?.glyphTint(highContrast)
+    val mouthTintCue = mouthIcon?.glyphTint(highContrast)
+    val leftAccentTint = leftAccentIcon?.glyphTint(highContrast)
+    val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val target = mood.toImmersiveEyePose()
     val enableIdleMotion = LocalAssistantIdleMotion.current
     // Fixed SemiCircle shell — matte black face fill.
@@ -616,15 +648,50 @@ fun ImmersiveEyesFace(
                 val capsuleStyle = eyeStyle.value.coerceIn(-0.2f, 0.25f)
                 // Skip BlurMaskFilter blooms on the first frame — they dominate GPU cost.
                 val bloom = if (enableIdleMotion) glowAmount else 0f
-                drawNomiGlyphEye(left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
-                drawNomiGlyphEye(right, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
+                // Icons replace geometry at the same place (slightly larger than capsules).
+                val eyeIconSide = faceR * 0.44f
+                if (leftEyeIcon != null && leftEyeTint != null) {
+                    drawFaceCueIcon(leftEyePainter, left, eyeIconSide, 1f, leftEyeTint)
+                } else {
+                    drawNomiGlyphEye(left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
+                }
+                if (rightEyeIcon != null && rightEyeTint != null) {
+                    drawFaceCueIcon(rightEyePainter, right, eyeIconSide, 1f, rightEyeTint)
+                } else {
+                    drawNomiGlyphEye(right, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
+                }
+
+                // Top-left / top-right accents (above eyes) — never hide eyes by themselves.
+                val accentSide = faceR * 0.30f
+                val accentY = eyeY - faceR * 0.40f
+                if (leftAccentIcon != null && leftAccentTint != null) {
+                    drawFaceCueIcon(
+                        leftAccentPainter,
+                        Offset(left.x - faceR * 0.06f, accentY),
+                        accentSide,
+                        1f,
+                        leftAccentTint,
+                    )
+                }
+                if (rightAccentIcon != null && rightAccentTint != null) {
+                    drawFaceCueIcon(
+                        rightAccentPainter,
+                        Offset(right.x + faceR * 0.06f, accentY),
+                        accentSide,
+                        1f,
+                        rightAccentTint,
+                    )
+                }
 
                 val speaking = mouthAmplitude != null ||
                     mood == AssistantMood.Speaking ||
                     mood == AssistantMood.Excited
-                if (mouthVisible.value > 0.08f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
+                val mouthCenter = Offset(cx, cy + faceR * 0.38f)
+                if (mouthIcon != null && mouthTintCue != null) {
+                    drawFaceCueIcon(mouthPainter, mouthCenter, faceR * 0.48f, 1f, mouthTintCue)
+                } else if (mouthVisible.value > 0.08f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
                     drawNomiGlyphMouth(
-                        center = Offset(cx, cy + faceR * 0.38f),
+                        center = mouthCenter,
                         faceR = faceR,
                         curve = mouthCurve.value,
                         open = mouthOpen.value,
@@ -803,6 +870,7 @@ fun ImmersiveGlowEyesFace(
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color = EporoGlow,
+    faceCues: AssistantFaceCues? = null,
 ) {
     ImmersiveEyesFace(
         mood = mood,
@@ -814,6 +882,7 @@ fun ImmersiveGlowEyesFace(
         highContrast = highContrast,
         gesture = gesture,
         eyeGlow = eyeGlow,
+        faceCues = faceCues,
     )
 }
 
@@ -842,6 +911,7 @@ fun ImmersiveHybridEyesFace(
     brandGlow: Color = EporoGlow,
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
+    faceCues: AssistantFaceCues? = null,
 ) {
     val glowStrength = remember {
         Animatable(if (mood.usesImmersivePurpleGlow()) 1f else 0f)
@@ -867,6 +937,7 @@ fun ImmersiveHybridEyesFace(
         gesture = gesture,
         // Always pass a glow color; alpha is the morph amount (0 = pale, 1 = purple).
         eyeGlow = EporoGlow.copy(alpha = glowStrength.value.coerceIn(0f, 1f)),
+        faceCues = faceCues,
     )
 }
 

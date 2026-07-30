@@ -53,6 +53,8 @@ import kotlin.random.Random
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import com.assistant.ui.assistant.api.AssistantFaceCueIcon
+import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.theme.auraAlphaForContrast
@@ -270,7 +272,35 @@ fun FusionAssistantFace(
     visorDisplayGlyph: ImageVector? = null,
     visorDisplayAlpha: Float = 0f,
     visorDisplayTint: Color? = null,
+    /** LLM anatomy cues — per-eye / mouth / L-R accents; null slots keep geometry. */
+    faceCues: AssistantFaceCues? = null,
 ) {
+    val cues = faceCues?.takeUnless { it.isEmpty }
+    val leftEyeIcon = cues?.leftEye
+    val rightEyeIcon = cues?.rightEye
+    val mouthIcon = cues?.mouth
+    val leftAccentIcon = cues?.leftAccent
+    val rightAccentIcon = cues?.rightAccent
+    val leftEyePainter = rememberVectorPainter(
+        (leftEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
+    )
+    val rightEyePainter = rememberVectorPainter(
+        (rightEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
+    )
+    val mouthCuePainter = rememberVectorPainter(
+        (mouthIcon ?: AssistantFaceCueIcon.Music).imageVector(),
+    )
+    val leftAccentPainter = rememberVectorPainter(
+        (leftAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
+    )
+    val rightAccentPainter = rememberVectorPainter(
+        (rightAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
+    )
+    val leftEyeTint = leftEyeIcon?.glyphTint(highContrast)
+    val rightEyeTint = rightEyeIcon?.glyphTint(highContrast)
+    val mouthCueTint = mouthIcon?.glyphTint(highContrast)
+    val leftAccentTint = leftAccentIcon?.glyphTint(highContrast)
+    val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val visorPainter = visorDisplayGlyph?.let { rememberVectorPainter(it) }
     val target = mood.toFusionEyePose()
     val shellMorph = remember {
@@ -563,8 +593,14 @@ fun FusionAssistantFace(
                     val right = Offset(w * (0.50f + gap) + gaze, eyeY)
                     val style = eyeStyle.value
                     val glyphA = visorDisplayAlpha.coerceIn(0f, 1f)
+                    // Face cues win over weather-sink dual-eye HUD when present.
+                    val useCueEyes = leftEyeIcon != null || rightEyeIcon != null
                     // Hard swap: once the glyph appears, eyes are gone (no ring behind icons).
-                    val eyeReveal = if (glyphA > 0.08f) 0f else 1f
+                    val eyeReveal = when {
+                        useCueEyes -> 1f // per-eye handled below
+                        glyphA > 0.08f -> 0f
+                        else -> 1f
+                    }
 
                     if (blush.value > 0.04f) {
                         val blushA = 0.22f * blush.value
@@ -581,34 +617,25 @@ fun FusionAssistantFace(
                         )
                     }
 
-                    if (eyeReveal > 0.02f || (visorPainter != null && glyphA > 0.02f)) {
+                    if (eyeReveal > 0.02f || (visorPainter != null && glyphA > 0.02f) || useCueEyes) {
                         val faceR = side * 0.42f * pulse
                         val barW = faceR * 0.11f * eyeWidth.value.coerceIn(0.8f, 1.35f)
                         val barH = (faceR * 0.22f * eyeHeight.value.coerceAtMost(1.05f) * open)
                             .coerceAtMost(faceR * 0.26f)
                         val capsuleStyle = style.coerceIn(-0.2f, 0.25f)
+                        val eyeIconSide = faceR * 0.44f
 
-                        if (eyeReveal > 0.02f) {
-                            val fadedEye = eyeTint.copy(alpha = eyeTint.alpha * eyeReveal)
+                        fun drawGeometricEye(center: Offset, fadedEye: Color) {
                             if (eyeMode == FusionEyeMode.ImmersiveGlow || eyeMode == FusionEyeMode.Immersive) {
                                 val glowRing = eyeMode == FusionEyeMode.ImmersiveGlow
-                                drawNomiGlyphEye(left, barW, barH, capsuleStyle, fadedEye, glowRing = glowRing)
-                                drawNomiGlyphEye(right, barW, barH, capsuleStyle, fadedEye, glowRing = glowRing)
+                                drawNomiGlyphEye(center, barW, barH, capsuleStyle, fadedEye, glowRing = glowRing)
                             } else {
                                 val baseR = side * 0.082f * pulse
                                 val rx = baseR * eyeWidth.value.coerceIn(0.75f, 1.45f)
                                 val ry = (baseR * eyeHeight.value.coerceIn(0.35f, 1.3f) * open)
                                     .coerceAtLeast(baseR * 0.06f)
                                 drawFusionEye(
-                                    center = left,
-                                    radiusX = rx,
-                                    radiusY = ry,
-                                    glow = fadedEye,
-                                    open = blinkOpen,
-                                    style = style,
-                                )
-                                drawFusionEye(
-                                    center = right,
+                                    center = center,
                                     radiusX = rx,
                                     radiusY = ry,
                                     glow = fadedEye,
@@ -618,8 +645,25 @@ fun FusionAssistantFace(
                             }
                         }
 
-                        // Replace both eyes with weather glyphs — same capsule size + morph.
-                        if (visorPainter != null && glyphA > 0.02f) {
+                        if (useCueEyes) {
+                            if (leftEyeIcon != null && leftEyeTint != null) {
+                                drawFaceCueIcon(leftEyePainter, left, eyeIconSide, 1f, leftEyeTint)
+                            } else {
+                                drawGeometricEye(left, eyeTint)
+                            }
+                            if (rightEyeIcon != null && rightEyeTint != null) {
+                                drawFaceCueIcon(rightEyePainter, right, eyeIconSide, 1f, rightEyeTint)
+                            } else {
+                                drawGeometricEye(right, eyeTint)
+                            }
+                        } else if (eyeReveal > 0.02f) {
+                            val fadedEye = eyeTint.copy(alpha = eyeTint.alpha * eyeReveal)
+                            drawGeometricEye(left, fadedEye)
+                            drawGeometricEye(right, fadedEye)
+                        }
+
+                        // Weather-sink dual-eye HUD (gallery) — skipped when face cues own eyes.
+                        if (!useCueEyes && visorPainter != null && glyphA > 0.02f) {
                             val tint = visorDisplayTint ?: eyeTint
                             val glyphW: Float
                             val glyphH: Float
@@ -651,15 +695,44 @@ fun FusionAssistantFace(
                                 tint = tint,
                             )
                         }
+
+                        val accentSide = faceR * 0.30f
+                        val accentY = eyeY - faceR * 0.36f
+                        if (leftAccentIcon != null && leftAccentTint != null) {
+                            drawFaceCueIcon(
+                                leftAccentPainter,
+                                Offset(left.x - faceR * 0.05f, accentY),
+                                accentSide,
+                                1f,
+                                leftAccentTint,
+                            )
+                        }
+                        if (rightAccentIcon != null && rightAccentTint != null) {
+                            drawFaceCueIcon(
+                                rightAccentPainter,
+                                Offset(right.x + faceR * 0.05f, accentY),
+                                accentSide,
+                                1f,
+                                rightAccentTint,
+                            )
+                        }
                     }
 
                     val speaking = mouthAmplitude != null ||
                         mood == AssistantMood.Speaking ||
                         mood == AssistantMood.Excited
-                    // Mouth only when the pose asks for it (happy / sad / speaking / …).
-                    if (mouthVisible.value > 0.2f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
+                    val mouthCenter = Offset(cx, h * 0.66f)
+                    if (mouthIcon != null && mouthCueTint != null) {
+                        drawFaceCueIcon(
+                            mouthCuePainter,
+                            mouthCenter,
+                            side * 0.42f * 0.48f,
+                            1f,
+                            mouthCueTint,
+                        )
+                    } else if (mouthVisible.value > 0.2f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
                         drawFusionMouth(
-                            center = Offset(cx, h * 0.66f),
+                            center = mouthCenter,
                             faceR = side * 0.42f,
                             curve = mouthCurve.value,
                             open = mouthOpen.value,
@@ -962,6 +1035,7 @@ fun FusionGlowAssistantFace(
     shellColor: Color = EporoShell,
     visorColor: Color = EporoVisor,
     glowColor: Color = EporoGlow,
+    faceCues: AssistantFaceCues? = null,
 ) {
     FusionAssistantFace(
         mood = mood,
@@ -976,6 +1050,7 @@ fun FusionGlowAssistantFace(
         visorColor = visorColor,
         glowColor = glowColor,
         eyeMode = FusionEyeMode.ImmersiveGlow,
+        faceCues = faceCues,
     )
 }
 
@@ -999,6 +1074,7 @@ fun FusionEyesAssistantFace(
     visorDisplayGlyph: ImageVector? = null,
     visorDisplayAlpha: Float = 0f,
     visorDisplayTint: Color? = null,
+    faceCues: AssistantFaceCues? = null,
 ) {
     FusionAssistantFace(
         mood = mood,
@@ -1016,5 +1092,6 @@ fun FusionEyesAssistantFace(
         visorDisplayGlyph = visorDisplayGlyph,
         visorDisplayAlpha = visorDisplayAlpha,
         visorDisplayTint = visorDisplayTint,
+        faceCues = faceCues,
     )
 }

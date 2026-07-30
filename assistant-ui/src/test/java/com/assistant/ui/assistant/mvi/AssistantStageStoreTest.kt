@@ -37,4 +37,35 @@ class AssistantStageStoreTest {
         )
         assertEquals(AssistantMood.Thinking, state.mood)
     }
+
+    @Test
+    fun faceCuesChanged_updatesState() {
+        val cues = com.assistant.ui.assistant.api.AssistantFaceCues(
+            leftEye = com.assistant.ui.assistant.api.AssistantFaceCueIcon.Sunny,
+            mouth = com.assistant.ui.assistant.api.AssistantFaceCueIcon.Music,
+        )
+        val (state, _) = reduceStage(
+            StageState(visible = true),
+            StageIntent.BackendEvent(AssistantSessionEvent.FaceCuesChanged(cues)),
+        )
+        assertEquals(cues, state.faceCues)
+    }
+
+    @Test
+    fun faceCuesChanged_emptyClears() {
+        val prior = StageState(
+            faceCues = com.assistant.ui.assistant.api.AssistantFaceCues(
+                leftEye = com.assistant.ui.assistant.api.AssistantFaceCueIcon.Rain,
+            ),
+        )
+        val (state, _) = reduceStage(
+            prior,
+            StageIntent.BackendEvent(
+                AssistantSessionEvent.FaceCuesChanged(
+                    com.assistant.ui.assistant.api.AssistantFaceCues.Empty,
+                ),
+            ),
+        )
+        assertEquals(null, state.faceCues)
+    }
 }

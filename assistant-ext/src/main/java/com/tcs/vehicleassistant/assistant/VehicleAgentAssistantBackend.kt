@@ -10,6 +10,7 @@ import com.assistant.ui.assistant.api.AssistantSessionEvent
 import com.assistant.ui.assistant.api.AssistantSpeaker
 import com.assistant.ui.assistant.api.AssistantSpeechInput
 import com.assistant.ui.assistant.api.AssistantStartReason
+import com.assistant.ui.assistant.api.FaceCueParser
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
@@ -293,6 +294,7 @@ class VehicleAgentAssistantBackend(
             is AssistantUiState.Idle -> {
                 emitMood(AssistantMoodId.Idle)
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
+                _events.emit(AssistantSessionEvent.FaceCuesChanged(null))
             }
             is AssistantUiState.Listening -> {
                 micArmed = true
@@ -306,6 +308,7 @@ class VehicleAgentAssistantBackend(
                     ),
                 )
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
+                _events.emit(AssistantSessionEvent.FaceCuesChanged(null))
             }
             is AssistantUiState.Thinking -> {
                 micArmed = false
@@ -322,25 +325,13 @@ class VehicleAgentAssistantBackend(
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
                 emitMood(AssistantMoodId.Speaking)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = state.displayText,
-                        speaker = AssistantSpeaker.Assistant,
-                    ),
-                )
-                _events.emit(AssistantSessionEvent.MouthAmplitude(0.35f))
+                emitAssistantText(state.displayText, mouthAmplitude = 0.35f)
             }
             is AssistantUiState.Speaking -> {
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
                 emitMood(AssistantMoodId.Speaking)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = state.finalMessage,
-                        speaker = AssistantSpeaker.Assistant,
-                    ),
-                )
-                _events.emit(AssistantSessionEvent.MouthAmplitude(0.55f))
+                emitAssistantText(state.finalMessage, mouthAmplitude = 0.55f)
             }
             is AssistantUiState.Error -> {
                 micArmed = false
@@ -363,6 +354,29 @@ class VehicleAgentAssistantBackend(
 
     private suspend fun emitMood(mood: AssistantMoodId) {
         _events.emit(AssistantSessionEvent.MoodChanged(mood))
+    }
+
+    /**
+     * Strip optional LLM `<face …/>` tags from assistant text, apply cues, and
+     * show the cleaned transcript (tags are never spoken / shown).
+     */
+    private suspend fun emitAssistantText(raw: String, mouthAmplitude: Float) {
+        val parsed = FaceCueParser.parse(raw)
+        if (parsed.found) {
+            _events.emit(
+                AssistantSessionEvent.FaceCuesChanged(
+                    parsed.cues?.takeUnless { it.isEmpty },
+                ),
+            )
+        }
+        val text = parsed.cleanedText.ifBlank { raw }
+        _events.emit(
+            AssistantSessionEvent.Transcript(
+                text = text,
+                speaker = AssistantSpeaker.Assistant,
+            ),
+        )
+        _events.emit(AssistantSessionEvent.MouthAmplitude(mouthAmplitude))
     }
 
     companion object {

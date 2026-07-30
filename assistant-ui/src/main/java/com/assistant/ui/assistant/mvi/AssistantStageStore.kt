@@ -1,6 +1,7 @@
 package com.assistant.ui.assistant.mvi
 
 import com.assistant.ui.assistant.api.AssistantContextGlyph
+import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.api.AssistantSessionEvent
 import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.face.AssistantMood
@@ -29,6 +30,8 @@ data class StageState(
     val thumbsTick: Int = 0,
     val contextGlyph: AssistantContextGlyph? = null,
     val glyphGazeActive: Boolean = false,
+    /** LLM anatomy cues; null / empty → geometric eyes & mouth. */
+    val faceCues: AssistantFaceCues? = null,
     val lastError: String? = null,
 )
 
@@ -57,6 +60,7 @@ fun reduceStage(state: StageState, intent: StageIntent): Pair<StageState, List<S
             speaker = DialogueSpeaker.System,
             lastError = null,
             mouthAmplitude = null,
+            faceCues = null,
         ) to listOf(StageEffect.RequestListen)
 
         StageIntent.Dismiss -> state.copy(visible = false) to listOf(StageEffect.StopSession)
@@ -115,6 +119,11 @@ private fun reduceBackendEvent(
                 glyphGazeActive = event.glyph != null,
             ) to emptyList()
 
+        is AssistantSessionEvent.FaceCuesChanged ->
+            state.copy(
+                faceCues = event.cues?.takeUnless { it.isEmpty },
+            ) to emptyList()
+
         is AssistantSessionEvent.PresentationHint -> state to emptyList()
 
         AssistantSessionEvent.RequestClusterHandOff ->
@@ -126,6 +135,7 @@ private fun reduceBackendEvent(
                 transcript = "Listening…",
                 speaker = DialogueSpeaker.System,
                 mouthAmplitude = null,
+                faceCues = null,
             ) to listOf(StageEffect.FinishSession)
     }
 }

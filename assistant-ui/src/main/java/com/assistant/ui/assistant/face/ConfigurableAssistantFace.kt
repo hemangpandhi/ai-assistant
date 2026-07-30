@@ -7,6 +7,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.chrome.FaceWithThinkingCloud
@@ -15,6 +16,8 @@ import com.assistant.ui.assistant.ui.chrome.FaceWithThinkingCloud
  * Renders the active [AssistantFaceKind] from [AssistantFaceConfig] (or an override).
  * [AssistantFaceKind.None] draws nothing — transcript / chrome still show.
  * Thinking mood shows a shared in/out thought cloud at the face top-right.
+ *
+ * [faceCues] applies to Immersive / Fusion eye faces on the main overlay only.
  */
 @Composable
 fun ConfigurableAssistantFace(
@@ -27,6 +30,7 @@ fun ConfigurableAssistantFace(
     brandGlow: Color = Color(0xFF8AB4F8),
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
+    faceCues: AssistantFaceCues? = null,
 ) {
     val configured by AssistantFaceConfig.kind.collectAsStateWithLifecycle()
     val resolved = kind ?: configured
@@ -47,6 +51,7 @@ fun ConfigurableAssistantFace(
                 brandGlow = brandGlow,
                 highContrast = highContrast,
                 gesture = gesture,
+                faceCues = faceCues,
             )
             AssistantFaceKind.ImmersiveGlow -> ImmersiveGlowEyesFace(
                 mood = mood,
@@ -57,6 +62,7 @@ fun ConfigurableAssistantFace(
                 brandGlow = brandGlow,
                 highContrast = highContrast,
                 gesture = gesture,
+                faceCues = faceCues,
             )
             AssistantFaceKind.ImmersiveHybrid -> ImmersiveHybridEyesFace(
                 mood = mood,
@@ -67,6 +73,7 @@ fun ConfigurableAssistantFace(
                 brandGlow = brandGlow,
                 highContrast = highContrast,
                 gesture = gesture,
+                faceCues = faceCues,
             )
             AssistantFaceKind.Eporo -> EporoAssistantFace(
                 mood = mood,
@@ -81,6 +88,7 @@ fun ConfigurableAssistantFace(
                 brandGlow = brandGlow,
                 highContrast = highContrast,
                 gesture = gesture,
+                faceCues = faceCues,
             )
             AssistantFaceKind.FusionGlow -> FusionGlowAssistantFace(
                 mood = mood,
@@ -91,6 +99,7 @@ fun ConfigurableAssistantFace(
                 brandGlow = brandGlow,
                 highContrast = highContrast,
                 gesture = gesture,
+                faceCues = faceCues,
             )
             AssistantFaceKind.FusionEyes -> FusionEyesAssistantFace(
                 mood = mood,
@@ -101,6 +110,7 @@ fun ConfigurableAssistantFace(
                 brandGlow = brandGlow,
                 highContrast = highContrast,
                 gesture = gesture,
+                faceCues = faceCues,
             )
             AssistantFaceKind.Droid -> DroidAssistantFace(
                 mood = mood,

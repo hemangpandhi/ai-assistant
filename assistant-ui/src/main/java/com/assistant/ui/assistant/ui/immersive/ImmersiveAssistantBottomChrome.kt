@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.assistant.ui.assistant.api.AssistantContextGlyph
+import com.assistant.ui.assistant.api.AssistantFaceCues
 import kotlin.math.roundToInt
 import com.assistant.ui.assistant.face.AssistantContextGlyphIcon
 import com.assistant.ui.assistant.face.AssistantFaceKind
@@ -48,6 +49,7 @@ private val FaceTowardTranscriptNudge = 20.dp
  * [faceContent] replaces [ConfigurableAssistantFace] when provided (e.g. Weather sink).
  * [floatContextGlyph] shows the Material icon above Fusion Eyes; Weather sink keeps this off
  * and swaps the icon into the eye band instead.
+ * [faceCues] drives in-face Material icons on the main overlay (LLM-owned).
  */
 @Composable
 fun ImmersiveAssistantBottomChrome(
@@ -71,6 +73,7 @@ fun ImmersiveAssistantBottomChrome(
     transcriptAlpha: Float = 1f,
     /** Multiplier on the ~25%-of-stage face size (e.g. 1.05f for Weather sink). */
     faceSizeScale: Float = 1f,
+    faceCues: AssistantFaceCues? = null,
     faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)? = null,
 ) {
     val showGlyph = floatContextGlyph &&
@@ -145,6 +148,7 @@ fun ImmersiveAssistantBottomChrome(
                             brandGlow = brandGlow,
                             highContrast = highContrast,
                             gesture = gesture,
+                            faceCues = faceCues,
                         )
                     }
                 }
