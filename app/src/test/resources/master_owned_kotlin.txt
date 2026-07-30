@@ -67,6 +67,7 @@ agent-core/src/main/java/com/tcs/vehicleassistant/repository/AgentOrchestrator.k
 agent-core/src/main/java/com/tcs/vehicleassistant/repository/InAppOrchestratorBridge.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/service/VehicleAgentService.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/SmartContextInjector.kt
+agent-core/src/main/java/com/tcs/vehicleassistant/speech/StubRecognitionService.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/ToolManager.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/utils/EmergencyAlarmManager.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/utils/FollowUpRouter.kt

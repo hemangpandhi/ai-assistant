@@ -506,6 +506,10 @@ object VehicleManager {
             return false
         }
         try {
+            val manager = carPropertyManager ?: run {
+                Log.e("VehicleManager", "CarPropertyManager unavailable; refusing write for property $propertyId")
+                return false
+            }
             var targetAreaId = areaId
             // If areaId is 0 (global/unassigned), try to fetch the first valid areaId from the config
             if (targetAreaId == 0) {
@@ -697,6 +701,23 @@ object VehicleManager {
     }
 
     suspend fun setPropertyVerified(propertyId: Int, targetAreaIdParam: Int, value: String, dataType: String, timeoutMs: Long = 500, maxRetries: Int = 2): Boolean {
+        // area_id 0 means "cabin-wide": write every configured zone (HVAC_AC_ON etc. are per-seat on
+        // many AAOS images). Writing only the first zone left other zones on while we still claimed success.
+        if (targetAreaIdParam == 0) {
+            val areaIds = carPropertyManager?.getCarPropertyConfig(propertyId)?.areaIds
+            if (areaIds != null && areaIds.size > 1) {
+                var anySuccess = false
+                var allSuccess = true
+                for (areaId in areaIds) {
+                    val ok = setPropertyVerified(propertyId, areaId, value, dataType, timeoutMs, maxRetries)
+                    if (ok) anySuccess = true else allSuccess = false
+                }
+                // Prefer all zones when possible; accept partial only if at least one zone confirmed
+                // (some images reject rear-row writes for global switches).
+                return if (allSuccess) true else anySuccess
+            }
+        }
+
         var targetAreaId = targetAreaIdParam
         if (targetAreaId == 0) {
             val config = carPropertyManager?.getCarPropertyConfig(propertyId)

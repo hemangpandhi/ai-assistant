@@ -158,16 +158,6 @@ class LocalLLMActivity : AppCompatActivity() {
         loadRuntimePrefs(this)
         VehicleManager.initialize(this)
 
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                Log.i("Soniqo", "Starting Soniqo model download/verification...")
-                audio.soniqo.speech.ModelManager.ensureModels(this@LocalLLMActivity)
-                Log.i("Soniqo", "Soniqo models are ready!")
-            } catch (e: Exception) {
-                Log.e("Soniqo", "Failed to ensure Soniqo models: ${e.message}")
-            }
-        }
-        
         setContentView(R.layout.activity_main)
 
         inputText = findViewById(R.id.inputText)
@@ -1117,8 +1107,13 @@ class LocalLLMActivity : AppCompatActivity() {
 
     override fun onStop() {
         super.onStop()
-        // Restart background wake word listening when the UI hides
+        // Restart background wake word listening when the UI hides — but not while the voice
+        // overlay still owns the mic (competing RESTARTs raced session PAUSE and rematched).
         if (!isWakeWordEnabled()) return
+        if (AssistantSession.isOverlayShowing) {
+            android.util.Log.d("WakeWord", "Skipping onStop RESTART; voice overlay is still showing.")
+            return
+        }
         val intent = Intent(this, WakeWordService::class.java)
         intent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART
         try {

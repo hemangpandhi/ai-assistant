@@ -154,11 +154,11 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
                 if (success) ToolExecutionResult(true, "I've set the passenger's temperature to $value degrees.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
             "turnOnAC", "turnOnAc" -> {
-                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AC_ON, 0, "true", "BOOLEAN")
+                val success = VehicleManager.setPropertyVerified(VehiclePropertyIds.HVAC_AC_ON, 0, "true", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "The AC is now on.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
-            "turnOffAc" -> {
-                val success = VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_AC_ON, 0, "false", "BOOLEAN")
+            "turnOffAC", "turnOffAc" -> {
+                val success = VehicleManager.setPropertyVerified(VehiclePropertyIds.HVAC_AC_ON, 0, "false", "BOOLEAN")
                 if (success) ToolExecutionResult(true, "I've turned off the AC.") else ToolExecutionResult(false, "I sent the command, but the vehicle hardware didn't confirm the change.")
             }
             "turnOnAutoHvac" -> {

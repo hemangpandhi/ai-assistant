@@ -25,6 +25,19 @@ import com.tcs.vehicleassistant.hardware.IAudioManager
 
 class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
+    companion object {
+        /**
+         * True while the voice overlay is shown. [LocalLLMActivity.onStop] checks this so it does
+         * not fire a competing [AssistantConfig.WakeWordAction.RESTART] while the session still
+         * owns the microphone.
+         */
+        @Volatile
+        var isOverlayShowing: Boolean = false
+            private set
+
+        private const val GREETING = "Hi, how can I help you?"
+    }
+
     // ── View references ─────────────────────────────────────────────────────
     private lateinit var overlayView: View
     private lateinit var statusText: TextView
@@ -90,6 +103,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     override fun onHide() {
         super.onHide()
         isSessionVisible = false
+        isOverlayShowing = false
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
         viewModel?.resetState()
@@ -372,7 +386,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
         viewModel?.resetState()
-        resumeWakeWordListening()
+        // hide() → onHide() resumes wake-word listening; do not RESTART twice here.
         hide()
     }
 
@@ -388,6 +402,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             return
         }
         isSessionVisible = true
+        isOverlayShowing = true
 
         // Force window to occupy the entire screen on Automotive OS to prevent UI chopping
         window?.window?.setLayout(
@@ -606,13 +621,15 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             isBound = false
         }
 
-        resumeWakeWordListening()
+        // onHide already resumes listening for the normal finish path. Only resume here when
+        // destroyed while still marked visible (skip onHide), so we do not double-RESTART.
+        if (isSessionVisible) {
+            isSessionVisible = false
+            isOverlayShowing = false
+            resumeWakeWordListening()
+        }
 
         super.onDestroy()
-    }
-
-    private companion object {
-        const val GREETING = "Hi, how can I help you?"
     }
 }
 
