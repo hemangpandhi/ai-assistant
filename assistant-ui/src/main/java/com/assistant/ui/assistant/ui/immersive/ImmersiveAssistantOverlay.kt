@@ -430,9 +430,11 @@ fun ImmersiveAssistantOverlay(
         }
     }
 
-    // User speech must be visible even mid-enter animation.
+    // User / assistant speech must be visible even mid-enter animation.
     LaunchedEffect(transcript, speaker) {
-        if (speaker == DialogueSpeaker.User && transcript.isNotBlank()) {
+        if (transcript.isNotBlank() &&
+            (speaker == DialogueSpeaker.User || speaker == DialogueSpeaker.Assistant)
+        ) {
             transcriptAlpha.snapTo(1f)
         }
     }
@@ -833,28 +835,36 @@ fun ImmersiveTranscript(
     live: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    // Crossfade only when the speaker role changes; word motion lives in LiveInputText.
-    AnimatedContent(
-        targetState = speaker,
-        transitionSpec = {
-            fadeIn(tween(180)) togetherWith fadeOut(tween(120))
-        },
-        label = "immersive_transcript_speaker",
-        modifier = modifier,
-    ) { who ->
-        val bodyColor = when (who) {
-            DialogueSpeaker.User -> Color(0xFFD2E3FC)
-            DialogueSpeaker.Assistant -> Color(0xFFF8F9FA)
-            DialogueSpeaker.System -> Color(0xFFBDC1C6)
+    // Centered band ≤60% of stage width so spoken words never drift far left.
+    Box(
+        modifier = modifier.fillMaxWidth(),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Crossfade only when the speaker role changes; word motion lives in LiveInputText.
+        AnimatedContent(
+            targetState = speaker,
+            transitionSpec = {
+                fadeIn(tween(180)) togetherWith fadeOut(tween(120))
+            },
+            label = "immersive_transcript_speaker",
+            modifier = Modifier.fillMaxWidth(0.6f),
+        ) { who ->
+            val bodyColor = when (who) {
+                DialogueSpeaker.User -> Color(0xFFD2E3FC)
+                DialogueSpeaker.Assistant -> Color(0xFFF8F9FA)
+                DialogueSpeaker.System -> Color(0xFFBDC1C6)
+            }
+            LiveInputText(
+                text = text,
+                color = bodyColor,
+                live = live && who == DialogueSpeaker.User,
+                speaking = who == DialogueSpeaker.Assistant,
+                maxLines = 3,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp),
+            )
         }
-        LiveInputText(
-            text = text,
-            color = bodyColor,
-            live = live && who == DialogueSpeaker.User,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-        )
     }
 }
 

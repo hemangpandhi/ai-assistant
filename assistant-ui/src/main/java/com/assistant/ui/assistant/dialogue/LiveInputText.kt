@@ -37,6 +37,15 @@ private val LiveRevealEasing = CubicBezierEasing(0.2f, 0.0f, 0.0f, 1.0f)
 /** How many tokens the fade edge spans (overlap = fluid wave, not staccato). */
 private const val RevealFadeWindow = 1.6f
 
+/** Opacity below which a token is omitted from layout (keeps visible words centered). */
+private const val VisibleAlphaFloor = 0.02f
+
+/** ~speech-rate pacing when [LiveInputText.speaking] is true (~2.8 words/sec). */
+private const val SpeakingMsPerWord = 360
+
+/** Faster wipe for STT / non-speaking reveals. */
+private const val LiveMsPerWord = 55
+
 /**
  * Tokenize [text] into reveal units for Google Assistant Live–style streaming.
  * Whitespace stays attached to the following word so layout doesn't jump.
@@ -77,8 +86,36 @@ internal fun liveInputTokenAlpha(index: Int, reveal: Float): Float {
 }
 
 /**
- * Live-input transcript: one continuous reveal progress (not stepped per word),
- * stable-prefix growth for STT, soft trailing breath while listening.
+ * Tokens that should participate in layout for [reveal] progress.
+ * Unrevealed tokens are omitted so centered text does not sit far left.
+ */
+internal fun liveInputVisibleTokens(tokens: List<String>, reveal: Float): List<Pair<String, Float>> {
+    if (tokens.isEmpty() || reveal <= 0f) return emptyList()
+    val out = ArrayList<Pair<String, Float>>(tokens.size)
+    for (index in tokens.indices) {
+        val alpha = liveInputTokenAlpha(index, reveal)
+        if (alpha <= VisibleAlphaFloor) break
+        out += tokens[index] to alpha
+    }
+    return out
+}
+
+/** Duration to wipe across [tokenCount] tokens for live vs speaking pacing. */
+internal fun liveInputRevealDurationMs(tokenCount: Int, speaking: Boolean): Int {
+    if (tokenCount <= 0) return 0
+    return if (speaking) {
+        (tokenCount * SpeakingMsPerWord).coerceIn(320, 14_000)
+    } else {
+        (260 + tokenCount * LiveMsPerWord).coerceIn(260, 780)
+    }
+}
+
+/**
+ * Live-input transcript: continuous word reveal.
+ *
+ * Only **revealed** words are laid out (invisible tokens are omitted) so the
+ * visible phrase stays centered. Use [speaking] for speech-paced word-by-word
+ * reveal when the assistant talks.
  */
 @Composable
 fun LiveInputText(
@@ -86,16 +123,17 @@ fun LiveInputText(
     color: Color,
     modifier: Modifier = Modifier,
     live: Boolean = false,
+    speaking: Boolean = false,
     fontSize: TextUnit = 26.sp,
     fontWeight: FontWeight = FontWeight.SemiBold,
     textAlign: TextAlign = TextAlign.Center,
-    maxLines: Int = 1,
+    maxLines: Int = 3,
 ) {
     val tokens = remember(text) { liveInputTokens(text) }
     var committedText by remember { mutableStateOf("") }
     val reveal = remember { Animatable(0f) }
 
-    LaunchedEffect(text) {
+    LaunchedEffect(text, speaking) {
         val nextTokens = liveInputTokens(text)
         val prevTokens = liveInputTokens(committedText)
         val shared = liveInputSharedPrefixCount(prevTokens, nextTokens)
@@ -108,6 +146,7 @@ fun LiveInputText(
             }
 
             // Prefix-stable growth / light correction — retarget without rewinding.
+            // Growth is already paced by STT / TTS; ease new tokens in quickly.
             committedText.isNotEmpty() && shared > 0 -> {
                 val floor = shared.toFloat()
                 when {
@@ -116,7 +155,7 @@ fun LiveInputText(
                 }
                 val delta = (target - reveal.value).coerceAtLeast(0f)
                 if (delta > 0.001f) {
-                    val duration = (160 + (delta * 110f).toInt()).coerceIn(160, 480)
+                    val duration = (140 + (delta * 90f).toInt()).coerceIn(120, 360)
                     reveal.animateTo(
                         target,
                         tween(durationMillis = duration, easing = FastOutSlowInEasing),
@@ -127,13 +166,13 @@ fun LiveInputText(
                 committedText = text
             }
 
-            // Fresh line — single continuous wipe across all tokens.
+            // Fresh line — word-by-word wipe across tokens.
             else -> {
                 reveal.snapTo(0f)
                 if (target <= 0f) {
                     committedText = text
                 } else {
-                    val duration = (260 + nextTokens.size * 55).coerceIn(260, 780)
+                    val duration = liveInputRevealDurationMs(nextTokens.size, speaking)
                     reveal.animateTo(
                         target,
                         tween(durationMillis = duration, easing = LiveRevealEasing),
@@ -163,10 +202,11 @@ fun LiveInputText(
     }
 
     val progress = reveal.value
+    val visible = liveInputVisibleTokens(tokens, progress)
     val annotated = buildAnnotatedString {
-        tokens.forEachIndexed { index, token ->
-            var a = liveInputTokenAlpha(index, progress)
-            if (live && index == tokens.lastIndex && a > 0.92f) {
+        visible.forEachIndexed { visibleIndex, (token, tokenAlpha) ->
+            var a = tokenAlpha
+            if (live && visibleIndex == visible.lastIndex && a > 0.92f) {
                 a *= trailingMul
             }
             withStyle(SpanStyle(color = color.copy(alpha = color.alpha * a.coerceIn(0f, 1f)))) {

@@ -41,4 +41,30 @@ class LiveInputTextTest {
         assertTrue(liveInputTokenAlpha(1, 1.2f) > 0f)
         assertTrue(liveInputTokenAlpha(1, 1.2f) < liveInputTokenAlpha(0, 1.2f))
     }
+
+    @Test
+    fun visibleTokensOmitUnrevealedWords() {
+        val tokens = liveInputTokens("one two three four")
+        assertTrue(liveInputVisibleTokens(tokens, 0f).isEmpty())
+
+        val early = liveInputVisibleTokens(tokens, 0.8f)
+        assertEquals(1, early.size)
+        assertEquals("one", early[0].first.trim())
+
+        val mid = liveInputVisibleTokens(tokens, 2.0f)
+        assertEquals(2, mid.size)
+        assertEquals("one two", mid.joinToString("") { it.first }.trim())
+
+        val all = liveInputVisibleTokens(tokens, 6f)
+        assertEquals(4, all.size)
+        assertEquals("one two three four", all.joinToString("") { it.first }.trim())
+    }
+
+    @Test
+    fun speakingRevealIsSlowerThanLiveWipe() {
+        val live = liveInputRevealDurationMs(8, speaking = false)
+        val speaking = liveInputRevealDurationMs(8, speaking = true)
+        assertTrue(speaking > live)
+        assertTrue(speaking >= 8 * 300)
+    }
 }
