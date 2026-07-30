@@ -69,7 +69,7 @@ fun ImmersiveAssistantBottomChrome(
     faceScale: Float = 1f,
     faceAlpha: Float = 1f,
     transcriptAlpha: Float = 1f,
-    /** Multiplier on the computed face size (e.g. 1.05f for Weather sink). */
+    /** Multiplier on the ~25%-of-stage face size (e.g. 1.05f for Weather sink). */
     faceSizeScale: Float = 1f,
     faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)? = null,
 ) {
@@ -86,8 +86,8 @@ fun ImmersiveAssistantBottomChrome(
             .padding(start = 32.dp, top = 16.dp, end = 32.dp, bottom = 0.dp),
     ) {
         val bandHeight = maxHeight * 0.28f
-        // Upper bound raised so a +20% scale is not clipped by the old 200.dp cap.
-        val faceSize = (bandHeight * 0.64f * faceSizeScale).coerceIn(88.dp, 240.dp)
+        // Face targets ~25% of the immersive stage (app area) height.
+        val faceSize = (maxHeight * 0.25f * faceSizeScale).coerceIn(88.dp, 320.dp)
         val glyphSize = (faceSize * 0.38f).coerceIn(40.dp, 64.dp)
         val density = LocalDensity.current
         val risePx = with(density) { (bandHeight * 0.95f).toPx() }
