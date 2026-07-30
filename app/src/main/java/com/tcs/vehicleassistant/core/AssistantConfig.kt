@@ -137,6 +137,29 @@ object AssistantConfig {
         const val SAMPLE_RATE_HZ = 16_000
 
         /**
+         * Sideload root for Sherpa-ONNX Whisper STT (push via adb; not packaged via Git LFS).
+         *
+         * Expected layout:
+         * ```
+         * /data/local/tmp/stt/tiny.en-encoder.int8.onnx
+         * /data/local/tmp/stt/tiny.en-decoder.int8.onnx
+         * /data/local/tmp/stt/tiny.en-tokens.txt
+         * # optional higher quality:
+         * /data/local/tmp/stt/base.en-encoder.int8.onnx
+         * /data/local/tmp/stt/base.en-decoder.int8.onnx
+         * /data/local/tmp/stt/base.en-tokens.txt
+         * ```
+         * LLM models stay under `/data/local/tmp/llm/`; optional Vosk wake pack under
+         * `/data/local/tmp/vosk/` (see [WakeWordService]).
+         */
+        const val STT_SIDELOAD_DIR = "/data/local/tmp/stt"
+
+        /** Asset-relative Whisper Tiny paths used only when [STT_SIDELOAD_DIR] has no usable model. */
+        const val STT_ASSET_TINY_ENCODER = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx"
+        const val STT_ASSET_TINY_DECODER = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx"
+        const val STT_ASSET_TINY_TOKENS = "sherpa-onnx-whisper/tiny.en-tokens.txt"
+
+        /**
          * How long after the last voiced frame we treat the utterance as finished.
          * Measured in wall-clock ms (not AudioRecord reads) so it stays stable across devices
          * whose min buffer size differs. 400ms is snappy for cabin commands without clipping

@@ -165,59 +165,92 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private fun initSpeechRecognizer() {
         if (sherpaRecognizer != null) return
 
-        // Try Whisper Base (74M params, much more accurate) from device filesystem first
-        val baseEncoder = java.io.File("/data/local/tmp/stt/base.en-encoder.int8.onnx")
-        val baseDecoder = java.io.File("/data/local/tmp/stt/base.en-decoder.int8.onnx")
-        val baseTokens = java.io.File("/data/local/tmp/stt/base.en-tokens.txt")
-        val useBase = baseEncoder.exists() && baseDecoder.exists() && baseTokens.exists()
+        val sttDir = java.io.File(AssistantConfig.Audio.STT_SIDELOAD_DIR)
+        // Prefer filesystem sideloads (adb push) over APK assets — avoids Git LFS / huge APK packaging.
+        val baseEncoder = java.io.File(sttDir, "base.en-encoder.int8.onnx")
+        val baseDecoder = java.io.File(sttDir, "base.en-decoder.int8.onnx")
+        val baseTokens = java.io.File(sttDir, "base.en-tokens.txt")
+        val tinyEncoder = java.io.File(sttDir, "tiny.en-encoder.int8.onnx")
+        val tinyDecoder = java.io.File(sttDir, "tiny.en-decoder.int8.onnx")
+        val tinyTokens = java.io.File(sttDir, "tiny.en-tokens.txt")
+        val useBase = readableSideloadTriplet(baseEncoder, baseDecoder, baseTokens)
+        val useTinySideload = readableSideloadTriplet(tinyEncoder, tinyDecoder, tinyTokens)
 
         try {
-            if (useBase) {
-                android.util.Log.i("AndroidAudioManager", "Using Whisper Base model (high accuracy)")
-                val whisperConfig = OfflineWhisperModelConfig(
-                    encoder = baseEncoder.absolutePath,
-                    decoder = baseDecoder.absolutePath,
-                    language = "en",
-                    task = "transcribe",
-                    tailPaddings = -1
-                )
-                val modelConfig = OfflineModelConfig(
-                    whisper = whisperConfig,
-                    tokens = baseTokens.absolutePath,
-                    numThreads = 4,
-                    debug = false,
-                    provider = "cpu",
-                    modelType = "whisper"
-                )
-                val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
-                val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)
-                // sherpa-onnx requires assetManager=null for absolute filesystem paths.
-                // Use the (AssetManager?, Config) constructor with null.
-                @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
-                sherpaRecognizer = OfflineRecognizer(null, config)
-            } else {
-                android.util.Log.w("AndroidAudioManager", "Whisper Base not found, falling back to Tiny from assets")
-                val whisperConfig = OfflineWhisperModelConfig(
-                    encoder = "sherpa-onnx-whisper/tiny.en-encoder.int8.onnx",
-                    decoder = "sherpa-onnx-whisper/tiny.en-decoder.int8.onnx",
-                    language = "en",
-                    task = "transcribe",
-                    tailPaddings = -1
-                )
-                val modelConfig = OfflineModelConfig(
-                    whisper = whisperConfig,
-                    tokens = "sherpa-onnx-whisper/tiny.en-tokens.txt",
-                    numThreads = 4,
-                    debug = false,
-                    provider = "cpu",
-                    modelType = "whisper"
-                )
-                val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
-                val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)
-                sherpaRecognizer = OfflineRecognizer(context.assets, config)
+            when {
+                useBase -> {
+                    Log.i(TAG, "Using Whisper Base from ${sttDir.absolutePath}")
+                    sherpaRecognizer = buildWhisperRecognizer(
+                        encoderPath = baseEncoder.absolutePath,
+                        decoderPath = baseDecoder.absolutePath,
+                        tokensPath = baseTokens.absolutePath,
+                        fromAssets = false,
+                    )
+                }
+                useTinySideload -> {
+                    Log.i(TAG, "Using Whisper Tiny from ${sttDir.absolutePath}")
+                    sherpaRecognizer = buildWhisperRecognizer(
+                        encoderPath = tinyEncoder.absolutePath,
+                        decoderPath = tinyDecoder.absolutePath,
+                        tokensPath = tinyTokens.absolutePath,
+                        fromAssets = false,
+                    )
+                }
+                else -> {
+                    Log.w(
+                        TAG,
+                        "No STT under ${sttDir.absolutePath}; falling back to assets Tiny " +
+                            "(${AssistantConfig.Audio.STT_ASSET_TINY_ENCODER})",
+                    )
+                    sherpaRecognizer = buildWhisperRecognizer(
+                        encoderPath = AssistantConfig.Audio.STT_ASSET_TINY_ENCODER,
+                        decoderPath = AssistantConfig.Audio.STT_ASSET_TINY_DECODER,
+                        tokensPath = AssistantConfig.Audio.STT_ASSET_TINY_TOKENS,
+                        fromAssets = true,
+                    )
+                }
             }
         } catch (e: Exception) {
-            android.util.Log.e("AndroidAudioManager", "Failed to init Sherpa-ONNX: ${e.message}", e)
+            Log.e(TAG, "Failed to init Sherpa-ONNX: ${e.message}", e)
+        }
+    }
+
+    private fun readableSideloadTriplet(encoder: java.io.File, decoder: java.io.File, tokens: java.io.File): Boolean =
+        listOf(encoder, decoder, tokens).all { it.exists() && it.canRead() && it.length() > 0L }
+
+    /**
+     * Builds an OfflineRecognizer for Whisper. Absolute paths require [fromAssets]=false
+     * (sherpa-onnx needs a null AssetManager); asset-relative paths use [context].assets.
+     */
+    private fun buildWhisperRecognizer(
+        encoderPath: String,
+        decoderPath: String,
+        tokensPath: String,
+        fromAssets: Boolean,
+    ): OfflineRecognizer {
+        val whisperConfig = OfflineWhisperModelConfig(
+            encoder = encoderPath,
+            decoder = decoderPath,
+            language = "en",
+            task = "transcribe",
+            tailPaddings = -1,
+        )
+        val modelConfig = OfflineModelConfig(
+            whisper = whisperConfig,
+            tokens = tokensPath,
+            numThreads = 4,
+            debug = false,
+            provider = "cpu",
+            modelType = "whisper",
+        )
+        val featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80)
+        val config = OfflineRecognizerConfig(featConfig = featConfig, modelConfig = modelConfig)
+        return if (fromAssets) {
+            OfflineRecognizer(context.assets, config)
+        } else {
+            // sherpa-onnx requires assetManager=null for absolute filesystem paths.
+            @Suppress("NULLABILITY_MISMATCH_BASED_ON_JAVA_ANNOTATIONS")
+            OfflineRecognizer(null, config)
         }
     }
 

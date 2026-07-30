@@ -12,3 +12,9 @@ app/build/
 .externalNativeBuild
 .cxx
 app/src/main/assets/sherpa-onnx-whisper-tiny.en/
+# Large STT/wake dumps — sideload to /data/local/tmp/{stt,vosk}/ via adb; do not commit or LFS
+app/src/main/assets/model.tar.bz2
+app/src/main/assets/tiny.en*.onnx
+app/src/main/assets/tiny.en-tokens.txt
+app/src/main/assets/test_wavs/
+device_models/

@@ -68,10 +68,23 @@ class WakeWordService : Service() {
             }
         }
 
+        /**
+         * Optional sideload for the Vosk wake pack (extracted model tree). Prefer this over
+         * packaging a ~200 MB archive in assets when pushing to device:
+         * `adb push model/ /data/local/tmp/vosk/` (must contain `am/`, `conf/`, `graph/`, …).
+         * If missing, falls back to assets `model/` as before — wake still works without sideload.
+         */
+        private const val VOSK_SIDELOAD_DIR = "/data/local/tmp/vosk"
+
         @Synchronized
         fun ensureModel(context: Context): Model? {
             sharedModel?.let { return it }
             return try {
+                val sideload = File(VOSK_SIDELOAD_DIR)
+                if (sideload.isDirectory && File(sideload, "am").isDirectory) {
+                    Log.i(TAG, "Loading Vosk wake model from $VOSK_SIDELOAD_DIR")
+                    return Model(sideload.absolutePath).also { sharedModel = it }
+                }
                 val destDir = File(context.filesDir, "model")
                 if (!destDir.exists() || destDir.listFiles()?.isEmpty() == true) {
                     copyAssetFolder(context.assets, "model", destDir.absolutePath)

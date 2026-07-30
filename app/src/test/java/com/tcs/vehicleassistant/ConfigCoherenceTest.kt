@@ -87,6 +87,12 @@ class ConfigCoherenceTest {
     }
 
     @Test
+    fun `STT sideload prefers device tmp over packaging`() {
+        assertEquals("/data/local/tmp/stt", AssistantConfig.Audio.STT_SIDELOAD_DIR)
+        assertTrue(AssistantConfig.Audio.STT_ASSET_TINY_ENCODER.startsWith("sherpa-onnx-whisper/"))
+    }
+
+    @Test
     fun `the session wait covers a full engine initialization`() {
         // AssistantSession polls for readiness; a shorter budget reports failure while the engine
         // is still compiling kernels on a cold start.
