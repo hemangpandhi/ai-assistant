@@ -71,6 +71,9 @@ class VehicleAgentAssistantBackend(
     private var lastStreamingUiMs = 0L
     private var lastMouthEmitMs = 0L
     private var lastEmittedTranscript: String? = null
+    /** Polls TTS spoken length so Compose shows words as they are said. */
+    private var speakRevealJob: Job? = null
+    private var speakRevealStartedAtMs = 0L
 
     /** Harness turn-taking mood (Listening / Thinking / Speaking / …). */
     private var pipelineMood: AssistantMoodId = AssistantMoodId.Idle
@@ -86,6 +89,7 @@ class VehicleAgentAssistantBackend(
         val audioMgr = audio as? SessionAudioPort
         uiCollectJob?.cancel()
         eventCollectJob?.cancel()
+        stopSpeakReveal()
         viewModel = vm
         if (audioMgr != null) {
             audioManager = audioMgr
@@ -521,11 +525,13 @@ class VehicleAgentAssistantBackend(
         when (state) {
             is AssistantUiState.Idle -> {
                 lastMappedUi = "Idle"
+                stopSpeakReveal()
                 setPipelineMood(AssistantMoodId.Idle)
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
             }
             is AssistantUiState.Listening -> {
                 lastMappedUi = "Listening"
+                stopSpeakReveal()
                 // Only treat as armed when STT is actually ready — VM may set Listening early.
                 if (audioManager?.isReadyListening() == true) {
                     micArmed = true
@@ -569,6 +575,7 @@ class VehicleAgentAssistantBackend(
                     sttStoppedForBusyTurn = true
                 }
                 lastMappedUi = "Thinking"
+                stopSpeakReveal()
                 AssistantDebugLog.d(TAG, "ui Thinking")
                 setPipelineMood(AssistantMoodId.Thinking)
                 val live = viewModel?.liveTranscript?.value.orEmpty()
@@ -588,20 +595,10 @@ class VehicleAgentAssistantBackend(
                     sttStoppedForBusyTurn = true
                 }
                 lastMappedUi = "Streaming"
+                AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
+                setPipelineMood(AssistantMoodId.Speaking)
+                ensureSpeakReveal()
                 val now = System.currentTimeMillis()
-                val textChanged = state.displayText != lastEmittedTranscript
-                if (textChanged && now - lastStreamingUiMs >= UI_FRAME_MS) {
-                    lastStreamingUiMs = now
-                    lastEmittedTranscript = state.displayText
-                    AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
-                    setPipelineMood(AssistantMoodId.Speaking)
-                    _events.emit(
-                        AssistantSessionEvent.Transcript(
-                            text = state.displayText,
-                            speaker = AssistantSpeaker.Assistant,
-                        ),
-                    )
-                }
                 if (now - lastMouthEmitMs >= UI_FRAME_MS) {
                     lastMouthEmitMs = now
                     val pulse = 0.28f + ((now / 80L) % 3) * 0.08f
@@ -617,19 +614,14 @@ class VehicleAgentAssistantBackend(
                     sttStoppedForBusyTurn = true
                 }
                 lastMappedUi = "Speaking"
-                lastEmittedTranscript = state.finalMessage
                 AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
                 setPipelineMood(AssistantMoodId.Speaking)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = state.finalMessage,
-                        speaker = AssistantSpeaker.Assistant,
-                    ),
-                )
+                ensureSpeakReveal()
                 _events.emit(AssistantSessionEvent.MouthAmplitude(0.5f))
             }
             is AssistantUiState.Error -> {
                 lastMappedUi = "Error"
+                stopSpeakReveal()
                 micArmed = false
                 com.tcs.vehicleassistant.hardware.MicCaptureCoordinator.clearSessionArm()
                 AssistantDebugLog.e(TAG, "ui Error: ${state.errorMessage}")
@@ -681,6 +673,71 @@ class VehicleAgentAssistantBackend(
         _events.emit(AssistantSessionEvent.MoodChanged(resolved))
     }
 
+    private fun stopSpeakReveal() {
+        speakRevealJob?.cancel()
+        speakRevealJob = null
+        speakRevealStartedAtMs = 0L
+    }
+
+    /**
+     * Emit assistant transcript word-by-word, advanced by TTS range callbacks
+     * (with a speech-rate fallback when ranges are missing).
+     */
+    private fun ensureSpeakReveal() {
+        if (speakRevealJob?.isActive == true) return
+        speakRevealStartedAtMs = System.currentTimeMillis()
+        val gen = micGeneration
+        speakRevealJob = scope.launch {
+            while (isActive &&
+                micGeneration == gen &&
+                (lastMappedUi == "Streaming" || lastMappedUi == "Speaking")
+            ) {
+                val full = when (val state = viewModel?.uiState?.value) {
+                    is AssistantUiState.Streaming -> state.displayText
+                    is AssistantUiState.Speaking -> state.finalMessage
+                    else -> break
+                }
+                if (full.isBlank()) {
+                    delay(UI_FRAME_MS)
+                    continue
+                }
+                val reported = viewModel?.ttsSpokenLength ?: 0
+                val elapsedMs = System.currentTimeMillis() - speakRevealStartedAtMs
+                val simulated = ((elapsedMs / 1000f) * SPEAK_REVEAL_CHARS_PER_SEC).toInt()
+                val effective = maxOf(reported, simulated).coerceIn(0, full.length)
+                val visible = spokenTranscriptPrefix(full, effective)
+                val now = System.currentTimeMillis()
+                if (visible.isNotEmpty() &&
+                    visible != lastEmittedTranscript &&
+                    now - lastStreamingUiMs >= UI_FRAME_MS
+                ) {
+                    lastStreamingUiMs = now
+                    lastEmittedTranscript = visible
+                    AssistantDebugLog.d(TAG, "speakReveal ${visible.take(48)}")
+                    _events.emit(
+                        AssistantSessionEvent.Transcript(
+                            text = visible,
+                            speaker = AssistantSpeaker.Assistant,
+                        ),
+                    )
+                }
+                if (lastMappedUi == "Speaking" && effective >= full.length) {
+                    if (lastEmittedTranscript != full) {
+                        lastEmittedTranscript = full
+                        _events.emit(
+                            AssistantSessionEvent.Transcript(
+                                text = full,
+                                speaker = AssistantSpeaker.Assistant,
+                            ),
+                        )
+                    }
+                    break
+                }
+                delay(UI_FRAME_MS)
+            }
+        }
+    }
+
     companion object {
         private const val TAG = "VehicleAgentBackend"
         /** Re-arm after TTS / turn complete. */
@@ -692,5 +749,21 @@ class VehicleAgentAssistantBackend(
         /** Wait for onReadyForSpeech (includes AudioManager settle / ready-watchdog). */
         private const val READY_WAIT_MS = 4500L
         private const val UI_FRAME_MS = 32L
+        /** Fallback reveal pace when TTS onRangeStart is unavailable (~speech rate). */
+        private const val SPEAK_REVEAL_CHARS_PER_SEC = 18f
     }
+}
+
+/**
+ * Visible assistant transcript up to [spokenChars], snapped forward to a word boundary
+ * so the current spoken word is shown whole.
+ */
+internal fun spokenTranscriptPrefix(full: String, spokenChars: Int): String {
+    if (full.isEmpty() || spokenChars <= 0) return ""
+    if (spokenChars >= full.length) return full
+    var end = spokenChars
+    while (end < full.length && !full[end].isWhitespace()) {
+        end++
+    }
+    return full.substring(0, end)
 }
