@@ -480,15 +480,18 @@ fun ImmersiveAssistantOverlay(
                 ) {
                     ImmersiveBackdrop(rich = richEffects)
                     if (glowReveal > 0.01f) {
-                        val speechActive = speaker == DialogueSpeaker.User ||
+                        // Faster breath while either party is talking *or* we're listening.
+                        val speechActive = mood == AssistantMood.Listening ||
                             mood == AssistantMood.Speaking ||
+                            speaker == DialogueSpeaker.User ||
                             (mouthAmplitude != null && mouthAmplitude > 0.04f)
                         val speechEnergy = when {
                             mouthAmplitude != null -> mouthAmplitude.coerceIn(0f, 1f)
-                            // User turns have no lip-sync — keep a soft mid energy so the rim
-                            // still feels responsive while they talk.
-                            speaker == DialogueSpeaker.User -> 0.40f
-                            mood == AssistantMood.Speaking -> 0.30f
+                            // User turns / listening have no lip-sync — keep mid energy so
+                            // the rim still feels responsive.
+                            speaker == DialogueSpeaker.User -> 0.55f
+                            mood == AssistantMood.Listening -> 0.40f
+                            mood == AssistantMood.Speaking -> 0.45f
                             else -> 0f
                         }
                         ImmersiveBorderGlow(
@@ -722,11 +725,11 @@ fun ImmersiveBackdrop(
 /**
  * Soft cockpit-edge glow: cool teal → ice-blue → steel spectrum bloom that
  * eases inward to full transparency. Colors drift slowly when idle motion is on,
- * and the rim width gently breathes (widens then restores) with a faded bloom.
+ * and the rim **breathes** — width and brightness swell outward, then ease back.
  *
- * When [speechActive] is true (user or assistant speaking), the breath quickens
- * slightly and [speechEnergy] adds a soft width kick so the rim feels alive
- * with the voice without going neon.
+ * When [speechActive] is true (listening or speaking), the breath is faster
+ * and wider; [speechEnergy] adds a live width/brightness kick from the voice.
+ * Idle still breathes — just at the slower ambient cadence.
  *
  * [revealProgress] fades the rim in/out (parent owns icon emerge / hotword wipe).
  *
@@ -766,9 +769,9 @@ fun ImmersiveBorderGlow(
         } else {
             sweepAngle.snapTo(0f)
         }
-        // Idle: slow subtle widen. Speaking: quicker, slightly wider faded bloom.
-        val peak = if (speechActive) 1.26f else 1.18f
-        val halfCycleMs = if (speechActive) 2_200 else 4_000
+        // Idle: ambient inhale. Listening/speaking: faster, wider bloom.
+        val peak = if (speechActive) 1.85f else 1.65f
+        val halfCycleMs = if (speechActive) 1_500 else 2_600
         while (true) {
             breathScale.animateTo(
                 targetValue = peak,
@@ -785,10 +788,12 @@ fun ImmersiveBorderGlow(
     val angle = sweepAngle.value
     val energy = speechEnergy.coerceIn(0f, 1f)
     // Soft voice kick on top of the breath cycle (lip-sync / live user speech).
-    val breath = breathScale.value + energy * 0.10f
+    val breath = breathScale.value + energy * 0.22f
     val progress = revealProgress.coerceIn(0f, 1f)
-    // Soften overall alpha as the rim widens so the expanded edge stays faded.
-    val breathFade = 1f - (breath - 1f).coerceAtLeast(0f) * 0.65f
+    // 0 at rest → 1 near peak inhale (speech peak ~1.85).
+    val inhale = ((breath - 1f) / 0.85f).coerceIn(0f, 1f)
+    // Brighten on inhale so the motion is readable (dimming canceled the old subtle breath).
+    val breathFade = 0.62f + inhale * 0.38f + energy * 0.12f
     val spectrum = remember(glowColor) {
         fun tint(c: Color): Color = Color(
             red = c.red * 0.72f + glowColor.red * 0.28f,
@@ -811,30 +816,32 @@ fun ImmersiveBorderGlow(
     val colorStops = remember {
         floatArrayOf(0.00f, 0.14f, 0.28f, 0.42f, 0.57f, 0.71f, 0.86f, 1.00f)
     }
-    val fadeAlphas = remember {
-        intArrayOf(
-            0x99FFFFFF.toInt(),
-            0x66FFFFFF.toInt(),
-            0x33FFFFFF.toInt(),
-            0x14FFFFFF.toInt(),
-            0x05FFFFFF.toInt(),
-            0x00FFFFFF,
-        )
-    }
+    // Edge opacity also breathes: stronger rim on inhale, softer on exhale.
+    val edgeHi = (0xA0 + (0x4C * inhale).toInt()).coerceIn(0, 0xFF)
+    val edgeMid = (0x66 + (0x40 * inhale).toInt()).coerceIn(0, 0xFF)
+    val edgeLo = (0x2A + (0x28 * inhale).toInt()).coerceIn(0, 0xFF)
+    val fadeAlphas = intArrayOf(
+        (edgeHi shl 24) or 0x00FFFFFF,
+        (edgeMid shl 24) or 0x00FFFFFF,
+        (edgeLo shl 24) or 0x00FFFFFF,
+        0x18FFFFFF,
+        0x06FFFFFF,
+        0x00FFFFFF,
+    )
     val fadeStops = remember {
-        floatArrayOf(0.00f, 0.14f, 0.34f, 0.58f, 0.82f, 1.00f)
+        floatArrayOf(0.00f, 0.12f, 0.30f, 0.55f, 0.80f, 1.00f)
     }
 
     Canvas(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(windowInsets)
-            .graphicsLayer { alpha = progress * breathFade },
+            .graphicsLayer { alpha = (progress * breathFade).coerceIn(0f, 1f) },
     ) {
         val w = size.width
         val h = size.height
-        // Moderate bloom — softens further as breath widens the band.
-        val thickness = 48.dp.toPx() * breath
+        // Explicit bloom — rest ~52dp, idle inhale ~86dp, speech inhale ~96dp.
+        val thickness = 52.dp.toPx() * breath
         val cx = w * 0.5f
         val cy = h * 0.5f
 
