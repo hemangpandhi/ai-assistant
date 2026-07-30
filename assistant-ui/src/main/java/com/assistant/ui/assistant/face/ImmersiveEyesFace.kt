@@ -271,7 +271,7 @@ fun ImmersiveEyesFace(
     val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val target = mood.toImmersiveEyePose()
     val enableIdleMotion = LocalAssistantIdleMotion.current
-    // Fixed SemiCircle shell — matte black face fill.
+    // Fixed SemiCircle shell — device housing fill (shape unchanged).
     val shellMorph = remember {
         ExpressiveShellMorphState(
             morph = Morph(
