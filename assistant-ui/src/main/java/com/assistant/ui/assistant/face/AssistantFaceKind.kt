@@ -55,6 +55,10 @@ enum class AssistantFaceKind(
         adbKey = "glyph",
         label = "Glyph",
     ),
+    NomiSphere(
+        adbKey = "nomi",
+        label = "Nomi sphere",
+    ),
     ;
 
     companion object {
@@ -77,6 +81,7 @@ enum class AssistantFaceKind(
                 "fusion_eyes", "eyes_fusion", "fusion_immersive", "fusion_black" -> FusionEyes
                 "bugdroid", "android" -> Droid
                 "classic", "assistant", "face" -> Glyph
+                "nomisphere", "sphere", "glass", "orb_3d", "nomi_sphere" -> NomiSphere
                 else -> null
             }
         }

@@ -19,6 +19,7 @@ class AssistantFaceKindTest {
         assertEquals(AssistantFaceKind.FusionEyes, AssistantFaceKind.parse("fusioneyes"))
         assertEquals(AssistantFaceKind.Droid, AssistantFaceKind.parse("droid"))
         assertEquals(AssistantFaceKind.Glyph, AssistantFaceKind.parse("glyph"))
+        assertEquals(AssistantFaceKind.NomiSphere, AssistantFaceKind.parse("nomi"))
     }
 
     @Test
@@ -38,6 +39,9 @@ class AssistantFaceKindTest {
         assertEquals(AssistantFaceKind.FusionEyes, AssistantFaceKind.parse("fusion_black"))
         assertEquals(AssistantFaceKind.Droid, AssistantFaceKind.parse("bugdroid"))
         assertEquals(AssistantFaceKind.Glyph, AssistantFaceKind.parse("classic"))
+        assertEquals(AssistantFaceKind.NomiSphere, AssistantFaceKind.parse("sphere"))
+        assertEquals(AssistantFaceKind.NomiSphere, AssistantFaceKind.parse("glass"))
+        assertEquals(AssistantFaceKind.NomiSphere, AssistantFaceKind.parse("nomi_sphere"))
     }
 
     @Test
@@ -69,6 +73,7 @@ class AssistantFaceKindTest {
         assertTrue(keys.contains("fusion"))
         assertTrue(keys.contains("fusionglow"))
         assertTrue(keys.contains("fusioneyes"))
+        assertTrue(keys.contains("nomi"))
     }
 
     @Test

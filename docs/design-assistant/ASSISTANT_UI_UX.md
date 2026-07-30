@@ -162,8 +162,9 @@ adb shell settings get global design_assistant_face
 | `fusioneyes` | Fusion + pale capsule eyes |
 | `droid` | Droid |
 | `glyph` | Classic glyph |
+| `nomi` | Lightweight glossy sphere (Compose Canvas + `graphicsLayer` tilt) |
 
-Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `express`→`fusion`, `classic`→`glyph`.
+Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `express`→`fusion`, `classic`→`glyph`, `sphere`/`glass`→`nomi`.
 
 ---
 
