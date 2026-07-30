@@ -1301,6 +1301,14 @@ class LocalLLMActivity : AppCompatActivity() {
             .putString("selected_model", MODEL_PATH)
             .putString("backend_choice", backendChoice)
             .apply()
+
+        // Tell WakeWordService to reload LLM in its process space
+        val intent = Intent(this@LocalLLMActivity, WakeWordService::class.java).apply {
+            action = "com.tcs.vehicleassistant.action.WAKE_WORD_RELOAD_LLM"
+            putExtra("model_path", MODEL_PATH)
+            putExtra("backend_choice", backendChoice)
+        }
+        startService(intent)
             
         chatAdapter.addMessage(ChatMessage("Loading Model from $MODEL_PATH...\nBackend: $backendChoice\nThis may take a minute.", isUser = false))
         generateButton.isEnabled = false
