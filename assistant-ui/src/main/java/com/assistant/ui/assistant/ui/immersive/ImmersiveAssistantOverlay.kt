@@ -4,7 +4,11 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -706,7 +710,8 @@ fun ImmersiveBackdrop(
 
 /**
  * Soft cockpit-edge glow: cool teal → ice-blue → steel spectrum bloom that
- * eases inward to full transparency. Colors drift slowly when idle motion is on.
+ * eases inward to full transparency. Colors drift slowly when idle motion is on,
+ * and the rim width gently breathes (widens then restores) with a faded bloom.
  *
  * [revealProgress] fades the rim in/out (parent owns icon emerge / hotword wipe).
  *
@@ -735,10 +740,28 @@ fun ImmersiveBorderGlow(
             )
         }
     }
+    // Slow, subtle width breathe: base → slightly wider → restore.
+    // Peak expansion also softens opacity so the bloom stays faded, not neon.
+    val breathScale = if (idleMotion) {
+        val infinite = rememberInfiniteTransition(label = "border_glow_breath")
+        infinite.animateFloat(
+            initialValue = 1f,
+            targetValue = 1.18f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(durationMillis = 4_000, easing = FastOutSlowInEasing),
+                repeatMode = RepeatMode.Reverse,
+            ),
+            label = "glow_breath_width",
+        ).value
+    } else {
+        1f
+    }
     val paint = remember { Paint().asFrameworkPaint().apply { isAntiAlias = true } }
     val shaderMatrix = remember { Matrix() }
     val angle = sweepAngle.value
     val progress = revealProgress.coerceIn(0f, 1f)
+    // Soften overall alpha as the rim widens so the expanded edge stays faded.
+    val breathFade = 1f - (breathScale - 1f) * 0.65f
     val spectrum = remember(glowColor) {
         fun tint(c: Color): Color = Color(
             red = c.red * 0.72f + glowColor.red * 0.28f,
@@ -779,12 +802,12 @@ fun ImmersiveBorderGlow(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(windowInsets)
-            .graphicsLayer { alpha = progress },
+            .graphicsLayer { alpha = progress * breathFade },
     ) {
         val w = size.width
         val h = size.height
-        // Moderate bloom — softer than the prior neon rim.
-        val thickness = 48.dp.toPx()
+        // Moderate bloom — softens further as breathScale widens the band.
+        val thickness = 48.dp.toPx() * breathScale
         val cx = w * 0.5f
         val cy = h * 0.5f
 
