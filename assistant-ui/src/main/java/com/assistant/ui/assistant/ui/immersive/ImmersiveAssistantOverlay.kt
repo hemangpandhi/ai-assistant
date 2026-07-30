@@ -480,14 +480,17 @@ fun ImmersiveAssistantOverlay(
                 ) {
                     ImmersiveBackdrop(rich = richEffects)
                     if (glowReveal > 0.01f) {
-                        val speechActive = speaker == DialogueSpeaker.User ||
+                        // Faster breath while either party is talking *or* we're listening.
+                        val speechActive = mood == AssistantMood.Listening ||
                             mood == AssistantMood.Speaking ||
+                            speaker == DialogueSpeaker.User ||
                             (mouthAmplitude != null && mouthAmplitude > 0.04f)
                         val speechEnergy = when {
                             mouthAmplitude != null -> mouthAmplitude.coerceIn(0f, 1f)
-                            // User turns have no lip-sync — keep mid energy so the rim
-                            // still feels responsive while they talk.
+                            // User turns / listening have no lip-sync — keep mid energy so
+                            // the rim still feels responsive.
                             speaker == DialogueSpeaker.User -> 0.55f
+                            mood == AssistantMood.Listening -> 0.40f
                             mood == AssistantMood.Speaking -> 0.45f
                             else -> 0f
                         }
@@ -724,8 +727,9 @@ fun ImmersiveBackdrop(
  * eases inward to full transparency. Colors drift slowly when idle motion is on,
  * and the rim **breathes** — width and brightness swell outward, then ease back.
  *
- * When [speechActive] is true (user or assistant speaking), the breath is faster
+ * When [speechActive] is true (listening or speaking), the breath is faster
  * and wider; [speechEnergy] adds a live width/brightness kick from the voice.
+ * Idle still breathes — just at the slower ambient cadence.
  *
  * [revealProgress] fades the rim in/out (parent owns icon emerge / hotword wipe).
  *
@@ -765,7 +769,7 @@ fun ImmersiveBorderGlow(
         } else {
             sweepAngle.snapTo(0f)
         }
-        // Explicit inhale/exhale: large width swing + matching brightness pulse.
+        // Idle: ambient inhale. Listening/speaking: faster, wider bloom.
         val peak = if (speechActive) 1.85f else 1.65f
         val halfCycleMs = if (speechActive) 1_500 else 2_600
         while (true) {
