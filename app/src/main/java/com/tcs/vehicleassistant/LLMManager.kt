@@ -17,6 +17,7 @@ import com.google.ai.edge.litertlm.benchmark
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.core.DeviceCapabilities
 import com.tcs.vehicleassistant.core.KernelCacheManager
+import com.tcs.vehicleassistant.core.LocalModelResolver
 import com.tcs.vehicleassistant.hardware.CabinCameraManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -126,7 +127,8 @@ object LLMManager {
         }
 
         withContext(Dispatchers.IO) {
-            val explicitGemma = File(AssistantConfig.Llm.DEFAULT_MODEL_PATH)
+            val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+            val savedModelPath = prefs.getString(AssistantConfig.Prefs.SELECTED_MODEL, null)
             val internalFiles = context.filesDir?.listFiles()?.toList() ?: emptyList()
             val externalFiles = context.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()
             val tmpFiles = File("/data/local/tmp/llm/").listFiles()?.toList() ?: emptyList()
@@ -134,16 +136,12 @@ object LLMManager {
                 it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm")
             }
 
-            // Strictly lock exclusively to Gemma 4 E2B model
-            val modelFile = when {
-                explicitGemma.exists() && explicitGemma.canRead() -> explicitGemma
-                else -> allModelFiles.find {
-                    it.name.equals(AssistantConfig.Llm.DEFAULT_MODEL_FILENAME, ignoreCase = true)
-                } ?: allModelFiles.find { it.name.contains("gemma", ignoreCase = true) }
-                    ?: explicitGemma
-            }
+            // Prefer OEM/user selected local model; fall back to default edge path / candidates.
+            val modelFile = LocalModelResolver.resolve(
+                savedPath = savedModelPath,
+                candidates = allModelFiles,
+            )
 
-            val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
             val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)
                 ?: AssistantConfig.Backend.AUTO
             val targetBackend = if (backendChoice != AssistantConfig.Backend.AUTO) backendChoice else savedBackendChoice
@@ -153,7 +151,9 @@ object LLMManager {
                 initialize(context, modelFile.absolutePath, force, targetBackend, callback)
             } else {
                 withContext(Dispatchers.Main) {
-                    callback?.onError(Exception("Gemma model not found at ${modelFile.absolutePath}"))
+                    callback?.onError(
+                        Exception("Local model not found at ${modelFile.absolutePath}"),
+                    )
                 }
             }
         }
@@ -526,7 +526,7 @@ object LLMManager {
         basePrompt.append("=== FEW-SHOT EXAMPLES ===\n")
         basePrompt.append("User: play music\nAssistant: <TOOL>playMusic()</TOOL> Playing music for you right now.\n\n")
         basePrompt.append("User: stop music\nAssistant: <TOOL>stopMusic()</TOOL> Stopping the music for you.\n\n")
-        basePrompt.append("User: pause music\nAssistant: <TOOL>stopMusic()</TOOL> Pausing media playback.\n\n")
+        basePrompt.append("User: pause music\nAssistant: <TOOL>pauseMusic()</TOOL> Pausing media playback.\n\n")
         basePrompt.append("User: increase temperature\nAssistant: <TOOL>increaseTemperature(all)</TOOL> Warming up the cabin.\n\n")
         basePrompt.append("User: decrease temperature\nAssistant: <TOOL>decreaseTemperature(all)</TOOL> Cooling down the cabin.\n\n")
         

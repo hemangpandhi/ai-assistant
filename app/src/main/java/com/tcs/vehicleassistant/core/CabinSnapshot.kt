@@ -95,16 +95,11 @@ data class CabinSnapshot(
             return g == "park" || g == "p" || g.startsWith("park")
         }
 
-        /**
-         * Normalize VHAL fuel readings: NaN/negative → unknown (-1); 0–1 fraction → percent;
-         * otherwise clamp to 0–100.
-         */
-        fun normalizeFuelLevelPct(fuelRaw: Float): Int = when {
-            fuelRaw.isNaN() -> -1
-            fuelRaw < 0f -> -1
-            fuelRaw in 0f..1f -> Math.round(fuelRaw * 100f)
-            else -> Math.round(fuelRaw).coerceIn(0, 100)
-        }
+        /** @see VehicleUnits.normalizeFuelLevelPct */
+        fun normalizeFuelLevelPct(fuelRaw: Float): Int = VehicleUnits.normalizeFuelLevelPct(fuelRaw)
+
+        /** @see VehicleUnits.mpsToMph */
+        fun speedMpsToMph(mps: Float): Int = VehicleUnits.mpsToMph(mps)
     }
 }
 

@@ -494,15 +494,10 @@ class ToolManager {
                 val valueToSet = matchedTool.valueToWrite ?: toolCall.substringAfter("(").substringBefore(")")
                 
                 val startToolTime = System.currentTimeMillis()
-                
-                // Hardware confirmation logic with Emulator workaround
-                val isAospEmulator = propId == 289410577 || propId == 354419973 || propId == 289410578
-                val success = if (isAospEmulator) {
-                    VehicleManager.setGenericVhalProperty(propId, areaId, valueToSet, dataType)
-                    true
-                } else {
-                    VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
-                }
+
+                // Always verify VHAL writes. The previous "AOSP emulator" shortcut included real
+                // HVAC_AC_ON (354419973), so AC always reported success without hardware confirm.
+                val success = VehicleManager.setPropertyVerified(propId, areaId, valueToSet, dataType)
                 
                 val endToolTime = System.currentTimeMillis()
                 val latency = endToolTime - startToolTime

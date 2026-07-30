@@ -13,6 +13,9 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 object VehicleManager {
+    /** AOSP HVAC_ELECTRIC_DEFROSTER_ON (0x13200514) — keep in sync with vehicle_skills_registry.json. */
+    const val HVAC_ELECTRIC_DEFROSTER_ON = 320865556
+
     private var carPropertyManager: CarPropertyManager? = null
 
     /** Retained so [cleanup] can disconnect; the Car binder was previously never released. */
@@ -101,11 +104,12 @@ object VehicleManager {
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
         override fun onChangeEvent(value: CarPropertyValue<*>) {
-            if (customPropertyIdToName.containsKey(value.propertyId)) {
-                val name = customPropertyIdToName[value.propertyId]!!
+            // Registry properties often include standard VHAL IDs (HVAC_AC_ON, etc.). Mirror them
+            // into the custom map for prompt context, but never skip the standard cabin caches —
+            // ContextGuard / safety tools depend on those fields staying live.
+            customPropertyIdToName[value.propertyId]?.let { name ->
                 customPropertyValues[name] = value.value?.toString() ?: "null"
-                Log.d("VehicleManager", "Custom property updated: $name = ${customPropertyValues[name]}")
-                return
+                Log.d("VehicleManager", "Registry property updated: $name = ${customPropertyValues[name]}")
             }
 
             when (value.propertyId) {
@@ -237,7 +241,12 @@ object VehicleManager {
         } catch (e: Exception) { default }
     }
 
-    fun getRealSpeed(): Int = currentSpeed.toInt()
+    /**
+     * Vehicle speed in mph for ContextGuard / UI.
+     * Live VHAL [VehiclePropertyIds.PERF_VEHICLE_SPEED] is stored as m/s; telemetry mocks
+     * call [setMockSpeed] with mph and are converted to m/s for storage.
+     */
+    fun getRealSpeed(): Int = com.tcs.vehicleassistant.core.VehicleUnits.mpsToMph(currentSpeed)
     fun getRealSeatHeaterLevel(): Int = currentSeatHeaterLevel
     fun getRealTemperature(zone: String = "driver"): Int {
         var temp = currentTemperature
@@ -291,7 +300,35 @@ object VehicleManager {
     }
 
     // Mock Telemetry Setters (for testing)
-    fun setMockSpeed(speed: Float) { currentSpeed = speed }
+    /** Telemetry UI enters mph; store as m/s so [getRealSpeed] stays consistent with live VHAL. */
+    fun setMockSpeed(speedMph: Float) {
+        currentSpeed = com.tcs.vehicleassistant.core.VehicleUnits.mphToMps(speedMph)
+    }
+
+    /**
+     * Door lock summary from registry DOOR_LOCK property when available.
+     * @return true if locked, false if unlocked, null if sensors unavailable.
+     */
+    fun getDoorsLockedOrNull(): Boolean? {
+        val raw = customPropertyValues["DOOR_LOCK"] ?: return null
+        return when (raw.trim().lowercase()) {
+            "true", "1", "locked" -> true
+            "false", "0", "unlocked" -> false
+            "unknown", "null", "" -> null
+            else -> raw.toBooleanStrictOrNull()
+        }
+    }
+
+    fun getVehicleSecuredStatus(): String {
+        val windows = getWindowClosureStatus()
+        val doorsLocked = getDoorsLockedOrNull()
+        val doors = when (doorsLocked) {
+            true -> "All doors report locked."
+            false -> "One or more doors report unlocked."
+            null -> "I can't read the door lock sensors right now."
+        }
+        return "$windows $doors"
+    }
 
     suspend fun writeTemperatureToVhalVerified(temp: Float, zone: String = "all"): Boolean {
         try {
@@ -448,21 +485,25 @@ object VehicleManager {
         }
     }
     fun setGenericVhalProperty(propertyId: Int, areaId: Int, value: String, dataType: String): Boolean {
+        val manager = carPropertyManager ?: run {
+            Log.w("VehicleManager", "setGenericVhalProperty($propertyId): CarPropertyManager not ready")
+            return false
+        }
         try {
             var targetAreaId = areaId
             // If areaId is 0 (global/unassigned), try to fetch the first valid areaId from the config
             if (targetAreaId == 0) {
-                val config = carPropertyManager?.getCarPropertyConfig(propertyId)
+                val config = manager.getCarPropertyConfig(propertyId)
                 if (config != null && config.areaIds.isNotEmpty()) {
                     targetAreaId = config.areaIds.first()
                 }
             }
 
             when (dataType.uppercase()) {
-                "INT" -> carPropertyManager?.setIntProperty(propertyId, targetAreaId, value.toFloatOrNull()?.toInt() ?: value.toInt())
-                "FLOAT" -> carPropertyManager?.setFloatProperty(propertyId, targetAreaId, value.toFloat())
-                "BOOLEAN" -> carPropertyManager?.setBooleanProperty(propertyId, targetAreaId, value.toBoolean())
-                "STRING" -> carPropertyManager?.setProperty(Any::class.java, propertyId, targetAreaId, value)
+                "INT" -> manager.setIntProperty(propertyId, targetAreaId, value.toFloatOrNull()?.toInt() ?: value.toInt())
+                "FLOAT" -> manager.setFloatProperty(propertyId, targetAreaId, value.toFloat())
+                "BOOLEAN" -> manager.setBooleanProperty(propertyId, targetAreaId, value.toBoolean())
+                "STRING" -> manager.setProperty(Any::class.java, propertyId, targetAreaId, value)
                 else -> return false
             }
             return true
@@ -493,8 +534,6 @@ object VehicleManager {
 
     suspend fun writeRearDefrosterToVhalVerified(on: Boolean): Boolean {
         try {
-            // Android Automotive uses HVAC_ELECTRIC_DEFROSTER_ON (0x13200514) for the rear window defroster
-            val HVAC_ELECTRIC_DEFROSTER_ON = 320865556
             var areaIds = carPropertyManager?.getCarPropertyConfig(HVAC_ELECTRIC_DEFROSTER_ON)?.areaIds
             if (areaIds == null || areaIds.isEmpty()) {
                 areaIds = intArrayOf(2) // Fallback for WINDOW_REAR
