@@ -50,7 +50,7 @@ object ContextGuard {
     sealed class Decision {
         abstract val policyId: String?
 
-<span class="pc" id="L53">        data class Allow(override val policyId: String? = null) : Decision()</span>
+<span class="fc" id="L53">        data class Allow(override val policyId: String? = null) : Decision()</span>
 <span class="fc" id="L54">        data class Confirm(</span>
 <span class="fc" id="L55">            val message: String,</span>
 <span class="fc" id="L56">            override val policyId: String,</span>
@@ -74,7 +74,7 @@ object ContextGuard {
         private set
 
     fun loadFromConfig(config: JSONObject?) {
-<span class="pc bpc" id="L77" title="1 of 4 branches missed.">        if (config == null || !config.has(&quot;context_policies&quot;)) {</span>
+<span class="fc bfc" id="L77" title="All 4 branches covered.">        if (config == null || !config.has(&quot;context_policies&quot;)) {</span>
 <span class="fc" id="L78">            rules = emptyList()</span>
 <span class="fc" id="L79">            enabled = true</span>
 <span class="fc" id="L80">            return</span>
@@ -85,11 +85,11 @@ object ContextGuard {
 <span class="fc" id="L85">        val parsed = mutableListOf&lt;PolicyRule&gt;()</span>
 <span class="fc bfc" id="L86" title="All 2 branches covered.">        for (i in 0 until arr.length()) {</span>
 <span class="fc" id="L87">            val o = arr.getJSONObject(i)</span>
-<span class="pc bpc" id="L88" title="2 of 4 branches missed.">            val action = when (o.optString(&quot;action&quot;, &quot;allow&quot;).lowercase()) {</span>
+<span class="fc bfc" id="L88" title="All 4 branches covered.">            val action = when (o.optString(&quot;action&quot;, &quot;allow&quot;).lowercase()) {</span>
 <span class="fc" id="L89">                &quot;confirm&quot; -&gt; Action.CONFIRM</span>
-<span class="nc" id="L90">                &quot;block&quot;, &quot;adjust&quot; -&gt; Action.BLOCK</span>
+<span class="fc" id="L90">                &quot;block&quot;, &quot;adjust&quot; -&gt; Action.BLOCK</span>
 <span class="fc" id="L91">                &quot;escalate&quot; -&gt; Action.ESCALATE</span>
-<span class="nc" id="L92">                else -&gt; Action.ALLOW</span>
+<span class="fc" id="L92">                else -&gt; Action.ALLOW</span>
             }
 <span class="pc bpc" id="L94" title="1 of 4 branches missed.">            val sensorsArr = o.optJSONObject(&quot;when&quot;)?.optJSONArray(&quot;sensors&quot;) ?: JSONArray()</span>
 <span class="fc" id="L95">            val sensors = mutableListOf&lt;SensorCondition&gt;()</span>
@@ -159,7 +159,7 @@ object ContextGuard {
 <span class="fc" id="L159">                    val t = token.lowercase()</span>
 <span class="pc bpc" id="L160" title="1 of 4 branches missed.">                    args == t || args.contains(t) ||</span>
 <span class="pc bpc" id="L161" title="2 of 6 branches missed.">                        (t == &quot;up&quot; &amp;&amp; (args.contains(&quot;up&quot;) || args.contains(&quot;increase&quot;) ||</span>
-<span class="pc bpc" id="L162" title="4 of 8 branches missed.">                            args.contains(&quot;+&quot;) || args.contains(&quot;louder&quot;) || args.isEmpty())) ||</span>
+<span class="pc bpc" id="L162" title="1 of 8 branches missed.">                            args.contains(&quot;+&quot;) || args.contains(&quot;louder&quot;) || args.isEmpty())) ||</span>
 <span class="pc bpc" id="L163" title="5 of 6 branches missed.">                        (t == &quot;down&quot; &amp;&amp; (args.contains(&quot;down&quot;) || args.contains(&quot;decrease&quot;) ||</span>
 <span class="pc bnc" id="L164" title="All 4 branches missed.">                            args.contains(&quot;-&quot;) || args.contains(&quot;quieter&quot;)))</span>
                 }
@@ -183,8 +183,8 @@ object ContextGuard {
 
 <span class="fc" id="L184">            val message = snapshot.interpolate(rule.message)</span>
 <span class="fc" id="L185">            Log.i(TAG, &quot;Policy hit id=${rule.id} action=${rule.action} tool=$toolCall&quot;)</span>
-<span class="pc bpc" id="L186" title="1 of 4 branches missed.">            return when (rule.action) {</span>
-<span class="nc" id="L187">                Action.ALLOW -&gt; Decision.Allow(rule.id)</span>
+<span class="fc bfc" id="L186" title="All 4 branches covered.">            return when (rule.action) {</span>
+<span class="fc" id="L187">                Action.ALLOW -&gt; Decision.Allow(rule.id)</span>
 <span class="fc" id="L188">                Action.CONFIRM -&gt; Decision.Confirm(message, rule.id, toolCall)</span>
 <span class="fc" id="L189">                Action.BLOCK -&gt; Decision.Block(message, rule.id)</span>
 <span class="fc" id="L190">                Action.ESCALATE -&gt; Decision.Escalate(message, rule.id)</span>
@@ -197,14 +197,14 @@ object ContextGuard {
 <span class="fc bfc" id="L197" title="All 2 branches covered.">        if (sensors.isEmpty()) return true</span>
 <span class="fc bfc" id="L198" title="All 2 branches covered.">        for (s in sensors) {</span>
 <span class="pc bpc" id="L199" title="1 of 2 branches missed.">            val actual = snapshot.sensor(s.source) ?: return false</span>
-<span class="pc bpc" id="L200" title="16 of 22 branches missed.">            val ok = when (s.op) {</span>
+<span class="pc bpc" id="L200" title="7 of 22 branches missed.">            val ok = when (s.op) {</span>
 <span class="fc bfc" id="L201" title="All 2 branches covered.">                &quot;&gt;=&quot; -&gt; actual &gt;= s.value</span>
-<span class="nc bnc" id="L202" title="All 2 branches missed.">                &quot;&gt;&quot; -&gt; actual &gt; s.value</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">                &quot;&gt;&quot; -&gt; actual &gt; s.value</span>
 <span class="pc bpc" id="L203" title="1 of 2 branches missed.">                &quot;&lt;=&quot; -&gt; actual &lt;= s.value</span>
-<span class="nc bnc" id="L204" title="All 2 branches missed.">                &quot;&lt;&quot; -&gt; actual &lt; s.value</span>
+<span class="pc bpc" id="L204" title="1 of 2 branches missed.">                &quot;&lt;&quot; -&gt; actual &lt; s.value</span>
 <span class="fc bfc" id="L205" title="All 2 branches covered.">                &quot;==&quot;, &quot;=&quot; -&gt; actual == s.value</span>
-<span class="nc bnc" id="L206" title="All 4 branches missed.">                &quot;!=&quot; -&gt; actual != s.value</span>
-<span class="nc" id="L207">                else -&gt; false</span>
+<span class="pc bpc" id="L206" title="2 of 4 branches missed.">                &quot;!=&quot; -&gt; actual != s.value</span>
+<span class="fc" id="L207">                else -&gt; false</span>
             }
 <span class="fc bfc" id="L209" title="All 2 branches covered.">            if (!ok) return false</span>
         }

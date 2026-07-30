@@ -25,6 +25,19 @@ import com.tcs.vehicleassistant.hardware.IAudioManager
 
 <span class="nc" id="L26">class AssistantSession(context: Context) : VoiceInteractionSession(context) {</span>
 
+    companion object {
+        /**
+         * True while the voice overlay is shown. [LocalLLMActivity.onStop] checks this so it does
+         * not fire a competing [AssistantConfig.WakeWordAction.RESTART] while the session still
+         * owns the microphone.
+         */
+<span class="nc" id="L34">        @Volatile</span>
+        var isOverlayShowing: Boolean = false
+            private set
+
+        private const val GREETING = &quot;Hi, how can I help you?&quot;
+    }
+
     // ── View references ─────────────────────────────────────────────────────
     private lateinit var overlayView: View
     private lateinit var statusText: TextView
@@ -47,69 +60,70 @@ import com.tcs.vehicleassistant.hardware.IAudioManager
     private var agentService: com.tcs.vehicleassistant.service.VehicleAgentService? = null
     private var isBound = false
 
-<span class="nc" id="L50">    private val serviceConnection = object : android.content.ServiceConnection {</span>
+<span class="nc" id="L63">    private val serviceConnection = object : android.content.ServiceConnection {</span>
         override fun onServiceConnected(className: android.content.ComponentName, service: android.os.IBinder) {
-<span class="nc" id="L52">            val binder = service as com.tcs.vehicleassistant.service.VehicleAgentService.LocalBinder</span>
-<span class="nc" id="L53">            agentService = binder.getService()</span>
-<span class="nc" id="L54">            isBound = true</span>
+<span class="nc" id="L65">            val binder = service as com.tcs.vehicleassistant.service.VehicleAgentService.LocalBinder</span>
+<span class="nc" id="L66">            agentService = binder.getService()</span>
+<span class="nc" id="L67">            isBound = true</span>
             
-<span class="nc bnc" id="L56" title="All 2 branches missed.">            viewModel = agentService?.viewModel</span>
-<span class="nc bnc" id="L57" title="All 2 branches missed.">            audioManager = agentService?.audioManager</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            viewModel = agentService?.viewModel</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            audioManager = agentService?.audioManager</span>
             
-<span class="nc" id="L59">            startObservingViewModel()</span>
-<span class="nc" id="L60">        }</span>
+<span class="nc" id="L72">            startObservingViewModel()</span>
+<span class="nc" id="L73">        }</span>
 
         override fun onServiceDisconnected(arg0: android.content.ComponentName) {
-<span class="nc" id="L63">            isBound = false</span>
-<span class="nc" id="L64">            agentService = null</span>
-<span class="nc" id="L65">            viewModel = null</span>
-<span class="nc" id="L66">            audioManager = null</span>
-<span class="nc" id="L67">        }</span>
+<span class="nc" id="L76">            isBound = false</span>
+<span class="nc" id="L77">            agentService = null</span>
+<span class="nc" id="L78">            viewModel = null</span>
+<span class="nc" id="L79">            audioManager = null</span>
+<span class="nc" id="L80">        }</span>
     }
 
     // ── UI Animation State ──────────────────────────────────────────────────
     private var dotAnimatorJob: Job? = null
     private var typewriterJob: Job? = null
     private var micHandoffJob: Job? = null
-<span class="nc" id="L74">    private var targetDisplayMessage = &quot;&quot;</span>
+<span class="nc" id="L87">    private var targetDisplayMessage = &quot;&quot;</span>
     private var currentDisplayLength = 0
-<span class="nc" id="L76">    private var currentHighlightStart = -1</span>
-<span class="nc" id="L77">    private var currentHighlightEnd = -1</span>
+<span class="nc" id="L89">    private var currentHighlightStart = -1</span>
+<span class="nc" id="L90">    private var currentHighlightEnd = -1</span>
 
     // ── Lifecycle ───────────────────────────────────────────────────────────
-<span class="nc" id="L80">    private var currentLayoutStyle = -1</span>
+<span class="nc" id="L93">    private var currentLayoutStyle = -1</span>
     private var unloadJob: Job? = null
 
     // ── Observation scope ───────────────────────────────────────────────────
-<span class="nc" id="L84">    private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)</span>
+<span class="nc" id="L97">    private val observerScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)</span>
 
     // ═══════════════════════════════════════════════════════════════════════
     // VIEW LIFECYCLE
     // ═══════════════════════════════════════════════════════════════════════
 
     override fun onHide() {
-<span class="nc" id="L91">        super.onHide()</span>
-<span class="nc" id="L92">        isSessionVisible = false</span>
-<span class="nc bnc" id="L93" title="All 2 branches missed.">        audioManager?.stopListening()</span>
-<span class="nc bnc" id="L94" title="All 2 branches missed.">        audioManager?.stopSpeaking()</span>
-<span class="nc bnc" id="L95" title="All 2 branches missed.">        viewModel?.resetState()</span>
+<span class="nc" id="L104">        super.onHide()</span>
+<span class="nc" id="L105">        isSessionVisible = false</span>
+<span class="nc" id="L106">        isOverlayShowing = false</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        audioManager?.stopListening()</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">        audioManager?.stopSpeaking()</span>
+<span class="nc bnc" id="L109" title="All 2 branches missed.">        viewModel?.resetState()</span>
 
-<span class="nc" id="L97">        resumeWakeWordListening()</span>
+<span class="nc" id="L111">        resumeWakeWordListening()</span>
 
-<span class="nc bnc" id="L99" title="All 2 branches missed.">        unloadJob?.cancel()</span>
+<span class="nc bnc" id="L113" title="All 2 branches missed.">        unloadJob?.cancel()</span>
 
         // Only unload the heavy model when the car is parked. While driving it stays resident so
         // the next wake word is answered instantly. Large-screen head units and tablets have the
         // headroom to always keep it loaded.
-<span class="nc bnc" id="L104" title="All 4 branches missed.">        if (!DeviceCapabilities.isLargeScreen(context) &amp;&amp; VehicleManager.getGearSelection() == &quot;Park&quot;) {</span>
-<span class="nc" id="L105">            LLMManager.unload()</span>
+<span class="nc bnc" id="L118" title="All 4 branches missed.">        if (!DeviceCapabilities.isLargeScreen(context) &amp;&amp; VehicleManager.getGearSelection() == &quot;Park&quot;) {</span>
+<span class="nc" id="L119">            LLMManager.unload()</span>
         }
-<span class="nc" id="L107">    }</span>
+<span class="nc" id="L121">    }</span>
 
     /** Asks the wake-word service to release the microphone while a session is active. */
     private fun pauseWakeWordListening() {
-<span class="nc" id="L111">        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)</span>
-<span class="nc" id="L112">    }</span>
+<span class="nc" id="L125">        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)</span>
+<span class="nc" id="L126">    }</span>
 
     /**
      * Hands the microphone back to the wake-word service once a session is finished, unless the
@@ -117,474 +131,475 @@ import com.tcs.vehicleassistant.hardware.IAudioManager
      * scratch and leave the microphone held against their setting.
      */
     private fun resumeWakeWordListening() {
-<span class="nc" id="L120">        val enabled = context</span>
-<span class="nc" id="L121">            .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
-<span class="nc" id="L122">            .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)</span>
-<span class="nc bnc" id="L123" title="All 2 branches missed.">        if (!enabled) return</span>
-<span class="nc" id="L124">        sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)</span>
-<span class="nc" id="L125">    }</span>
+<span class="nc" id="L134">        val enabled = context</span>
+<span class="nc" id="L135">            .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L136">            .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)</span>
+<span class="nc bnc" id="L137" title="All 2 branches missed.">        if (!enabled) return</span>
+<span class="nc" id="L138">        sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)</span>
+<span class="nc" id="L139">    }</span>
 
     private fun sendWakeWordCommand(action: String) {
-<span class="nc" id="L128">        try {</span>
-<span class="nc" id="L129">            context.startService(Intent(context, WakeWordService::class.java).setAction(action))</span>
-<span class="nc" id="L130">        } catch (e: Exception) {</span>
-<span class="nc" id="L131">            android.util.Log.e(&quot;AssistantSession&quot;, &quot;Failed to send '$action' to WakeWordService&quot;, e)</span>
+<span class="nc" id="L142">        try {</span>
+<span class="nc" id="L143">            context.startService(Intent(context, WakeWordService::class.java).setAction(action))</span>
+<span class="nc" id="L144">        } catch (e: Exception) {</span>
+<span class="nc" id="L145">            android.util.Log.e(&quot;AssistantSession&quot;, &quot;Failed to send '$action' to WakeWordService&quot;, e)</span>
         }
-<span class="nc" id="L133">    }</span>
+<span class="nc" id="L147">    }</span>
 
     override fun onCreateContentView(): View {
-<span class="nc" id="L136">        LocalLLMActivity.loadRuntimePrefs(context.applicationContext)</span>
-<span class="nc" id="L137">        VehicleManager.initialize(context.applicationContext)</span>
+<span class="nc" id="L150">        LocalLLMActivity.loadRuntimePrefs(context.applicationContext)</span>
+<span class="nc" id="L151">        VehicleManager.initialize(context.applicationContext)</span>
         
         // Bind to background agent service
-<span class="nc" id="L140">        val intent = Intent(context, com.tcs.vehicleassistant.service.VehicleAgentService::class.java)</span>
-<span class="nc" id="L141">        context.startForegroundService(intent)</span>
-<span class="nc" id="L142">        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)</span>
+<span class="nc" id="L154">        val intent = Intent(context, com.tcs.vehicleassistant.service.VehicleAgentService::class.java)</span>
+<span class="nc" id="L155">        context.startForegroundService(intent)</span>
+<span class="nc" id="L156">        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)</span>
 
-<span class="nc" id="L144">        inflateAndBindLayout()</span>
+<span class="nc" id="L158">        inflateAndBindLayout()</span>
 
-<span class="nc" id="L146">        return overlayView</span>
+<span class="nc" id="L160">        return overlayView</span>
     }
 
     private fun inflateAndBindLayout() {
-<span class="nc" id="L150">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
-<span class="nc" id="L151">        var layoutStyle = prefs.getInt(AssistantConfig.Prefs.UI_LAYOUT, -1)</span>
-<span class="nc bnc" id="L152" title="All 2 branches missed.">        if (layoutStyle == -1) {</span>
-<span class="nc bnc" id="L153" title="All 2 branches missed.">            layoutStyle = if (DeviceCapabilities.isLargeScreen(context)) 1 else 0</span>
-<span class="nc" id="L154">            prefs.edit().putInt(AssistantConfig.Prefs.UI_LAYOUT, layoutStyle).apply()</span>
+<span class="nc" id="L164">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L165">        var layoutStyle = prefs.getInt(AssistantConfig.Prefs.UI_LAYOUT, -1)</span>
+<span class="nc bnc" id="L166" title="All 2 branches missed.">        if (layoutStyle == -1) {</span>
+<span class="nc bnc" id="L167" title="All 2 branches missed.">            layoutStyle = if (DeviceCapabilities.isLargeScreen(context)) 1 else 0</span>
+<span class="nc" id="L168">            prefs.edit().putInt(AssistantConfig.Prefs.UI_LAYOUT, layoutStyle).apply()</span>
         }
-<span class="nc" id="L156">        currentLayoutStyle = layoutStyle</span>
+<span class="nc" id="L170">        currentLayoutStyle = layoutStyle</span>
 
-<span class="nc bnc" id="L158" title="All 9 branches missed.">        val layoutRes = when (layoutStyle) {</span>
-<span class="nc" id="L159">            0 -&gt; R.layout.assistant_overlay // Polestar Wide</span>
-<span class="nc" id="L160">            1 -&gt; R.layout.assistant_overlay_pill // Center Pill</span>
-<span class="nc" id="L161">            2 -&gt; R.layout.assistant_overlay_side // Left Side Panel</span>
-<span class="nc" id="L162">            3 -&gt; R.layout.assistant_overlay_top // Top Banner</span>
-<span class="nc" id="L163">            4 -&gt; R.layout.assistant_overlay_immersive // Full-Screen Immersive</span>
-<span class="nc" id="L164">            5 -&gt; R.layout.assistant_overlay_hud // Holographic Cyberpunk HUD</span>
-<span class="nc" id="L165">            6 -&gt; R.layout.assistant_overlay_beveled // Beveled Glass Island</span>
-<span class="nc" id="L166">            7 -&gt; R.layout.assistant_overlay_cinematic // Cinematic Letterbox</span>
-<span class="nc" id="L167">            else -&gt; R.layout.assistant_overlay</span>
+<span class="nc bnc" id="L172" title="All 9 branches missed.">        val layoutRes = when (layoutStyle) {</span>
+<span class="nc" id="L173">            0 -&gt; R.layout.assistant_overlay // Polestar Wide</span>
+<span class="nc" id="L174">            1 -&gt; R.layout.assistant_overlay_pill // Center Pill</span>
+<span class="nc" id="L175">            2 -&gt; R.layout.assistant_overlay_side // Left Side Panel</span>
+<span class="nc" id="L176">            3 -&gt; R.layout.assistant_overlay_top // Top Banner</span>
+<span class="nc" id="L177">            4 -&gt; R.layout.assistant_overlay_immersive // Full-Screen Immersive</span>
+<span class="nc" id="L178">            5 -&gt; R.layout.assistant_overlay_hud // Holographic Cyberpunk HUD</span>
+<span class="nc" id="L179">            6 -&gt; R.layout.assistant_overlay_beveled // Beveled Glass Island</span>
+<span class="nc" id="L180">            7 -&gt; R.layout.assistant_overlay_cinematic // Cinematic Letterbox</span>
+<span class="nc" id="L181">            else -&gt; R.layout.assistant_overlay</span>
         }
-<span class="nc" id="L169">        overlayView = layoutInflater.inflate(layoutRes, null)</span>
-<span class="nc" id="L170">        statusText = overlayView.findViewById(R.id.assistantResponseText) // Routed to main text</span>
-<span class="nc" id="L171">        responseText = overlayView.findViewById(R.id.assistantResponseText)</span>
-<span class="nc" id="L172">        etInput = overlayView.findViewById(R.id.etInput)</span>
-<span class="nc" id="L173">        btnSend = overlayView.findViewById(R.id.btnSend)</span>
-<span class="nc" id="L174">        btnMic = overlayView.findViewById(R.id.btnMic)</span>
-<span class="nc" id="L175">        btnOpenApp = overlayView.findViewById(R.id.btnOpenApp)</span>
-<span class="nc" id="L176">        svResponse = overlayView.findViewById(R.id.svResponse)</span>
-<span class="nc" id="L177">        inputControls = overlayView.findViewById(R.id.inputControlsContainer)</span>
-<span class="nc" id="L178">        voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)</span>
+<span class="nc" id="L183">        overlayView = layoutInflater.inflate(layoutRes, null)</span>
+<span class="nc" id="L184">        statusText = overlayView.findViewById(R.id.assistantResponseText) // Routed to main text</span>
+<span class="nc" id="L185">        responseText = overlayView.findViewById(R.id.assistantResponseText)</span>
+<span class="nc" id="L186">        etInput = overlayView.findViewById(R.id.etInput)</span>
+<span class="nc" id="L187">        btnSend = overlayView.findViewById(R.id.btnSend)</span>
+<span class="nc" id="L188">        btnMic = overlayView.findViewById(R.id.btnMic)</span>
+<span class="nc" id="L189">        btnOpenApp = overlayView.findViewById(R.id.btnOpenApp)</span>
+<span class="nc" id="L190">        svResponse = overlayView.findViewById(R.id.svResponse)</span>
+<span class="nc" id="L191">        inputControls = overlayView.findViewById(R.id.inputControlsContainer)</span>
+<span class="nc" id="L192">        voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)</span>
 
-<span class="nc" id="L180">        val modelInfoTag: android.widget.TextView? = overlayView.findViewById(R.id.modelInfoTag)</span>
-<span class="nc bnc" id="L181" title="All 2 branches missed.">        if (modelInfoTag != null) {</span>
-<span class="nc bnc" id="L182" title="All 2 branches missed.">            if (LocalLLMActivity.isCloudModelActive) {</span>
-<span class="nc" id="L183">                modelInfoTag.text = &quot;${LocalLLMActivity.currentCloudModelName} ☁️&quot;</span>
+<span class="nc" id="L194">        val modelInfoTag: android.widget.TextView? = overlayView.findViewById(R.id.modelInfoTag)</span>
+<span class="nc bnc" id="L195" title="All 2 branches missed.">        if (modelInfoTag != null) {</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">            if (LocalLLMActivity.isCloudModelActive) {</span>
+<span class="nc" id="L197">                modelInfoTag.text = &quot;${LocalLLMActivity.currentCloudModelName} ☁️&quot;</span>
             } else {
-<span class="nc" id="L185">                val modelName = java.io.File(LLMManager.currentModelPath).nameWithoutExtension</span>
-<span class="nc bnc" id="L186" title="All 4 branches missed.">                modelInfoTag.text = if (modelName.isNotEmpty()) modelName else &quot;Gemma 4 E2B&quot;</span>
+<span class="nc" id="L199">                val modelName = java.io.File(LLMManager.currentModelPath).nameWithoutExtension</span>
+<span class="nc bnc" id="L200" title="All 4 branches missed.">                modelInfoTag.text = if (modelName.isNotEmpty()) modelName else &quot;Gemma 4 E2B&quot;</span>
             }
         }
 
-<span class="nc" id="L190">        val activeBackendTag: android.widget.TextView? = overlayView.findViewById(R.id.activeBackendTag)</span>
-<span class="nc bnc" id="L191" title="All 2 branches missed.">        if (activeBackendTag != null) {</span>
-<span class="nc bnc" id="L192" title="All 2 branches missed.">            if (LocalLLMActivity.isCloudModelActive) {</span>
-<span class="nc" id="L193">                activeBackendTag.text = &quot;Backend: Cloud&quot;</span>
+<span class="nc" id="L204">        val activeBackendTag: android.widget.TextView? = overlayView.findViewById(R.id.activeBackendTag)</span>
+<span class="nc bnc" id="L205" title="All 2 branches missed.">        if (activeBackendTag != null) {</span>
+<span class="nc bnc" id="L206" title="All 2 branches missed.">            if (LocalLLMActivity.isCloudModelActive) {</span>
+<span class="nc" id="L207">                activeBackendTag.text = &quot;Backend: Cloud&quot;</span>
             } else {
-<span class="nc" id="L195">                activeBackendTag.text = &quot;Backend: ${LLMManager.activeBackendString}&quot;</span>
+<span class="nc" id="L209">                activeBackendTag.text = &quot;Backend: ${LLMManager.activeBackendString}&quot;</span>
             }
         }
 
         // Global Adaptive Gravity Logic
-<span class="nc" id="L200">        responseText.addTextChangedListener(object : android.text.TextWatcher {</span>
-<span class="nc" id="L201">            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}</span>
-<span class="nc" id="L202">            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}</span>
+<span class="nc" id="L214">        responseText.addTextChangedListener(object : android.text.TextWatcher {</span>
+<span class="nc" id="L215">            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}</span>
+<span class="nc" id="L216">            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}</span>
             override fun afterTextChanged(s: android.text.Editable?) {
-<span class="nc bnc" id="L204" title="All 2 branches missed.">                val len = s?.length ?: 0</span>
-<span class="nc bnc" id="L205" title="All 2 branches missed.">                if (len &lt; 50) {</span>
-<span class="nc" id="L206">                    responseText.gravity = android.view.Gravity.CENTER</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">                val len = s?.length ?: 0</span>
+<span class="nc bnc" id="L219" title="All 2 branches missed.">                if (len &lt; 50) {</span>
+<span class="nc" id="L220">                    responseText.gravity = android.view.Gravity.CENTER</span>
                 } else {
-<span class="nc" id="L208">                    responseText.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL</span>
+<span class="nc" id="L222">                    responseText.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL</span>
                 }
-<span class="nc" id="L210">            }</span>
+<span class="nc" id="L224">            }</span>
         })
 
-<span class="nc bnc" id="L213" title="All 2 branches missed.">        if (android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.S) {</span>
-<span class="nc" id="L214">            val blurView = overlayView.findViewById&lt;android.view.View&gt;(R.id.blurBackgroundView)</span>
-<span class="nc bnc" id="L215" title="All 2 branches missed.">            blurView?.setRenderEffect(</span>
-<span class="nc" id="L216">                android.graphics.RenderEffect.createBlurEffect(25f, 25f, android.graphics.Shader.TileMode.CLAMP)</span>
+<span class="nc bnc" id="L227" title="All 2 branches missed.">        if (android.os.Build.VERSION.SDK_INT &gt;= android.os.Build.VERSION_CODES.S) {</span>
+<span class="nc" id="L228">            val blurView = overlayView.findViewById&lt;android.view.View&gt;(R.id.blurBackgroundView)</span>
+<span class="nc bnc" id="L229" title="All 2 branches missed.">            blurView?.setRenderEffect(</span>
+<span class="nc" id="L230">                android.graphics.RenderEffect.createBlurEffect(25f, 25f, android.graphics.Shader.TileMode.CLAMP)</span>
             )
         }
 
-<span class="nc" id="L220">        val rootOverlay = overlayView.findViewById&lt;View&gt;(R.id.rootOverlay)</span>
-<span class="nc bnc" id="L221" title="All 2 branches missed.">        rootOverlay?.setOnClickListener {</span>
-<span class="nc" id="L222">            teardownSession()</span>
-<span class="nc" id="L223">        }</span>
+<span class="nc" id="L234">        val rootOverlay = overlayView.findViewById&lt;View&gt;(R.id.rootOverlay)</span>
+<span class="nc bnc" id="L235" title="All 2 branches missed.">        rootOverlay?.setOnClickListener {</span>
+<span class="nc" id="L236">            teardownSession()</span>
+<span class="nc" id="L237">        }</span>
 
-<span class="nc" id="L225">        btnOpenApp.setOnClickListener {</span>
-<span class="nc" id="L226">            val intent = Intent(context, LocalLLMActivity::class.java)</span>
-<span class="nc" id="L227">            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)</span>
-<span class="nc" id="L228">            context.startActivity(intent)</span>
-<span class="nc" id="L229">            hide()</span>
-<span class="nc" id="L230">        }</span>
+<span class="nc" id="L239">        btnOpenApp.setOnClickListener {</span>
+<span class="nc" id="L240">            val intent = Intent(context, LocalLLMActivity::class.java)</span>
+<span class="nc" id="L241">            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)</span>
+<span class="nc" id="L242">            context.startActivity(intent)</span>
+<span class="nc" id="L243">            hide()</span>
+<span class="nc" id="L244">        }</span>
 
-<span class="nc" id="L232">        btnSend.setOnClickListener {</span>
-<span class="nc" id="L233">            val query = etInput.text.toString()</span>
-<span class="nc bnc" id="L234" title="All 4 branches missed.">            if (query.isNotBlank()) {</span>
-<span class="nc bnc" id="L235" title="All 2 branches missed.">                audioManager?.stopSpeaking()</span>
-<span class="nc" id="L236">                resetDisplayState()</span>
-<span class="nc bnc" id="L237" title="All 2 branches missed.">                viewModel?.handleQuery(query)</span>
-<span class="nc" id="L238">                etInput.setText(&quot;&quot;)</span>
+<span class="nc" id="L246">        btnSend.setOnClickListener {</span>
+<span class="nc" id="L247">            val query = etInput.text.toString()</span>
+<span class="nc bnc" id="L248" title="All 4 branches missed.">            if (query.isNotBlank()) {</span>
+<span class="nc bnc" id="L249" title="All 2 branches missed.">                audioManager?.stopSpeaking()</span>
+<span class="nc" id="L250">                resetDisplayState()</span>
+<span class="nc bnc" id="L251" title="All 2 branches missed.">                viewModel?.handleQuery(query)</span>
+<span class="nc" id="L252">                etInput.setText(&quot;&quot;)</span>
             }
-<span class="nc" id="L240">        }</span>
+<span class="nc" id="L254">        }</span>
 
-<span class="nc" id="L242">        btnMic.setOnClickListener {</span>
-<span class="nc bnc" id="L243" title="All 6 branches missed.">            if (viewModel?.isProcessing() == true) {</span>
-<span class="nc" id="L244">                android.util.Log.w(&quot;AssistantSession&quot;, &quot;Ignoring mic trigger because query is still being processed.&quot;)</span>
-<span class="nc" id="L245">                return@setOnClickListener</span>
+<span class="nc" id="L256">        btnMic.setOnClickListener {</span>
+<span class="nc bnc" id="L257" title="All 6 branches missed.">            if (viewModel?.isProcessing() == true) {</span>
+<span class="nc" id="L258">                android.util.Log.w(&quot;AssistantSession&quot;, &quot;Ignoring mic trigger because query is still being processed.&quot;)</span>
+<span class="nc" id="L259">                return@setOnClickListener</span>
             }
-<span class="nc" id="L247">            LatencyLogger.reset()</span>
-<span class="nc" id="L248">            LatencyLogger.log(&quot;AssistantSession&quot;, &quot;Voice Button Clicked&quot;)</span>
-<span class="nc bnc" id="L249" title="All 2 branches missed.">            audioManager?.stopSpeaking()</span>
-<span class="nc" id="L250">            btnMic.isEnabled = false</span>
-<span class="nc" id="L251">            LatencyLogger.log(&quot;AssistantSession&quot;, &quot;Speech Recognizer startListening() called&quot;)</span>
+<span class="nc" id="L261">            LatencyLogger.reset()</span>
+<span class="nc" id="L262">            LatencyLogger.log(&quot;AssistantSession&quot;, &quot;Voice Button Clicked&quot;)</span>
+<span class="nc bnc" id="L263" title="All 2 branches missed.">            audioManager?.stopSpeaking()</span>
+<span class="nc" id="L264">            btnMic.isEnabled = false</span>
+<span class="nc" id="L265">            LatencyLogger.log(&quot;AssistantSession&quot;, &quot;Speech Recognizer startListening() called&quot;)</span>
 
-<span class="nc" id="L253">            try {</span>
-<span class="nc" id="L254">                statusText.visibility = View.VISIBLE</span>
-<span class="nc" id="L255">                statusText.text = &quot;Listening...&quot;</span>
-<span class="nc" id="L256">                voiceAnimation.state = VoiceAnimationView.State.LISTENING</span>
-<span class="nc bnc" id="L257" title="All 2 branches missed.">                audioManager?.startListening()</span>
-<span class="nc" id="L258">            } catch (e: Exception) {</span>
-<span class="nc" id="L259">                LatencyLogger.log(&quot;AssistantSession&quot;, &quot;Error starting speech recognizer: ${e.message}&quot;)</span>
-<span class="nc" id="L260">                stopDotAnimation(&quot;Error starting microphone.&quot;)</span>
-<span class="nc" id="L261">                statusText.visibility = View.VISIBLE</span>
-<span class="nc" id="L262">                voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
+<span class="nc" id="L267">            try {</span>
+<span class="nc" id="L268">                statusText.visibility = View.VISIBLE</span>
+<span class="nc" id="L269">                statusText.text = &quot;Listening...&quot;</span>
+<span class="nc" id="L270">                voiceAnimation.state = VoiceAnimationView.State.LISTENING</span>
+<span class="nc bnc" id="L271" title="All 2 branches missed.">                audioManager?.startListening()</span>
+<span class="nc" id="L272">            } catch (e: Exception) {</span>
+<span class="nc" id="L273">                LatencyLogger.log(&quot;AssistantSession&quot;, &quot;Error starting speech recognizer: ${e.message}&quot;)</span>
+<span class="nc" id="L274">                stopDotAnimation(&quot;Error starting microphone.&quot;)</span>
+<span class="nc" id="L275">                statusText.visibility = View.VISIBLE</span>
+<span class="nc" id="L276">                voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
             }
-<span class="nc" id="L264">            btnMic.isEnabled = true</span>
-<span class="nc" id="L265">        }</span>
+<span class="nc" id="L278">            btnMic.isEnabled = true</span>
+<span class="nc" id="L279">        }</span>
 
         // Update the active content view window with the newly inflated view
-<span class="nc" id="L268">        setContentView(overlayView)</span>
-<span class="nc" id="L269">    }</span>
+<span class="nc" id="L282">        setContentView(overlayView)</span>
+<span class="nc" id="L283">    }</span>
 
     // ═══════════════════════════════════════════════════════════════════════
     // VIEWMODEL OBSERVATION (the core of the MVVM pattern)
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun startObservingViewModel() {
-<span class="nc bnc" id="L276" title="All 2 branches missed.">        if (viewModel == null) return</span>
+<span class="nc bnc" id="L290" title="All 2 branches missed.">        if (viewModel == null) return</span>
         
-<span class="nc bnc" id="L278" title="All 2 branches missed.">        viewModel?.resetUiState()</span>
+<span class="nc bnc" id="L292" title="All 2 branches missed.">        viewModel?.resetUiState()</span>
 
         // Observe UI state changes
-<span class="nc" id="L281">        observerScope.launch {</span>
-<span class="nc bnc" id="L282" title="All 4 branches missed.">            viewModel?.uiState?.collect { state -&gt;</span>
-<span class="nc" id="L283">                when (state) {</span>
-<span class="nc bnc" id="L284" title="All 2 branches missed.">                    is AssistantUiState.Idle -&gt; {</span>
-<span class="nc" id="L285">                        voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
-<span class="nc" id="L286">                        stopDotAnimation()</span>
+<span class="nc" id="L295">        observerScope.launch {</span>
+<span class="nc bnc" id="L296" title="All 4 branches missed.">            viewModel?.uiState?.collect { state -&gt;</span>
+<span class="nc" id="L297">                when (state) {</span>
+<span class="nc bnc" id="L298" title="All 2 branches missed.">                    is AssistantUiState.Idle -&gt; {</span>
+<span class="nc" id="L299">                        voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
+<span class="nc" id="L300">                        stopDotAnimation()</span>
                     }
-<span class="nc bnc" id="L288" title="All 2 branches missed.">                    is AssistantUiState.Listening -&gt; {</span>
-<span class="nc" id="L289">                        statusText.visibility = View.VISIBLE</span>
-<span class="nc" id="L290">                        startDotAnimation(&quot;&quot;)</span>
-<span class="nc" id="L291">                        voiceAnimation.state = VoiceAnimationView.State.LISTENING</span>
-<span class="nc bnc" id="L292" title="All 4 branches missed.">                        if (state.partialText.isNotEmpty()) {</span>
-<span class="nc" id="L293">                            responseText.text = &quot;\&quot;${state.partialText}\&quot;&quot;</span>
-<span class="nc" id="L294">                            responseText.gravity = android.view.Gravity.CENTER</span>
+<span class="nc bnc" id="L302" title="All 2 branches missed.">                    is AssistantUiState.Listening -&gt; {</span>
+<span class="nc" id="L303">                        statusText.visibility = View.VISIBLE</span>
+<span class="nc" id="L304">                        startDotAnimation(&quot;&quot;)</span>
+<span class="nc" id="L305">                        voiceAnimation.state = VoiceAnimationView.State.LISTENING</span>
+<span class="nc bnc" id="L306" title="All 4 branches missed.">                        if (state.partialText.isNotEmpty()) {</span>
+<span class="nc" id="L307">                            responseText.text = &quot;\&quot;${state.partialText}\&quot;&quot;</span>
+<span class="nc" id="L308">                            responseText.gravity = android.view.Gravity.CENTER</span>
                         } else {
-<span class="nc" id="L296">                            responseText.text = &quot;&quot;</span>
+<span class="nc" id="L310">                            responseText.text = &quot;&quot;</span>
                         }
                     }
-<span class="nc bnc" id="L299" title="All 2 branches missed.">                    is AssistantUiState.Thinking -&gt; {</span>
-<span class="nc" id="L300">                        resetDisplayState()</span>
-<span class="nc" id="L301">                        statusText.visibility = View.VISIBLE</span>
-<span class="nc" id="L302">                        startDotAnimation(&quot;&quot;)</span>
-<span class="nc" id="L303">                        voiceAnimation.state = VoiceAnimationView.State.THINKING</span>
-<span class="nc bnc" id="L304" title="All 6 branches missed.">                        if (!state.userQuery.isNullOrBlank()) {</span>
-<span class="nc" id="L305">                            responseText.text = &quot;\&quot;${state.userQuery}\&quot;&quot;</span>
-<span class="nc" id="L306">                            responseText.gravity = android.view.Gravity.CENTER</span>
+<span class="nc bnc" id="L313" title="All 2 branches missed.">                    is AssistantUiState.Thinking -&gt; {</span>
+<span class="nc" id="L314">                        resetDisplayState()</span>
+<span class="nc" id="L315">                        statusText.visibility = View.VISIBLE</span>
+<span class="nc" id="L316">                        startDotAnimation(&quot;&quot;)</span>
+<span class="nc" id="L317">                        voiceAnimation.state = VoiceAnimationView.State.THINKING</span>
+<span class="nc bnc" id="L318" title="All 6 branches missed.">                        if (!state.userQuery.isNullOrBlank()) {</span>
+<span class="nc" id="L319">                            responseText.text = &quot;\&quot;${state.userQuery}\&quot;&quot;</span>
+<span class="nc" id="L320">                            responseText.gravity = android.view.Gravity.CENTER</span>
                         }
                     }
-<span class="nc bnc" id="L309" title="All 2 branches missed.">                    is AssistantUiState.Streaming -&gt; {</span>
-<span class="nc bnc" id="L310" title="All 2 branches missed.">                        if (statusText.visibility == View.VISIBLE) {</span>
-<span class="nc" id="L311">                            stopDotAnimation()</span>
-<span class="nc" id="L312">                            voiceAnimation.state = VoiceAnimationView.State.SPEAKING</span>
+<span class="nc bnc" id="L323" title="All 2 branches missed.">                    is AssistantUiState.Streaming -&gt; {</span>
+<span class="nc bnc" id="L324" title="All 2 branches missed.">                        if (statusText.visibility == View.VISIBLE) {</span>
+<span class="nc" id="L325">                            stopDotAnimation()</span>
+<span class="nc" id="L326">                            voiceAnimation.state = VoiceAnimationView.State.SPEAKING</span>
                         }
-<span class="nc" id="L314">                        targetDisplayMessage = state.displayText</span>
-<span class="nc" id="L315">                        startTypewriterIfNeeded()</span>
+<span class="nc" id="L328">                        targetDisplayMessage = state.displayText</span>
+<span class="nc" id="L329">                        startTypewriterIfNeeded()</span>
                     }
-<span class="nc bnc" id="L317" title="All 2 branches missed.">                    is AssistantUiState.Speaking -&gt; {</span>
-<span class="nc" id="L318">                        voiceAnimation.state = VoiceAnimationView.State.SPEAKING</span>
-<span class="nc" id="L319">                        stopDotAnimation()</span>
-<span class="nc" id="L320">                        targetDisplayMessage = state.finalMessage</span>
-<span class="nc" id="L321">                        startTypewriterIfNeeded()</span>
+<span class="nc bnc" id="L331" title="All 2 branches missed.">                    is AssistantUiState.Speaking -&gt; {</span>
+<span class="nc" id="L332">                        voiceAnimation.state = VoiceAnimationView.State.SPEAKING</span>
+<span class="nc" id="L333">                        stopDotAnimation()</span>
+<span class="nc" id="L334">                        targetDisplayMessage = state.finalMessage</span>
+<span class="nc" id="L335">                        startTypewriterIfNeeded()</span>
                     }
-<span class="nc" id="L323">                    is AssistantUiState.Error -&gt; {</span>
-<span class="nc" id="L324">                        voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
-<span class="nc" id="L325">                        stopDotAnimation()</span>
-<span class="nc" id="L326">                        responseText.text = state.errorMessage</span>
+<span class="nc" id="L337">                    is AssistantUiState.Error -&gt; {</span>
+<span class="nc" id="L338">                        voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
+<span class="nc" id="L339">                        stopDotAnimation()</span>
+<span class="nc" id="L340">                        responseText.text = state.errorMessage</span>
                     }
                 }
-<span class="nc" id="L329">            }</span>
-<span class="nc" id="L330">        }</span>
+<span class="nc" id="L343">            }</span>
+<span class="nc" id="L344">        }</span>
 
         // Observe events (tool calls, confirmation dialogs)
-<span class="nc" id="L333">        observerScope.launch {</span>
-<span class="nc bnc" id="L334" title="All 4 branches missed.">            viewModel?.events?.collect { event -&gt;</span>
-<span class="nc" id="L335">                when (event) {</span>
-<span class="nc bnc" id="L336" title="All 2 branches missed.">                    is ViewModelEvent.LaunchIntent -&gt; {</span>
-<span class="nc" id="L337">                        try {</span>
-<span class="nc" id="L338">                            event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)</span>
-<span class="nc" id="L339">                            context.applicationContext.startActivity(event.intent)</span>
+<span class="nc" id="L347">        observerScope.launch {</span>
+<span class="nc bnc" id="L348" title="All 4 branches missed.">            viewModel?.events?.collect { event -&gt;</span>
+<span class="nc" id="L349">                when (event) {</span>
+<span class="nc bnc" id="L350" title="All 2 branches missed.">                    is ViewModelEvent.LaunchIntent -&gt; {</span>
+<span class="nc" id="L351">                        try {</span>
+<span class="nc" id="L352">                            event.intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)</span>
+<span class="nc" id="L353">                            context.applicationContext.startActivity(event.intent)</span>
                             
                             // Optionally hide the assistant UI so the newly launched app is visible
-<span class="nc" id="L342">                            this@AssistantSession.hide()</span>
-<span class="nc" id="L343">                        } catch (e: Exception) {</span>
-<span class="nc" id="L344">                            android.util.Log.e(&quot;AssistantSession&quot;, &quot;startActivity failed for intent: ${event.intent}&quot;, e)</span>
+<span class="nc" id="L356">                            this@AssistantSession.hide()</span>
+<span class="nc" id="L357">                        } catch (e: Exception) {</span>
+<span class="nc" id="L358">                            android.util.Log.e(&quot;AssistantSession&quot;, &quot;startActivity failed for intent: ${event.intent}&quot;, e)</span>
                         }
                     }
-<span class="nc bnc" id="L347" title="All 2 branches missed.">                    is ViewModelEvent.FinishSession -&gt; {</span>
-<span class="nc" id="L348">                        finish()</span>
+<span class="nc bnc" id="L361" title="All 2 branches missed.">                    is ViewModelEvent.FinishSession -&gt; {</span>
+<span class="nc" id="L362">                        finish()</span>
                     }
-<span class="nc bnc" id="L350" title="All 2 branches missed.">                    is ViewModelEvent.StartListening -&gt; {</span>
-<span class="nc" id="L351">                        btnMic.performClick()</span>
+<span class="nc bnc" id="L364" title="All 2 branches missed.">                    is ViewModelEvent.StartListening -&gt; {</span>
+<span class="nc" id="L365">                        btnMic.performClick()</span>
                     }
-<span class="nc bnc" id="L353" title="All 2 branches missed.">                    is ViewModelEvent.ShowToast -&gt; {</span>
-<span class="nc" id="L354">                        Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()</span>
+<span class="nc bnc" id="L367" title="All 2 branches missed.">                    is ViewModelEvent.ShowToast -&gt; {</span>
+<span class="nc" id="L368">                        Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()</span>
                     }
-<span class="nc bnc" id="L356" title="All 2 branches missed.">                    is ViewModelEvent.SetInputEnabled -&gt; {</span>
-<span class="nc" id="L357">                        btnSend.isEnabled = event.enabled</span>
-<span class="nc" id="L358">                        btnMic.isEnabled = event.enabled</span>
+<span class="nc bnc" id="L370" title="All 2 branches missed.">                    is ViewModelEvent.SetInputEnabled -&gt; {</span>
+<span class="nc" id="L371">                        btnSend.isEnabled = event.enabled</span>
+<span class="nc" id="L372">                        btnMic.isEnabled = event.enabled</span>
                     }
-<span class="nc" id="L360">                    is ViewModelEvent.SetInputText -&gt; {</span>
-<span class="nc" id="L361">                        etInput.setText(event.text)</span>
+<span class="nc" id="L374">                    is ViewModelEvent.SetInputText -&gt; {</span>
+<span class="nc" id="L375">                        etInput.setText(event.text)</span>
                     }
                 }
-<span class="nc" id="L364">            }</span>
-<span class="nc" id="L365">        }</span>
-<span class="nc" id="L366">    }</span>
+<span class="nc" id="L378">            }</span>
+<span class="nc" id="L379">        }</span>
+<span class="nc" id="L380">    }</span>
 
     private var isSessionVisible = false
 
     private fun teardownSession() {
-<span class="nc" id="L371">        android.util.Log.d(&quot;AssistantSession&quot;, &quot;Tearing down complete session&quot;)</span>
-<span class="nc bnc" id="L372" title="All 2 branches missed.">        audioManager?.stopListening()</span>
-<span class="nc bnc" id="L373" title="All 2 branches missed.">        audioManager?.stopSpeaking()</span>
-<span class="nc bnc" id="L374" title="All 2 branches missed.">        viewModel?.resetState()</span>
-<span class="nc" id="L375">        resumeWakeWordListening()</span>
-<span class="nc" id="L376">        hide()</span>
-<span class="nc" id="L377">    }</span>
+<span class="nc" id="L385">        android.util.Log.d(&quot;AssistantSession&quot;, &quot;Tearing down complete session&quot;)</span>
+<span class="nc bnc" id="L386" title="All 2 branches missed.">        audioManager?.stopListening()</span>
+<span class="nc bnc" id="L387" title="All 2 branches missed.">        audioManager?.stopSpeaking()</span>
+<span class="nc bnc" id="L388" title="All 2 branches missed.">        viewModel?.resetState()</span>
+        // hide() → onHide() resumes wake-word listening; do not RESTART twice here.
+<span class="nc" id="L390">        hide()</span>
+<span class="nc" id="L391">    }</span>
 
     // ═══════════════════════════════════════════════════════════════════════
     // SESSION LIFECYCLE
     // ═══════════════════════════════════════════════════════════════════════
 
     override fun onShow(args: Bundle?, showFlags: Int) {
-<span class="nc" id="L384">        super.onShow(args, showFlags)</span>
+<span class="nc" id="L398">        super.onShow(args, showFlags)</span>
 
-<span class="nc bnc" id="L386" title="All 2 branches missed.">        if (isSessionVisible) {</span>
-<span class="nc" id="L387">            android.util.Log.d(&quot;AssistantSession&quot;, &quot;Assistant re-triggered while active. Keeping active session visible.&quot;)</span>
-<span class="nc" id="L388">            return</span>
+<span class="nc bnc" id="L400" title="All 2 branches missed.">        if (isSessionVisible) {</span>
+<span class="nc" id="L401">            android.util.Log.d(&quot;AssistantSession&quot;, &quot;Assistant re-triggered while active. Keeping active session visible.&quot;)</span>
+<span class="nc" id="L402">            return</span>
         }
-<span class="nc" id="L390">        isSessionVisible = true</span>
+<span class="nc" id="L404">        isSessionVisible = true</span>
+<span class="nc" id="L405">        isOverlayShowing = true</span>
 
         // Force window to occupy the entire screen on Automotive OS to prevent UI chopping
-<span class="nc bnc" id="L393" title="All 4 branches missed.">        window?.window?.setLayout(</span>
-<span class="nc" id="L394">            android.view.ViewGroup.LayoutParams.MATCH_PARENT,</span>
-<span class="nc" id="L395">            android.view.ViewGroup.LayoutParams.MATCH_PARENT</span>
+<span class="nc bnc" id="L408" title="All 4 branches missed.">        window?.window?.setLayout(</span>
+<span class="nc" id="L409">            android.view.ViewGroup.LayoutParams.MATCH_PARENT,</span>
+<span class="nc" id="L410">            android.view.ViewGroup.LayoutParams.MATCH_PARENT</span>
         )
 
-<span class="nc bnc" id="L398" title="All 2 branches missed.">        unloadJob?.cancel()</span>
+<span class="nc bnc" id="L413" title="All 2 branches missed.">        unloadJob?.cancel()</span>
 
         // Re-inflate if layout setting changed
-<span class="nc" id="L401">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
-<span class="nc bnc" id="L402" title="All 2 branches missed.">        if (prefs.getInt(AssistantConfig.Prefs.UI_LAYOUT, 0) != currentLayoutStyle) {</span>
-<span class="nc" id="L403">            inflateAndBindLayout()</span>
+<span class="nc" id="L416">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L417" title="All 2 branches missed.">        if (prefs.getInt(AssistantConfig.Prefs.UI_LAYOUT, 0) != currentLayoutStyle) {</span>
+<span class="nc" id="L418">            inflateAndBindLayout()</span>
         }
 
-<span class="nc" id="L406">        statusText.visibility = View.VISIBLE</span>
-<span class="nc" id="L407">        stopDotAnimation(GREETING)</span>
-<span class="nc" id="L408">        responseText.text = &quot;&quot;</span>
-<span class="nc" id="L409">        etInput.setText(&quot;&quot;)</span>
-<span class="nc" id="L410">        voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
+<span class="nc" id="L421">        statusText.visibility = View.VISIBLE</span>
+<span class="nc" id="L422">        stopDotAnimation(GREETING)</span>
+<span class="nc" id="L423">        responseText.text = &quot;&quot;</span>
+<span class="nc" id="L424">        etInput.setText(&quot;&quot;)</span>
+<span class="nc" id="L425">        voiceAnimation.state = VoiceAnimationView.State.IDLE</span>
 
         // Pause (not stop) so the wake-word service releases the microphone for the speech
         // recognizer but stays alive to reclaim it when this session ends.
-<span class="nc" id="L414">        pauseWakeWordListening()</span>
+<span class="nc" id="L429">        pauseWakeWordListening()</span>
 
-<span class="nc bnc" id="L416" title="All 4 branches missed.">        if (!LLMManager.isReady() || LLMManager.isInitializing) {</span>
-<span class="nc" id="L417">            statusText.text = &quot;Initializing Model...&quot;</span>
-<span class="nc" id="L418">            btnOpenApp.visibility = View.GONE</span>
-<span class="nc" id="L419">            inputControls.visibility = View.GONE</span>
-<span class="nc" id="L420">            btnMic.isEnabled = false</span>
+<span class="nc bnc" id="L431" title="All 4 branches missed.">        if (!LLMManager.isReady() || LLMManager.isInitializing) {</span>
+<span class="nc" id="L432">            statusText.text = &quot;Initializing Model...&quot;</span>
+<span class="nc" id="L433">            btnOpenApp.visibility = View.GONE</span>
+<span class="nc" id="L434">            inputControls.visibility = View.GONE</span>
+<span class="nc" id="L435">            btnMic.isEnabled = false</span>
 
             // observerScope, not an ad-hoc scope, so onDestroy cancels this wait.
-<span class="nc" id="L423">            observerScope.launch {</span>
-<span class="nc" id="L424">                LLMManager.autoInitialize(context.applicationContext)</span>
+<span class="nc" id="L438">            observerScope.launch {</span>
+<span class="nc" id="L439">                LLMManager.autoInitialize(context.applicationContext)</span>
 
-<span class="nc" id="L426">                val ready = awaitLlmReady()</span>
-<span class="nc bnc" id="L427" title="All 2 branches missed.">                if (!ready) {</span>
+<span class="nc" id="L441">                val ready = awaitLlmReady()</span>
+<span class="nc bnc" id="L442" title="All 2 branches missed.">                if (!ready) {</span>
                     // Previously this polled forever, leaving the overlay stuck on
                     // &quot;Initializing Model...&quot; with no way to recover.
-<span class="nc" id="L430">                    statusText.text = &quot;Assistant unavailable — open the app to check the model.&quot;</span>
-<span class="nc" id="L431">                    inputControls.visibility = View.VISIBLE</span>
-<span class="nc" id="L432">                    btnOpenApp.visibility = View.VISIBLE</span>
-<span class="nc" id="L433">                    btnSend.isEnabled = true</span>
-<span class="nc" id="L434">                    btnMic.isEnabled = false</span>
-<span class="nc" id="L435">                    return@launch</span>
+<span class="nc" id="L445">                    statusText.text = &quot;Assistant unavailable — open the app to check the model.&quot;</span>
+<span class="nc" id="L446">                    inputControls.visibility = View.VISIBLE</span>
+<span class="nc" id="L447">                    btnOpenApp.visibility = View.VISIBLE</span>
+<span class="nc" id="L448">                    btnSend.isEnabled = true</span>
+<span class="nc" id="L449">                    btnMic.isEnabled = false</span>
+<span class="nc" id="L450">                    return@launch</span>
                 }
 
-<span class="nc" id="L438">                statusText.text = GREETING</span>
-<span class="nc" id="L439">                inputControls.visibility = View.VISIBLE</span>
-<span class="nc" id="L440">                btnSend.isEnabled = true</span>
-<span class="nc" id="L441">                btnMic.isEnabled = true</span>
-<span class="nc" id="L442">                autoStartListening()</span>
-<span class="nc" id="L443">            }</span>
+<span class="nc" id="L453">                statusText.text = GREETING</span>
+<span class="nc" id="L454">                inputControls.visibility = View.VISIBLE</span>
+<span class="nc" id="L455">                btnSend.isEnabled = true</span>
+<span class="nc" id="L456">                btnMic.isEnabled = true</span>
+<span class="nc" id="L457">                autoStartListening()</span>
+<span class="nc" id="L458">            }</span>
         } else {
             // DO NOT reset the conversation here. Resetting invalidates the KV cache
             // and forces the LLM to re-process the massive System Prompt, causing a 2-3s delay.
-<span class="nc" id="L447">            statusText.visibility = View.VISIBLE</span>
-<span class="nc" id="L448">            statusText.text = GREETING</span>
-<span class="nc" id="L449">            btnOpenApp.visibility = View.GONE</span>
-<span class="nc" id="L450">            inputControls.visibility = View.VISIBLE</span>
-<span class="nc" id="L451">            btnSend.isEnabled = true</span>
-<span class="nc" id="L452">            btnMic.isEnabled = true</span>
-<span class="nc" id="L453">            autoStartListening()</span>
+<span class="nc" id="L462">            statusText.visibility = View.VISIBLE</span>
+<span class="nc" id="L463">            statusText.text = GREETING</span>
+<span class="nc" id="L464">            btnOpenApp.visibility = View.GONE</span>
+<span class="nc" id="L465">            inputControls.visibility = View.VISIBLE</span>
+<span class="nc" id="L466">            btnSend.isEnabled = true</span>
+<span class="nc" id="L467">            btnMic.isEnabled = true</span>
+<span class="nc" id="L468">            autoStartListening()</span>
         }
-<span class="nc" id="L455">    }</span>
+<span class="nc" id="L470">    }</span>
 
     /**
      * Polls until the engine is usable, returning false once
      * [AssistantConfig.Session.LLM_READY_TIMEOUT_MS] elapses so the overlay can surface a failure
      * instead of waiting indefinitely.
      */
-<span class="nc" id="L462">    private suspend fun awaitLlmReady(): Boolean = withContext(Dispatchers.IO) {</span>
-<span class="nc" id="L463">        val deadline = System.currentTimeMillis() + AssistantConfig.Session.LLM_READY_TIMEOUT_MS</span>
-<span class="nc bnc" id="L464" title="All 2 branches missed.">        while (System.currentTimeMillis() &lt; deadline) {</span>
-<span class="nc bnc" id="L465" title="All 4 branches missed.">            if (LLMManager.isReady() &amp;&amp; !LLMManager.isInitializing) return@withContext true</span>
-<span class="nc" id="L466">            delay(AssistantConfig.Session.LLM_READY_POLL_MS)</span>
+<span class="nc" id="L477">    private suspend fun awaitLlmReady(): Boolean = withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L478">        val deadline = System.currentTimeMillis() + AssistantConfig.Session.LLM_READY_TIMEOUT_MS</span>
+<span class="nc bnc" id="L479" title="All 2 branches missed.">        while (System.currentTimeMillis() &lt; deadline) {</span>
+<span class="nc bnc" id="L480" title="All 4 branches missed.">            if (LLMManager.isReady() &amp;&amp; !LLMManager.isInitializing) return@withContext true</span>
+<span class="nc" id="L481">            delay(AssistantConfig.Session.LLM_READY_POLL_MS)</span>
         }
-<span class="nc" id="L468">        android.util.Log.e(</span>
-<span class="nc" id="L469">            &quot;AssistantSession&quot;,</span>
+<span class="nc" id="L483">        android.util.Log.e(</span>
+<span class="nc" id="L484">            &quot;AssistantSession&quot;,</span>
             &quot;LLM not ready after ${AssistantConfig.Session.LLM_READY_TIMEOUT_MS}ms &quot; +
-<span class="nc" id="L471">                &quot;(isReady=${LLMManager.isReady()}, isInitializing=${LLMManager.isInitializing})&quot;</span>
+<span class="nc" id="L486">                &quot;(isReady=${LLMManager.isReady()}, isInitializing=${LLMManager.isInitializing})&quot;</span>
         )
-<span class="nc" id="L473">        false</span>
-<span class="nc" id="L474">    }</span>
+<span class="nc" id="L488">        false</span>
+<span class="nc" id="L489">    }</span>
 
     /** Opens the microphone once the wake-word process has had time to release it. */
     private fun autoStartListening() {
-<span class="nc bnc" id="L478" title="All 2 branches missed.">        micHandoffJob?.cancel()</span>
-<span class="nc" id="L479">        micHandoffJob = observerScope.launch {</span>
-<span class="nc" id="L480">            delay(AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS)</span>
-<span class="nc" id="L481">            btnMic.performClick()</span>
-<span class="nc" id="L482">        }</span>
-<span class="nc" id="L483">    }</span>
+<span class="nc bnc" id="L493" title="All 2 branches missed.">        micHandoffJob?.cancel()</span>
+<span class="nc" id="L494">        micHandoffJob = observerScope.launch {</span>
+<span class="nc" id="L495">            delay(AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS)</span>
+<span class="nc" id="L496">            btnMic.performClick()</span>
+<span class="nc" id="L497">        }</span>
+<span class="nc" id="L498">    }</span>
 
     // ═══════════════════════════════════════════════════════════════════════
     // UI HELPERS (pure rendering, no business logic)
     // ═══════════════════════════════════════════════════════════════════════
 
     private fun resetDisplayState() {
-<span class="nc" id="L490">        responseText.text = &quot;&quot;</span>
-<span class="nc" id="L491">        currentHighlightStart = -1</span>
-<span class="nc" id="L492">        currentHighlightEnd = -1</span>
-<span class="nc" id="L493">        targetDisplayMessage = &quot;&quot;</span>
-<span class="nc" id="L494">        currentDisplayLength = 0</span>
-<span class="nc bnc" id="L495" title="All 2 branches missed.">        typewriterJob?.cancel()</span>
-<span class="nc" id="L496">    }</span>
+<span class="nc" id="L505">        responseText.text = &quot;&quot;</span>
+<span class="nc" id="L506">        currentHighlightStart = -1</span>
+<span class="nc" id="L507">        currentHighlightEnd = -1</span>
+<span class="nc" id="L508">        targetDisplayMessage = &quot;&quot;</span>
+<span class="nc" id="L509">        currentDisplayLength = 0</span>
+<span class="nc bnc" id="L510" title="All 2 branches missed.">        typewriterJob?.cancel()</span>
+<span class="nc" id="L511">    }</span>
 
     private fun startTypewriterIfNeeded() {
         // If the target message doesn't start with what we've currently typed, reset the length to 0 to restart the typewriter smoothly.
-<span class="nc bnc" id="L500" title="All 8 branches missed.">        if (targetDisplayMessage.isNotEmpty() &amp;&amp; currentDisplayLength &gt; 0 &amp;&amp; !targetDisplayMessage.startsWith(responseText.text.toString())) {</span>
-<span class="nc bnc" id="L501" title="All 2 branches missed.">            typewriterJob?.cancel()</span>
-<span class="nc" id="L502">            currentDisplayLength = 0</span>
-<span class="nc" id="L503">            responseText.text = &quot;&quot;</span>
+<span class="nc bnc" id="L515" title="All 8 branches missed.">        if (targetDisplayMessage.isNotEmpty() &amp;&amp; currentDisplayLength &gt; 0 &amp;&amp; !targetDisplayMessage.startsWith(responseText.text.toString())) {</span>
+<span class="nc bnc" id="L516" title="All 2 branches missed.">            typewriterJob?.cancel()</span>
+<span class="nc" id="L517">            currentDisplayLength = 0</span>
+<span class="nc" id="L518">            responseText.text = &quot;&quot;</span>
         }
 
-<span class="nc bnc" id="L506" title="All 8 branches missed.">        if (typewriterJob == null || typewriterJob?.isActive != true) {</span>
-<span class="nc bnc" id="L507" title="All 4 branches missed.">            typewriterJob = observerScope.launch {</span>
-<span class="nc" id="L508">                val startTime = System.currentTimeMillis()</span>
+<span class="nc bnc" id="L521" title="All 8 branches missed.">        if (typewriterJob == null || typewriterJob?.isActive != true) {</span>
+<span class="nc bnc" id="L522" title="All 4 branches missed.">            typewriterJob = observerScope.launch {</span>
+<span class="nc" id="L523">                val startTime = System.currentTimeMillis()</span>
                 
-<span class="nc bnc" id="L510" title="All 4 branches missed.">                while (isActive &amp;&amp; currentDisplayLength &lt; targetDisplayMessage.length) {</span>
-<span class="nc bnc" id="L511" title="All 2 branches missed.">                    val timeSinceTts = System.currentTimeMillis() - (viewModel?.lastTtsUpdateTime ?: 0L)</span>
-<span class="nc bnc" id="L512" title="All 6 branches missed.">                    val isTtsActive = (viewModel?.lastTtsUpdateTime ?: 0L) &gt; 0L &amp;&amp; timeSinceTts &lt; 2000</span>
+<span class="nc bnc" id="L525" title="All 4 branches missed.">                while (isActive &amp;&amp; currentDisplayLength &lt; targetDisplayMessage.length) {</span>
+<span class="nc bnc" id="L526" title="All 2 branches missed.">                    val timeSinceTts = System.currentTimeMillis() - (viewModel?.lastTtsUpdateTime ?: 0L)</span>
+<span class="nc bnc" id="L527" title="All 6 branches missed.">                    val isTtsActive = (viewModel?.lastTtsUpdateTime ?: 0L) &gt; 0L &amp;&amp; timeSinceTts &lt; 2000</span>
                     
                     // Cap the text display length so it doesn't vastly outpace the spoken TTS text.
-<span class="nc bnc" id="L515" title="All 2 branches missed.">                    if (isTtsActive) {</span>
-<span class="nc bnc" id="L516" title="All 2 branches missed.">                        val reportedSpokenLength = viewModel?.ttsSpokenLength ?: 0</span>
+<span class="nc bnc" id="L530" title="All 2 branches missed.">                    if (isTtsActive) {</span>
+<span class="nc bnc" id="L531" title="All 2 branches missed.">                        val reportedSpokenLength = viewModel?.ttsSpokenLength ?: 0</span>
                         // Fallback: estimate 20 chars per second if the TTS engine doesn't report range updates
-<span class="nc" id="L518">                        val simulatedSpokenLength = ((System.currentTimeMillis() - startTime) / 1000f * 20).toInt()</span>
-<span class="nc" id="L519">                        val effectiveSpokenLength = Math.max(reportedSpokenLength, simulatedSpokenLength)</span>
+<span class="nc" id="L533">                        val simulatedSpokenLength = ((System.currentTimeMillis() - startTime) / 1000f * 20).toInt()</span>
+<span class="nc" id="L534">                        val effectiveSpokenLength = Math.max(reportedSpokenLength, simulatedSpokenLength)</span>
                         
-<span class="nc bnc" id="L521" title="All 2 branches missed.">                        if (currentDisplayLength &gt; effectiveSpokenLength + 5) {</span>
-<span class="nc bnc" id="L522" title="All 2 branches missed.">                            delay(16) // 1 frame wait (vsync aligned)</span>
-<span class="nc" id="L523">                            continue</span>
+<span class="nc bnc" id="L536" title="All 2 branches missed.">                        if (currentDisplayLength &gt; effectiveSpokenLength + 5) {</span>
+<span class="nc bnc" id="L537" title="All 2 branches missed.">                            delay(16) // 1 frame wait (vsync aligned)</span>
+<span class="nc" id="L538">                            continue</span>
                         }
                     }
 
-<span class="nc" id="L527">                    currentDisplayLength = Math.min(currentDisplayLength + 1, targetDisplayMessage.length)</span>
-<span class="nc" id="L528">                    val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)</span>
-<span class="nc" id="L529">                    responseText.text = currentSubstring</span>
+<span class="nc" id="L542">                    currentDisplayLength = Math.min(currentDisplayLength + 1, targetDisplayMessage.length)</span>
+<span class="nc" id="L543">                    val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)</span>
+<span class="nc" id="L544">                    responseText.text = currentSubstring</span>
 
                     // Auto-scroll to bottom efficiently
-<span class="nc bnc" id="L532" title="All 2 branches missed.">                    if (currentDisplayLength % 5 == 0) {</span>
-<span class="nc bnc" id="L533" title="All 2 branches missed.">                        svResponse?.post {</span>
-<span class="nc bnc" id="L534" title="All 2 branches missed.">                            svResponse?.fullScroll(View.FOCUS_DOWN)</span>
-<span class="nc" id="L535">                        }</span>
+<span class="nc bnc" id="L547" title="All 2 branches missed.">                    if (currentDisplayLength % 5 == 0) {</span>
+<span class="nc bnc" id="L548" title="All 2 branches missed.">                        svResponse?.post {</span>
+<span class="nc bnc" id="L549" title="All 2 branches missed.">                            svResponse?.fullScroll(View.FOCUS_DOWN)</span>
+<span class="nc" id="L550">                        }</span>
                     }
 
-<span class="nc bnc" id="L538" title="All 2 branches missed.">                    delay(AssistantConfig.Session.TYPEWRITER_STEP_MS)</span>
+<span class="nc bnc" id="L553" title="All 2 branches missed.">                    delay(AssistantConfig.Session.TYPEWRITER_STEP_MS)</span>
                 }
                 // Apply Markdown formatting only once after typewriter finishes
-<span class="nc bnc" id="L541" title="All 4 branches missed.">                if (targetDisplayMessage.isNotEmpty()) {</span>
-<span class="nc" id="L542">                    responseText.text = parseMarkdown(targetDisplayMessage)</span>
+<span class="nc bnc" id="L556" title="All 4 branches missed.">                if (targetDisplayMessage.isNotEmpty()) {</span>
+<span class="nc" id="L557">                    responseText.text = parseMarkdown(targetDisplayMessage)</span>
                 }
-<span class="nc" id="L544">            }</span>
+<span class="nc" id="L559">            }</span>
         }
-<span class="nc" id="L546">    }</span>
+<span class="nc" id="L561">    }</span>
 
     private fun startDotAnimation(baseText: String) {
-<span class="nc bnc" id="L549" title="All 2 branches missed.">        dotAnimatorJob?.cancel()</span>
-<span class="nc bnc" id="L550" title="All 4 branches missed.">        if (baseText.isEmpty()) {</span>
-<span class="nc" id="L551">            statusText.text = &quot;&quot;</span>
-<span class="nc" id="L552">            return</span>
+<span class="nc bnc" id="L564" title="All 2 branches missed.">        dotAnimatorJob?.cancel()</span>
+<span class="nc bnc" id="L565" title="All 4 branches missed.">        if (baseText.isEmpty()) {</span>
+<span class="nc" id="L566">            statusText.text = &quot;&quot;</span>
+<span class="nc" id="L567">            return</span>
         }
-<span class="nc bnc" id="L554" title="All 3 branches missed.">        dotAnimatorJob = observerScope.launch {</span>
-<span class="nc" id="L555">            var dotCount = 0</span>
-<span class="nc bnc" id="L556" title="All 2 branches missed.">            while (isActive) {</span>
-<span class="nc" id="L557">                val dots = &quot;.&quot;.repeat(dotCount)</span>
-<span class="nc" id="L558">                statusText.text = &quot;$baseText$dots&quot;</span>
-<span class="nc" id="L559">                dotCount = (dotCount + 1) % 4</span>
-<span class="nc bnc" id="L560" title="All 2 branches missed.">                delay(400)</span>
+<span class="nc bnc" id="L569" title="All 3 branches missed.">        dotAnimatorJob = observerScope.launch {</span>
+<span class="nc" id="L570">            var dotCount = 0</span>
+<span class="nc bnc" id="L571" title="All 2 branches missed.">            while (isActive) {</span>
+<span class="nc" id="L572">                val dots = &quot;.&quot;.repeat(dotCount)</span>
+<span class="nc" id="L573">                statusText.text = &quot;$baseText$dots&quot;</span>
+<span class="nc" id="L574">                dotCount = (dotCount + 1) % 4</span>
+<span class="nc bnc" id="L575" title="All 2 branches missed.">                delay(400)</span>
             }
-<span class="nc" id="L562">        }</span>
-<span class="nc" id="L563">    }</span>
+<span class="nc" id="L577">        }</span>
+<span class="nc" id="L578">    }</span>
 
-<span class="nc" id="L565">    private fun stopDotAnimation(finalText: String = &quot;&quot;) {</span>
-<span class="nc bnc" id="L566" title="All 2 branches missed.">        dotAnimatorJob?.cancel()</span>
-<span class="nc bnc" id="L567" title="All 4 branches missed.">        if (finalText.isNotEmpty()) {</span>
-<span class="nc" id="L568">            statusText.text = finalText</span>
+<span class="nc" id="L580">    private fun stopDotAnimation(finalText: String = &quot;&quot;) {</span>
+<span class="nc bnc" id="L581" title="All 2 branches missed.">        dotAnimatorJob?.cancel()</span>
+<span class="nc bnc" id="L582" title="All 4 branches missed.">        if (finalText.isNotEmpty()) {</span>
+<span class="nc" id="L583">            statusText.text = finalText</span>
         }
-<span class="nc" id="L570">    }</span>
+<span class="nc" id="L585">    }</span>
 
     private fun parseMarkdown(text: String): android.text.SpannableStringBuilder {
-<span class="nc" id="L573">        val spannable = android.text.SpannableStringBuilder()</span>
-<span class="nc" id="L574">        val parts = text.split(&quot;**&quot;)</span>
-<span class="nc bnc" id="L575" title="All 2 branches missed.">        for (i in parts.indices) {</span>
-<span class="nc" id="L576">            val start = spannable.length</span>
-<span class="nc" id="L577">            spannable.append(parts[i])</span>
-<span class="nc bnc" id="L578" title="All 2 branches missed.">            if (i % 2 != 0) { // Text inside ** **</span>
-<span class="nc" id="L579">                spannable.setSpan(</span>
-<span class="nc" id="L580">                    android.text.style.StyleSpan(android.graphics.Typeface.BOLD),</span>
-<span class="nc" id="L581">                    start,</span>
-<span class="nc" id="L582">                    spannable.length,</span>
-<span class="nc" id="L583">                    android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE</span>
+<span class="nc" id="L588">        val spannable = android.text.SpannableStringBuilder()</span>
+<span class="nc" id="L589">        val parts = text.split(&quot;**&quot;)</span>
+<span class="nc bnc" id="L590" title="All 2 branches missed.">        for (i in parts.indices) {</span>
+<span class="nc" id="L591">            val start = spannable.length</span>
+<span class="nc" id="L592">            spannable.append(parts[i])</span>
+<span class="nc bnc" id="L593" title="All 2 branches missed.">            if (i % 2 != 0) { // Text inside ** **</span>
+<span class="nc" id="L594">                spannable.setSpan(</span>
+<span class="nc" id="L595">                    android.text.style.StyleSpan(android.graphics.Typeface.BOLD),</span>
+<span class="nc" id="L596">                    start,</span>
+<span class="nc" id="L597">                    spannable.length,</span>
+<span class="nc" id="L598">                    android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE</span>
                 )
             }
         }
-<span class="nc" id="L587">        return spannable</span>
+<span class="nc" id="L602">        return spannable</span>
     }
 
     // ═══════════════════════════════════════════════════════════════════════
@@ -592,28 +607,30 @@ import com.tcs.vehicleassistant.hardware.IAudioManager
     // ═══════════════════════════════════════════════════════════════════════
 
     override fun onDestroy() {
-<span class="nc bnc" id="L595" title="All 2 branches missed.">        dotAnimatorJob?.cancel()</span>
-<span class="nc bnc" id="L596" title="All 2 branches missed.">        typewriterJob?.cancel()</span>
-<span class="nc bnc" id="L597" title="All 2 branches missed.">        micHandoffJob?.cancel()</span>
-<span class="nc" id="L598">        observerScope.cancel()</span>
+<span class="nc bnc" id="L610" title="All 2 branches missed.">        dotAnimatorJob?.cancel()</span>
+<span class="nc bnc" id="L611" title="All 2 branches missed.">        typewriterJob?.cancel()</span>
+<span class="nc bnc" id="L612" title="All 2 branches missed.">        micHandoffJob?.cancel()</span>
+<span class="nc" id="L613">        observerScope.cancel()</span>
 
-<span class="nc bnc" id="L600" title="All 2 branches missed.">        if (isBound) {</span>
-<span class="nc" id="L601">            try {</span>
-<span class="nc" id="L602">                context.unbindService(serviceConnection)</span>
-<span class="nc" id="L603">            } catch (e: IllegalArgumentException) {</span>
-<span class="nc" id="L604">                android.util.Log.w(&quot;AssistantSession&quot;, &quot;Service was already unbound&quot;, e)</span>
+<span class="nc bnc" id="L615" title="All 2 branches missed.">        if (isBound) {</span>
+<span class="nc" id="L616">            try {</span>
+<span class="nc" id="L617">                context.unbindService(serviceConnection)</span>
+<span class="nc" id="L618">            } catch (e: IllegalArgumentException) {</span>
+<span class="nc" id="L619">                android.util.Log.w(&quot;AssistantSession&quot;, &quot;Service was already unbound&quot;, e)</span>
             }
-<span class="nc" id="L606">            isBound = false</span>
+<span class="nc" id="L621">            isBound = false</span>
         }
 
-<span class="nc" id="L609">        resumeWakeWordListening()</span>
+        // onHide already resumes listening for the normal finish path. Only resume here when
+        // destroyed while still marked visible (skip onHide), so we do not double-RESTART.
+<span class="nc bnc" id="L626" title="All 2 branches missed.">        if (isSessionVisible) {</span>
+<span class="nc" id="L627">            isSessionVisible = false</span>
+<span class="nc" id="L628">            isOverlayShowing = false</span>
+<span class="nc" id="L629">            resumeWakeWordListening()</span>
+        }
 
-<span class="nc" id="L611">        super.onDestroy()</span>
-<span class="nc" id="L612">    }</span>
-
-    private companion object {
-        const val GREETING = &quot;Hi, how can I help you?&quot;
-    }
+<span class="nc" id="L632">        super.onDestroy()</span>
+<span class="nc" id="L633">    }</span>
 }
 
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

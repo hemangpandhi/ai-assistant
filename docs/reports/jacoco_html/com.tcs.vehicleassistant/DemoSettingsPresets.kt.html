@@ -6,8 +6,8 @@ import java.util.Locale
 <span class="fc" id="L6">data class DemoPreset(</span>
 <span class="fc" id="L7">    val id: String,</span>
 <span class="pc" id="L8">    val displayName: String,</span>
-<span class="pc" id="L9">    val longitude: Double,</span>
-<span class="pc" id="L10">    val latitude: Double,</span>
+<span class="fc" id="L9">    val longitude: Double,</span>
+<span class="fc" id="L10">    val latitude: Double,</span>
 <span class="fc" id="L11">    val cityName: String,</span>
 <span class="pc" id="L12">    val homeAddress: String = &quot;Home&quot;,</span>
 <span class="pc" id="L13">    val workAddress: String = &quot;Work&quot;,</span>
@@ -17,7 +17,7 @@ import java.util.Locale
 <span class="pc" id="L17">    val companionMode: Boolean = true,</span>
 <span class="pc" id="L18">    val agenticLoop: Boolean = true</span>
 <span class="fc" id="L19">) {</span>
-<span class="pc" id="L20">    val coordinates: Pair&lt;Double, Double&gt; = Pair(longitude, latitude)</span>
+<span class="fc" id="L20">    val coordinates: Pair&lt;Double, Double&gt; = Pair(longitude, latitude)</span>
 
     fun coordinatesString(): String =
 <span class="fc" id="L23">        String.format(Locale.US, &quot;%.4f, %.4f&quot;, longitude, latitude)</span>
@@ -46,7 +46,7 @@ object DemoSettingsPresets {
 
 <span class="pc" id="L47">    val ALL = listOf(TOKYO_OEM, SAGAMIHARA)</span>
 
-<span class="nc bnc" id="L49" title="All 4 branches missed.">    fun findById(id: String?): DemoPreset? = ALL.find { it.id == id }</span>
+<span class="fc bfc" id="L49" title="All 4 branches covered.">    fun findById(id: String?): DemoPreset? = ALL.find { it.id == id }</span>
 
     fun getSelected(context: Context): DemoPreset {
 <span class="nc bnc" id="L52" title="All 2 branches missed.">        val id = context.getSharedPreferences(&quot;app_prefs&quot;, Context.MODE_PRIVATE)</span>

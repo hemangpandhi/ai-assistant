@@ -318,7 +318,11 @@ class ToolManager {
 
     private fun buildKeywordMatchers(): Map<String, List<Regex>> = activeTools.mapValues { (_, tool) ->
         // Aliases are already merged into keywords when the registry is parsed.
-        tool.keywords.orEmpty().map { Regex("""\b${Regex.escape(it)}\b""") }
+        // Normalize so registry "a/c" keywords and spoken "A/C" share the same "ac" token.
+        tool.keywords.orEmpty().mapNotNull { raw ->
+            val keyword = DirectToolResolver.normalize(raw)
+            if (keyword.isEmpty()) null else Regex("""\b${Regex.escape(keyword)}\b""")
+        }
     }
 
     /**
@@ -359,12 +363,21 @@ class ToolManager {
             }
         }
 
-        // Nothing matched lexically: rank the catalogue instead. Ranking only the user turn keeps
-        // history from swamping the scores, and a small top-K keeps the prompt short enough for the
-        // edge model's context window. Note this runs before core tools are added, since those
-        // would otherwise make the retrieved set look non-empty for every query.
-        val retrieved = lexical.ifEmpty {
-            ToolRetriever.rank(userQuery, retrievalIndex, bm25TopK).mapNotNull { activeTools[it.id] }
+        // Emotional / open chat: skip BM25 *and* core tool injection. Shared words like
+        // "feeling" otherwise pull handleFeelingCold; even playMusic/climate core tools
+        // tool-force Gemma into a premature empty EOS instead of an empathy reply.
+        // System-instruction / few-shot empathy guidance still reaches the prompt via
+        // getLlmToolsPrompt — only the <TOOL> catalog is withheld for this turn.
+        if (lexical.isEmpty() &&
+            com.tcs.vehicleassistant.core.ConversationalIntent.isOpenChat(userQuery)
+        ) {
+            return emptyList()
+        }
+
+        val retrieved = when {
+            lexical.isNotEmpty() -> lexical
+            else -> ToolRetriever.rank(userQuery, retrievalIndex, bm25TopK)
+                .mapNotNull { activeTools[it.id] }
         }
 
         val coreTools = activeTools.values.filter { it.handlerKey in CORE_HANDLER_KEYS }
@@ -372,10 +385,14 @@ class ToolManager {
             .ifEmpty { activeTools.values.take(maxPromptTools).toList() }
     }
 
-    private fun matchByKeyword(haystack: String): List<ToolDefinition> =
-        activeTools.entries
-            .filter { (name, _) -> keywordMatchers[name]?.any { it.containsMatchIn(haystack) } == true }
+    private fun matchByKeyword(haystack: String): List<ToolDefinition> {
+        val normalized = DirectToolResolver.normalize(haystack)
+        return activeTools.entries
+            .filter { (name, _) ->
+                keywordMatchers[name]?.any { it.containsMatchIn(normalized) } == true
+            }
             .map { it.value }
+    }
 
     fun getToolDefinition(rawToolCall: String): ToolDefinition? {
         val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>|<\\|tool_call>call:"), "").trim()

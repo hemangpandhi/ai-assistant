@@ -197,6 +197,18 @@ object AssistantConfig {
         const val RECOGNITION_TAIL_FRAMES = 30
 
         const val RESTART_DELAY_MS = 300L
+
+        /**
+         * After a successful match, ignore further hypotheses for this long. Prevents a rematch
+         * when the session immediately hands the mic back (or music/TTS bleeds into the mic).
+         */
+        const val POST_MATCH_COOLDOWN_MS = 3_000L
+
+        /**
+         * After RESTART resumes listening, ignore matches briefly so a stale Vosk final or the
+         * first burst of media audio cannot reopen the overlay without a fresh wake utterance.
+         */
+        const val POST_RESTART_IGNORE_MS = 1_500L
     }
 
     /**
@@ -213,18 +225,18 @@ object AssistantConfig {
         const val DETECTED_BROADCAST = &quot;com.tcs.vehicleassistant.WAKE_WORD_DETECTED&quot;
 
         /** Action strings accepted from older builds and external launchers. */
-<span class="pc" id="L216">        val STOP_ALIASES = setOf(&quot;ACTION_STOP&quot;, &quot;ACTION_STOP_LISTENING&quot;, STOP)</span>
-<span class="pc" id="L217">        val PAUSE_ALIASES = setOf(&quot;ACTION_PAUSE&quot;, &quot;ACTION_PAUSE_LISTENING&quot;, PAUSE)</span>
-<span class="pc" id="L218">        val RESTART_ALIASES = setOf(&quot;ACTION_RESTART&quot;, &quot;ACTION_RESTART_LISTENING&quot;, RESTART)</span>
+<span class="pc" id="L228">        val STOP_ALIASES = setOf(&quot;ACTION_STOP&quot;, &quot;ACTION_STOP_LISTENING&quot;, STOP)</span>
+<span class="pc" id="L229">        val PAUSE_ALIASES = setOf(&quot;ACTION_PAUSE&quot;, &quot;ACTION_PAUSE_LISTENING&quot;, PAUSE)</span>
+<span class="pc" id="L230">        val RESTART_ALIASES = setOf(&quot;ACTION_RESTART&quot;, &quot;ACTION_RESTART_LISTENING&quot;, RESTART)</span>
 
         /** True when [action] should release the microphone and stop the service entirely. */
-<span class="fc bfc" id="L221" title="All 4 branches covered.">        fun isStop(action: String?): Boolean = action != null &amp;&amp; action in STOP_ALIASES</span>
+<span class="fc bfc" id="L233" title="All 4 branches covered.">        fun isStop(action: String?): Boolean = action != null &amp;&amp; action in STOP_ALIASES</span>
 
         /** True when [action] should release the microphone but keep the service alive. */
-<span class="fc bfc" id="L224" title="All 4 branches covered.">        fun isPause(action: String?): Boolean = action != null &amp;&amp; action in PAUSE_ALIASES</span>
+<span class="fc bfc" id="L236" title="All 4 branches covered.">        fun isPause(action: String?): Boolean = action != null &amp;&amp; action in PAUSE_ALIASES</span>
 
         /** True when [action] should re-acquire the microphone after a session ends. */
-<span class="fc bfc" id="L227" title="All 4 branches covered.">        fun isRestart(action: String?): Boolean = action != null &amp;&amp; action in RESTART_ALIASES</span>
+<span class="fc bfc" id="L239" title="All 4 branches covered.">        fun isRestart(action: String?): Boolean = action != null &amp;&amp; action in RESTART_ALIASES</span>
     }
 
     object Session {

@@ -79,7 +79,18 @@ class EdgeLocalHardeningPhase2Test {
         assertEquals(7, de.getInt("fan_max"))
         assertEquals(100, de.getInt("volume_max"))
         assertEquals(2, de.getInt("seat_heater_on_default"))
-        assertTrue(config.getJSONArray("llm_few_shots").length() >= 5)
+        assertTrue(config.getJSONArray("llm_few_shots").length() >= 7)
+        var foundSadChatShot = false
+        val few = config.getJSONArray("llm_few_shots")
+        for (i in 0 until few.length()) {
+            val shot = few.getJSONObject(i)
+            val user = shot.getString("user").lowercase()
+            val assistant = shot.getString("assistant")
+            if (user.contains("feeling sad") && !assistant.contains("<TOOL>", ignoreCase = true)) {
+                foundSadChatShot = true
+            }
+        }
+        assertTrue("expected a chat-only few-shot for feeling sad", foundSadChatShot)
 
         val rules = config.getJSONObject("context_policies").getJSONArray("rules")
         var foundCompare = false

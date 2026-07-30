@@ -31,9 +31,9 @@ object ToolCallParser {
 <span class="fc" id="L31">            val fullTag = match.value</span>
 <span class="pc bpc" id="L32" title="3 of 6 branches missed.">            val toolName = match.groups[1]?.value?.trim() ?: continue</span>
             // Extract raw arguments inside JSON
-<span class="pc bpc" id="L34" title="1 of 2 branches missed.">            val args = if (fullTag.contains(&quot;\&quot;arguments\&quot;&quot;)) {</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">            val args = if (fullTag.contains(&quot;\&quot;arguments\&quot;&quot;)) {</span>
 <span class="fc" id="L35">                fullTag.substringAfter(&quot;\&quot;arguments\&quot;&quot;).substringAfter(&quot;:&quot;).substringBefore(&quot;}&quot;).replace(&quot;\&quot;&quot;, &quot;&quot;).replace(&quot;{&quot;, &quot;&quot;).trim()</span>
-<span class="nc" id="L36">            } else &quot;&quot;</span>
+<span class="fc" id="L36">            } else &quot;&quot;</span>
 <span class="fc" id="L37">            calls.add(ParsedToolCall(fullTag, toolName, args))</span>
         }
         // 3. Fallback Function Call Syntax: toolName(args) or call:toolName(args) without explicit XML wrapping

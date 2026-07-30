@@ -19,7 +19,7 @@ import com.tcs.vehicleassistant.core.AssistantConfig
         const val TAG = &quot;SystemToolHandler&quot;
     }
 
-    override suspend fun execute(
+<span class="nc" id="L22">    override suspend fun execute(</span>
         context: Context,
         toolCall: String,
         args: String,
@@ -44,146 +44,177 @@ import com.tcs.vehicleassistant.core.AssistantConfig
             }
             &quot;getWeather&quot; -&gt; {
 <span class="nc" id="L46">                var city = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).trim().replace(&quot;\&quot;&quot;, &quot;&quot;)</span>
-<span class="nc bnc" id="L47" title="All 2 branches missed.">                if (city.isBlank() ||</span>
+<span class="nc bnc" id="L47" title="All 2 branches missed.">                val useHere = city.isBlank() ||</span>
 <span class="nc bnc" id="L48" title="All 2 branches missed.">                    city.equals(&quot;CITY&quot;, ignoreCase = true) ||</span>
 <span class="nc bnc" id="L49" title="All 2 branches missed.">                    city.equals(&quot;here&quot;, ignoreCase = true) ||</span>
 <span class="nc bnc" id="L50" title="All 2 branches missed.">                    city.equals(&quot;current&quot;, ignoreCase = true)</span>
-                ) {
+<span class="nc bnc" id="L51" title="All 2 branches missed.">                if (useHere) {</span>
 <span class="nc" id="L52">                    city = try {</span>
 <span class="nc bnc" id="L53" title="All 2 branches missed.">                        LocationManager.getCurrentCity(context).ifBlank { &quot;your area&quot; }</span>
 <span class="nc" id="L54">                    } catch (_: Exception) {</span>
 <span class="nc" id="L55">                        &quot;your area&quot;</span>
                     }
                 }
-                // Do not invent temperatures. Open a search the driver can trust instead.
-<span class="nc" id="L59">                val intent = Intent(Intent.ACTION_WEB_SEARCH)</span>
-<span class="nc" id="L60">                intent.putExtra(SearchManager.QUERY, &quot;weather in $city&quot;)</span>
-<span class="nc" id="L61">                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
-<span class="nc" id="L62">                return try {</span>
-<span class="nc bnc" id="L63" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)</span>
-<span class="nc" id="L64">                    ToolExecutionResult(true, &quot;I've opened the weather for $city.&quot;)</span>
-<span class="nc" id="L65">                } catch (_: Exception) {</span>
-<span class="nc" id="L66">                    ToolExecutionResult(</span>
-<span class="nc" id="L67">                        false,</span>
-<span class="nc" id="L68">                        &quot;I don't have a live weather feed on this build, and couldn't open a search for $city.&quot;</span>
-                    )
+<span class="nc" id="L58">                val (lon, lat) = try {</span>
+<span class="nc" id="L59">                    LocationManager.getCoordinates(context)</span>
+<span class="nc" id="L60">                } catch (_: Exception) {</span>
+<span class="nc" id="L61">                    Pair(Double.NaN, Double.NaN)</span>
+                }
+<span class="nc" id="L63">                val resolved = WeatherApiClient.resolveLocationDetailed(</span>
+<span class="nc bnc" id="L64" title="All 2 branches missed.">                    cityOrHere = if (useHere) &quot;here&quot; else city,</span>
+<span class="nc bnc" id="L65" title="All 2 branches missed.">                    fallbackLat = lat.takeUnless { it.isNaN() },</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                    fallbackLon = lon.takeUnless { it.isNaN() },</span>
+<span class="nc" id="L67">                    fallbackLabel = city,</span>
+                )
+<span class="nc" id="L69">                val point = when (resolved) {</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">                    is WeatherApiClient.LookupResult.Ok -&gt; resolved.value</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                    is WeatherApiClient.LookupResult.NotFound -&gt; {</span>
+<span class="nc bnc" id="L72" title="All 2 branches missed.">                        val asked = if (useHere) &quot;your area&quot; else city</span>
+<span class="nc" id="L73">                        return ToolExecutionResult(</span>
+<span class="nc" id="L74">                            false,</span>
+<span class="nc" id="L75">                            &quot;I couldn't find a location called $asked for the weather request.&quot;,</span>
+                        )
+                    }
+<span class="nc" id="L78">                    is WeatherApiClient.LookupResult.NetworkError -&gt; {</span>
+<span class="nc" id="L79">                        Log.w(TAG, &quot;Weather geocode network error: ${resolved.stage} ${resolved.detail}&quot;)</span>
+<span class="nc" id="L80">                        return ToolExecutionResult(</span>
+<span class="nc" id="L81">                            false,</span>
+<span class="nc" id="L82">                            &quot;I couldn't reach the weather service right now. Please try again in a moment.&quot;,</span>
+                        )
+                    }
+                }
+<span class="nc" id="L86">                return when (val weather = WeatherApiClient.fetchCurrentDetailed(point)) {</span>
+<span class="nc bnc" id="L87" title="All 2 branches missed.">                    is WeatherApiClient.LookupResult.Ok -&gt;</span>
+<span class="nc" id="L88">                        ToolExecutionResult(true, WeatherApiClient.formatSpoken(weather.value))</span>
+<span class="nc bnc" id="L89" title="All 2 branches missed.">                    is WeatherApiClient.LookupResult.NotFound -&gt;</span>
+<span class="nc" id="L90">                        ToolExecutionResult(</span>
+<span class="nc" id="L91">                            false,</span>
+<span class="nc" id="L92">                            &quot;I couldn't find weather data for ${point.label}.&quot;,</span>
+                        )
+<span class="nc" id="L94">                    is WeatherApiClient.LookupResult.NetworkError -&gt; {</span>
+<span class="nc" id="L95">                        Log.w(TAG, &quot;Weather forecast network error: ${weather.stage} ${weather.detail}&quot;)</span>
+<span class="nc" id="L96">                        ToolExecutionResult(</span>
+<span class="nc" id="L97">                            false,</span>
+<span class="nc" id="L98">                            &quot;I couldn't reach the weather service for ${point.label} right now. Please try again in a moment.&quot;,</span>
+                        )
+                    }
                 }
             }
             &quot;openApp&quot; -&gt; {
-<span class="nc" id="L73">                val appName = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).trim().replace(&quot;\&quot;&quot;, &quot;&quot;)</span>
-<span class="nc" id="L74">                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;market://search?q=$appName&quot;))</span>
-<span class="nc" id="L75">                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
-<span class="nc" id="L76">                try {</span>
-<span class="nc bnc" id="L77" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)</span>
-<span class="nc" id="L78">                    ToolExecutionResult(true, &quot;I've opened the app store to find $appName.&quot;)</span>
-<span class="nc" id="L79">                } catch (_: Exception) {</span>
-<span class="nc" id="L80">                    ToolExecutionResult(false, &quot;I couldn't open the app.&quot;)</span>
+<span class="nc" id="L104">                val appName = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).trim().replace(&quot;\&quot;&quot;, &quot;&quot;)</span>
+<span class="nc" id="L105">                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(&quot;market://search?q=$appName&quot;))</span>
+<span class="nc" id="L106">                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+<span class="nc" id="L107">                try {</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)</span>
+<span class="nc" id="L109">                    ToolExecutionResult(true, &quot;I've opened the app store to find $appName.&quot;)</span>
+<span class="nc" id="L110">                } catch (_: Exception) {</span>
+<span class="nc" id="L111">                    ToolExecutionResult(false, &quot;I couldn't open the app.&quot;)</span>
                 }
             }
             &quot;sendUpcomingEventReminder&quot; -&gt; {
-<span class="nc" id="L84">                ToolExecutionResult(true, &quot;You have a meeting scheduled in 30 minutes.&quot;)</span>
+<span class="nc" id="L115">                ToolExecutionResult(true, &quot;You have a meeting scheduled in 30 minutes.&quot;)</span>
             }
             &quot;explainChildSeatInstallation&quot; -&gt; {
-<span class="nc" id="L87">                ToolExecutionResult(true, &quot;To install the child seat, refer to your vehicle's LATCH system anchors located in the rear seats.&quot;)</span>
+<span class="nc" id="L118">                ToolExecutionResult(true, &quot;To install the child seat, refer to your vehicle's LATCH system anchors located in the rear seats.&quot;)</span>
             }
             &quot;suggestUmbrellaIfRainy&quot; -&gt; {
-<span class="nc" id="L90">                ToolExecutionResult(true, &quot;There is rain expected at your destination. I suggest taking an umbrella.&quot;)</span>
+<span class="nc" id="L121">                ToolExecutionResult(true, &quot;There is rain expected at your destination. I suggest taking an umbrella.&quot;)</span>
             }
             &quot;getNewsHighlights&quot; -&gt; {
-<span class="nc" id="L93">                val intent = Intent(Intent.ACTION_WEB_SEARCH)</span>
-<span class="nc" id="L94">                intent.putExtra(SearchManager.QUERY, &quot;top news highlights today&quot;)</span>
-<span class="nc" id="L95">                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
-<span class="nc" id="L96">                try {</span>
-<span class="nc bnc" id="L97" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)</span>
-<span class="nc" id="L98">                    ToolExecutionResult(true, &quot;Here are today's top news highlights.&quot;)</span>
-<span class="nc" id="L99">                } catch (_: Exception) {</span>
-<span class="nc" id="L100">                    ToolExecutionResult(false, &quot;I couldn't load the news highlights.&quot;)</span>
+<span class="nc" id="L124">                val intent = Intent(Intent.ACTION_WEB_SEARCH)</span>
+<span class="nc" id="L125">                intent.putExtra(SearchManager.QUERY, &quot;top news highlights today&quot;)</span>
+<span class="nc" id="L126">                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK</span>
+<span class="nc" id="L127">                try {</span>
+<span class="nc bnc" id="L128" title="All 2 branches missed.">                    if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)</span>
+<span class="nc" id="L129">                    ToolExecutionResult(true, &quot;Here are today's top news highlights.&quot;)</span>
+<span class="nc" id="L130">                } catch (_: Exception) {</span>
+<span class="nc" id="L131">                    ToolExecutionResult(false, &quot;I couldn't load the news highlights.&quot;)</span>
                 }
             }
             &quot;answerVehicleIdentity&quot; -&gt; {
-<span class="nc" id="L104">                val model = VehicleManager.getCustomPropertyValue(&quot;INFO_MODEL&quot;)</span>
-<span class="nc" id="L105">                val message = when {</span>
-<span class="nc bnc" id="L106" title="All 8 branches missed.">                    model.isNullOrBlank() || model.equals(&quot;Unknown&quot;, ignoreCase = true) -&gt;</span>
-<span class="nc" id="L107">                        &quot;I am your vehicle assistant. The model identity sensor is not reporting yet.&quot;</span>
-<span class="nc" id="L108">                    else -&gt; &quot;You are driving a $model.&quot;</span>
+<span class="nc" id="L135">                val model = VehicleManager.getCustomPropertyValue(&quot;INFO_MODEL&quot;)</span>
+<span class="nc" id="L136">                val message = when {</span>
+<span class="nc bnc" id="L137" title="All 8 branches missed.">                    model.isNullOrBlank() || model.equals(&quot;Unknown&quot;, ignoreCase = true) -&gt;</span>
+<span class="nc" id="L138">                        &quot;I am your vehicle assistant. The model identity sensor is not reporting yet.&quot;</span>
+<span class="nc" id="L139">                    else -&gt; &quot;You are driving a $model.&quot;</span>
                 }
-<span class="nc" id="L110">                ToolExecutionResult(true, message)</span>
+<span class="nc" id="L141">                ToolExecutionResult(true, message)</span>
             }
             &quot;openTrunk&quot; -&gt; {
                 // Trunk actuation is OEM-specific; there is no portable AOSP property. Prefer a
                 // GENERIC_VHAL_WRITE entry once the OEM property_id is known. If the tool definition
                 // still carries a property_id (sideloaded OEM overlay), write it; otherwise report
                 // that the feature needs mapping rather than silently writing an unrelated property.
-<span class="nc bnc" id="L117" title="All 2 branches missed.">                val propertyId = toolDefinition?.propertyId</span>
-<span class="nc bnc" id="L118" title="All 4 branches missed.">                val dataType = toolDefinition?.dataType ?: &quot;BOOLEAN&quot;</span>
-<span class="nc bnc" id="L119" title="All 4 branches missed.">                val areaId = toolDefinition?.areaId ?: 0</span>
-<span class="nc bnc" id="L120" title="All 4 branches missed.">                val value = toolDefinition?.valueToWrite ?: &quot;true&quot;</span>
-<span class="nc bnc" id="L121" title="All 2 branches missed.">                if (propertyId != null) {</span>
-<span class="nc" id="L122">                    val success = VehicleManager.setGenericVhalProperty(propertyId, areaId, value, dataType)</span>
-<span class="nc bnc" id="L123" title="All 2 branches missed.">                    return if (success) {</span>
-<span class="nc bnc" id="L124" title="All 4 branches missed.">                        ToolExecutionResult(true, toolDefinition?.successMessage ?: &quot;I've popped the trunk.&quot;)</span>
+<span class="nc bnc" id="L148" title="All 2 branches missed.">                val propertyId = toolDefinition?.propertyId</span>
+<span class="nc bnc" id="L149" title="All 4 branches missed.">                val dataType = toolDefinition?.dataType ?: &quot;BOOLEAN&quot;</span>
+<span class="nc bnc" id="L150" title="All 4 branches missed.">                val areaId = toolDefinition?.areaId ?: 0</span>
+<span class="nc bnc" id="L151" title="All 4 branches missed.">                val value = toolDefinition?.valueToWrite ?: &quot;true&quot;</span>
+<span class="nc bnc" id="L152" title="All 2 branches missed.">                if (propertyId != null) {</span>
+<span class="nc" id="L153">                    val success = VehicleManager.setGenericVhalProperty(propertyId, areaId, value, dataType)</span>
+<span class="nc bnc" id="L154" title="All 2 branches missed.">                    return if (success) {</span>
+<span class="nc bnc" id="L155" title="All 4 branches missed.">                        ToolExecutionResult(true, toolDefinition?.successMessage ?: &quot;I've popped the trunk.&quot;)</span>
                     } else {
-<span class="nc" id="L126">                        ToolExecutionResult(</span>
-<span class="nc" id="L127">                            false,</span>
-<span class="nc bnc" id="L128" title="All 4 branches missed.">                            toolDefinition?.errorMessage</span>
-<span class="nc" id="L129">                                ?: &quot;I sent the trunk command, but the vehicle hardware didn't confirm.&quot;</span>
+<span class="nc" id="L157">                        ToolExecutionResult(</span>
+<span class="nc" id="L158">                            false,</span>
+<span class="nc bnc" id="L159" title="All 4 branches missed.">                            toolDefinition?.errorMessage</span>
+<span class="nc" id="L160">                                ?: &quot;I sent the trunk command, but the vehicle hardware didn't confirm.&quot;</span>
                         )
                     }
                 }
-<span class="nc" id="L133">                Log.w(TAG, &quot;openTrunk has no property_id; OEM must map the trunk actuator in the registry.&quot;)</span>
-<span class="nc" id="L134">                ToolExecutionResult(</span>
-<span class="nc" id="L135">                    false,</span>
-<span class="nc" id="L136">                    &quot;Trunk control is not mapped on this vehicle image. Ask the integrator to set a GENERIC_VHAL_WRITE property_id for openTrunk.&quot;</span>
+<span class="nc" id="L164">                Log.w(TAG, &quot;openTrunk has no property_id; OEM must map the trunk actuator in the registry.&quot;)</span>
+<span class="nc" id="L165">                ToolExecutionResult(</span>
+<span class="nc" id="L166">                    false,</span>
+<span class="nc" id="L167">                    &quot;Trunk control is not mapped on this vehicle image. Ask the integrator to set a GENERIC_VHAL_WRITE property_id for openTrunk.&quot;</span>
                 )
             }
             &quot;setEnergeticCabinLighting&quot; -&gt; {
-<span class="nc" id="L140">                writeCabinLight(&quot;3&quot;, &quot;I've set the cabin lighting to an energetic dynamic mode.&quot;)</span>
+<span class="nc" id="L171">                writeCabinLight(&quot;3&quot;, &quot;I've set the cabin lighting to an energetic dynamic mode.&quot;)</span>
             }
             &quot;turnOffCabinLight&quot; -&gt; {
-<span class="nc" id="L143">                writeCabinLight(&quot;0&quot;, &quot;I've turned off the cabin lights.&quot;)</span>
+<span class="nc" id="L174">                writeCabinLight(&quot;0&quot;, &quot;I've turned off the cabin lights.&quot;)</span>
             }
             &quot;turnOnCabinLight&quot; -&gt; {
-<span class="nc" id="L146">                writeCabinLight(&quot;1&quot;, &quot;I've turned on the cabin lights.&quot;)</span>
+<span class="nc" id="L177">                writeCabinLight(&quot;1&quot;, &quot;I've turned on the cabin lights.&quot;)</span>
             }
             &quot;unlockDoors&quot; -&gt; {
                 // Prefer the GENERIC_VHAL_WRITE path (DOOR_LOCK). This branch is a fallback when the
                 // registry points unlockDoors at CUSTOM_KOTLIN.
-<span class="nc bnc" id="L151" title="All 4 branches missed.">                val propertyId = toolDefinition?.propertyId ?: 371198722</span>
-<span class="nc" id="L152">                val success = VehicleManager.setGenericVhalProperty(</span>
-<span class="nc" id="L153">                    propertyId,</span>
-<span class="nc bnc" id="L154" title="All 4 branches missed.">                    toolDefinition?.areaId ?: 0,</span>
-<span class="nc bnc" id="L155" title="All 4 branches missed.">                    toolDefinition?.valueToWrite ?: &quot;false&quot;,</span>
-<span class="nc bnc" id="L156" title="All 4 branches missed.">                    toolDefinition?.dataType ?: &quot;BOOLEAN&quot;,</span>
+<span class="nc bnc" id="L182" title="All 4 branches missed.">                val propertyId = toolDefinition?.propertyId ?: 371198722</span>
+<span class="nc" id="L183">                val success = VehicleManager.setGenericVhalProperty(</span>
+<span class="nc" id="L184">                    propertyId,</span>
+<span class="nc bnc" id="L185" title="All 4 branches missed.">                    toolDefinition?.areaId ?: 0,</span>
+<span class="nc bnc" id="L186" title="All 4 branches missed.">                    toolDefinition?.valueToWrite ?: &quot;false&quot;,</span>
+<span class="nc bnc" id="L187" title="All 4 branches missed.">                    toolDefinition?.dataType ?: &quot;BOOLEAN&quot;,</span>
                 )
-<span class="nc bnc" id="L158" title="All 2 branches missed.">                if (success) {</span>
-<span class="nc bnc" id="L159" title="All 4 branches missed.">                    ToolExecutionResult(true, toolDefinition?.successMessage ?: &quot;I've unlocked the doors.&quot;)</span>
+<span class="nc bnc" id="L189" title="All 2 branches missed.">                if (success) {</span>
+<span class="nc bnc" id="L190" title="All 4 branches missed.">                    ToolExecutionResult(true, toolDefinition?.successMessage ?: &quot;I've unlocked the doors.&quot;)</span>
                 } else {
-<span class="nc" id="L161">                    ToolExecutionResult(</span>
-<span class="nc" id="L162">                        false,</span>
-<span class="nc bnc" id="L163" title="All 4 branches missed.">                        toolDefinition?.errorMessage</span>
-<span class="nc" id="L164">                            ?: &quot;I couldn't confirm the doors unlocked with the vehicle hardware.&quot;</span>
+<span class="nc" id="L192">                    ToolExecutionResult(</span>
+<span class="nc" id="L193">                        false,</span>
+<span class="nc bnc" id="L194" title="All 4 branches missed.">                        toolDefinition?.errorMessage</span>
+<span class="nc" id="L195">                            ?: &quot;I couldn't confirm the doors unlocked with the vehicle hardware.&quot;</span>
                     )
                 }
             }
             &quot;analyzeCabinState&quot; -&gt; {
-<span class="nc" id="L169">                CameraToolHandler.handleAnalyzeCabinState()</span>
+<span class="nc" id="L200">                CameraToolHandler.handleAnalyzeCabinState()</span>
             }
-<span class="nc" id="L171">            else -&gt; ToolExecutionResult(false, &quot;System Error: System Handler not recognized.&quot;)</span>
+<span class="nc" id="L202">            else -&gt; ToolExecutionResult(false, &quot;System Error: System Handler not recognized.&quot;)</span>
         }
     }
 
     private fun writeCabinLight(value: String, successMessage: String): ToolExecutionResult {
-<span class="nc bnc" id="L176" title="All 4 branches missed.">        val propertyId = toolDefinition?.propertyId ?: android.car.VehiclePropertyIds.CABIN_LIGHTS_SWITCH</span>
-<span class="nc" id="L177">        val success = VehicleManager.setGenericVhalProperty(</span>
-<span class="nc" id="L178">            propertyId,</span>
-<span class="nc bnc" id="L179" title="All 4 branches missed.">            toolDefinition?.areaId ?: 0,</span>
-<span class="nc bnc" id="L180" title="All 4 branches missed.">            toolDefinition?.valueToWrite ?: value,</span>
-<span class="nc bnc" id="L181" title="All 4 branches missed.">            toolDefinition?.dataType ?: &quot;INT&quot;,</span>
+<span class="nc bnc" id="L207" title="All 4 branches missed.">        val propertyId = toolDefinition?.propertyId ?: android.car.VehiclePropertyIds.CABIN_LIGHTS_SWITCH</span>
+<span class="nc" id="L208">        val success = VehicleManager.setGenericVhalProperty(</span>
+<span class="nc" id="L209">            propertyId,</span>
+<span class="nc bnc" id="L210" title="All 4 branches missed.">            toolDefinition?.areaId ?: 0,</span>
+<span class="nc bnc" id="L211" title="All 4 branches missed.">            toolDefinition?.valueToWrite ?: value,</span>
+<span class="nc bnc" id="L212" title="All 4 branches missed.">            toolDefinition?.dataType ?: &quot;INT&quot;,</span>
         )
-<span class="nc bnc" id="L183" title="All 2 branches missed.">        return if (success) {</span>
-<span class="nc bnc" id="L184" title="All 4 branches missed.">            ToolExecutionResult(true, toolDefinition?.successMessage ?: successMessage)</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        return if (success) {</span>
+<span class="nc bnc" id="L215" title="All 4 branches missed.">            ToolExecutionResult(true, toolDefinition?.successMessage ?: successMessage)</span>
         } else {
-<span class="nc bnc" id="L186" title="All 4 branches missed.">            ToolExecutionResult(false, toolDefinition?.errorMessage ?: &quot;Cabin light change was not confirmed.&quot;)</span>
+<span class="nc bnc" id="L217" title="All 4 branches missed.">            ToolExecutionResult(false, toolDefinition?.errorMessage ?: &quot;Cabin light change was not confirmed.&quot;)</span>
         }
     }
 }

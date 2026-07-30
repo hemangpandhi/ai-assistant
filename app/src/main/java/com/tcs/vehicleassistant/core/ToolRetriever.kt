@@ -45,9 +45,11 @@ object ToolRetriever {
 
     /**
      * Splits text into lowercase alphanumeric terms, dropping single characters and stop words.
+     * Collapses spoken "A/C" to "ac" before splitting so climate routing keeps the HVAC token.
      */
     fun tokenize(text: String): List<String> =
         text.lowercase()
+            .replace(Regex("""\ba\s*/\s*c\b"""), "ac")
             .split(Regex("[^a-z0-9]+"))
             .filter { it.length > 1 && it !in STOP_WORDS }
 

@@ -26,9 +26,10 @@ class ToolRetrieverTest {
     }
 
     @Test
-    fun `tokenize drops single characters, which carry no signal`() {
-        // "A/C" splits into two single letters and is lost; the registry lists "ac" as a keyword.
-        assertEquals(listOf("turn", "on"), ToolRetriever.tokenize("Turn the A/C on"))
+    fun `tokenize collapses slash AC so climate routing keeps the ac token`() {
+        // Spoken/UI "A/C" must not split into dropped single letters.
+        assertEquals(listOf("turn", "ac", "on"), ToolRetriever.tokenize("Turn the A/C on"))
+        assertEquals(listOf("ac"), ToolRetriever.tokenize("Done off the AC."))
     }
 
     @Test

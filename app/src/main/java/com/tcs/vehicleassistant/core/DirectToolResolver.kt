@@ -87,10 +87,12 @@ object DirectToolResolver {
         // mid-utterance question marks that signal a compound interrogative.
         val trimmed = query.trim().trimEnd('?', '!', '.', ',')
         if (trimmed.isEmpty()) return Outcome.Skip(Rejection("empty_query"))
-        if (trimmed.length > policy.maxQueryChars) return Outcome.Skip(Rejection("query_too_long"))
         if (trimmed.contains('?')) return Outcome.Skip(Rejection("question_mark"))
 
-        val normalized = normalize(trimmed)
+        // Collapse ASR stutter ("play music play music …") before length/word gates so DirectTool
+        // still owns the intended short cabin phrase.
+        val normalized = collapseAsrRepeats(trimmed)
+        if (normalized.length > policy.maxQueryChars) return Outcome.Skip(Rejection("query_too_long"))
         val words = normalized.split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty() || words.size > policy.maxQueryWords) {
             return Outcome.Skip(Rejection("query_word_count"))
@@ -171,11 +173,41 @@ object DirectToolResolver {
 
     fun normalize(raw: String): String =
         raw.lowercase()
+            // ASR/UI often emits "A/C"; collapse before punctuation strip or it becomes "a c".
+            .replace(Regex("""\ba\s*/\s*c\b"""), "ac")
             .replace(Regex("[^a-z0-9\\s]"), " ")
             // "what's" → "what s" after punctuation strip; treat as "whats"
             .replace(Regex("""\bwhat\s+s\b"""), "whats")
             .replace(Regex("\\s+"), " ")
             .trim()
+
+    /**
+     * Collapses stuttering ASR transcripts that repeat the same short phrase, e.g.
+     * "play music play music play music" → "play music", including a truncated trailing copy.
+     */
+    fun collapseAsrRepeats(raw: String): String {
+        val normalized = normalize(raw)
+        val words = normalized.split(' ').filter { it.isNotEmpty() }
+        if (words.size < 4) return normalized
+
+        for (period in 1..(words.size / 2)) {
+            if (words.size < period * 2) continue
+            val unit = words.subList(0, period)
+            var idx = 0
+            var copies = 0
+            while (idx + period <= words.size &&
+                words.subList(idx, idx + period) == unit
+            ) {
+                copies++
+                idx += period
+            }
+            if (copies < 2) continue
+            val rem = words.subList(idx, words.size)
+            if (rem.isNotEmpty() && rem != unit.subList(0, rem.size)) continue
+            return unit.joinToString(" ")
+        }
+        return normalized
+    }
 
     /**
      * Longest whole-phrase keyword contained in [normalizedQuery]. Longer phrases win so

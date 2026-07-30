@@ -271,11 +271,17 @@
       "success_message": "AC is on — you should feel that soon.",
       "keywords": [
         "turn on ac",
+        "turn on the ac",
+        "turn on a/c",
+        "turn on the a/c",
         "ac on",
+        "a/c on",
+        "on the ac",
         "start ac",
         "activate ac",
         "air conditioning on",
-        "turn on air conditioning"
+        "turn on air conditioning",
+        "turn on the air conditioning"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
@@ -295,11 +301,20 @@
       "success_message": "I've turned off the AC.",
       "keywords": [
         "turn off ac",
+        "turn off the ac",
+        "turn off a/c",
+        "turn off the a/c",
         "ac off",
+        "a/c off",
+        "off the ac",
+        "off ac",
+        "off the a/c",
+        "done off the ac",
         "stop ac",
         "deactivate ac",
         "air conditioning off",
-        "turn off air conditioning"
+        "turn off air conditioning",
+        "turn off the air conditioning"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
@@ -1869,6 +1884,10 @@
       {
         "user": "decrease temperature",
         "assistant": "<TOOL>decreaseTemperature(all)</TOOL> Cooling down the cabin."
+      },
+      {
+        "user": "I am not feeling good",
+        "assistant": "I'm sorry you're not feeling well. Would you like me to play some music?"
       }
     ],
     "context_policies": {
