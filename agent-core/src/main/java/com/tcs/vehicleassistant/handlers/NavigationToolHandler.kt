@@ -2,6 +2,7 @@
 
 package com.tcs.vehicleassistant.handlers
 import com.tcs.vehicleassistant.LocationManager
+import com.tcs.vehicleassistant.core.NavSessionState
 
 import android.content.Context
 import android.content.Intent
@@ -50,6 +51,7 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                         }
                     }
                 }
+                NavSessionState.setActive(spokenDest)
                 ToolExecutionResult(true, "Getting you on the road to $spokenDest — hang tight.")
             }
             "searchNearby" -> {
@@ -137,7 +139,50 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                 ToolExecutionResult(true, "I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?")
             }
             "suggestNearbyPlaces" -> {
-                ToolExecutionResult(true, "I can suggest some nearby places. What kind of place are you looking for?")
+                // Real path: Overpass tourism/attraction search (same network stack as searchNearby).
+                val bbox = LocationManager.getBbox(context)
+                val overpassQuery = "node[\"tourism\"~\"attraction|museum|viewpoint|gallery\",i]"
+                val fullQuery = "[out:json][timeout:10];($overpassQuery($bbox);node[\"amenity\"=\"place_of_worship\"]($bbox););out 10;"
+                try {
+                    val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
+                    val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
+                    val connection = url.openConnection() as java.net.HttpURLConnection
+                    connection.connectTimeout = 10000
+                    connection.readTimeout = 10000
+                    connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
+                    connection.requestMethod = "GET"
+                    if (connection.responseCode == 200) {
+                        val response = connection.inputStream.bufferedReader().use { it.readText() }
+                        val jsonObj = org.json.JSONObject(response)
+                        val elements = jsonObj.optJSONArray("elements") ?: org.json.JSONArray()
+                        val places = mutableListOf<String>()
+                        for (i in 0 until elements.length()) {
+                            val element = elements.getJSONObject(i)
+                            val tags = element.optJSONObject("tags") ?: continue
+                            val name = tags.optString("name", tags.optString("name:en", "")).trim()
+                            if (name.isNotEmpty() && name !in places) {
+                                places.add(name)
+                                if (places.size >= 3) break
+                            }
+                        }
+                        if (places.isNotEmpty()) {
+                            val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
+                            ToolExecutionResult(
+                                true,
+                                "I found these options nearby: $placesStr. Which one would you like to visit?",
+                            )
+                        } else {
+                            ToolExecutionResult(
+                                true,
+                                "I couldn't find named attractions nearby right now. Try asking for a restaurant, museum, or park.",
+                            )
+                        }
+                    } else {
+                        ToolExecutionResult(false, "Failed to search nearby places due to a network error.")
+                    }
+                } catch (e: Exception) {
+                    ToolExecutionResult(false, "Failed to search nearby places due to a network error.")
+                }
             }
             "provideLaneLevelGuidance" -> {
                 ToolExecutionResult(true, "You should stay in the left two lanes for your upcoming turn.")

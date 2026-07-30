@@ -6,8 +6,8 @@ import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.LatencyLogger
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 /**
@@ -46,10 +46,6 @@ class EdgeLLMProvider : ILLMProvider {
         onDone: (String) -> Unit,
         onError: (Exception) -> Unit
     ) {
-        while (LLMManager.isPrewarming) {
-            delay(50)
-        }
-
         if (!LLMManager.isReady()) {
             onError(Exception("Edge LLM not initialized"))
             return
@@ -64,13 +60,26 @@ class EdgeLLMProvider : ILLMProvider {
             prompt
         }
 
+        // Claim the engine for the duration of this inference so a concurrent unload() or
+        // re-initialization cannot close the native conversation under the streaming callbacks.
+        val activeConversation = LLMManager.beginInference()
+        if (activeConversation == null) {
+            onError(Exception("Edge LLM engine was released before inference could start"))
+            return
+        }
+
         val responseBuilder = StringBuilder()
         val streamStart = System.currentTimeMillis()
         var firstTokenAt = -1L
         var tokenChunks = 0
 
+        // LiteRT's sendMessageAsync returns immediately and streams on its own thread. Awaiting
+        // completion here keeps the inference inside the caller's coroutine, so cancellation and
+        // the engine claim above both have a well-defined scope.
+        val completion = CompletableDeferred<Unit>()
+
         try {
-            LLMManager.conversation!!.sendMessageAsync(
+            activeConversation.sendMessageAsync(
                 Contents.of(Content.Text(promptToUse)),
                 object : com.google.ai.edge.litertlm.MessageCallback {
                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
@@ -85,7 +94,11 @@ class EdgeLLMProvider : ILLMProvider {
                         }
 
                         responseBuilder.append(text)
-                        onToken(text)
+                        try {
+                            onToken(text)
+                        } catch (e: Exception) {
+                            Log.e("EdgeLLMProvider", "onToken consumer threw; continuing stream", e)
+                        }
                     }
 
                     override fun onDone() {
@@ -94,17 +107,28 @@ class EdgeLLMProvider : ILLMProvider {
                             val tps = tokenChunks * 1000.0 / elapsed
                             LatencyLogger.log("EdgeLLM", "Chunks: $tokenChunks, throughput: ${"%.1f".format(tps)}/s")
                         }
-                        onDone(responseBuilder.toString())
+                        try {
+                            onDone(responseBuilder.toString())
+                        } finally {
+                            completion.complete(Unit)
+                        }
                     }
 
                     override fun onError(throwable: Throwable) {
-                        onError(Exception(throwable))
+                        try {
+                            onError(Exception(throwable))
+                        } finally {
+                            completion.complete(Unit)
+                        }
                     }
                 },
                 emptyMap()
             )
+            completion.await()
         } catch (e: Exception) {
             onError(e)
+        } finally {
+            LLMManager.endInference()
         }
     }
 

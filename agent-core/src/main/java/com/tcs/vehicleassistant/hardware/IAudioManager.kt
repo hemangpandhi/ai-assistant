@@ -31,6 +31,12 @@ interface IAudioManager {
      * Queues a sentence to be spoken by the TTS engine.
      */
     fun speak(text: String, utteranceId: String)
+
+    /**
+     * Reloads the offline Piper/Sherpa cabin voice from SharedPreferences
+     * ([AssistantConfig.Prefs.TTS_VOICE_ID], speaker id, speaking rate).
+     */
+    fun reloadTtsFromPrefs()
     
     /**
      * Queues a silent utterance to act as a callback trigger.

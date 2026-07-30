@@ -49,6 +49,10 @@ class LocalLLMActivity : AppCompatActivity() {
         var isCloudModelActive = false
         var currentCloudModelName = ""
 
+        /** Defaults for the debug-only model sideload hook; expects `adb reverse tcp:8080 tcp:8080`. */
+        private const val DEFAULT_SIDELOAD_URL = "http://localhost:8080/Qwen2.5.litertlm"
+        private const val DEFAULT_SIDELOAD_FILE = "Qwen2.5.litertlm"
+
         fun loadRuntimePrefs(context: Context) {
             DemoSettingsPresets.ensureDefaults(context)
             val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
@@ -125,7 +129,16 @@ class LocalLLMActivity : AppCompatActivity() {
         LlmModel("Gemini 2.5 Flash (Cloud)", "gemini-2.5-flash", "api", "Cloud", "Premium")
     )
     
-    var currentModel = supportedModels[2]
+    private val defaultModelIndex: Int
+        get() = supportedModels.indexOfFirst {
+            it.filename == com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME
+        }.coerceAtLeast(0)
+
+    var currentModel = supportedModels[
+        supportedModels.indexOfFirst {
+            it.filename == com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME
+        }.coerceAtLeast(0)
+    ]
     
     // Companion object merged above
 
@@ -161,34 +174,9 @@ class LocalLLMActivity : AppCompatActivity() {
         generateButton = findViewById(R.id.generateButton)
         voiceButton = findViewById(R.id.voiceButton)
 
-        // EMERGENCY SELINUX BYPASS: Allow ADB to trigger a native file copy via ContentProvider
-        val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
-                if (intent.action == "COPY_MODEL") {
-                    Thread {
-                        try {
-                            android.util.Log.i("LLMManager", "Downloading model natively from localhost to bypass SELinux...")
-                            val url = java.net.URL("http://localhost:8080/Qwen2.5.litertlm")
-                            url.openStream().use { input ->
-                                java.io.File(context.filesDir, "Qwen2.5.litertlm").outputStream().use { output ->
-                                    input.copyTo(output)
-                                }
-                            }
-                            android.util.Log.i("LLMManager", "Copy complete! File generated natively.")
-                        } catch (e: Exception) {
-                            android.util.Log.e("LLMManager", "Failed to copy", e)
-                        }
-                    }.start()
-                }
-            }
-        }
-        val copyFilter = android.content.IntentFilter("COPY_MODEL")
-        copyFilter.addDataScheme("content")
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(receiver, copyFilter, android.content.Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(receiver, copyFilter)
-        }
+        com.tcs.vehicleassistant.core.DebugBroadcasts.register(
+            this, sideloadModelReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_SIDELOAD_MODEL
+        )
 
         chatRecyclerView = findViewById(R.id.chatRecyclerView)
         tabLayout = findViewById(R.id.tabLayout)
@@ -252,10 +240,21 @@ class LocalLLMActivity : AppCompatActivity() {
         })
 
         // Re-use test logic when intent action matches
-        val prefs = getSharedPreferences("app_prefs", MODE_PRIVATE)
-        val savedModelPath = prefs.getString("selected_model", "")
-        if (!savedModelPath.isNullOrEmpty()) {
-            MODEL_PATH = savedModelPath
+        val prefs = getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, MODE_PRIVATE)
+        val defaultModelFile = java.io.File(com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH)
+        val savedModelPath = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL, "")
+        when {
+            !savedModelPath.isNullOrEmpty() &&
+                savedModelPath.endsWith(com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME) -> {
+                MODEL_PATH = savedModelPath
+            }
+            defaultModelFile.exists() && defaultModelFile.canRead() -> {
+                MODEL_PATH = defaultModelFile.absolutePath
+                prefs.edit()
+                    .putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL, MODEL_PATH)
+                    .apply()
+            }
+            !savedModelPath.isNullOrEmpty() -> MODEL_PATH = savedModelPath
         }
 
         // Setup Animation Style Spinner
@@ -507,11 +506,34 @@ class LocalLLMActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, R.layout.spinner_item, supportedModels.map { "[${it.automotiveContext}] ${it.name} (${it.size})" })
         adapter.setDropDownViewResource(R.layout.spinner_dropdown_item)
         modelSpinner.adapter = adapter
-        modelSpinner.setSelection(3) // Default to Qwen 2.5 1.5B Instruct
+        // Default to Gemma 4 E2B; restore cloud selection only when cloud mode is active.
+        var initialModelIndex = defaultModelIndex
         if (isCloudModelActive) {
             val cloudIndex = supportedModels.indexOfFirst { it.name == currentCloudModelName }
-            if (cloudIndex >= 0) modelSpinner.setSelection(cloudIndex)
+            if (cloudIndex >= 0) initialModelIndex = cloudIndex
+        } else {
+            val selectedPath = prefs.getString(
+                com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL,
+                null
+            )
+            val fromPrefs = if (!selectedPath.isNullOrEmpty()) {
+                supportedModels.indexOfFirst { selectedPath.endsWith(it.filename) }
+            } else {
+                -1
+            }
+            // Prefer Gemma as the product default; only honor a non-Gemma prefs hit when the
+            // user explicitly left another edge model selected and Gemma is not on disk.
+            val gemmaOnDisk = java.io.File(
+                com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH
+            ).canRead()
+            initialModelIndex = when {
+                gemmaOnDisk -> defaultModelIndex
+                fromPrefs >= 0 -> fromPrefs
+                else -> defaultModelIndex
+            }
         }
+        currentModel = supportedModels[initialModelIndex]
+        modelSpinner.setSelection(initialModelIndex)
         
         modelSpinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -542,6 +564,19 @@ class LocalLLMActivity : AppCompatActivity() {
 
         updateDashboardUI()
         checkModelExists()
+
+        // Auto-load Gemma (or the resolved MODEL_PATH) so commands work without tapping Load Model.
+        if (!isCloudModelActive && MODEL_PATH.isNotEmpty()) {
+            lifecycleScope.launch {
+                if (LLMManager.isReady()) {
+                    updateActiveModelUI()
+                    generateButton.isEnabled = true
+                    btnLoadModel.isEnabled = false
+                } else {
+                    initLlm()
+                }
+            }
+        }
 
         btnLoadModel.setOnClickListener {
             lifecycleScope.launch {
@@ -588,7 +623,7 @@ class LocalLLMActivity : AppCompatActivity() {
             btnSyncTime.text = "Syncing..."
             Thread {
                 try {
-                    val url = java.net.URL("http://google.com")
+                    val url = java.net.URL("https://clients3.google.com/generate_204")
                     val conn = url.openConnection() as java.net.HttpURLConnection
                     conn.requestMethod = "HEAD"
                     conn.connectTimeout = 5000
@@ -644,17 +679,21 @@ class LocalLLMActivity : AppCompatActivity() {
         }
         
         // Wake Word Initialization
-        val currentWakeWord = prefs.getString("wake_word", "hey auto")
+        val currentWakeWord = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD, com.tcs.vehicleassistant.core.AssistantConfig.WakeWord.DEFAULT_WAKE_WORD)
         etWakeWord.setText(currentWakeWord)
         
-        val isWakeWordEnabled = prefs.getBoolean("wake_word_enabled", false)
+        val isWakeWordEnabled = prefs.getBoolean(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, false
+        )
         switchWakeWord.isChecked = isWakeWordEnabled
         if (isWakeWordEnabled) {
             try { startService(Intent(this, WakeWordService::class.java)) } catch (e: Exception) {}
         }
         
         switchWakeWord.setOnCheckedChangeListener { _, isChecked ->
-            prefs.edit().putBoolean("wake_word_enabled", isChecked).apply()
+            prefs.edit().putBoolean(
+                com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, isChecked
+            ).apply()
             val intent = Intent(this, WakeWordService::class.java)
             if (isChecked) {
                 try { startService(intent) } catch (e: Exception) {}
@@ -682,7 +721,7 @@ class LocalLLMActivity : AppCompatActivity() {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
             override fun afterTextChanged(s: android.text.Editable?) {
-                prefs.edit().putString("wake_word", s.toString().lowercase()).apply()
+                prefs.edit().putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD, s.toString().lowercase()).apply()
                 if (switchWakeWord.isChecked) {
                     val intent = Intent(this@LocalLLMActivity, WakeWordService::class.java)
                     try { startService(intent) } catch (e: Exception) {}
@@ -690,22 +729,32 @@ class LocalLLMActivity : AppCompatActivity() {
             }
         })
 
-        val filter = IntentFilter("com.tcs.vehicleassistant.DIAGNOSTICS_DUMP")
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(diagnosticReceiver, filter, Context.RECEIVER_EXPORTED)
-            registerReceiver(testQueryReceiver, IntentFilter("com.tcs.vehicleassistant.TEST_QUERY"), Context.RECEIVER_EXPORTED)
-        } else {
-            registerReceiver(diagnosticReceiver, filter)
-            registerReceiver(testQueryReceiver, IntentFilter("com.tcs.vehicleassistant.TEST_QUERY"))
-        }
+        com.tcs.vehicleassistant.core.DebugBroadcasts.register(
+            this, diagnosticReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_DIAGNOSTICS_DUMP
+        )
+        com.tcs.vehicleassistant.core.DebugBroadcasts.register(
+            this, testQueryReceiver, com.tcs.vehicleassistant.core.DebugBroadcasts.ACTION_TEST_QUERY
+        )
     }
 
     private fun applyVoiceSettings() {
-        val prefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        val rate = prefs.getFloat("voice_rate", 1.05f)
+        val prefs = getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        val rate = prefs.getFloat(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.VOICE_RATE, 1.0f)
         val pitch = prefs.getFloat("voice_pitch", 1.05f)
-        tts.setSpeechRate(rate)
-        tts.setPitch(pitch)
+        // Legacy Android TextToSpeech (debug UI / fallback only).
+        if (::tts.isInitialized) {
+            tts.setSpeechRate(rate)
+            tts.setPitch(pitch)
+        }
+        // Live cabin overlay + agent service use Sherpa OfflineTts.
+        if (::localAudioManager.isInitialized) {
+            localAudioManager.reloadTtsFromPrefs()
+        }
+        startService(
+            Intent(this, com.tcs.vehicleassistant.service.VehicleAgentService::class.java).apply {
+                action = com.tcs.vehicleassistant.service.VehicleAgentService.ACTION_RELOAD_TTS
+            }
+        )
     }
 
     private fun showTelemetrySettingsDialog() {
@@ -715,7 +764,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
         etSpeed.setText(VehicleManager.getRealSpeed().toString())
         
-        val prefs = getSharedPreferences("app_prefs", android.content.Context.MODE_PRIVATE)
+        val prefs = getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)
         val currentKvCache = prefs.getInt("max_tokens", 4096)
         val currentAutoFlush = prefs.getInt("auto_flush", 25)
         val currentLocationOverride = prefs.getString(LocationManager.PREF_LOCATION_OVERRIDE, "") ?: ""
@@ -723,13 +772,32 @@ class LocalLLMActivity : AppCompatActivity() {
         val currentMechanicNum = prefs.getString("mechanic_number", "555-0199") ?: "555-0199"
         val currentDiningPref = prefs.getString("dining_pref", "Pure Vegetarian") ?: "Pure Vegetarian"
         val cloudFallbackEnabled = prefs.getBoolean("cloud_fallback_enabled", true)
+        val speculativeEnabled = prefs.getBoolean(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,
+            false
+        )
 
         etKvCache.setText(currentKvCache.toString())
         val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)
         val switchCloudFallback = dialogView.findViewById<android.widget.Switch>(R.id.switchCloudFallback)
+        val switchSpeculativeDecoding =
+            dialogView.findViewById<android.widget.Switch>(R.id.switchSpeculativeDecoding)
+        val btnRunLiteRtBenchmark =
+            dialogView.findViewById<android.widget.Button>(R.id.btnRunLiteRtBenchmark)
         switchCloudFallback.isChecked = cloudFallbackEnabled
+        switchSpeculativeDecoding.isChecked = speculativeEnabled
         etAutoFlush.setText(currentAutoFlush.toString())
-        
+
+        btnRunLiteRtBenchmark.setOnClickListener {
+            Toast.makeText(this, "Running LiteRT benchmark… (may take ~30s)", Toast.LENGTH_SHORT).show()
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                val summary = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    LLMManager.runOfficialBenchmark(this@LocalLLMActivity)
+                }
+                Toast.makeText(this@LocalLLMActivity, summary, Toast.LENGTH_LONG).show()
+                chatAdapter.addMessage(ChatMessage("LiteRT benchmark: $summary", isUser = false))
+            }
+        }        
         val etLocationOverride = dialogView.findViewById<android.widget.EditText>(R.id.etLocationOverride)
         etLocationOverride.setText(currentLocationOverride)
 
@@ -813,7 +881,46 @@ class LocalLLMActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
-        // Voice Settings
+        // Cabin Piper / Sherpa TTS
+        val spinnerTtsVoice = dialogView.findViewById<Spinner>(R.id.spinnerTtsVoice)
+        val etTtsSpeakerId = dialogView.findViewById<android.widget.EditText>(R.id.etTtsSpeakerId)
+        val tvTtsVoiceHint = dialogView.findViewById<android.widget.TextView>(R.id.tvTtsVoiceHint)
+        val ttsVoices = com.tcs.vehicleassistant.core.TtsVoiceCatalog.availableVoices(this)
+        val voiceAdapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            ttsVoices.map { it.displayName }
+        )
+        voiceAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerTtsVoice.adapter = voiceAdapter
+        val selectedVoiceId = prefs.getString(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_VOICE_ID,
+            com.tcs.vehicleassistant.core.TtsVoiceCatalog.BUNDLED_AMY_ID
+        )
+        val selectedVoiceIndex = ttsVoices.indexOfFirst { it.id == selectedVoiceId }.coerceAtLeast(0)
+        spinnerTtsVoice.setSelection(selectedVoiceIndex)
+        etTtsSpeakerId.setText(
+            prefs.getInt(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_SPEAKER_ID, 0).toString()
+        )
+        fun refreshSpeakerHint() {
+            val voice = ttsVoices.getOrNull(spinnerTtsVoice.selectedItemPosition) ?: return
+            etTtsSpeakerId.isEnabled = voice.isMultiSpeaker
+            val base = com.tcs.vehicleassistant.core.TtsVoiceCatalog.settingsHint(ttsVoices)
+            tvTtsVoiceHint.text = if (voice.isMultiSpeaker) {
+                "$base Selected: ${voice.id} — multi-speaker (${voice.numSpeakers}); try sid 0–${voice.numSpeakers - 1}."
+            } else {
+                "$base Selected: ${voice.id}."
+            }
+        }
+        refreshSpeakerHint()
+        spinnerTtsVoice.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                refreshSpeakerHint()
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        // Voice Settings (legacy Android TTS + shared rate)
         val etSpeakingRate = dialogView.findViewById<android.widget.EditText>(R.id.etSpeakingRate)
         val etPitch = dialogView.findViewById<android.widget.EditText>(R.id.etPitch)
         val etVolume = dialogView.findViewById<android.widget.EditText>(R.id.etVolume)
@@ -824,7 +931,9 @@ class LocalLLMActivity : AppCompatActivity() {
         val etIntensity = dialogView.findViewById<android.widget.EditText>(R.id.etIntensity)
         val etReverb = dialogView.findViewById<android.widget.EditText>(R.id.etReverb)
 
-        etSpeakingRate.setText(prefs.getFloat("voice_rate", 1.0f).toString())
+        etSpeakingRate.setText(
+            prefs.getFloat(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.VOICE_RATE, 1.0f).toString()
+        )
         etPitch.setText(prefs.getFloat("voice_pitch", 1.0f).toString())
         etVolume.setText(prefs.getFloat("voice_volume", -1.0f).toString())
         etEmotion.setText(prefs.getString("voice_emotion", "empathetic"))
@@ -842,6 +951,10 @@ class LocalLLMActivity : AppCompatActivity() {
                 val newAutoFlush = etAutoFlush.text.toString().toIntOrNull()
 
                 if (newSpeed != null) VehicleManager.setMockSpeed(newSpeed)
+
+                val chosenVoice = ttsVoices.getOrNull(spinnerTtsVoice.selectedItemPosition)
+                    ?: com.tcs.vehicleassistant.core.TtsVoiceCatalog.bundledAmy()
+                val speakerId = etTtsSpeakerId.text.toString().toIntOrNull() ?: 0
                 
                 prefs.edit().apply {
                     putString(LocationManager.PREF_LOCATION_OVERRIDE, etLocationOverride.text.toString().trim())
@@ -860,9 +973,22 @@ class LocalLLMActivity : AppCompatActivity() {
                     if (newKvCache != null) putInt("max_tokens", newKvCache)
                     if (newAutoFlush != null) putInt("auto_flush", newAutoFlush)
                     putBoolean("cloud_fallback_enabled", switchCloudFallback.isChecked)
+                    putBoolean(
+                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,
+                        switchSpeculativeDecoding.isChecked
+                    )
+
+                    putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_VOICE_ID, chosenVoice.id)
+                    putInt(
+                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_SPEAKER_ID,
+                        speakerId.coerceIn(0, (chosenVoice.numSpeakers - 1).coerceAtLeast(0))
+                    )
                     
                     // Save Voice Settings
-                    putFloat("voice_rate", etSpeakingRate.text.toString().toFloatOrNull() ?: 1.0f)
+                    putFloat(
+                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.VOICE_RATE,
+                        (etSpeakingRate.text.toString().toFloatOrNull() ?: 1.0f).coerceIn(0.5f, 2.0f)
+                    )
                     putFloat("voice_pitch", etPitch.text.toString().toFloatOrNull() ?: 1.0f)
                     putFloat("voice_volume", etVolume.text.toString().toFloatOrNull() ?: -1.0f)
                     putString("voice_emotion", etEmotion.text.toString())
@@ -876,11 +1002,12 @@ class LocalLLMActivity : AppCompatActivity() {
 
                 applyVoiceSettings()
                 updateDashboardUI()
-                Toast.makeText(this, "Settings Updated", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, "Settings Updated (cabin voice: ${chosenVoice.id})", Toast.LENGTH_SHORT).show()
 
-                if (newKvCache != null && newKvCache != currentKvCache) {
-                    Toast.makeText(this, "Re-initializing LLM with new KV Cache...", Toast.LENGTH_SHORT).show()
-                    
+                val speculativeChanged = speculativeEnabled != switchSpeculativeDecoding.isChecked
+                if ((newKvCache != null && newKvCache != currentKvCache) || speculativeChanged) {
+                    Toast.makeText(this, "Re-initializing LLM (KV / MTP settings)…", Toast.LENGTH_SHORT).show()
+
                     kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                         LLMManager.autoInitialize(this@LocalLLMActivity, force = true)
                     }
@@ -983,12 +1110,22 @@ class LocalLLMActivity : AppCompatActivity() {
         }
     }
 
+    /** The wake-word toggle in settings; the microphone service must not outlive it being off. */
+    private fun isWakeWordEnabled(): Boolean =
+        getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, MODE_PRIVATE)
+            .getBoolean(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
+
     override fun onStop() {
         super.onStop()
         // Restart background wake word listening when the UI hides
+        if (!isWakeWordEnabled()) return
         val intent = Intent(this, WakeWordService::class.java)
-        intent.action = "ACTION_RESTART_LISTENING"
-        startService(intent)
+        intent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART
+        try {
+            startService(intent)
+        } catch (e: Exception) {
+            android.util.Log.w("WakeWord", "Could not resume wake word listening", e)
+        }
     }
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
@@ -999,10 +1136,13 @@ class LocalLLMActivity : AppCompatActivity() {
                 com.tcs.vehicleassistant.hardware.CabinCameraManager.startCamera(this, androidx.lifecycle.ProcessLifecycleOwner.get())
             }
             val audioIndex = permissions.indexOf(android.Manifest.permission.RECORD_AUDIO)
-            if (audioIndex != -1 && grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED) {
+            if (audioIndex != -1 &&
+                grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED &&
+                isWakeWordEnabled()
+            ) {
                 // Restart WakeWordService to bind to the microphone now that permission is granted
                 val serviceIntent = Intent(this, WakeWordService::class.java)
-                serviceIntent.action = "ACTION_RESTART_LISTENING"
+                serviceIntent.action = com.tcs.vehicleassistant.core.AssistantConfig.WakeWordAction.RESTART
                 startForegroundService(serviceIntent)
             }
         }
@@ -1025,8 +1165,9 @@ class LocalLLMActivity : AppCompatActivity() {
             Log.e("LocalLLMActivity", "Failed to cleanup VehicleManager", e)
         }
         super.onDestroy()
-        try { unregisterReceiver(diagnosticReceiver) } catch (e: Exception) {}
-        try { unregisterReceiver(testQueryReceiver) } catch (e: Exception) {}
+        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, diagnosticReceiver)
+        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, testQueryReceiver)
+        com.tcs.vehicleassistant.core.DebugBroadcasts.unregister(this, sideloadModelReceiver)
     }
 
     private fun checkModelExists() {
@@ -1058,12 +1199,18 @@ class LocalLLMActivity : AppCompatActivity() {
         
         var modelFile = allFiles.firstOrNull { it.name == currentModel.filename }
         
-        // Dynamic Fallback: If exact filename is not found, use any existing .bin, .task, or .litertlm file
+        // Dynamic Fallback: prefer the product-default Gemma 4 E2B, then any other edge model.
         if (modelFile == null) {
             val models = allFiles.filter { it.name.endsWith(".bin") || it.name.endsWith(".task") || it.name.endsWith(".litertlm") }
-            modelFile = models.find { it.name.contains("handoff", ignoreCase = true) }
-                ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
+            modelFile = models.find {
+                it.name.equals(
+                    com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_FILENAME,
+                    ignoreCase = true
+                )
+            }
                 ?: models.find { it.name.contains("gemma", ignoreCase = true) }
+                ?: models.find { it.name.contains("handoff", ignoreCase = true) }
+                ?: models.find { it.name.contains("Qwen", ignoreCase = true) }
                 ?: models.firstOrNull()
             if (modelFile != null) {
                 // Try to find a matching LlmModel for this file to update the UI
@@ -1076,11 +1223,22 @@ class LocalLLMActivity : AppCompatActivity() {
 
         if (modelFile != null && modelFile.exists() && modelFile.length() > 0) {
             MODEL_PATH = modelFile.absolutePath
-            chatAdapter.addMessage(ChatMessage("Model found locally:\n${modelFile.name}\nClick 'Load Model' to initialize.", isUser = false))
+            getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL, MODEL_PATH)
+                .apply()
+            val alreadyReady = LLMManager.isReady() &&
+                LLMManager.currentModelPath == MODEL_PATH
+            val statusMsg = if (alreadyReady) {
+                "Model ready:\n${modelFile.name}"
+            } else {
+                "Model found locally:\n${modelFile.name}\nLoading automatically…"
+            }
+            chatAdapter.addMessage(ChatMessage(statusMsg, isUser = false))
             chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
             
-            generateButton.isEnabled = false
-            btnLoadModel.isEnabled = true
+            generateButton.isEnabled = alreadyReady
+            btnLoadModel.isEnabled = !alreadyReady
         } else {
             MODEL_PATH = java.io.File(externalDir ?: internalDir, currentModel.filename).absolutePath
             val allNames = allFiles.map { it.name }.joinToString(", ").takeIf { it.isNotEmpty() } ?: "empty"
@@ -1217,10 +1375,41 @@ class LocalLLMActivity : AppCompatActivity() {
         // Add empty bubble for model
         chatAdapter.addMessage(ChatMessage("", isUser = false, isStreaming = true))
         chatRecyclerView.scrollToPosition(chatAdapter.itemCount - 1)
-        
-        if (!isCloudModelActive && !LLMManager.isReady()) {
-            chatAdapter.replaceLastMessage("System: Please click 'Load Model' before sending a prompt.")
-            resetControls()
+
+        // Registry direct-executable commands do not need LiteRT; only fall back to the
+        // "Load Model" gate when the query would actually require the edge LLM.
+        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<ToolManager>()
+        if (!toolManager.isInitialized) {
+            toolManager.initialize(applicationContext)
+        }
+        val canSkipLlm = toolManager.resolveDirectHit(prompt) != null
+
+        if (!isCloudModelActive && !LLMManager.isReady() && !canSkipLlm) {
+            chatAdapter.replaceLastMessage("System: Loading default model (Gemma 4 E2B)…")
+            lifecycleScope.launch {
+                try {
+                    LLMManager.autoInitialize(this@LocalLLMActivity)
+                    if (!LLMManager.isReady()) {
+                        chatAdapter.replaceLastMessage(
+                            "System: Could not load Gemma 4 E2B. Check that " +
+                                "${com.tcs.vehicleassistant.core.AssistantConfig.Llm.DEFAULT_MODEL_PATH} exists."
+                        )
+                        resetControls()
+                        return@launch
+                    }
+                    updateActiveModelUI()
+                    btnLoadModel.isEnabled = false
+                    generateButton.isEnabled = true
+                    chatAdapter.replaceLastMessage("")
+                    initOrchestratorBridge()
+                    orchestratorBridge?.enableTts = isVoice
+                    isVoiceMode = isVoice
+                    orchestratorBridge?.handleQuery(prompt)
+                } catch (e: Exception) {
+                    chatAdapter.replaceLastMessage("System: Model load failed: ${e.message}")
+                    resetControls()
+                }
+            }
             return
         }
 
@@ -1440,6 +1629,29 @@ class LocalLLMActivity : AppCompatActivity() {
                 android.util.Log.i("AutomatedTest", "Received automated test query: $query")
                 generateText(query)
             }
+        }
+    }
+
+    /**
+     * Pulls a `.litertlm` model from a host-side HTTP server reachable over `adb reverse`, which is
+     * the only way to get a multi-gigabyte file into this app's private storage on a device where
+     * SELinux blocks `adb push` into `/data/data`. Debug builds only.
+     */
+    private val sideloadModelReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val url = intent.getStringExtra("url") ?: DEFAULT_SIDELOAD_URL
+            val fileName = intent.getStringExtra("file") ?: DEFAULT_SIDELOAD_FILE
+            Thread {
+                try {
+                    Log.i("LLMManager", "Sideloading model from $url")
+                    java.net.URL(url).openStream().use { input ->
+                        java.io.File(context.filesDir, fileName).outputStream().use(input::copyTo)
+                    }
+                    Log.i("LLMManager", "Sideload of $fileName complete.")
+                } catch (e: Exception) {
+                    Log.e("LLMManager", "Sideload of $fileName failed", e)
+                }
+            }.start()
         }
     }
 }

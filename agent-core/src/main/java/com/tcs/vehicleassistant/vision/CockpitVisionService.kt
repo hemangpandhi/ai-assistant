@@ -18,15 +18,18 @@ import com.tcs.vehicleassistant.R
 import com.tcs.vehicleassistant.repository.OrchestratorState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
-import android.speech.tts.TextToSpeech
 import java.util.Locale
 
 class CockpitVisionService : Service() {
 
     private val binder = LocalBinder()
-    private val scope = CoroutineScope(Dispatchers.Default)
+
+    /** Owned scope so [onDestroy] can cancel every vision collector this service started. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     private var streamManager: CameraStreamManager? = null
     private lateinit var gestureProcessor: GestureProcessor
@@ -180,10 +183,35 @@ class CockpitVisionService : Service() {
         return binder
     }
 
+    /**
+     * Full teardown. The previous version only stopped the MJPEG stream, leaving the native camera
+     * bound, the MediaPipe graphs open, and this service's coroutine scope running.
+     */
     override fun onDestroy() {
-        super.onDestroy()
+        scope.cancel()
         streamManager?.stop()
+        streamManager = null
+
         com.tcs.vehicleassistant.hardware.CabinCameraManager.frameCallback = null
+        try {
+            com.tcs.vehicleassistant.hardware.CabinCameraManager.stopCamera()
+        } catch (e: Exception) {
+            android.util.Log.w("CockpitVisionService", "Failed to stop cabin camera", e)
+        }
+
+        if (::gestureProcessor.isInitialized) {
+            try {
+                gestureProcessor.close()
+            } catch (e: Exception) {
+                android.util.Log.w("CockpitVisionService", "Failed to close gesture processor", e)
+            }
+        }
+
+        onFrameCallback = null
+        onStatsUpdateCallback = null
+        lastFrame = null
+
+        super.onDestroy()
     }
 
     private fun startForegroundServiceNotification() {

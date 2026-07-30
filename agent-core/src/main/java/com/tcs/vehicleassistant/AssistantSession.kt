@@ -18,7 +18,8 @@ import kotlinx.coroutines.isActive
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
-import com.tcs.vehicleassistant.hardware.AndroidAudioManager
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.DeviceCapabilities
 import com.tcs.vehicleassistant.hardware.IAudioManager
 
 
@@ -69,9 +70,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     // ── UI Animation State ──────────────────────────────────────────────────
     private var dotAnimatorJob: Job? = null
     private var typewriterJob: Job? = null
+    private var micHandoffJob: Job? = null
     private var targetDisplayMessage = ""
     private var currentDisplayLength = 0
-    private val typingSpeedMs: Long = 15L
     private var currentHighlightStart = -1
     private var currentHighlightEnd = -1
 
@@ -93,17 +94,41 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.stopSpeaking()
         viewModel?.resetState()
 
-        val restartIntent = Intent(context, WakeWordService::class.java)
-        restartIntent.action = "ACTION_RESTART_LISTENING"
-        context.startService(restartIntent)
+        resumeWakeWordListening()
 
         unloadJob?.cancel()
-        
-        // Smart Memory Management: Only unload the heavy LLM from RAM if the car is parked.
-        // If the car is driving (or in any other gear), we keep it loaded so it's instantly available.
-        val isTablet = context.resources.configuration.smallestScreenWidthDp >= 600 || android.os.Build.DEVICE.contains("tangorpro", ignoreCase = true)
-        if (!isTablet && VehicleManager.getGearSelection() == "Park") {
-             LLMManager.unload()
+
+        // Only unload the heavy model when the car is parked. While driving it stays resident so
+        // the next wake word is answered instantly. Large-screen head units and tablets have the
+        // headroom to always keep it loaded.
+        if (!DeviceCapabilities.isLargeScreen(context) && VehicleManager.getGearSelection() == "Park") {
+            LLMManager.unload()
+        }
+    }
+
+    /** Asks the wake-word service to release the microphone while a session is active. */
+    private fun pauseWakeWordListening() {
+        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
+    }
+
+    /**
+     * Hands the microphone back to the wake-word service once a session is finished, unless the
+     * user has turned the wake word off — a restart would otherwise start the listener from
+     * scratch and leave the microphone held against their setting.
+     */
+    private fun resumeWakeWordListening() {
+        val enabled = context
+            .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
+        if (!enabled) return
+        sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)
+    }
+
+    private fun sendWakeWordCommand(action: String) {
+        try {
+            context.startService(Intent(context, WakeWordService::class.java).setAction(action))
+        } catch (e: Exception) {
+            android.util.Log.e("AssistantSession", "Failed to send '$action' to WakeWordService", e)
         }
     }
 
@@ -122,12 +147,11 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     }
 
     private fun inflateAndBindLayout() {
-        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        var layoutStyle = prefs.getInt("ui_layout_pref", -1)
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        var layoutStyle = prefs.getInt(AssistantConfig.Prefs.UI_LAYOUT, -1)
         if (layoutStyle == -1) {
-            val isTablet = context.resources.configuration.smallestScreenWidthDp >= 600 || android.os.Build.DEVICE.contains("tangorpro", ignoreCase = true)
-            layoutStyle = if (isTablet) 1 else 0
-            prefs.edit().putInt("ui_layout_pref", layoutStyle).apply()
+            layoutStyle = if (DeviceCapabilities.isLargeScreen(context)) 1 else 0
+            prefs.edit().putInt(AssistantConfig.Prefs.UI_LAYOUT, layoutStyle).apply()
         }
         currentLayoutStyle = layoutStyle
 
@@ -348,9 +372,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
         viewModel?.resetState()
-        val restartIntent = Intent(context, WakeWordService::class.java)
-        restartIntent.action = "ACTION_RESTART_LISTENING"
-        context.startService(restartIntent)
+        resumeWakeWordListening()
         hide()
     }
 
@@ -376,20 +398,20 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         unloadJob?.cancel()
 
         // Re-inflate if layout setting changed
-        val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-        if (prefs.getInt("ui_layout_pref", 0) != currentLayoutStyle) {
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        if (prefs.getInt(AssistantConfig.Prefs.UI_LAYOUT, 0) != currentLayoutStyle) {
             inflateAndBindLayout()
         }
 
         statusText.visibility = View.VISIBLE
-        stopDotAnimation("Hi, how can I help you?")
+        stopDotAnimation(GREETING)
         responseText.text = ""
         etInput.setText("")
         voiceAnimation.state = VoiceAnimationView.State.IDLE
 
-        val stopListeningIntent = Intent(context, WakeWordService::class.java)
-        stopListeningIntent.action = "ACTION_STOP_LISTENING"
-        context.startService(stopListeningIntent)
+        // Pause (not stop) so the wake-word service releases the microphone for the speech
+        // recognizer but stays alive to reclaim it when this session ends.
+        pauseWakeWordListening()
 
         if (!LLMManager.isReady() || LLMManager.isInitializing) {
             statusText.text = "Initializing Model..."
@@ -397,47 +419,66 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             inputControls.visibility = View.GONE
             btnMic.isEnabled = false
 
-            CoroutineScope(Dispatchers.Main).launch {
-                // Ensure initialization is started if not already
+            // observerScope, not an ad-hoc scope, so onDestroy cancels this wait.
+            observerScope.launch {
                 LLMManager.autoInitialize(context.applicationContext)
-                
-                // Wait until LLMManager engine is ready (don't block on prewarm - it runs in background)
-                withContext(Dispatchers.IO) {
-                    var waitCount = 0
-                    while (!LLMManager.isReady() || LLMManager.isInitializing) {
-                        if (waitCount % 2 == 0) {
-                            android.util.Log.d("AssistantSession", "Waiting for LLM. isReady=${LLMManager.isReady()}, isInit=${LLMManager.isInitializing}, engineNull=${!LLMManager.isReady()}")
-                        }
-                        delay(500)
-                        waitCount++
-                    }
+
+                val ready = awaitLlmReady()
+                if (!ready) {
+                    // Previously this polled forever, leaving the overlay stuck on
+                    // "Initializing Model..." with no way to recover.
+                    statusText.text = "Assistant unavailable — open the app to check the model."
+                    inputControls.visibility = View.VISIBLE
+                    btnOpenApp.visibility = View.VISIBLE
+                    btnSend.isEnabled = true
+                    btnMic.isEnabled = false
+                    return@launch
                 }
-                statusText.text = "Hi, how can I help you?"
+
+                statusText.text = GREETING
                 inputControls.visibility = View.VISIBLE
                 btnSend.isEnabled = true
                 btnMic.isEnabled = true
-                
-                // Automatically start listening on session open
-                CoroutineScope(Dispatchers.Main).launch {
-                    delay(300) // Wait for WakeWordService to release the mic
-                    btnMic.performClick()
-                }
+                autoStartListening()
             }
         } else {
             // DO NOT reset the conversation here. Resetting invalidates the KV cache
             // and forces the LLM to re-process the massive System Prompt, causing a 2-3s delay.
             statusText.visibility = View.VISIBLE
-            statusText.text = "Hi, how can I help you?"
+            statusText.text = GREETING
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.VISIBLE
             btnSend.isEnabled = true
             btnMic.isEnabled = true
+            autoStartListening()
+        }
+    }
 
-            // Automatically start listening on session open
-            CoroutineScope(Dispatchers.Main).launch {
-                delay(300) // Wait for WakeWordService to release the mic
-                btnMic.performClick()
-            }
+    /**
+     * Polls until the engine is usable, returning false once
+     * [AssistantConfig.Session.LLM_READY_TIMEOUT_MS] elapses so the overlay can surface a failure
+     * instead of waiting indefinitely.
+     */
+    private suspend fun awaitLlmReady(): Boolean = withContext(Dispatchers.IO) {
+        val deadline = System.currentTimeMillis() + AssistantConfig.Session.LLM_READY_TIMEOUT_MS
+        while (System.currentTimeMillis() < deadline) {
+            if (LLMManager.isReady() && !LLMManager.isInitializing) return@withContext true
+            delay(AssistantConfig.Session.LLM_READY_POLL_MS)
+        }
+        android.util.Log.e(
+            "AssistantSession",
+            "LLM not ready after ${AssistantConfig.Session.LLM_READY_TIMEOUT_MS}ms " +
+                "(isReady=${LLMManager.isReady()}, isInitializing=${LLMManager.isInitializing})"
+        )
+        false
+    }
+
+    /** Opens the microphone once the wake-word process has had time to release it. */
+    private fun autoStartListening() {
+        micHandoffJob?.cancel()
+        micHandoffJob = observerScope.launch {
+            delay(AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS)
+            btnMic.performClick()
         }
     }
 
@@ -463,7 +504,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         }
 
         if (typewriterJob == null || typewriterJob?.isActive != true) {
-            typewriterJob = CoroutineScope(Dispatchers.Main).launch {
+            typewriterJob = observerScope.launch {
                 val startTime = System.currentTimeMillis()
                 
                 while (isActive && currentDisplayLength < targetDisplayMessage.length) {
@@ -494,7 +535,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                         }
                     }
 
-                    delay(typingSpeedMs)
+                    delay(AssistantConfig.Session.TYPEWRITER_STEP_MS)
                 }
                 // Apply Markdown formatting only once after typewriter finishes
                 if (targetDisplayMessage.isNotEmpty()) {
@@ -510,7 +551,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             statusText.text = ""
             return
         }
-        dotAnimatorJob = CoroutineScope(Dispatchers.Main).launch {
+        dotAnimatorJob = observerScope.launch {
             var dotCount = 0
             while (isActive) {
                 val dots = ".".repeat(dotCount)
@@ -553,18 +594,25 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     override fun onDestroy() {
         dotAnimatorJob?.cancel()
         typewriterJob?.cancel()
+        micHandoffJob?.cancel()
         observerScope.cancel()
-        
+
         if (isBound) {
-            context.unbindService(serviceConnection)
+            try {
+                context.unbindService(serviceConnection)
+            } catch (e: IllegalArgumentException) {
+                android.util.Log.w("AssistantSession", "Service was already unbound", e)
+            }
             isBound = false
         }
 
-        val restartIntent = Intent(context, WakeWordService::class.java)
-        restartIntent.action = "ACTION_RESTART_LISTENING"
-        context.startService(restartIntent)
+        resumeWakeWordListening()
 
         super.onDestroy()
+    }
+
+    private companion object {
+        const val GREETING = "Hi, how can I help you?"
     }
 }
 

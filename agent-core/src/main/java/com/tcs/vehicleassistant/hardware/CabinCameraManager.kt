@@ -24,6 +24,21 @@ import java.util.concurrent.Executors
 
 object CabinCameraManager {
     private const val TAG = "CabinCameraManager"
+
+    // Blendshape score thresholds. Smile and frown sum a left/right pair, so they can exceed 1.0;
+    // jawOpen is a single score.
+    private const val YAWN_THRESHOLD = 0.4f
+    private const val SMILE_THRESHOLD = 0.6f
+    private const val FROWN_THRESHOLD = 0.6f
+
+    // Mood labels are consumed verbatim by the system prompt, so they are constants rather than
+    // literals scattered across the vision pipeline.
+    const val MOOD_TIRED = "Tired / Yawning"
+    const val MOOD_HAPPY = "Happy / Smiling"
+    const val MOOD_FRUSTRATED = "Frustrated / Frowning"
+    const val MOOD_NEUTRAL = "Neutral / Focused"
+    const val MOOD_NO_OCCUPANT = "No one detected"
+
     private var faceLandmarker: FaceLandmarker? = null
     private var cameraExecutor: ExecutorService? = null
 
@@ -36,6 +51,9 @@ object CabinCameraManager {
     
     private var cacheDir: java.io.File? = null
 
+    /** Retained so [stopCamera] can unbind the CameraX use cases and actually free the camera. */
+    private var boundProvider: ProcessCameraProvider? = null
+
     fun startCamera(context: Context, lifecycleOwner: LifecycleOwner) {
         cacheDir = context.cacheDir
         if (cameraExecutor == null || cameraExecutor!!.isShutdown) {
@@ -45,9 +63,10 @@ object CabinCameraManager {
         cameraProviderFuture.addListener({
             try {
                 val cameraProvider = cameraProviderFuture.get()
+                boundProvider = cameraProvider
                 val imageAnalysis = ImageAnalysis.Builder()
                     .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)
+                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                     .build()
 
                 imageAnalysis.setAnalyzer(cameraExecutor!!) { imageProxy ->
@@ -119,50 +138,44 @@ object CabinCameraManager {
                     }
                 }
                 
-                val detectedMood = when {
-                    yawnScore > 0.4f -> "Tired / Yawning"
-                    smileScore > 0.6f -> "Happy / Smiling"
-                    frownScore > 0.6f || frownScore > 0.6f -> "Frustrated / Frowning"
-                    else -> "Neutral / Focused"
-                }
-                currentMood = detectedMood
+                currentMood = classifyMood(smileScore, yawnScore, frownScore)
                 Log.d(TAG, "Detected $occupantCount occupants. Driver Mood: $currentMood")
             } else {
-                currentMood = "No one detected"
+                currentMood = MOOD_NO_OCCUPANT
             }
         } else {
             occupantCount = 0
-            currentMood = "No one detected"
+            currentMood = MOOD_NO_OCCUPANT
         }
     }
 
+    /**
+     * Maps MediaPipe blendshape scores onto the mood label the system prompt reacts to.
+     *
+     * Extracted from the landmark callback so the thresholds can be asserted without a camera;
+     * rule 15 of the system prompt changes the assistant's behaviour based on this string, so a
+     * silent change here changes what the driver hears.
+     */
+    fun classifyMood(smileScore: Float, yawnScore: Float, frownScore: Float): String = when {
+        yawnScore > YAWN_THRESHOLD -> MOOD_TIRED
+        smileScore > SMILE_THRESHOLD -> MOOD_HAPPY
+        frownScore > FROWN_THRESHOLD -> MOOD_FRUSTRATED
+        else -> MOOD_NEUTRAL
+    }
+
     private fun imageProxyToBitmap(image: ImageProxy): Bitmap? {
-        if (image.format != ImageFormat.YUV_420_888) return null
-        val yBuffer = image.planes[0].buffer
-        val uBuffer = image.planes[1].buffer
-        val vBuffer = image.planes[2].buffer
-        
-        val ySize = yBuffer.remaining()
-        val uSize = uBuffer.remaining()
-        val vSize = vBuffer.remaining()
-        
-        val nv21 = ByteArray(ySize + uSize + vSize)
-        yBuffer.get(nv21, 0, ySize)
-        vBuffer.get(nv21, ySize, vSize)
-        uBuffer.get(nv21, ySize + vSize, uSize)
-        
-        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)
-        val out = ByteArrayOutputStream()
-        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)
-        val imageBytes = out.toByteArray()
-        val rawBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size) ?: return null
-        
-        // Use dynamic rotation provided by CameraX
-        val rotation = image.imageInfo.rotationDegrees.toFloat()
-        Log.d(TAG, "Raw Image: ${image.width}x${image.height}, applying $rotation degree rotation")
-        
+        val rawBitmap = try {
+            image.toBitmap()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to convert ImageProxy to Bitmap", e)
+            return null
+        }
+
+        // Force rotate the image 90 degrees to ensure it is portrait and upright.
+        // Also mirror it for the front camera.
         val matrix = android.graphics.Matrix()
-        matrix.postRotate(rotation)
+        matrix.postRotate(90f)
+        matrix.preScale(-1.0f, 1.0f)
         
         val finalBitmap = Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)
         
@@ -183,8 +196,33 @@ object CabinCameraManager {
 
     private var frameCount = 0
 
+    /**
+     * Releases the camera and analysis pipeline.
+     *
+     * The previous version shut the executor down but never unbound the CameraX use cases, so the
+     * camera stayed held by this process after the vision service was destroyed and a later
+     * [startCamera] bound a second analyzer on a dead executor.
+     */
     fun stopCamera() {
+        try {
+            boundProvider?.unbindAll()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to unbind camera use cases", e)
+        }
+        boundProvider = null
+
         cameraExecutor?.shutdown()
-        faceLandmarker?.close()
+        cameraExecutor = null
+
+        try {
+            faceLandmarker?.close()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to close face landmarker", e)
+        }
+        faceLandmarker = null
+
+        frameCallback = null
+        occupantCount = 0
+        currentMood = "Neutral"
     }
 }

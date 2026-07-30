@@ -2,17 +2,52 @@ package com.tcs.vehicleassistant
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.provider.MediaStore
 import android.util.Log
-import android.widget.Toast
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.ContextGuard
+import com.tcs.vehicleassistant.core.DirectToolResolver
+import com.tcs.vehicleassistant.core.ToolRetriever
 import org.json.JSONObject
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.delay
 
 class ToolManager {
-    private val TAG = "ToolManager"
-    
+
+    companion object {
+        private const val TAG = "ToolManager"
+
+        /** Tools the model may need at any moment, regardless of the current utterance. */
+        private val CORE_HANDLER_KEYS = setOf(
+            "stopMusic", "playMusic", "pauseMusic", "nextTrack",
+            "increaseTemperature", "decreaseTemperature", "setSeatHeater"
+        )
+
+        /**
+         * Short single-token aliases that are real spoken verbs (needed so "play arijit singh music"
+         * matches). Longer camelCase API aliases and dangerous prefix words like "navigate"/"nav"
+         * stay execution-only and are NOT merged into DirectTool keywords.
+         */
+        private val SPEAKABLE_SHORT_ALIASES = setOf("play", "pause")
+
+        /** True when an alias is safe to use as a DirectTool utterance keyword. */
+        fun isSpeakableDirectKeyword(alias: String): Boolean {
+            val a = alias.trim().lowercase()
+            if (a.isEmpty()) return false
+            if (a.contains(' ')) return true
+            if (a in SPEAKABLE_SHORT_ALIASES) return true
+            return false
+        }
+
+        /** Plausible cabin temperature setpoints in Fahrenheit. */
+        private val TEMPERATURE_VALUE = Regex("""\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b""")
+        private val TEMPERATURE_FAHRENHEIT = Regex("""\d{2}f""")
+
+        /**
+         * Injecting more than a handful of tools overflows the edge model's context and degrades
+         * tool-call accuracy, so both the BM25 fallback and the prompt builder cap the count.
+         */
+        private const val BM25_TOP_K = 4
+        private const val MAX_PROMPT_TOOLS = 8
+    }
+
     data class Constraint(
         val propertyId: Int,
         val operator: String,
@@ -39,44 +74,84 @@ class ToolManager {
         val confirmationMessage: String? = null,
         val offlineCapable: Boolean = false,
         val requiresVehicleState: Boolean = false,
-        val requiresAgenticLoop: Boolean = false
+        val requiresAgenticLoop: Boolean = false,
+        /** When true, [DirectToolResolver] may execute this tool without invoking the LLM. */
+        val directExecutable: Boolean = false,
+    )
+
+    data class SystemInstruction(
+        val instruction: String,
+        val keywords: List<String>,
     )
     
     // Maps command prefix -> ToolDefinition
     private val activeTools = mutableMapOf<String, ToolDefinition>()
-    
-    private var mediaPlayer: android.media.MediaPlayer? = null
-    
+
+    /** BM25 index over the tool catalogue, rebuilt whenever the registry is (re)loaded. */
+    private var retrievalIndex: List<ToolRetriever.Document> = emptyList()
+
+    /**
+     * Whole-word matchers per tool, compiled once at load time. Building them per query meant
+     * compiling a regex for every keyword of every tool on every turn.
+     */
+    private var keywordMatchers: Map<String, List<Regex>> = emptyMap()
+
+    /** Keyword-gated instructions from the registry `system_instructions` array. */
+    private var systemInstructions: List<SystemInstruction> = emptyList()
+
     var isInitialized = false
         private set
 
-    var prewarmQuery: String = "control climate music volume track navigation windows sightseeing food charging"
+    var slidingWindowMaxChars: Int = AssistantConfig.Memory.DEFAULT_MAX_CHARS
         private set
 
-    var slidingWindowMaxChars: Int = 3000
+    /** Cap on BM25 fallback results; overridable from registry `config.max_relevant_tools`. */
+    var bm25TopK: Int = BM25_TOP_K
+        private set
+
+    /** Cap on tools injected into the LLM prompt; overridable from `config.max_prompt_tools`. */
+    var maxPromptTools: Int = MAX_PROMPT_TOOLS
+        private set
+
+    /** Policy for registry-driven direct execution; overridable from `config.direct_execution`. */
+    var directExecutionPolicy: DirectToolResolver.Policy = DirectToolResolver.Policy()
         private set
 
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
-            val inputStream = context.assets.open("vehicle_skills_registry.json")
-            val size = inputStream.available()
-            val buffer = ByteArray(size)
-            inputStream.read(buffer)
-            inputStream.close()
-            
-            val jsonStr = String(buffer, Charsets.UTF_8)
+            // readBytes() drains the stream; available() plus a single read() can silently truncate
+            // the registry, which parses as a JSONException rather than as a short read.
+            val jsonStr = context.assets.open("vehicle_skills_registry.json").use { input ->
+                input.readBytes().toString(Charsets.UTF_8)
+            }
             val jsonObject = JSONObject(jsonStr)
 
             if (jsonObject.has("config")) {
                 val config = jsonObject.getJSONObject("config")
-                if (config.has("prewarm_query")) {
-                    prewarmQuery = config.getString("prewarm_query")
-                }
                 if (config.has("sliding_window_max_chars")) {
                     slidingWindowMaxChars = config.getInt("sliding_window_max_chars")
                 }
+                if (config.has("max_relevant_tools")) {
+                    bm25TopK = config.getInt("max_relevant_tools").coerceAtLeast(1)
+                }
+                if (config.has("max_prompt_tools")) {
+                    maxPromptTools = config.getInt("max_prompt_tools").coerceAtLeast(1)
+                }
+                if (config.has("direct_execution")) {
+                    val de = config.getJSONObject("direct_execution")
+                    directExecutionPolicy = DirectToolResolver.Policy(
+                        enabled = de.optBoolean("enabled", true),
+                        minKeywordChars = de.optInt("min_keyword_chars", 5).coerceAtLeast(3),
+                        maxQueryWords = de.optInt("max_query_words", 12).coerceAtLeast(3),
+                        maxQueryChars = de.optInt("max_query_chars", 100).coerceAtLeast(20),
+                        minKeywordMargin = de.optInt("min_keyword_margin", 3).coerceAtLeast(0),
+                    )
+                }
+                ContextGuard.loadFromConfig(config)
             }
+
+            systemInstructions = parseSystemInstructions(jsonObject)
 
             if (jsonObject.has("tools")) {
                 val toolsArray = jsonObject.getJSONArray("tools")
@@ -111,8 +186,10 @@ class ToolManager {
                         for (j in 0 until arr.length()) {
                             val alias = arr.getString(j).lowercase()
                             aliasesList.add(alias)
-                            // Merge aliases directly into keywords for instant fast-path RAG matching!
-                            if (!keywordsList.contains(alias)) {
+                            // Only merge speakable utterance aliases into DirectTool keywords.
+                            // CamelCase API aliases (navigateTo → navigateto) are not user speech and
+                            // previously caused wrong matches (e.g. short "navigate" → "me to …").
+                            if (isSpeakableDirectKeyword(alias) && !keywordsList.contains(alias)) {
                                 keywordsList.add(alias)
                             }
                         }
@@ -151,124 +228,113 @@ class ToolManager {
                         confirmationMessage = if (toolObj.has("confirmation_message")) toolObj.getString("confirmation_message") else null,
                         offlineCapable = offlineCapable,
                         requiresVehicleState = requiresVehicleState,
-                        requiresAgenticLoop = if (toolObj.has("requires_agentic_loop")) toolObj.getBoolean("requires_agentic_loop") else false
+                        requiresAgenticLoop = if (toolObj.has("requires_agentic_loop")) toolObj.getBoolean("requires_agentic_loop") else false,
+                        directExecutable = toolObj.optBoolean("direct_executable", false),
                     )
                     Log.i(TAG, "Registered Tool: $commandName ($handlerType) -> $promptString")
                 }
             }
+            retrievalIndex = buildRetrievalIndex()
+            keywordMatchers = buildKeywordMatchers()
+            val missing = com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.missingHandlers(activeTools)
+            if (missing.isNotEmpty()) {
+                Log.e(TAG, "CUSTOM_KOTLIN tools with no registered handler: $missing")
+            }
             isInitialized = true
+            Log.i(TAG, "Registered ${activeTools.size} tools; BM25 index holds ${retrievalIndex.size} documents.")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to parse tools from vehicle_skills_registry.json", e)
         }
-        
-        // Initialize Semantic Search RAG asynchronously
-        val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
-        semanticSearchManager.initialize(context)
-        semanticSearchManager.buildToolEmbeddingsCache()
     }
 
-    private val commandIndicatorPhrases = listOf(
-        "turn on", "turn off", "increase", "decrease", "set temperature", "set to",
-        "navigate", "navigation", "play ", "stop", "pause", "mute", "call ", "open ", "start navigation",
-        "seat heater", "defrost", "fan speed", " air conditioning", " ac ",
-        "climate", "windows", "recirculation", "trunk", "unlock", "lock doors",
-        "remember ", "also turn", "also set", "also increase", "also decrease", "also play", "also call", "also stop", "also pause"
-    )
-
-    private fun hasExplicitCommandIntent(userQuery: String): Boolean {
-        val q = userQuery.lowercase()
-        val keywordMatch = activeTools.values.any { tool ->
-            tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
+    private fun parseSystemInstructions(jsonObject: JSONObject): List<SystemInstruction> {
+        if (!jsonObject.has("system_instructions")) return emptyList()
+        val arr = jsonObject.getJSONArray("system_instructions")
+        val out = mutableListOf<SystemInstruction>()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val instruction = obj.optString("instruction").trim()
+            if (instruction.isEmpty()) continue
+            val keywords = mutableListOf<String>()
+            if (obj.has("keywords")) {
+                val kw = obj.getJSONArray("keywords")
+                for (j in 0 until kw.length()) keywords.add(kw.getString(j).lowercase())
+            }
+            out.add(SystemInstruction(instruction, keywords))
         }
-        if (keywordMatch) return true
-        return commandIndicatorPhrases.any { q.contains(it) }
+        return out
+    }
+
+    private fun buildRetrievalIndex(): List<ToolRetriever.Document> = activeTools.map { (commandName, tool) ->
+        ToolRetriever.document(
+            id = commandName,
+            commandName,
+            tool.keywords?.joinToString(" "),
+            tool.aliases?.joinToString(" "),
+            tool.description
+        )
+    }
+
+    private fun buildKeywordMatchers(): Map<String, List<Regex>> = activeTools.mapValues { (_, tool) ->
+        // Aliases are already merged into keywords when the registry is parsed.
+        tool.keywords.orEmpty().map { Regex("""\b${Regex.escape(it)}\b""") }
     }
 
     /**
-     * Primitive Tool RAG Engine.
-     * Evaluates the user query against the tool keywords.
-     * Returns the top matching tools (plus any default generic ones).
+     * Tool retrieval for prompt construction, in three tiers:
+     *
+     * 1. Whole-word keyword/alias matches on the current user turn (cheap and precise).
+     * 2. For short follow-ups ("make it warmer"), keyword matches against the prior assistant turn,
+     *    because the current turn carries no routable nouns of its own.
+     * 3. BM25 ranking over the whole catalogue, used only when the first two tiers find nothing.
+     *
+     * Core tools are appended in every case so the model can always stop music or nudge the
+     * temperature, and the result is never empty for a non-blank query.
      */
     fun getRelevantTools(userQuery: String, conversationalContext: String = ""): List<ToolDefinition> {
         val combinedQuery = "$conversationalContext $userQuery".trim()
         if (combinedQuery.isBlank()) return activeTools.values.toList()
-        
-        // Fast path: Keyword matching (0ms)
-        val q = combinedQuery.lowercase()
-        val userQ = userQuery.lowercase()
-        val hasEmbeddedCommand = hasExplicitCommandIntent(userQuery)
-        
-        // Conversational Bypass: If the user is asking for sightseeing suggestions, 
-        // we DO NOT want to inject map tools, otherwise the model gets tempted to use them instead of talking.
-        // BUT if the same turn also contains an explicit vehicle command ("also turn on the AC"), still inject tools.
-        val bypassKeywords = listOf(
-            "suggest", "recommend", "places to visit", "best places", "sightseeing", "what to do", 
-            "tourist", "attractions", "tell me about", "what is in", "history of", "describe"
-        )
-        if (!hasEmbeddedCommand && bypassKeywords.any { q.contains(it) }) {
-            return emptyList()
-        }
-        
-        // Conversational empathy: "feeling cold" is handled by system prompt without tool injection
-        val coldEmpathyPhrases = listOf("feeling cold", "i am cold", "i'm cold", "shivering", "bit cold")
-        if (!hasEmbeddedCommand && coldEmpathyPhrases.any { userQ.contains(it) }) {
-            return emptyList()
+
+        val userTurn = userQuery.lowercase()
+        val lexical = mutableListOf<ToolDefinition>()
+
+        // Short follow-ups rely on the prior assistant context for tool routing.
+        if (conversationalContext.isNotBlank() &&
+            MemoryManager.isFollowUpQuery(userQuery, conversationalContext)
+        ) {
+            lexical += matchByKeyword(conversationalContext.lowercase())
         }
 
-        // Short follow-ups rely on prior assistant context for tool routing
-        val contextTools = if (MemoryManager.isFollowUpQuery(userQuery, conversationalContext) && conversationalContext.isNotBlank()) {
-            activeTools.values.filter { tool ->
-                tool.keywords?.any { kw -> conversationalContext.lowercase().contains(kw) } == true
+        // Prefer keywords in the current turn; fall back to the turn plus its context.
+        lexical += matchByKeyword(userTurn).ifEmpty { matchByKeyword(combinedQuery.lowercase()) }
+
+        // Bare numbers and "degrees" only make sense as a climate setpoint.
+        if (TEMPERATURE_VALUE.containsMatchIn(userTurn) ||
+            userTurn.contains("degrees") ||
+            TEMPERATURE_FAHRENHEIT.containsMatchIn(userTurn)
+        ) {
+            lexical += activeTools.values.filter {
+                it.handlerKey?.contains("Temperature", ignoreCase = true) == true
             }
-        } else {
-            emptyList()
         }
 
-        // Mid-conversation commands: match keywords in the current user turn first
-        val userTurnMatches = activeTools.values.filter { tool ->
-            tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(userQ) } == true
-        }.toMutableList()
+        // Nothing matched lexically: rank the catalogue instead. Ranking only the user turn keeps
+        // history from swamping the scores, and a small top-K keeps the prompt short enough for the
+        // edge model's context window. Note this runs before core tools are added, since those
+        // would otherwise make the retrieved set look non-empty for every query.
+        val retrieved = lexical.ifEmpty {
+            ToolRetriever.rank(userQuery, retrievalIndex, bm25TopK).mapNotNull { activeTools[it.id] }
+        }
 
-        val exactMatches = if (userTurnMatches.isNotEmpty()) {
-            userTurnMatches
-        } else {
-            activeTools.values.filter { tool ->
-                tool.keywords?.any { kw -> Regex("""\b${Regex.escape(kw)}\b""").containsMatchIn(q) } == true
-            }.toMutableList()
-        }
-        
-        val coreTools = activeTools.values.filter { tool ->
-            tool.handlerKey in setOf("stopMusic", "playMusic", "increaseTemperature", "decreaseTemperature", "setSeatHeater")
-        }
-        val combinedTools = (contextTools + exactMatches + coreTools).distinct()
-        
-        if (combinedTools.isNotEmpty()) {
-            return combinedTools
-        }
-        
-        // Temperature heuristic: catch explicit numbers (50-90) or 'degrees'
-        val tempSource = if (hasEmbeddedCommand) userQ else q
-        val tempRegex = Regex("""\b(5[0-9]|6[0-9]|7[0-9]|8[0-9]|90)\b""")
-        if (tempRegex.containsMatchIn(tempSource) || tempSource.contains("degrees") || Regex("""\d{2}f""").containsMatchIn(tempSource)) {
-            val tempTools = activeTools.values.filter { it.handlerKey?.contains("Temperature", ignoreCase = true) == true }
-            exactMatches.addAll(tempTools)
-        }
-        
-        if (exactMatches.isNotEmpty()) {
-            return exactMatches.distinct()
-        }
-        
-        // Slow path: Semantic Search (2000ms+)
-        // ONLY use the userQuery for semantic search to avoid massive latency spikes from embedding history!
-        // Top 4 is enough. Injecting 8 tools causes the LLM's memory buffer to overflow!
-        val semanticSearchManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.SemanticSearchManager>()
-        return semanticSearchManager.search(userQuery, 4)
+        val coreTools = activeTools.values.filter { it.handlerKey in CORE_HANDLER_KEYS }
+        return (retrieved + coreTools).distinct()
+            .ifEmpty { activeTools.values.take(maxPromptTools).toList() }
     }
 
-    /**
-     * Returns the comma-separated list of tool prompts for the LLM System Prompt.
-     */
-
+    private fun matchByKeyword(haystack: String): List<ToolDefinition> =
+        activeTools.entries
+            .filter { (name, _) -> keywordMatchers[name]?.any { it.containsMatchIn(haystack) } == true }
+            .map { it.value }
 
     fun getToolDefinition(rawToolCall: String): ToolDefinition? {
         val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>|<\\|tool_call>call:"), "").trim()
@@ -288,9 +354,46 @@ class ToolManager {
     
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
+    /**
+     * Registry-driven sub-second path: if [userQuery] uniquely matches a `direct_executable` tool
+     * with high keyword confidence, return an executable hit. Otherwise null and the caller should
+     * use the LLM.
+     */
+    fun resolveDirectHit(userQuery: String): DirectToolResolver.Hit? {
+        if (!isInitialized || userQuery.isBlank()) return null
+        val specs = activeTools.map { (id, tool) ->
+            DirectToolResolver.ToolSpec(
+                id = id,
+                handlerKey = tool.handlerKey ?: id,
+                promptString = tool.promptString,
+                keywords = tool.keywords.orEmpty(),
+                successMessage = tool.successMessage,
+                requiresConfirmation = tool.requiresConfirmation,
+                requiresAgenticLoop = tool.requiresAgenticLoop,
+                directExecutable = tool.directExecutable,
+            )
+        }
+        return when (val outcome = DirectToolResolver.resolve(userQuery, specs, directExecutionPolicy)) {
+            is DirectToolResolver.Outcome.Execute -> outcome.hit
+            is DirectToolResolver.Outcome.Skip -> {
+                Log.d(TAG, "Direct execution skipped: ${outcome.rejection.reason} for '$userQuery'")
+                null
+            }
+        }
+    }
+
+    /**
+     * Renders the tool block for the LLM system prompt: one line per tool plus an explicit
+     * allow-list of callable names. Keyword-matched `system_instructions` from the registry are
+     * appended so OEM guidance reaches the model without a code change.
+     */
     fun getLlmToolsPrompt(userQuery: String = "", conversationalContext: String = ""): String {
-        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) getRelevantTools(userQuery, conversationalContext).take(8) else activeTools.values.take(8).toList()
-        if (relevantTools.isEmpty()) return ""
+        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) {
+            getRelevantTools(userQuery, conversationalContext).take(maxPromptTools)
+        } else {
+            activeTools.values.take(maxPromptTools).toList()
+        }
+        if (relevantTools.isEmpty() && systemInstructions.isEmpty()) return ""
         
         val sb = StringBuilder()
         val toolNames = mutableListOf<String>()
@@ -308,9 +411,23 @@ class ToolManager {
                 toolNames.add(match.groupValues[1])
             }
         }
-        sb.append("Allowed tools: ")
-        sb.append(toolNames.joinToString(", "))
-        return sb.toString()
+        if (toolNames.isNotEmpty()) {
+            sb.append("Allowed tools: ")
+            sb.append(toolNames.joinToString(", "))
+            sb.append("\n")
+        }
+
+        val haystack = "$conversationalContext $userQuery".lowercase()
+        val matchedInstructions = systemInstructions.filter { inst ->
+            inst.keywords.isEmpty() || inst.keywords.any { kw -> haystack.contains(kw) }
+        }
+        if (matchedInstructions.isNotEmpty()) {
+            sb.append("\nTool guidance:\n")
+            for (inst in matchedInstructions) {
+                sb.append("- ${inst.instruction}\n")
+            }
+        }
+        return sb.toString().trimEnd()
     }
 
     /**
@@ -407,7 +524,10 @@ class ToolManager {
                     if (handler != null) {
                         val args = toolCall.substringAfter("(").substringBeforeLast(")")
                         val startToolTime = System.currentTimeMillis()
-                        val result = handler.execute(context, toolCall, args, intentHandler)
+                        // DirectTool often runs on Main; keep network/disk off the UI thread.
+                        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            handler.execute(context, toolCall, args, intentHandler)
+                        }
                         val endToolTime = System.currentTimeMillis()
                         val latency = endToolTime - startToolTime
                         com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency

@@ -4,7 +4,6 @@ import android.content.Context
 import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.GeminiManager
 import com.tcs.vehicleassistant.AnthropicManager
-import com.tcs.vehicleassistant.LLMManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -24,8 +23,12 @@ class CloudLLMProvider : ILLMProvider {
         onDone: (String) -> Unit,
         onError: (Exception) -> Unit
     ) {
-        // The system prompt is already injected into the `prompt` by AgentOrchestrator.
-        val fullPrompt = prompt
+        // Use the orchestrator-assembled [prompt] as the API system instruction. Recomputing
+        // LLMManager.getSystemPrompt here dropped telemetry injection, capability reminders, and
+        // agentic observation framing that only AgentOrchestrator builds.
+        val systemPrompt = prompt.ifBlank {
+            com.tcs.vehicleassistant.LLMManager.getSystemPrompt(context, userQuery)
+        }
 
         val responseBuilder = StringBuilder()
         val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {
@@ -40,18 +43,12 @@ class CloudLLMProvider : ILLMProvider {
                 onError(Exception(throwable))
             }
         }
-        
-        // Let's hook into the existing Cloud managers
+
         try {
             if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
-                // For now, Cloud managers don't perfectly stream to a callback without changes, 
-                // but we can pass the logic down. Let's assume we call their async methods.
-                // In a perfect world, GeminiManager/AnthropicManager would take onToken and onDone directly.
-                // We will simulate it by delegating.
-                // Streaming delegated to GeminiManager / AnthropicManager
-                GeminiManager.sendMessageAsync("", fullPrompt, callback)
+                GeminiManager.sendMessageAsync(systemPrompt, userQuery, callback)
             } else {
-                AnthropicManager.sendMessageAsync("", fullPrompt, callback)
+                AnthropicManager.sendMessageAsync(systemPrompt, userQuery, callback)
             }
         } catch (e: Exception) {
             onError(e)

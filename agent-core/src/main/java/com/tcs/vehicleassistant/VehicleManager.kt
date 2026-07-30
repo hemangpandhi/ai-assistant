@@ -1,5 +1,6 @@
 
 package com.tcs.vehicleassistant
+import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.launch
 
 import android.car.Car
@@ -13,6 +14,9 @@ import kotlin.coroutines.resumeWithException
 
 object VehicleManager {
     private var carPropertyManager: CarPropertyManager? = null
+
+    /** Retained so [cleanup] can disconnect; the Car binder was previously never released. */
+    private var car: Car? = null
     var isInitialized = false
         private set
 
@@ -43,6 +47,47 @@ object VehicleManager {
     
     fun getCustomPropertyInstructions(): List<String> {
         return customPropertyInstructions
+    }
+
+    /** Latest value for a registry property name, or null when it has never been observed. */
+    fun getCustomPropertyValue(name: String): String? = customPropertyValues[name]
+
+    /**
+     * Human-readable window closure report from [VehiclePropertyIds.WINDOW_POS].
+     * Convention matches the registry instruction: 0 = fully closed, higher = more open.
+     */
+    fun getWindowClosureStatus(): String {
+        val pct = getMaxWindowOpenPct()
+        return when {
+            pct < 0 -> "I can't read the window sensors right now."
+            pct == 0 -> "I've checked the sensors. All windows are currently closed."
+            else -> "Some windows are open (up to $pct%)."
+        }
+    }
+
+    /**
+     * Highest window openness across areas (0–100). Returns -1 when sensors are unavailable.
+     */
+    fun getMaxWindowOpenPct(): Int {
+        val manager = carPropertyManager ?: return -1
+        return try {
+            val config = manager.getCarPropertyConfig(VehiclePropertyIds.WINDOW_POS) ?: return -1
+            var maxOpen = 0
+            var sawAny = false
+            for (areaId in config.areaIds) {
+                val pos = try {
+                    manager.getIntProperty(VehiclePropertyIds.WINDOW_POS, areaId)
+                } catch (_: Exception) {
+                    continue
+                }
+                sawAny = true
+                if (pos > maxOpen) maxOpen = pos
+            }
+            if (sawAny) maxOpen.coerceIn(0, 100) else -1
+        } catch (e: Exception) {
+            Log.w("VehicleManager", "Failed to read WINDOW_POS", e)
+            -1
+        }
     }
     
     fun getLLMContextString(context: Context): String {
@@ -87,8 +132,9 @@ object VehicleManager {
         try {
             org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().initialize(context)
 
-            val car = Car.createCar(context)
-            carPropertyManager = car.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
+            val createdCar = Car.createCar(context)
+            car = createdCar
+            carPropertyManager = createdCar.getCarManager(Car.PROPERTY_SERVICE) as CarPropertyManager
             
             val propertiesToRegister = listOf(
                 VehiclePropertyIds.PERF_VEHICLE_SPEED,
@@ -113,12 +159,9 @@ object VehicleManager {
             
             // Dynamic JSON Properties
             try {
-                val inputStream = context.assets.open("vehicle_skills_registry.json")
-                val size = inputStream.available()
-                val buffer = ByteArray(size)
-                inputStream.read(buffer)
-                inputStream.close()
-                val jsonStr = String(buffer, Charsets.UTF_8)
+                val jsonStr = context.assets.open("vehicle_skills_registry.json").use { input ->
+                    input.readBytes().toString(Charsets.UTF_8)
+                }
                 val jsonObject = org.json.JSONObject(jsonStr)
                 val propertiesArray = jsonObject.getJSONArray("properties")
                 
@@ -670,17 +713,32 @@ object VehicleManager {
         return false
     }
 
+    /**
+     * Scope for fire-and-forget VHAL writes. Replaces GlobalScope so [cleanup] can cancel pending
+     * property writes instead of leaving them to outlive the component that requested them.
+     */
+    private val vhalScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO
+    )
+
     fun cleanup() {
         try {
             carPropertyManager?.unregisterCallback(carPropertyCallback)
         } catch (e: Exception) {
-            Log.e("VehicleManager", "Failed to cleanup", e)
+            Log.e("VehicleManager", "Failed to unregister car property callback", e)
         }
+        vhalScope.coroutineContext.cancelChildren()
+        try {
+            car?.disconnect()
+        } catch (e: Exception) {
+            Log.e("VehicleManager", "Failed to disconnect from Car service", e)
+        }
+        car = null
+        carPropertyManager = null
     }
 
-
     fun setTemperature(temp: Float) {
-        kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        vhalScope.launch {
             writeTemperatureToVhalVerified(temp)
         }
     }

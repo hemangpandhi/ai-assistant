@@ -132,7 +132,7 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: ToolMana
             }
             "protectFromPollutedAir" -> {
                 VehicleManager.setGenericVhalProperty(VehiclePropertyIds.HVAC_RECIRC_ON, 0, "true", "BOOLEAN") // HVAC_RECIRC_ON true
-                VehicleManager.writeWindowPositionToVhalVerified(100) // Close windows
+                VehicleManager.writeWindowPositionToVhalVerified(0) // Close windows (0 = fully closed)
                 ToolExecutionResult(true, "I've closed the windows and enabled air recirculation to protect you from pollution.")
             }
             "defogWindshield" -> {

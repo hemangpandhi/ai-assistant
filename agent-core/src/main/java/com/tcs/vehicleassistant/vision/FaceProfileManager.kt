@@ -8,8 +8,17 @@ import java.io.File
 
 /**
  * Manages persistent storage of FaceNet embeddings and mapped user settings for multiple users.
- * Uses a Shared Master File (/sdcard/FaceProfiles.json) alongside SharedPreferences
- * to ensure face profiles are 100% synced across ALL Android OS User Profiles (User 0, 10, 13, etc.).
+ *
+ * Embeddings live in device-protected storage so the vision service can match a face before the
+ * user unlocks the device. A JSON side-file mirrors the preferences because the preference store is
+ * keyed per name and cannot carry the per-profile metadata (OS user id, target temperature) as a
+ * single record.
+ *
+ * These are biometric templates, so they stay in app-private storage. An earlier revision mirrored
+ * them to `/sdcard/FaceProfiles.json` to share profiles across Android OS users; that cannot work
+ * on the target image — the app holds no storage permission and scoped storage blocks the write, so
+ * every access threw and fell back here anyway. Genuine cross-user sharing needs a platform-signed
+ * `ContentProvider`, not world-readable storage.
  */
 class FaceProfileManager(context: Context) {
 
@@ -21,18 +30,7 @@ class FaceProfileManager(context: Context) {
 
     private val prefs: SharedPreferences = deviceContext.getSharedPreferences("FaceProfiles", Context.MODE_PRIVATE)
 
-    private val sharedFile: File
-        get() {
-            return try {
-                val externalSd = File("/sdcard/FaceProfiles.json")
-                if (!externalSd.exists()) {
-                    externalSd.createNewFile()
-                }
-                externalSd
-            } catch (e: Exception) {
-                File(deviceContext.filesDir, "FaceProfiles.json")
-            }
-        }
+    private val sharedFile: File = File(deviceContext.filesDir, "FaceProfiles.json")
 
     fun saveProfile(name: String, embedding: FloatArray, osUserId: Int = 10, targetTemp: Float = 20.0f) {
         val serialized = embedding.joinToString(",")
@@ -44,7 +42,7 @@ class FaceProfileManager(context: Context) {
             .putFloat("temp_$name", targetTemp)
             .apply()
 
-        // 2. Sync to Global Shared JSON file for cross-user profile access
+        // 2. Mirror to the JSON side-file, which carries the per-profile metadata as one record.
         try {
             val json = readSharedJsonFile()
             val userObj = JSONObject().apply {
@@ -54,7 +52,7 @@ class FaceProfileManager(context: Context) {
             }
             json.put(name, userObj)
             writeSharedJsonFile(json)
-            Log.d("FaceProfileManager", "Saved profile '$name' to Global Cross-User File (${sharedFile.absolutePath})")
+            Log.d("FaceProfileManager", "Saved profile '$name' to ${sharedFile.absolutePath}")
         } catch (e: Exception) {
             Log.e("FaceProfileManager", "Failed to sync to shared file: ${e.message}")
         }
@@ -100,7 +98,7 @@ class FaceProfileManager(context: Context) {
             }
         }
 
-        // 2. Merge from Global Shared File across user boundaries
+        // 2. Merge in anything the side-file has that the preference store does not.
         try {
             val json = readSharedJsonFile()
             val keys = json.keys()

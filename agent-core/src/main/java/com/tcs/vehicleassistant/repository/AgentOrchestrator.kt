@@ -7,6 +7,10 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.CloudMessageCallback
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.core.CabinSnapshotReader
+import com.tcs.vehicleassistant.core.ConfirmationPolicy
+import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.llm.ILLMProvider
 import com.tcs.vehicleassistant.utils.FollowUpRouter
 import com.tcs.vehicleassistant.utils.EmergencyAlarmManager
@@ -46,18 +50,75 @@ class AgentOrchestrator(
     val events: SharedFlow<OrchestratorEvent> = _events.asSharedFlow()
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    @Volatile
     private var isQueryProcessed = true
     private var timeoutJob: Job? = null
     private var pendingConfirmationTool: String? = null
-    private val pendingIntentsToLaunch = mutableListOf<Intent>()
-    private val lastResponseBuilder = StringBuilder()
+    private val pendingIntentsToLaunch = java.util.Collections.synchronizedList(mutableListOf<Intent>())
+
+    /**
+     * Monotonically increasing turn id. LiteRT streams on its own thread and keeps delivering
+     * tokens after a turn is abandoned (timeout, hallucination cut-off, re-triggered session), so
+     * every callback checks its captured id against this before touching any state.
+     */
+    private val turnCounter = java.util.concurrent.atomic.AtomicLong(0)
+
+    @Volatile
+    private var activeTurnId = 0L
 
     @Volatile var ttsSpokenLength = 0
         private set
     @Volatile var lastTtsUpdateTime = 0L
         private set
 
-    private val currentPendingTools = mutableListOf<Deferred<String?>>()
+    private val currentPendingTools = java.util.Collections.synchronizedList(mutableListOf<Deferred<String?>>())
+
+    /**
+     * Per-turn streaming state. LiteRT invokes `onMessage` from a native thread while `onDone`
+     * work runs on the main dispatcher, so every field here is mutated under [lock] rather than
+     * from shared orchestrator fields as it was previously.
+     */
+    private class StreamState(val turnId: Long) {
+        private val lock = Any()
+        private val response = StringBuilder()
+
+        var isHallucinating = false
+            private set
+        var spokenLength = 0
+            private set
+        var parsedLength = 0
+            private set
+
+        @Volatile
+        var isDoneCalled = false
+
+        fun append(text: String): String = synchronized(lock) {
+            response.append(text)
+            response.toString()
+        }
+
+        fun replace(text: String): Unit = synchronized(lock) {
+            response.setLength(0)
+            response.append(text)
+        }
+
+        fun snapshot(): String = synchronized(lock) { response.toString() }
+
+        fun clear(): Unit = synchronized(lock) { response.setLength(0) }
+
+        fun markHallucinating() = synchronized(lock) { isHallucinating = true }
+
+        /** Advances the TTS bookkeeping for one dispatched sentence, returning its start offset. */
+        fun consumeSentence(length: Int): Int = synchronized(lock) {
+            val startOffset = parsedLength
+            spokenLength += length
+            parsedLength += length
+            startOffset
+        }
+
+        fun markSpoken(length: Int) = synchronized(lock) { spokenLength += length }
+    }
 
     init {
         audioManager.setUtteranceListener(
@@ -95,24 +156,81 @@ class AgentOrchestrator(
         val trimmedQuery = query.trim()
         val lowerQuery = trimmedQuery.lowercase().replace(Regex("[^a-z ]"), "").trim()
         
-        // Ghost Voice Filter: Aggressively ignore silence hallucinations from Whisper
+        // Ghost Voice Filter: ignore silence hallucinations from Whisper.
+        // Affirmatives ("yes"/"ok") must stay available for FollowUpRouter and ContextGuard confirms.
         val ignoredHallucinations = setOf(
-            "you", "thank you", "bye", "am", "i", "what", "blank audio", "thanks for watching", "a", "yeah", "yes", "ok"
+            "you", "thank you", "bye", "am", "i", "what", "blank audio", "thanks for watching", "a"
         )
+
+        // ContextGuard / OEM confirmation: honor yes/decline without waiting on LiteRT.
+        if (pendingConfirmationTool != null && !trimmedQuery.startsWith("[")) {
+            when (ConfirmationPolicy.classify(trimmedQuery)) {
+                ConfirmationPolicy.Reply.DECLINE -> {
+                    pendingConfirmationTool = null
+                    LatencyLogger.reset()
+                    beginTurn()
+                    scope.launch {
+                        finishGuardedTurn(
+                            message = "Okay, I won't change that.",
+                            pathLabel = "ContextGuardConfirm",
+                            toolCall = "cancelled",
+                            policyId = "user_declined",
+                            asQuestion = false,
+                        )
+                    }
+                    return
+                }
+                ConfirmationPolicy.Reply.AFFIRM -> {
+                    val toolToExecute = pendingConfirmationTool!!
+                    pendingConfirmationTool = null
+                    LatencyLogger.reset()
+                    LatencyLogger.log("Orchestrator", "Query received")
+                    beginTurn()
+                    _state.value = OrchestratorState.Thinking(trimmedQuery)
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                    scope.launch {
+                        // skipGuard: user already confirmed; re-evaluating Confirm would loop forever.
+                        // Hard Block is still re-checked inside completeDirectToolTurn.
+                        completeDirectToolTurn(
+                            query = trimmedQuery,
+                            toolCall = toolToExecute,
+                            preferredSpoken = null,
+                            pathLabel = "ContextGuardConfirm",
+                            skipGuard = true,
+                        )
+                    }
+                    return
+                }
+                ConfirmationPolicy.Reply.OTHER -> {
+                    // Drop stale confirm so a new cabin command can DirectTool / LLM normally.
+                    pendingConfirmationTool = null
+                    LatencyLogger.log(
+                        "Orchestrator",
+                        "Pending ContextGuard confirm superseded by: $trimmedQuery",
+                    )
+                }
+            }
+        }
         
         // Let it pass if it's an internal system event (starts with '[')
         if (!trimmedQuery.startsWith("[")) {
-            if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
+            if (MemoryManager.isAffirmative(trimmedQuery)) {
+                // keep
+            } else if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
                 _events.tryEmit(OrchestratorEvent.FinishSession)
                 resetState()
                 return
             }
         }
 
-        if (LLMManager.isPrewarming) {
-            _events.tryEmit(OrchestratorEvent.ShowToast("Model is prewarming, please wait a moment..."))
-            _state.value = OrchestratorState.Idle
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        // Registry-driven direct path (sub-1s): never wait on LiteRT init or prefill.
+        LatencyLogger.reset()
+        LatencyLogger.log("Orchestrator", "Query received")
+        if (pendingConfirmationTool == null && tryHandleDirectRegistryHit(trimmedQuery)) {
+            return
+        }
+
+        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(trimmedQuery)) {
             return
         }
 
@@ -133,22 +251,30 @@ class AgentOrchestrator(
             return
         }
 
-        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(query)) {
-            return
-        }
-
-        lastResponseBuilder.clear()
-        ttsSpokenLength = 0
-        lastTtsUpdateTime = 0L
-        isQueryProcessed = false
+        val turnId = beginTurn()
 
         _state.value = OrchestratorState.Thinking(query)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
 
         scope.launch {
-            processQuery(query, retryCount)
+            processQuery(query, retryCount, turnId = turnId)
         }
     }
+
+    /**
+     * Opens a new turn and invalidates any in-flight one, so late callbacks from an abandoned
+     * inference are dropped rather than overwriting the new turn's UI and TTS state.
+     */
+    private fun beginTurn(): Long {
+        val turnId = turnCounter.incrementAndGet()
+        activeTurnId = turnId
+        ttsSpokenLength = 0
+        lastTtsUpdateTime = 0L
+        isQueryProcessed = false
+        return turnId
+    }
+
+    private fun isCurrentTurn(turnId: Long): Boolean = activeTurnId == turnId
 
     fun resetState() {
         _state.value = OrchestratorState.Idle
@@ -212,68 +338,246 @@ class AgentOrchestrator(
         EmergencyAlarmManager.stop()
     }
 
-    private fun tryHandleDirectFollowUp(query: String): Boolean {
-        if (pendingConfirmationTool != null) return false
-        val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false
+    private fun tryHandleDirectRegistryHit(query: String): Boolean {
+        val toolManager = try {
+            org.koin.java.KoinJavaComponent.getKoin().get<ToolManager>()
+        } catch (e: Exception) {
+            return false
+        }
+        if (!toolManager.isInitialized) {
+            toolManager.initialize(context.applicationContext)
+        }
+        val hit = toolManager.resolveDirectHit(query) ?: return false
 
-        lastResponseBuilder.clear()
-        ttsSpokenLength = 0
-        lastTtsUpdateTime = 0L
-        isQueryProcessed = false
+        beginTurn()
         _state.value = OrchestratorState.Thinking(query)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        LatencyLogger.log(
+            "DirectTool",
+            "Matched ${hit.toolCall} via '${hit.matchedKeyword}' (${hit.reason})",
+        )
 
         scope.launch {
-            MemoryManager.captureLongTermFacts(context, query)
-            MemoryManager.addTurn("User", query)
-
-            if (toolCall.startsWith("handleDrowsyDriving") || FollowUpRouter.isDrowsyDriverQuery(query)) {
-                EmergencyAlarmManager.start(context)
-            }
-
-            val feedback = executeToolCall(toolCall) ?: "Action completed."
-            val finalMsg = when {
-                toolCall.startsWith("handleDrowsyDriving") ->
-                    "Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert."
-                toolCall.startsWith("stopMusic") -> "No problem, I've stopped the music for you right away."
-                toolCall.startsWith("increaseTemperature") -> "I'm warming up the cabin for you right away!"
-                toolCall.startsWith("decreaseTemperature") -> "I'm cooling down the cabin for you right away!"
-                toolCall.startsWith("startNavigationTo") -> feedback
-                toolCall.startsWith("searchNearby") -> feedback
-                else -> feedback
-            }
-
-            MemoryManager.addTurn("Assistant", finalMsg)
-            LLMManager.lastAiResponse = finalMsg
-            _state.value = OrchestratorState.Speaking(finalMsg)
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-            isQueryProcessed = true
-
-            if (finalMsg.isNotBlank()) {
-                audioManager.speak(finalMsg, "SENTENCE_0")
-                val isQuestion = finalMsg.trim().endsWith("?") ||
-                    finalMsg.contains("which one", ignoreCase = true)
-                val finalUtterance = if (isQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL"
-                audioManager.playSilentUtterance(10, finalUtterance)
-            }
+            completeDirectToolTurn(
+                query = query,
+                toolCall = hit.toolCall,
+                preferredSpoken = hit.spokenResponse,
+                pathLabel = "DirectTool",
+            )
         }
         return true
     }
 
+    private fun tryHandleDirectFollowUp(query: String): Boolean {
+        if (pendingConfirmationTool != null) return false
+        val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false
+
+        beginTurn()
+        _state.value = OrchestratorState.Thinking(query)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        LatencyLogger.log("FollowUp", "Matched $toolCall")
+
+        scope.launch {
+            if (toolCall.startsWith("handleDrowsyDriving") || FollowUpRouter.isDrowsyDriverQuery(query)) {
+                EmergencyAlarmManager.start(context)
+            }
+
+            val preferred = when {
+                toolCall.startsWith("handleDrowsyDriving") ->
+                    "Hey — stay with me! I'm cooling the cabin and cranking upbeat music to help you stay alert."
+                toolCall.startsWith("stopMusic") -> "No problem, I've stopped the music for you right away."
+                toolCall.startsWith("playMusic") -> {
+                    val song = toolCall.substringAfter("(").substringBefore(")").trim()
+                        .removeSurrounding("\"")
+                    if (song.isNotBlank() && !song.equals("music", ignoreCase = true)) {
+                        "Great choice — putting on $song for you!"
+                    } else {
+                        "Great choice — putting some music on for you!"
+                    }
+                }
+                toolCall.startsWith("increaseTemperature") -> "I'm warming up the cabin for you right away!"
+                toolCall.startsWith("decreaseTemperature") -> "I'm cooling down the cabin for you right away!"
+                else -> null
+            }
+
+            completeDirectToolTurn(
+                query = query,
+                toolCall = toolCall,
+                preferredSpoken = preferred,
+                pathLabel = "FollowUp",
+            )
+        }
+        return true
+    }
+
+    /**
+     * Shared completion for DirectTool / FollowUp: ContextGuard → execute (or confirm/block),
+     * surface a short reply, speak it, and log whether the E2E budget was met.
+     *
+     * @param skipGuard when true (user already confirmed a ContextGuard prompt), do not ask Confirm
+     * again. Hard [ContextGuard.Decision.Block] is still honored for safety.
+     */
+    private suspend fun completeDirectToolTurn(
+        query: String,
+        toolCall: String,
+        preferredSpoken: String?,
+        pathLabel: String,
+        skipGuard: Boolean = false,
+    ) {
+        MemoryManager.captureLongTermFacts(context, query)
+        MemoryManager.addTurn("User", query)
+
+        when (val decision = evaluateContextGuard(toolCall)) {
+            is ContextGuard.Decision.Confirm -> {
+                if (skipGuard) {
+                    // Already confirmed — fall through to execute.
+                } else {
+                    pendingConfirmationTool = decision.originalToolCall
+                    finishGuardedTurn(
+                        message = decision.message,
+                        pathLabel = pathLabel,
+                        toolCall = toolCall,
+                        policyId = decision.policyId,
+                        asQuestion = true,
+                    )
+                    return
+                }
+            }
+            is ContextGuard.Decision.Block -> {
+                finishGuardedTurn(
+                    message = decision.message,
+                    pathLabel = pathLabel,
+                    toolCall = toolCall,
+                    policyId = decision.policyId,
+                    asQuestion = false,
+                )
+                return
+            }
+            is ContextGuard.Decision.Escalate -> {
+                if (skipGuard) {
+                    // Already confirmed — treat as allow this turn.
+                } else {
+                    finishGuardedTurn(
+                        message = decision.message,
+                        pathLabel = pathLabel,
+                        toolCall = toolCall,
+                        policyId = decision.policyId,
+                        asQuestion = true,
+                    )
+                    return
+                }
+            }
+            is ContextGuard.Decision.Allow -> Unit
+        }
+
+        val feedback = executeToolCall(toolCall) ?: "Action completed."
+        // Prefer live handler feedback (destinations, setpoints, artist names) over static
+        // registry success_message / DirectTool "Done." placeholders.
+        val finalMsg = when {
+            feedback.isNotBlank() &&
+                !feedback.startsWith("System Error", ignoreCase = true) &&
+                !feedback.equals("Action completed.", ignoreCase = true) -> feedback
+            !preferredSpoken.isNullOrBlank() &&
+                !preferredSpoken.equals("Done.", ignoreCase = true) -> preferredSpoken
+            feedback.isNotBlank() -> feedback
+            !preferredSpoken.isNullOrBlank() -> preferredSpoken
+            else -> "Okay."
+        }
+
+        MemoryManager.addTurn("Assistant", finalMsg)
+        LLMManager.lastAiResponse = finalMsg
+        _state.value = OrchestratorState.Speaking(finalMsg)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        isQueryProcessed = true
+
+        val elapsed = LatencyLogger.getTotalTime()
+        val budget = AssistantConfig.Session.END_TO_END_BUDGET_MS
+        val met = elapsed in 0..budget
+        LatencyLogger.log(
+            pathLabel,
+            "E2E ${elapsed}ms (budget ${budget}ms, ${if (met) "MET" else "MISS"}) tool=$toolCall",
+        )
+
+        if (finalMsg.isNotBlank()) {
+            audioManager.speak(finalMsg, "SENTENCE_0")
+            val isQuestion = finalMsg.trim().endsWith("?") ||
+                finalMsg.contains("which one", ignoreCase = true)
+            val finalUtterance = if (isQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL"
+            audioManager.playSilentUtterance(10, finalUtterance)
+        }
+    }
+
+    private suspend fun finishGuardedTurn(
+        message: String,
+        pathLabel: String,
+        toolCall: String,
+        policyId: String?,
+        asQuestion: Boolean,
+    ) {
+        MemoryManager.addTurn("Assistant", message)
+        LLMManager.lastAiResponse = message
+        _state.value = OrchestratorState.Speaking(message)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        isQueryProcessed = true
+        LatencyLogger.log(
+            pathLabel,
+            "ContextGuard policy=$policyId tool=$toolCall msg=$message",
+        )
+        if (message.isNotBlank()) {
+            audioManager.speak(message, "SENTENCE_0")
+            audioManager.playSilentUtterance(
+                10,
+                if (asQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL",
+            )
+        }
+    }
+
+    private fun evaluateContextGuard(toolCall: String): ContextGuard.Decision {
+        return try {
+            val snapshot = CabinSnapshotReader.capture(context.applicationContext)
+            ContextGuard.evaluate(toolCall, snapshot)
+        } catch (e: Exception) {
+            android.util.Log.w(TAG, "ContextGuard snapshot failed; allowing $toolCall", e)
+            ContextGuard.Decision.Allow()
+        }
+    }
+
     private suspend fun processQuery(
         query: String,
-        retryCount: Int,
+        retryCount: Int = 0,
         loopCount: Int = 0,
         isAgenticObservation: Boolean = false,
-        previousExecutedTools: Set<String> = emptySet()
+        previousExecutedTools: Set<String> = emptySet(),
+        turnId: Long
     ) {
+        if (!isCurrentTurn(turnId)) return
+        
+        // Wait for any background native inference to drain before touching the engine state.
+        // Preemptively closing the conversation while LiteRT is generating tokens corrupts the GPU context.
+        while (com.tcs.vehicleassistant.LLMManager.hasActiveInference()) {
+            if (!isCurrentTurn(turnId)) return
+            kotlinx.coroutines.delay(100)
+        }
+
         timeoutJob?.cancel()
         timeoutJob = scope.launch {
-            val timeoutDuration = if (LLMManager.isFirstMessage) 180000L else 45000L
+            val timeoutDuration = if (LLMManager.isFirstMessage) {
+                AssistantConfig.Llm.FIRST_INFERENCE_TIMEOUT_MS
+            } else {
+                AssistantConfig.Llm.INFERENCE_TIMEOUT_MS
+            }
             delay(timeoutDuration)
-            if (!isQueryProcessed) {
+            if (!isQueryProcessed && isCurrentTurn(turnId)) {
                 _state.value = OrchestratorState.Error("Timeout - Restarting Model...")
                 _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                // Drain the hung stream before tearing the engine down; force-close mid-generation
+                // corrupts the OpenCL/GPU context.
+                if (!LLMManager.awaitInferenceDrain()) {
+                    _state.value = OrchestratorState.Error("Model still busy after timeout.")
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    isQueryProcessed = true
+                    return@launch
+                }
                 LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
                         _state.value = OrchestratorState.Idle
@@ -292,8 +596,11 @@ class AgentOrchestrator(
         var interceptedQuery = query
 
         if (pendingConfirmationTool != null) {
-            val q = query.lowercase()
-            if (q.contains("yes") || q.contains("yeah") || q.contains("sure") || q.contains("do it") || q.contains("ok")) {
+            if (MemoryManager.isDecline(query)) {
+                pendingConfirmationTool = null
+                interceptedQuery = "System: Action aborted by user. User originally said: $query"
+            } else if (MemoryManager.isAffirmative(query)) {
+                // Already confirmed — execute without re-entering ContextGuard.
                 val toolToExecute = pendingConfirmationTool!!
                 pendingConfirmationTool = null
                 val feedback = executeToolCall(toolToExecute)
@@ -327,13 +634,16 @@ class AgentOrchestrator(
             }
             val isHandoffModel = LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true
             val vehicleState = if (dynamicState.isNotEmpty()) {
-                if (isHandoffModel) "[System Context: $dynamicState]" else "[Current State: $dynamicState]"
+                "[Internal Vehicle Telemetry (Do NOT speak or repeat to user): $dynamicState]"
             } else ""
 
-            val stateInject = if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
+            val visionContext = com.tcs.vehicleassistant.vision.VisionState.getVisionContextString()
+            val visionStateInject = "[Vision Context (Do NOT speak or repeat to user): $visionContext]\n"
+
+            val stateInject = (if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
                 LLMManager.lastVehicleState = vehicleState
                 "$vehicleState\n"
-            } else ""
+            } else "") + visionStateInject
 
             val isLlama = LLMManager.currentModelPath?.contains("llama", ignoreCase = true) == true && LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == false
 
@@ -353,12 +663,35 @@ class AgentOrchestrator(
                 } else {
                     interceptedQuery
                 }
-                
+
+                // Tools and identity rules are query-dependent. On turn 1 they ride inside the full
+                // system prompt; on later turns LiteRT only sees the bare user text unless we
+                // re-inject them — which is when the model starts saying it is a text-only AI that
+                // cannot play music.
+                val toolsForTurn = toolManager.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+                val toolsBlock = if (toolsForTurn.isNotBlank()) {
+                    "=== AVAILABLE TOOLS ===\n$toolsForTurn\n"
+                } else {
+                    ""
+                }
+
                 if (LLMManager.isFirstMessage) {
                     LLMManager.isFirstMessage = false
-                    "$sysPrompt\n$stateInject\n$formattedQuery".trim()
+                    buildString {
+                        append(sysPrompt)
+                        if (historyBlock.isNotBlank()) append(historyBlock)
+                        if (stateInject.isNotBlank()) append('\n').append(stateInject)
+                        append('\n').append(formattedQuery)
+                    }.trim()
                 } else {
-                    "$stateInject\n$formattedQuery".trim()
+                    // Re-inject tools. LiteRT KV cache already contains the conversation history.
+                    // DO NOT re-inject historyBlock, as it will duplicate the history and crash the context window.
+                    buildString {
+                        append(LLMManager.capabilityReminder())
+                        append(toolsBlock)
+                        if (stateInject.isNotBlank()) append(stateInject)
+                        append(formattedQuery)
+                    }.trim()
                 }
             }
         }
@@ -367,106 +700,82 @@ class AgentOrchestrator(
         executedTools.addAll(previousExecutedTools)
         val toolFeedbacks = mutableListOf<String>()
         currentPendingTools.clear()
-        val spokenTextLength = intArrayOf(0)
-        val parsedSpokenLength = intArrayOf(0)
 
+        val stream = StreamState(turnId)
         val startTime = System.currentTimeMillis()
-        var firstTokenTime = -1L
-
-        var isHallucinating = false
-        var isDoneCalled = false
+        val firstTokenTime = java.util.concurrent.atomic.AtomicLong(-1L)
 
         val onToken: (String) -> Unit = { chunkText ->
-            if (!isHallucinating) {
-                if (firstTokenTime == -1L) {
-                    firstTokenTime = System.currentTimeMillis()
-                    LatencyLogger.log("Orchestrator", "TTFT: ${firstTokenTime - startTime}ms")
+            // Invoked on LiteRT's native streaming thread. Bail out for abandoned turns so a
+            // stale inference cannot overwrite the UI or queue TTS for a question already gone.
+            if (!stream.isHallucinating && isCurrentTurn(turnId) && !isQueryProcessed) {
+                if (firstTokenTime.compareAndSet(-1L, System.currentTimeMillis())) {
+                    LatencyLogger.log("Orchestrator", "TTFT: ${firstTokenTime.get() - startTime}ms")
                 }
 
-                if (!isQueryProcessed) {
-                    lastResponseBuilder.append(chunkText)
-                    var currentText = lastResponseBuilder.toString()
+                var currentText = stream.append(chunkText)
 
-                    var stripped = true
-                    while (stripped) {
-                        stripped = false
-                        val prefixes = listOf(
-                            "Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :", "System:", "System :",
-                            "<start_of_turn>", "<end_of_turn>", "model\n", "user\n", "model", "user"
-                        )
-                        for (prefix in prefixes) {
-                            if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
-                                currentText = currentText.trimStart().substring(prefix.length).trimStart()
-                                lastResponseBuilder.clear()
-                                lastResponseBuilder.append(currentText)
-                                stripped = true
-                            }
+                var stripped = true
+                while (stripped) {
+                    stripped = false
+                    for (prefix in ROLE_PREFIXES) {
+                        if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
+                            currentText = currentText.trimStart().substring(prefix.length).trimStart()
+                            stripped = true
                         }
                     }
-                    
-                    // Robust cleanup for any trailing, inline, or mangled special tokens (do NOT strip tool tags here)
-                    currentText = currentText.replace(Regex("(?i)<start_of_turn>|<end_of_turn>|start_of_turn|end_of_turn|start of turn|end of turn"), "")
-                                             .replace(Regex("(?i)\\bmodel\\b\\n?|\\buser\\b\\n?"), "")
-                    lastResponseBuilder.clear()
-                    lastResponseBuilder.append(currentText)
+                }
 
-                    val userIdx = currentText.indexOf("\nUser:")
-                    if (userIdx != -1) {
-                        isHallucinating = true
-                        currentText = currentText.substring(0, userIdx)
-                        lastResponseBuilder.setLength(userIdx)
-                    } else if (currentText.trim().endsWith("User:")) {
-                        isHallucinating = true
-                        currentText = currentText.substringBeforeLast("User:")
-                        lastResponseBuilder.setLength(currentText.length)
+                // Strip trailing, inline, or mangled chat-template tokens. Tool tags are preserved
+                // here because onDone still needs them to extract tool calls.
+                currentText = currentText
+                    .replace(SPECIAL_TOKEN_REGEX, "")
+                    .replace(ROLE_TOKEN_REGEX, "")
+                stream.replace(currentText)
+
+                val userIdx = currentText.indexOf("\nUser:")
+                if (userIdx != -1) {
+                    stream.markHallucinating()
+                    currentText = currentText.substring(0, userIdx)
+                    stream.replace(currentText)
+                } else if (currentText.trim().endsWith("User:")) {
+                    stream.markHallucinating()
+                    currentText = currentText.substringBeforeLast("User:")
+                    stream.replace(currentText)
+                }
+
+                if (currentText.length > AssistantConfig.Streaming.REPETITION_SCAN_MIN_LENGTH) {
+                    if (isRunawayGeneration(currentText)) {
+                        stream.markHallucinating()
                     }
+                }
 
-                    if (currentText.length > 250) {
-                        val lastWords = currentText.trim().split(Regex("\\s+")).takeLast(5)
-                        val isRepeating = lastWords.size == 5 && lastWords.distinct().size == 1
-                        val isRunaway = currentText.length > 600
+                val displayMsg = normalizeForDisplay(ToolCallParser.stripToolTags(currentText))
 
-                        if (isRepeating || isRunaway) {
-                            isHallucinating = true
-                        }
-                    }
+                if (displayMsg.isNotEmpty()) {
+                    _state.value = OrchestratorState.Streaming(displayMsg)
+                }
 
-                    var displayMsg = ToolCallParser.stripToolTags(currentText)
-                    displayMsg = displayMsg.replace(Regex("\\biI\\b"), "I")
-                    displayMsg = displayMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
-                    displayMsg = displayMsg.replace(Regex("^i\\s+"), "")
-                    displayMsg = displayMsg.replace(Regex("^i\\b"), "I")
-                    displayMsg = displayMsg.trim()
+                var remainingText = displayMsg.substring(Math.min(stream.spokenLength, displayMsg.length))
+                var match = SENTENCE_REGEX.find(remainingText)
+                while (match != null) {
+                    val sentence = match.value
+                    val sentenceStartOffset = stream.consumeSentence(sentence.length)
+                    audioManager.speak(sentence, "SENTENCE_$sentenceStartOffset")
 
-                    if (displayMsg.isNotEmpty()) {
-                        _state.value = OrchestratorState.Streaming(displayMsg)
-                    }
-
-                    val safeStartIndex = Math.min(spokenTextLength[0], displayMsg.length)
-                    var remainingText = displayMsg.substring(safeStartIndex)
-                    val sentenceRegex = "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.,!?](?:\\s+|$))".toRegex()
-                    var match = sentenceRegex.find(remainingText)
-                    while (match != null) {
-                        val sentence = match.value
-                        spokenTextLength[0] += sentence.length
-                        val sentenceStartOffset = parsedSpokenLength[0]
-                        parsedSpokenLength[0] += sentence.length
-
-                        audioManager.speak(sentence, "SENTENCE_$sentenceStartOffset")
-
-                        remainingText = displayMsg.substring(spokenTextLength[0])
-                        match = sentenceRegex.find(remainingText)
-                    }
+                    val nextStart = Math.min(stream.spokenLength, displayMsg.length)
+                    remainingText = displayMsg.substring(nextStart)
+                    match = SENTENCE_REGEX.find(remainingText)
                 }
             }
         }
 
         val onDone: (String) -> Unit = {
-            if (!isDoneCalled) {
-                isDoneCalled = true
+            if (!stream.isDoneCalled && isCurrentTurn(turnId)) {
+                stream.isDoneCalled = true
 
-                val tempFinalMsg = lastResponseBuilder.toString()
-                
+                val tempFinalMsg = stream.snapshot()
+
                 scope.launch {
                     timeoutJob?.cancel()
 
@@ -474,15 +783,9 @@ class AgentOrchestrator(
                         EmergencyAlarmManager.start(context)
                     }
 
-                    var finalMsg = lastResponseBuilder.toString()
-                    MemoryManager.addTurn("Assistant", finalMsg.trim())
+                    MemoryManager.addTurn("Assistant", tempFinalMsg.trim())
 
-                    finalMsg = ToolCallParser.stripToolTags(finalMsg)
-                    finalMsg = finalMsg.replace(Regex("\\biI\\b"), "I")
-                    finalMsg = finalMsg.replace(Regex("\\bi can I\\b", RegexOption.IGNORE_CASE), "I can")
-                    finalMsg = finalMsg.replace(Regex("^i\\s+"), "")
-                    finalMsg = finalMsg.replace(Regex("^i\\b"), "I")
-                    finalMsg = finalMsg.trim()
+                    var finalMsg = normalizeForDisplay(ToolCallParser.stripToolTags(tempFinalMsg))
 
                     val isQuestion = finalMsg.trim().endsWith("?") ||
                         finalMsg.contains("would you like", ignoreCase = true) ||
@@ -493,32 +796,24 @@ class AgentOrchestrator(
                     LLMManager.lastAiResponse = finalMsg
                     
                     // Don't emit empty finalMsg to avoid clearing the UI
-                    val displayFinalMsg = if (finalMsg.isBlank()) "Taking action..." else finalMsg
+                    val displayFinalMsg = if (finalMsg.isBlank()) TAKING_ACTION_PLACEHOLDER else finalMsg
                     _state.value = OrchestratorState.Speaking(displayFinalMsg)
-                    
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                    isQueryProcessed = true
+
+                    // Keep input disabled until tools (and any agentic follow-up) finish. Marking the
+                    // turn complete here used to let a new query clear currentPendingTools mid-flight.
 
                     // Flush any remaining text to TTS FIRST before extracting tools
                     if (finalMsg.isNotBlank()) {
-                        val safeIndex = Math.min(spokenTextLength[0], finalMsg.length)
+                        val safeIndex = Math.min(stream.spokenLength, finalMsg.length)
                         val remainingSentence = finalMsg.substring(safeIndex).trim()
                         if (remainingSentence.isNotEmpty()) {
-                            val sentenceStartOffset = parsedSpokenLength[0]
-                            parsedSpokenLength[0] += remainingSentence.length
+                            val sentenceStartOffset = stream.consumeSentence(remainingSentence.length)
                             audioManager.speak(remainingSentence, "SENTENCE_$sentenceStartOffset")
-                            spokenTextLength[0] += remainingSentence.length // mark as spoken
-                        }
-                    } else {
-                        val isQ = isQuestion || finalMsg.contains("?") ||
-                            finalMsg.contains("would you like", ignoreCase = true) ||
-                            finalMsg.contains("could you", ignoreCase = true)
-                        if (isQ) {
-                            _events.tryEmit(OrchestratorEvent.StartListening)
                         }
                     }
 
-                    // Now parse tools
+                    // Now parse tools — use a turn-local list so a newer turn cannot clear ours.
+                    val pendingTools = mutableListOf<Deferred<String?>>()
                     val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
@@ -527,20 +822,28 @@ class AgentOrchestrator(
                             if (toolDef?.requiresConfirmation == true) {
                                 pendingConfirmationTool = toolCall
                             } else {
-                                val job = CoroutineScope(Dispatchers.IO).async {
-                                    audioManager.waitUntilFinishedSpeaking()
-                                    withTimeoutOrNull(10000L) {
-                                        executeToolCall(toolCall)
+                                val job = scope.async(Dispatchers.IO) {
+                                    withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
+                                        when (val decision = evaluateContextGuard(toolCall)) {
+                                            is ContextGuard.Decision.Confirm -> {
+                                                pendingConfirmationTool = decision.originalToolCall
+                                                decision.message
+                                            }
+                                            is ContextGuard.Decision.Block -> decision.message
+                                            is ContextGuard.Decision.Escalate -> decision.message
+                                            is ContextGuard.Decision.Allow -> executeToolCall(toolCall)
+                                        }
                                     } ?: "System Error: Tool execution timed out."
                                 }
+                                pendingTools.add(job)
                                 currentPendingTools.add(job)
                             }
                         }
                     }
 
-                    if (currentPendingTools.isNotEmpty()) {
+                    if (pendingTools.isNotEmpty()) {
                         // Do NOT emit Thinking here, as it clears the UI screen and causes flickering.
-                        val feedbacks = awaitAll(*currentPendingTools.toTypedArray()).filterNotNull()
+                        val feedbacks = awaitAll(*pendingTools.toTypedArray()).filterNotNull()
                         toolFeedbacks.addAll(feedbacks)
                     }
 
@@ -548,12 +851,13 @@ class AgentOrchestrator(
                         EmergencyAlarmManager.start(context)
                     }
 
-                    if (currentPendingTools.isNotEmpty()) {
-                        val isAgenticLoopEnabled = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                            .getBoolean("agentic_loop_enabled", true)
+                    if (pendingTools.isNotEmpty()) {
+                        val isAgenticLoopEnabled = context
+                            .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+                            .getBoolean(AssistantConfig.Prefs.AGENTIC_LOOP, true)
 
-                        val rawResponse = lastResponseBuilder.toString()
-                        val responseWithoutTags = com.tcs.vehicleassistant.utils.ToolCallParser.stripToolTags(rawResponse)
+                        val rawResponse = stream.snapshot()
+                        val responseWithoutTags = ToolCallParser.stripToolTags(rawResponse)
                         val hasConversationalText = responseWithoutTags.length > 5
                         val hasError = toolFeedbacks.any { it.contains("Error", true) || it.contains("Failed", true) || it.contains("couldn't", true) }
 
@@ -565,27 +869,35 @@ class AgentOrchestrator(
                         }
                         val isTerminalTool = executedTools.isNotEmpty() && !isQueryTool
                         val requiresAgenticLoop = executedTools.any { org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(it)?.requiresAgenticLoop == true }
-                        val shouldRunAgenticLoop = isAgenticLoopEnabled && loopCount < 3 &&
+                        val shouldRunAgenticLoop = isAgenticLoopEnabled &&
+                            loopCount < AssistantConfig.Llm.MAX_AGENTIC_LOOPS &&
                             (hasError || isQueryTool || requiresAgenticLoop || (!hasConversationalText && !isTerminalTool))
 
                         if (shouldRunAgenticLoop) {
                             val feedbackString = toolFeedbacks.joinToString("\n")
                             val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
 
-                            currentPendingTools.clear()
-                            lastResponseBuilder.clear()
-                            processQuery(observation, retryCount, loopCount + 1, isAgenticObservation = true, previousExecutedTools = executedTools)
+                            currentPendingTools.removeAll(pendingTools.toSet())
+                            stream.clear()
+                            processQuery(
+                                observation,
+                                retryCount,
+                                loopCount + 1,
+                                isAgenticObservation = true,
+                                previousExecutedTools = executedTools,
+                                turnId = turnId
+                            )
                             return@launch
                         }
                     }
 
                     // Append error feedback if needed, but DO NOT speak it automatically if we already spoke the main text.
                     var finalDisplayMsg = finalMsg
-                    if (finalMsg.isEmpty() || finalMsg == "Taking action...") {
+                    if (finalMsg.isEmpty() || finalMsg == TAKING_ACTION_PLACEHOLDER) {
                         finalDisplayMsg = if (toolFeedbacks.isNotEmpty()) {
                             toolFeedbacks.distinct().joinToString(" ")
                         } else {
-                            "I'm warming up the cabin for you!"
+                            GENERIC_ACTION_ACK
                         }
                         // Speak it since it wasn't spoken earlier
                         audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
@@ -605,24 +917,35 @@ class AgentOrchestrator(
                     _state.value = OrchestratorState.Speaking(finalDisplayMsg)
 
                     val finalUtterance = if (isQuestion) "QUESTION_FINAL"
-                        else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
+                        else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
                         else "STATEMENT_FINAL"
                     audioManager.playSilentUtterance(10, finalUtterance)
+
+                    // Only now is the turn finished — re-enable input for the next utterance.
+                    if (finalMsg.isBlank() && isQuestion) {
+                        _events.tryEmit(OrchestratorEvent.StartListening)
+                    }
+                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    isQueryProcessed = true
+                    currentPendingTools.removeAll(pendingTools.toSet())
                 }
             }
         }
 
         val onError: (Exception) -> Unit = { throwable ->
-            if (!isDoneCalled) {
-                isDoneCalled = true
+            if (!stream.isDoneCalled && isCurrentTurn(turnId)) {
+                stream.isDoneCalled = true
                 scope.launch {
                     timeoutJob?.cancel()
                     if (retryCount < 1) {
                         _state.value = OrchestratorState.Error("Initializing model...")
                         try {
-                            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                            val cloudFallbackEnabled = prefs.getBoolean("cloud_fallback_enabled", false)
-                            
+                            if (!LLMManager.awaitInferenceDrain()) {
+                                _state.value = OrchestratorState.Error("Model still busy — try again.")
+                                _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                                isQueryProcessed = true
+                                return@launch
+                            }
                             if (LocalLLMActivity.isCloudModelActive) {
                                 val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("cloud"))
                                 cloudProvider.initialize(context, force = true)
@@ -631,14 +954,23 @@ class AgentOrchestrator(
                                 edgeProvider.initialize(context, force = true)
                             }
                             _state.value = OrchestratorState.Thinking()
-                            processQuery(query, retryCount + 1, loopCount, isAgenticObservation, previousExecutedTools)
+                            processQuery(
+                                query,
+                                retryCount + 1,
+                                loopCount,
+                                isAgenticObservation,
+                                previousExecutedTools,
+                                turnId = turnId
+                            )
                         } catch (e: Exception) {
+                            android.util.Log.e(TAG, "Recovery re-initialization failed", e)
                             _state.value = OrchestratorState.Error("Hardware Recovery Failed.")
                             _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                             isQueryProcessed = true
                         }
                     } else {
                         if (throwable.message?.contains("Cancellation") != true) {
+                            android.util.Log.e(TAG, "Inference failed after retry", throwable)
                             _state.value = OrchestratorState.Error("Model Inference Failed: ${throwable.message}")
                             _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                             isQueryProcessed = true
@@ -658,13 +990,18 @@ class AgentOrchestrator(
                     val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("edge"))
                     edgeProvider.initialize(context, force = false)
                     
-                    if ((LLMManager.currentModelPath?.contains("gemma", ignoreCase = true) == true || 
-                        LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true) && 
-                        MemoryManager.turnCount() > 8) {
-                        LLMManager.resetConversation(context)
-                        MemoryManager.clearMemory()
+                    if ((LLMManager.currentModelPath.contains("gemma", ignoreCase = true) ||
+                            LLMManager.currentModelPath.contains("handoff", ignoreCase = true)) &&
+                        LLMManager.nativeTurnsSinceReset >= AssistantConfig.Llm.CONVERSATION_RESET_TURNS
+                    ) {
+                        if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context)) {
+                            android.util.Log.i(TAG, "Native conversation reset; string memory retained for sliding window.")
+                        } else {
+                            android.util.Log.w(TAG, "Deferred conversation reset; inference still active")
+                        }
                     }
-                    
+
+                    LLMManager.nativeTurnsSinceReset++
                     edgeProvider.generateStream(context, finalPrompt, interceptedQuery, onToken, onDone, onError)
                 }
             } catch (e: Exception) {
@@ -679,6 +1016,59 @@ class AgentOrchestrator(
         val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
         return toolManager.executeToolCall(context.applicationContext, toolCall) { intent ->
             pendingIntentsToLaunch.add(intent)
+        }
+    }
+
+    companion object {
+        private const val TAG = "AgentOrchestrator"
+
+        private const val TAKING_ACTION_PLACEHOLDER = "Taking action..."
+        private const val GENERIC_ACTION_ACK = "Done — that's taken care of."
+
+        /**
+         * Chat-template role markers the model sometimes echoes back. Stripping them keeps the
+         * spoken response free of transcript scaffolding.
+         */
+        private val ROLE_PREFIXES = listOf(
+            "Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :",
+            "System:", "System :", "<start_of_turn>", "<end_of_turn>", "model\n", "user\n",
+            "model", "user"
+        )
+
+        private val SPECIAL_TOKEN_REGEX =
+            Regex("(?i)<start_of_turn>|<end_of_turn>|start_of_turn|end_of_turn|start of turn|end of turn")
+        private val ROLE_TOKEN_REGEX = Regex("(?i)\\bmodel\\b\\n?|\\buser\\b\\n?")
+
+        /** Splits streamed text into speakable sentences at terminal punctuation or newlines. */
+        private val SENTENCE_REGEX =
+            "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.,!?](?:\\s+|$))".toRegex()
+
+        private val LEADING_I_REGEX = Regex("^i\\s+")
+        private val BARE_I_REGEX = Regex("^i\\b")
+        private val DOUBLED_I_REGEX = Regex("\\biI\\b")
+        private val I_CAN_I_REGEX = Regex("\\bi can I\\b", RegexOption.IGNORE_CASE)
+
+        /**
+         * Repairs the lowercase-`i` and doubled-pronoun artifacts this model emits mid-stream, so
+         * both the on-screen text and the TTS input read as natural English.
+         */
+        internal fun normalizeForDisplay(text: String): String = text
+            .replace(DOUBLED_I_REGEX, "I")
+            .replace(I_CAN_I_REGEX, "I can")
+            .replace(LEADING_I_REGEX, "")
+            .replace(BARE_I_REGEX, "I")
+            .trim()
+
+        /**
+         * True when generation has degenerated into a repetition loop or blown past the length
+         * ceiling, both of which mean the stream should be cut off rather than spoken.
+         */
+        internal fun isRunawayGeneration(text: String): Boolean {
+            if (text.length > AssistantConfig.Streaming.RUNAWAY_LENGTH) return true
+            if (text.length <= AssistantConfig.Streaming.REPETITION_SCAN_MIN_LENGTH) return false
+            val window = AssistantConfig.Streaming.REPETITION_WINDOW
+            val lastWords = text.trim().split(Regex("\\s+")).takeLast(window)
+            return lastWords.size == window && lastWords.distinct().size == 1
         }
     }
 }
