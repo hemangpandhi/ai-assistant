@@ -25,7 +25,8 @@ class LlmManagerSessionAdapter(
 
     override fun isInitializing(): Boolean = LLMManager.isInitializing
 
-    override fun isPrewarming(): Boolean = LLMManager.isPrewarming
+    // Master LLMManager no longer exposes a separate prewarm flag; keep the port stable.
+    override fun isPrewarming(): Boolean = false
 
     override var lastAiResponse: String
         get() = LLMManager.lastAiResponse
@@ -73,7 +74,7 @@ class LlmManagerSessionAdapter(
     private fun refresh() {
         statusStore.update(
             initializing = LLMManager.isInitializing,
-            prewarming = LLMManager.isPrewarming,
+            prewarming = false,
             engineLoaded = LLMManager.engine != null,
             conversationLoaded = LLMManager.conversation != null,
             modelPath = LLMManager.currentModelPath,

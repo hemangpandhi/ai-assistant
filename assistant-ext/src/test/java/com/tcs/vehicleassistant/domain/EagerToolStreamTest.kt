@@ -57,6 +57,7 @@ class EagerToolStreamTest {
             override fun speak(text: String, utteranceId: String) = Unit
             override fun playSilentUtterance(durationMs: Long, utteranceId: String) = Unit
             override fun stopSpeaking() = Unit
+            override fun reloadTtsFromPrefs() = Unit
             override suspend fun waitUntilFinishedSpeaking() = Unit
             override fun shutdown() = Unit
             override fun setUtteranceListener(

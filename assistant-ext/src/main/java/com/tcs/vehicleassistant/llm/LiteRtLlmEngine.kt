@@ -31,10 +31,10 @@ class LiteRtLlmEngine : LlmEngine {
         statusStore.set(com.assistant.api.llm.EngineStatus.Loading)
         try {
             LLMManager.autoInitialize(context.applicationContext, force = force)
-            // Wait briefly for prewarm if still running.
+            // Wait briefly while init is still in flight (master no longer exposes isPrewarming).
             var spins = 0
-            while (LLMManager.isPrewarming && spins < 600) {
-                statusStore.set(com.assistant.api.llm.EngineStatus.Prewarming)
+            while (LLMManager.isInitializing && spins < 600) {
+                statusStore.set(com.assistant.api.llm.EngineStatus.Loading)
                 kotlinx.coroutines.delay(50)
                 spins++
             }
@@ -45,8 +45,8 @@ class LiteRtLlmEngine : LlmEngine {
 
     override fun generateStream(request: LlmRequest): Flow<TokenChunk> = callbackFlow {
         refreshStatus()
-        while (LLMManager.isPrewarming && isActive) {
-            statusStore.set(com.assistant.api.llm.EngineStatus.Prewarming)
+        while (LLMManager.isInitializing && isActive) {
+            statusStore.set(com.assistant.api.llm.EngineStatus.Loading)
             kotlinx.coroutines.delay(50)
         }
         val conversation = LLMManager.conversation
@@ -112,7 +112,7 @@ class LiteRtLlmEngine : LlmEngine {
     private fun refreshStatus() {
         statusStore.update(
             initializing = LLMManager.isInitializing,
-            prewarming = LLMManager.isPrewarming,
+            prewarming = false,
             engineLoaded = LLMManager.engine != null,
             conversationLoaded = LLMManager.conversation != null,
             modelPath = LLMManager.currentModelPath,

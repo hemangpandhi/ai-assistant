@@ -134,6 +134,16 @@ class SessionAndroidAudioManager(private val context: Context) : SessionAudioPor
         }
     }
 
+    override fun reloadTtsFromPrefs() {
+        // Session stack currently uses the fixed Amy voice; rebuild to match IAudioManager.
+        try {
+            offlineTts?.release()
+        } catch (_: Exception) {
+        }
+        offlineTts = null
+        initialize(onSuccess = {}, onError = {})
+    }
+
     private fun initSpeechRecognizer() {
         if (sherpaRecognizer != null) return
         try {

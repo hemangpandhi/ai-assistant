@@ -85,7 +85,7 @@ class UiUxWakeWordService : Service() {
         val notification = Notification.Builder(this, channelId)
             .setContentTitle("Vehicle Assistant")
             .setContentText("Listening for wake word...")
-            .setSmallIcon(R.drawable.ic_assistant_premium)
+            .setSmallIcon(R.drawable.ic_notification_waveform)
             .build()
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
