@@ -87,6 +87,11 @@ class ConfigCoherenceTest {
     }
 
     @Test
+    fun `STT loads only from device sideload dir`() {
+        assertEquals("/data/local/tmp/stt", AssistantConfig.Audio.STT_SIDELOAD_DIR)
+    }
+
+    @Test
     fun `the session wait covers a full engine initialization`() {
         // AssistantSession polls for readiness; a shorter budget reports failure while the engine
         // is still compiling kernels on a cold start.
