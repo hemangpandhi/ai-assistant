@@ -25,7 +25,12 @@ class ContextGuardTest {
 
     private val quietPlaying = loudPlaying.copy(mediaVolumePct = 40)
 
-    private val maxFan = loudPlaying.copy(fanLevel = 7, mediaVolumePct = 20, mediaPlaying = false)
+    private val maxFan = loudPlaying.copy(
+        fanLevel = 7,
+        fanMax = 7,
+        mediaVolumePct = 20,
+        mediaPlaying = false,
+    )
 
     private val seatOn = loudPlaying.copy(
         mediaVolumePct = 20,
@@ -74,7 +79,12 @@ class ContextGuardTest {
                     appliesTo = listOf("increaseFanSpeed"),
                     argMatches = emptyList(),
                     sensors = listOf(
-                        ContextGuard.SensorCondition("fan_level", ">=", 7.0),
+                        ContextGuard.SensorCondition(
+                            source = "fan_level",
+                            op = ">=",
+                            value = null,
+                            compareTo = "fan_max",
+                        ),
                     ),
                     requireMediaPlaying = null,
                     action = ContextGuard.Action.BLOCK,

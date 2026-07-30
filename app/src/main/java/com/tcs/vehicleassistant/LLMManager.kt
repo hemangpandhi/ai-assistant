@@ -522,13 +522,12 @@ object LLMManager {
         basePrompt.append("16. MEDIA/MUSIC: If the user asks to play, put on, start, resume, stop, pause, skip, or change music/playback (e.g. 'play music', 'play Bollywood', 'put something on', 'turn the music off'), you MUST emit the matching media tool — <TOOL>playMusic(SONG)</TOOL>, <TOOL>stopMusic()</TOOL>, <TOOL>pauseMusic()</TOOL>, <TOOL>nextTrack()</TOOL>, or <TOOL>setVolumeLevel(VAL)</TOOL>. NEVER claim you cannot control music or playback. NEVER claim you stopped or played music without emitting the <TOOL> tag.\n")
         basePrompt.append("17. NO MARKDOWN: Never use markdown formatting like asterisks (*) or bold text, as your response will be spoken aloud to the driver via TTS.\n")
         basePrompt.append("18. INTERNAL CONTEXT PRIVACY: Never speak, explain, or repeat system context headers (like 'Current State:', 'Internal Vehicle Telemetry:', or raw sensor data) to the driver. Internal context is ONLY for evaluating conditions, NOT for telling or explaining to the driver.\n\n")
-        
-        basePrompt.append("=== FEW-SHOT EXAMPLES ===\n")
-        basePrompt.append("User: play music\nAssistant: <TOOL>playMusic()</TOOL> Playing music for you right now.\n\n")
-        basePrompt.append("User: stop music\nAssistant: <TOOL>stopMusic()</TOOL> Stopping the music for you.\n\n")
-        basePrompt.append("User: pause music\nAssistant: <TOOL>pauseMusic()</TOOL> Pausing media playback.\n\n")
-        basePrompt.append("User: increase temperature\nAssistant: <TOOL>increaseTemperature(all)</TOOL> Warming up the cabin.\n\n")
-        basePrompt.append("User: decrease temperature\nAssistant: <TOOL>decreaseTemperature(all)</TOOL> Cooling down the cabin.\n\n")
+
+        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+        val fewShots = toolManager.getLlmFewShotsPrompt()
+        if (fewShots.isNotBlank()) {
+            basePrompt.append(fewShots)
+        }
         
         // --- ENVIRONMENT & MEMORY CONTEXT ---
         basePrompt.append("=== VEHICLE & COMPANION CONTEXT ===\n")
@@ -536,7 +535,7 @@ object LLMManager {
         
         // --- AVAILABLE TOOLS ---
         basePrompt.append("=== AVAILABLE TOOLS ===\n")
-        val toolsString = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getLlmToolsPrompt(query, lastAiResponse)
+        val toolsString = toolManager.getLlmToolsPrompt(query, lastAiResponse)
         lastInjectedTools = toolsString
         basePrompt.append("$toolsString\n\n")
         

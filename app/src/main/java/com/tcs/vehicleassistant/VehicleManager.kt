@@ -16,6 +16,9 @@ object VehicleManager {
     /** AOSP HVAC_ELECTRIC_DEFROSTER_ON (0x13200514) — keep in sync with vehicle_skills_registry.json. */
     const val HVAC_ELECTRIC_DEFROSTER_ON = 320865556
 
+    /** AOSP HVAC_FAN_DIRECTION (0x15400501). */
+    const val HVAC_FAN_DIRECTION = 356517121
+
     private var carPropertyManager: CarPropertyManager? = null
 
     /** Retained so [cleanup] can disconnect; the Car binder was previously never released. */
@@ -242,37 +245,60 @@ object VehicleManager {
     }
 
     /**
-     * Vehicle speed in mph for ContextGuard / UI.
-     * Live VHAL [VehiclePropertyIds.PERF_VEHICLE_SPEED] is stored as m/s; telemetry mocks
-     * call [setMockSpeed] with mph and are converted to m/s for storage.
+     * Live area IDs from the property config. Empty when HAL/config is unavailable —
+     * callers must not invent OEM-specific fallbacks (49/68/117).
      */
+    fun resolveAreaIds(propertyId: Int): IntArray {
+        return try {
+            carPropertyManager?.getCarPropertyConfig(propertyId)?.areaIds ?: intArrayOf()
+        } catch (_: Exception) {
+            intArrayOf()
+        }
+    }
+
+    /** Highest fan speed the HAL reports; falls back to [CabinSnapshot.DEFAULT_FAN_MAX]. */
+    fun getFanMaxLevel(): Int {
+        val config = try {
+            carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_FAN_SPEED)
+        } catch (_: Exception) {
+            null
+        } ?: return com.tcs.vehicleassistant.core.CabinSnapshot.DEFAULT_FAN_MAX
+        val areas = config.areaIds ?: return com.tcs.vehicleassistant.core.CabinSnapshot.DEFAULT_FAN_MAX
+        var maxLvl = 1
+        for (areaId in areas) {
+            val m = try {
+                config.getMaxValue(areaId) as? Int
+            } catch (_: Exception) {
+                null
+            } ?: continue
+            if (m > maxLvl) maxLvl = m
+        }
+        return if (areas.isEmpty()) {
+            com.tcs.vehicleassistant.core.CabinSnapshot.DEFAULT_FAN_MAX
+        } else {
+            maxLvl
+        }
+    }
+
     fun getRealSpeed(): Int = com.tcs.vehicleassistant.core.VehicleUnits.mpsToMph(currentSpeed)
     fun getRealSeatHeaterLevel(): Int = currentSeatHeaterLevel
     fun getRealTemperature(zone: String = "driver"): Int {
         var temp = currentTemperature
         try {
-            var areaIds = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(49, 68)
-            }
-            
-            var targetAreaId = areaIds.first()
-            for (areaId in areaIds) {
-                if (zone == "driver" && (areaId and 4) == 4) {
-                    targetAreaId = areaId
-                    break
-                }
-                if (zone == "passenger" && (areaId and 1) == 1) {
-                    targetAreaId = areaId
-                    break
+            val areaIds = resolveAreaIds(VehiclePropertyIds.HVAC_TEMPERATURE_SET)
+            val targetAreaId = com.tcs.vehicleassistant.core.VhalAreaResolver
+                .filterByZone(areaIds, zone)
+                .firstOrNull()
+            if (targetAreaId != null) {
+                val readTemp = carPropertyManager?.getFloatProperty(
+                    VehiclePropertyIds.HVAC_TEMPERATURE_SET,
+                    targetAreaId,
+                )
+                if (readTemp != null && readTemp > 0) {
+                    temp = readTemp
                 }
             }
-            
-            val readTemp = carPropertyManager?.getFloatProperty(android.car.VehiclePropertyIds.HVAC_TEMPERATURE_SET, targetAreaId)
-            if (readTemp != null && readTemp > 0) {
-                temp = readTemp
-            }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             // fallback to cached currentTemperature
         }
 
@@ -280,7 +306,7 @@ object VehicleManager {
         if (temp >= 50f) {
             return Math.round(temp)
         }
-        
+
         return Math.round((temp * 9.0f / 5.0f) + 32.0f)
     }
     fun getRawTemperature(): Float = currentTemperature
@@ -332,21 +358,11 @@ object VehicleManager {
 
     suspend fun writeTemperatureToVhalVerified(temp: Float, zone: String = "all"): Boolean {
         try {
-            var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_TEMPERATURE_SET)?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(49, 68) // Fallback for ROW_1_LEFT and ROW_1_RIGHT in AOSP
-            }
-            
-            // Filter areaIds based on the requested zone
-            val targetAreaIds = mutableListOf<Int>()
-            for (areaId in areaIds) {
-                if (zone == "driver" && (areaId and 4) != 4) continue
-                if (zone == "passenger" && (areaId and 1) != 1) continue
-                targetAreaIds.add(areaId)
-            }
-            
+            val areaIds = resolveAreaIds(VehiclePropertyIds.HVAC_TEMPERATURE_SET)
+            val targetAreaIds = com.tcs.vehicleassistant.core.VhalAreaResolver.filterByZone(areaIds, zone)
+
             if (targetAreaIds.isEmpty()) {
-                Log.w("VehicleManager", "No matching area IDs found for zone: $zone")
+                Log.w("VehicleManager", "No VHAL area IDs for HVAC_TEMPERATURE_SET zone=$zone")
                 return false
             }
 
@@ -431,10 +447,11 @@ object VehicleManager {
     
     suspend fun writeFanSpeedToVhalVerified(speedLevel: Int): Boolean {
         try {
-            val config = carPropertyManager?.getCarPropertyConfig(android.car.VehiclePropertyIds.HVAC_FAN_SPEED)
-            var areaIds = config?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(117) // Fallback for HVAC_FAN_SPEED
+            val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_FAN_SPEED)
+            val areaIds = resolveAreaIds(VehiclePropertyIds.HVAC_FAN_SPEED)
+            if (areaIds.isEmpty()) {
+                Log.w("VehicleManager", "No VHAL area IDs for HVAC_FAN_SPEED")
+                return false
             }
             
             ensureHvacPowerOn()
@@ -442,17 +459,17 @@ object VehicleManager {
             var anySuccess = false
             areaIds.forEach { areaId ->
                 var finalLevel = speedLevel
-                var maxLvl = 7
+                var maxLvl = getFanMaxLevel()
                 var minLvl = 1
                 try {
-                    maxLvl = config?.getMaxValue(areaId) as? Int ?: 7
+                    maxLvl = config?.getMaxValue(areaId) as? Int ?: maxLvl
                     minLvl = config?.getMinValue(areaId) as? Int ?: 1
-                } catch (e: Exception) {}
+                } catch (_: Exception) {}
                 
                 if (finalLevel > maxLvl) finalLevel = maxLvl
                 if (finalLevel < minLvl) finalLevel = minLvl
                 
-                val success = setPropertyVerified(android.car.VehiclePropertyIds.HVAC_FAN_SPEED, areaId, finalLevel.toString(), "INT")
+                val success = setPropertyVerified(VehiclePropertyIds.HVAC_FAN_SPEED, areaId, finalLevel.toString(), "INT")
                 if (success) anySuccess = true
             }
             return anySuccess
@@ -464,18 +481,17 @@ object VehicleManager {
     
     suspend fun writeAirflowDirectionToVhalVerified(direction: Int): Boolean {
         try {
-            val propertyId = 356517121 // HVAC_FAN_DIRECTION
-            val config = carPropertyManager?.getCarPropertyConfig(propertyId)
-            var areaIds = config?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(49, 68) // Fallback for ROW_1_LEFT/RIGHT
+            val areaIds = resolveAreaIds(HVAC_FAN_DIRECTION)
+            if (areaIds.isEmpty()) {
+                Log.w("VehicleManager", "No VHAL area IDs for HVAC_FAN_DIRECTION")
+                return false
             }
             
             ensureHvacPowerOn()
             
             var anySuccess = false
             areaIds.forEach { areaId ->
-                val success = setPropertyVerified(propertyId, areaId, direction.toString(), "INT")
+                val success = setPropertyVerified(HVAC_FAN_DIRECTION, areaId, direction.toString(), "INT")
                 if (success) anySuccess = true
             }
             return anySuccess
@@ -515,11 +531,12 @@ object VehicleManager {
     
     suspend fun writeDefrosterToVhalVerified(on: Boolean): Boolean {
         try {
-            var areaIds = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_DEFROSTER)?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(1, 2) // Fallback for WINDOW_FRONT and WINDOW_REAR
+            val areaIds = resolveAreaIds(VehiclePropertyIds.HVAC_DEFROSTER)
+            if (areaIds.isEmpty()) {
+                Log.w("VehicleManager", "No VHAL area IDs for HVAC_DEFROSTER")
+                return false
             }
-            
+
             var anySuccess = false
             areaIds.forEach { areaId ->
                 val success = setPropertyVerified(VehiclePropertyIds.HVAC_DEFROSTER, areaId, on.toString(), "BOOLEAN")
@@ -534,9 +551,10 @@ object VehicleManager {
 
     suspend fun writeRearDefrosterToVhalVerified(on: Boolean): Boolean {
         try {
-            var areaIds = carPropertyManager?.getCarPropertyConfig(HVAC_ELECTRIC_DEFROSTER_ON)?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(2) // Fallback for WINDOW_REAR
+            val areaIds = resolveAreaIds(HVAC_ELECTRIC_DEFROSTER_ON)
+            if (areaIds.isEmpty()) {
+                Log.w("VehicleManager", "No VHAL area IDs for HVAC_ELECTRIC_DEFROSTER_ON")
+                return false
             }
             var anySuccess = false
             areaIds.forEach { areaId ->
@@ -553,9 +571,10 @@ object VehicleManager {
     suspend fun writeSeatHeaterToVhalVerified(level: Int): Boolean {
         try {
             val config = carPropertyManager?.getCarPropertyConfig(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
-            var areaIds = config?.areaIds
-            if (areaIds == null || areaIds.isEmpty()) {
-                areaIds = intArrayOf(1, 4) // Fallback for SEAT_1_LEFT and SEAT_1_RIGHT
+            val areaIds = resolveAreaIds(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE)
+            if (areaIds.isEmpty()) {
+                Log.w("VehicleManager", "No VHAL area IDs for HVAC_SEAT_TEMPERATURE")
+                return false
             }
             
             ensureHvacPowerOn()
@@ -568,7 +587,7 @@ object VehicleManager {
                 try {
                     maxLvl = config?.getMaxValue(areaId) as? Int ?: 3
                     minLvl = config?.getMinValue(areaId) as? Int ?: -3
-                } catch (e: Exception) { }
+                } catch (_: Exception) { }
                 if (finalLevel > maxLvl) finalLevel = maxLvl
                 if (finalLevel < minLvl) finalLevel = minLvl
                 val success = setPropertyVerified(VehiclePropertyIds.HVAC_SEAT_TEMPERATURE, areaId, finalLevel.toString(), "INT")
@@ -661,9 +680,16 @@ object VehicleManager {
 
     private suspend fun ensureHvacPowerOn() {
         try {
-            // First try area 117 (0x75), then area 1
-            if (!setPropertyVerified(android.car.VehiclePropertyIds.HVAC_POWER_ON, 117, "true", "BOOLEAN", 100)) {
-                setPropertyVerified(android.car.VehiclePropertyIds.HVAC_POWER_ON, 1, "true", "BOOLEAN", 100)
+            val areas = resolveAreaIds(VehiclePropertyIds.HVAC_POWER_ON)
+            if (areas.isEmpty()) {
+                // Global/unspecified area — still try area 0 rather than inventing OEM zones.
+                setPropertyVerified(VehiclePropertyIds.HVAC_POWER_ON, 0, "true", "BOOLEAN", 100)
+                return
+            }
+            for (areaId in areas) {
+                if (setPropertyVerified(VehiclePropertyIds.HVAC_POWER_ON, areaId, "true", "BOOLEAN", 100)) {
+                    return
+                }
             }
         } catch (e: Exception) {
             Log.w("VehicleManager", "Failed to ensure HVAC power on: ${e.message}")

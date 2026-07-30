@@ -144,6 +144,7 @@ object CabinSnapshotReader {
             mediaVolumePct = pct,
             mediaPlaying = playing,
             fanLevel = VehicleManager.getRealFanSpeed().coerceAtLeast(0),
+            fanMax = VehicleManager.getFanMaxLevel().coerceAtLeast(1),
             cabinTempF = VehicleManager.getRealTemperature(),
             seatHeaterLevel = VehicleManager.getRealSeatHeaterLevel().coerceAtLeast(0),
             acOn = VehicleManager.isHvacAcOn,

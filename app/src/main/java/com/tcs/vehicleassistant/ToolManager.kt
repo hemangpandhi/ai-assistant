@@ -99,6 +99,10 @@ class ToolManager {
     /** Keyword-gated instructions from the registry `system_instructions` array. */
     private var systemInstructions: List<SystemInstruction> = emptyList()
 
+    /** Few-shot examples from registry `config.llm_few_shots` for the local LiteRT prompt. */
+    var llmFewShots: List<com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot> = emptyList()
+        private set
+
     var isInitialized = false
         private set
 
@@ -146,8 +150,14 @@ class ToolManager {
                         maxQueryWords = de.optInt("max_query_words", 12).coerceAtLeast(3),
                         maxQueryChars = de.optInt("max_query_chars", 100).coerceAtLeast(20),
                         minKeywordMargin = de.optInt("min_keyword_margin", 3).coerceAtLeast(0),
+                        fanMax = de.optInt("fan_max", 7).coerceAtLeast(1),
+                        volumeMax = de.optInt("volume_max", 100).coerceAtLeast(1),
+                        seatHeaterOnDefault = de.optInt("seat_heater_on_default", 2).coerceAtLeast(0),
+                        alertLevelDefault = de.optInt("alert_level_default", 2).coerceAtLeast(0),
+                        numericMinDefault = de.optInt("numeric_min_default", 1).coerceAtLeast(0),
                     )
                 }
+                llmFewShots = parseLlmFewShots(config)
                 ContextGuard.loadFromConfig(config)
             }
 
@@ -263,6 +273,32 @@ class ToolManager {
             out.add(SystemInstruction(instruction, keywords))
         }
         return out
+    }
+
+    private fun parseLlmFewShots(
+        config: JSONObject,
+    ): List<com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot> {
+        if (!config.has("llm_few_shots")) return emptyList()
+        val arr = config.getJSONArray("llm_few_shots")
+        val out = mutableListOf<com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot>()
+        for (i in 0 until arr.length()) {
+            val obj = arr.getJSONObject(i)
+            val user = obj.optString("user").trim()
+            val assistant = obj.optString("assistant").trim()
+            if (user.isEmpty() || assistant.isEmpty()) continue
+            out += com.tcs.vehicleassistant.core.LocalLlmPromptSupport.FewShot(user, assistant)
+        }
+        return out
+    }
+
+    /** Registry few-shots filtered to tools that exist in this OEM catalogue. */
+    fun getLlmFewShotsPrompt(): String {
+        val keys = activeTools.keys.toSet()
+        val filtered = com.tcs.vehicleassistant.core.LocalLlmPromptSupport.filterByAvailableTools(
+            llmFewShots,
+            keys,
+        )
+        return com.tcs.vehicleassistant.core.LocalLlmPromptSupport.formatFewShots(filtered)
     }
 
     private fun buildRetrievalIndex(): List<ToolRetriever.Document> = activeTools.map { (commandName, tool) ->
