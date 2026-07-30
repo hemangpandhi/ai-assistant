@@ -44,5 +44,11 @@ class ExecuteToolUseCase(
         context: Context,
         toolCall: String,
         onIntent: (Intent) -> Unit,
-    ): String? = toolCatalog.execute(context.applicationContext, toolCall, onIntent)
+        enforcePromptAllowList: Boolean = false,
+    ): String? = toolCatalog.execute(
+        context = context.applicationContext,
+        rawToolCall = toolCall,
+        intentHandler = onIntent,
+        enforcePromptAllowList = enforcePromptAllowList,
+    )
 }

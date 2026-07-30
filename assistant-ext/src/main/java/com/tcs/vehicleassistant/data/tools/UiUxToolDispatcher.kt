@@ -27,7 +27,13 @@ class UiUxToolDispatcher(
         context: Context,
         rawToolCall: String,
         intentHandler: ((Intent) -> Unit)?,
-    ): String = delegate.execute(context, canonicalizeRawToolCall(rawToolCall), intentHandler)
+        enforcePromptAllowList: Boolean,
+    ): String = delegate.execute(
+        context = context,
+        rawToolCall = canonicalizeRawToolCall(rawToolCall),
+        intentHandler = intentHandler,
+        enforcePromptAllowList = enforcePromptAllowList,
+    )
 
     companion object {
         /**

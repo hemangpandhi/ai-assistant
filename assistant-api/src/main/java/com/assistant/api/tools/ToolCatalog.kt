@@ -24,5 +24,6 @@ interface ToolCatalog {
         context: Context,
         rawToolCall: String,
         intentHandler: ((Intent) -> Unit)? = null,
+        enforcePromptAllowList: Boolean = false,
     ): String
 }

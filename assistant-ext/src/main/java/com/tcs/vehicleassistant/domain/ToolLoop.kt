@@ -67,5 +67,11 @@ class ToolLoop(
         context: Context,
         toolCall: String,
         onIntent: (Intent) -> Unit,
-    ): String? = executeToolUseCase.execute(context, toolCall, onIntent)
+        enforcePromptAllowList: Boolean = false,
+    ): String? = executeToolUseCase.execute(
+        context = context,
+        toolCall = toolCall,
+        onIntent = onIntent,
+        enforcePromptAllowList = enforcePromptAllowList,
+    )
 }

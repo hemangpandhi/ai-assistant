@@ -31,5 +31,11 @@ class ToolManagerCatalog(
         context: Context,
         rawToolCall: String,
         intentHandler: ((Intent) -> Unit)?,
-    ): String = toolManager.executeToolCall(context, rawToolCall, intentHandler)
+        enforcePromptAllowList: Boolean,
+    ): String = toolManager.executeToolCall(
+        context = context,
+        rawToolCall = rawToolCall,
+        enforcePromptAllowList = enforcePromptAllowList,
+        intentHandler = intentHandler,
+    )
 }

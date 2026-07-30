@@ -642,7 +642,7 @@ class UiUxAgentOrchestrator(
             scope = com.tcs.vehicleassistant.core.AgentRuntime.ioScope,
             toolCall = toolCall,
             executedTools = executedTools,
-            execute = { executeToolCall(it) },
+            execute = { executeToolCall(it, enforcePromptAllowList = true) },
             onIntent = { intent ->
                 pendingIntentToLaunch = null
                 _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
@@ -650,11 +650,19 @@ class UiUxAgentOrchestrator(
         )
     }
 
-    private suspend fun executeToolCall(toolCall: String): String? {
-        return toolLoop.executeNow(context.applicationContext, toolCall) { intent ->
-            // Launch immediately so the overlay can dismiss without waiting for TTS.
-            pendingIntentToLaunch = null
-            _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
-        }
+    private suspend fun executeToolCall(
+        toolCall: String,
+        enforcePromptAllowList: Boolean = false,
+    ): String? {
+        return toolLoop.executeNow(
+            context = context.applicationContext,
+            toolCall = toolCall,
+            onIntent = { intent ->
+                // Launch immediately so the overlay can dismiss without waiting for TTS.
+                pendingIntentToLaunch = null
+                _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
+            },
+            enforcePromptAllowList = enforcePromptAllowList,
+        )
     }
 }
