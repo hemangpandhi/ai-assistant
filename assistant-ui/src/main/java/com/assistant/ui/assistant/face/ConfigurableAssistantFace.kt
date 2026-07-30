@@ -110,12 +110,6 @@ fun ConfigurableAssistantFace(
                 mood = mood,
                 modifier = Modifier.fillMaxSize(),
             )
-            AssistantFaceKind.NomiSphere -> NomiSphereFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
-                gazeX = gazeX,
-                gazeY = gazeY,
-            )
         }
     }
 }

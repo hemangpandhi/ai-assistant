@@ -54,7 +54,7 @@ Tokens: `compose` | `immersive` | `xml` | `xml:polestar` | `xml:pill` | `xml:sid
 
 ## Swap face (live)
 
-Tokens: `none` | `eyes` | `glow` | `hybrid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph` | `nomi`
+Tokens: `none` | `eyes` | `glow` | `hybrid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph`
 
 Default on first install: `hybrid`
 

@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
@@ -214,6 +215,8 @@ private val PoseSpring = spring<Float>(
 
 /**
  * Floating Nomi glyphs on a matte black SemiCircle face.
+ * Light Compose [graphicsLayer] look-tilt + glass crescent keep the same overlay persona
+ * with a cheap 3D/gloss cue (no OpenGL, no alternate face kind).
  *
  * @param gazeX/gazeY optional cabin gaze override (−1..1); null keeps mood look loops
  * @param mouthAmplitude optional lip-sync 0..1 (drives mouth while speaking)
@@ -462,7 +465,19 @@ fun ImmersiveEyesFace(
         }
     }
 
-    Canvas(modifier = modifier.aspectRatio(1f)) {
+    // Observe look for cheap Compose hardware-layer pan/tilt (same face, slight 3D).
+    val lookXValue = lookX.value.coerceIn(-1f, 1f)
+    val lookYValue = lookY.value.coerceIn(-1f, 1f)
+
+    Canvas(
+        modifier = modifier
+            .aspectRatio(1f)
+            .graphicsLayer {
+                rotationY = lookXValue * 11f
+                rotationX = -lookYValue * 8f
+                cameraDistance = 16f * density
+            },
+    ) {
         val side = minOf(size.width, size.height)
         val cx = size.width * 0.5f
         val cy = size.height * 0.5f
@@ -562,18 +577,33 @@ fun ImmersiveEyesFace(
                 bounds = shellBounds,
                 color = NomiFaceBlack,
             )
-            // Soft top-left sheen on the black shell.
+            // Soft volume shade — darker lower chin so the shell reads slightly round.
             drawCircle(
                 brush = Brush.radialGradient(
                     colors = listOf(
-                        Color.White.copy(alpha = 0.08f),
+                        Color.Transparent,
+                        Color.Black.copy(alpha = 0.22f),
+                    ),
+                    center = Offset(cx - faceR * 0.08f, cy - faceR * 0.18f),
+                    radius = faceR * 1.35f,
+                ),
+                radius = faceR * 1.05f,
+                center = Offset(cx + faceR * 0.06f, cy + faceR * 0.28f),
+            )
+            // Glass curvature fill — drifts with look for a cheap depth cue.
+            val sheenCx = cx - faceR * 0.28f + lookXValue * faceR * 0.05f
+            val sheenCy = cy - faceR * 0.34f + lookYValue * faceR * 0.04f
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.12f),
                         Color.Transparent,
                     ),
-                    center = Offset(cx - faceR * 0.28f, cy - faceR * 0.32f),
-                    radius = faceR * 0.72f,
+                    center = Offset(sheenCx, sheenCy),
+                    radius = faceR * 0.7f,
                 ),
-                radius = faceR * 0.72f,
-                center = Offset(cx - faceR * 0.28f, cy - faceR * 0.32f),
+                radius = faceR * 0.7f,
+                center = Offset(sheenCx, sheenCy),
             )
             // Hairline pale rim stroke.
             val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
@@ -635,8 +665,51 @@ fun ImmersiveEyesFace(
                     )
                 }
             }
+
+            // Light glass film over glyphs — same shell, slight under-glass depth.
+            drawCircle(
+                color = Color.Black.copy(alpha = 0.10f),
+                radius = faceR * 0.92f,
+                center = Offset(cx, cy - faceR * 0.02f),
+            )
+            // Sharp crescent specular (gloss) — follows look a little.
+            drawImmersiveGlassCrescent(
+                center = Offset(cx, cy),
+                radius = faceR,
+                lookX = lookXValue,
+                lookY = lookYValue,
+            )
         }
     }
+}
+
+/** Thin upper-left glass highlight for the existing Immersive shell (Canvas-only). */
+private fun DrawScope.drawImmersiveGlassCrescent(
+    center: Offset,
+    radius: Float,
+    lookX: Float,
+    lookY: Float,
+) {
+    val cx = center.x - radius * 0.16f + lookX * radius * 0.04f
+    val cy = center.y - radius * 0.30f + lookY * radius * 0.03f
+    val r = radius * 0.78f
+    val path = Path().apply {
+        val start = Offset(cx - r * 0.52f, cy - r * 0.02f)
+        val mid = Offset(cx - r * 0.12f, cy - r * 0.52f)
+        val end = Offset(cx + r * 0.32f, cy - r * 0.40f)
+        moveTo(start.x, start.y)
+        quadraticTo(mid.x, mid.y, end.x, end.y)
+    }
+    drawPath(
+        path,
+        color = Color.White.copy(alpha = 0.42f),
+        style = Stroke(width = radius * 0.038f, cap = StrokeCap.Round),
+    )
+    drawPath(
+        path,
+        color = Color.White.copy(alpha = 0.16f),
+        style = Stroke(width = radius * 0.078f, cap = StrokeCap.Round),
+    )
 }
 
 /** Immersive capsule eyes — [glowStrength] 0..1 morphs pale rings ↔ EPORO purple bloom. */
