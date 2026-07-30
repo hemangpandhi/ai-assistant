@@ -27,6 +27,13 @@ class ExhaustiveFollowUpUnitTest {
     }
 
     @Test
+    fun wellnessMusicOfferAffirmative() {
+        val last = "I'm sorry you're not feeling well. Would you like me to play some music?"
+        assertEquals("playMusic(relaxing)", FollowUpRouter.resolveDirectTool("yes", last))
+        assertEquals("playMusic(relaxing)", FollowUpRouter.resolveDirectTool("sure", last))
+    }
+
+    @Test
     fun gasStationAffirmative() {
         assertEquals(
             "searchNearby(gas)",

@@ -109,4 +109,58 @@ class StreamTextHandlingTest {
     fun `empty text is not a runaway`() {
         assertFalse(AgentOrchestrator.isRunawayGeneration(""))
     }
+
+    @Test
+    fun `empty model fallback never claims Done for questions or chat`() {
+        val question = AgentOrchestrator.resolveEmptyModelFallback("What is the weather?")
+        val chat = AgentOrchestrator.resolveEmptyModelFallback("I am feeling very sad and depressed")
+        assertTrue(question.contains("didn't catch", ignoreCase = true))
+        assertFalse(chat.contains("didn't catch", ignoreCase = true))
+        assertTrue(chat.contains("music", ignoreCase = true) || chat.contains("here with you", ignoreCase = true))
+        assertFalse(question.contains("Done", ignoreCase = true))
+        assertFalse(chat.contains("taken care", ignoreCase = true))
+    }
+
+    @Test
+    fun `empty model fallback for action-like phrases admits tool failure`() {
+        val msg = AgentOrchestrator.resolveEmptyModelFallback("play some music")
+        assertTrue(msg.contains("couldn't run a tool", ignoreCase = true))
+        assertFalse(msg.contains("taken care", ignoreCase = true))
+    }
+
+    @Test
+    fun `looksLikeUserQuestion detects trailing question mark and starters`() {
+        assertTrue(AgentOrchestrator.looksLikeUserQuestion("How cold is it outside?"))
+        assertTrue(AgentOrchestrator.looksLikeUserQuestion("what time is it"))
+        assertFalse(AgentOrchestrator.looksLikeUserQuestion("I am feeling sad"))
+    }
+
+    @Test
+    fun `empty catch is reserved for questions not emotional or echo noise`() {
+        val question = AgentOrchestrator.resolveEmptyModelFallback("What time is it")
+        val echoNoise = AgentOrchestrator.resolveEmptyModelFallback("and being said.")
+        val emotional = AgentOrchestrator.resolveEmptyModelFallback("Feeling sad")
+        assertTrue(question.contains("didn't catch", ignoreCase = true))
+        assertTrue(echoNoise.isBlank())
+        assertFalse(emotional.contains("didn't catch", ignoreCase = true))
+        assertTrue(emotional.contains("music", ignoreCase = true) || emotional.contains("here with you", ignoreCase = true))
+    }
+
+    @Test
+    fun `empty LLM no tools on not feeling good never yields Done ACK`() {
+        val msg = AgentOrchestrator.resolveEmptyModelFallback("i am not feeling good")
+        assertFalse(msg.contains("Done", ignoreCase = true))
+        assertFalse(msg.contains("taken care", ignoreCase = true))
+        assertFalse(msg.contains("didn't catch", ignoreCase = true))
+        assertTrue(msg.contains("music", ignoreCase = true) || msg.contains("feeling", ignoreCase = true))
+        assertEquals(AgentOrchestrator.WELLNESS_OFFER, msg)
+    }
+
+    @Test
+    fun `bare yes empty fallback clarifies instead of didnt catch`() {
+        val msg = AgentOrchestrator.resolveEmptyModelFallback("yes")
+        assertFalse(msg.contains("didn't catch", ignoreCase = true))
+        assertTrue(msg.isNotBlank())
+        assertTrue(msg.contains("music", ignoreCase = true) || msg.contains("?"))
+    }
 }

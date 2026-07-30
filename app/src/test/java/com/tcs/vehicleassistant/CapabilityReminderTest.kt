@@ -29,9 +29,11 @@ class CapabilityReminderTest {
     }
 
     @Test
-    fun `reminder requires emitting a tool tag instead of refusing`() {
+    fun `reminder requires emitting a tool tag for clear cabin commands`() {
         val text = LLMManager.capabilityReminder()
         assertTrue(text.contains("<TOOL>"))
+        assertTrue(text.contains("clear cabin", ignoreCase = true) || text.contains("media command", ignoreCase = true))
+        assertTrue(text.contains("empathy", ignoreCase = true) || text.contains("feelings", ignoreCase = true))
         assertFalse(text.contains("I cannot help", ignoreCase = true))
     }
 }

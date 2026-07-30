@@ -44,6 +44,20 @@ class FollowUpRouterTest {
     }
 
     @Test
+    fun resolveDirectTool_musicOfferAffirmative() {
+        val last = "I'm sorry you're not feeling well. Would you like me to play some music?"
+        val tool = FollowUpRouter.resolveDirectTool("yes", last)
+        assertEquals("playMusic(relaxing)", tool)
+    }
+
+    @Test
+    fun resolveDirectTool_musicOfferVariantAffirmative() {
+        val last = "I'm here with you. Would you like me to play some music or adjust the cabin?"
+        assertEquals("playMusic(relaxing)", FollowUpRouter.resolveDirectTool("yeah", last))
+        assertTrue(FollowUpRouter.offeredMusic(last))
+    }
+
+    @Test
     fun isAffirmative_stillWorksForSeatHeater() {
         val tool = FollowUpRouter.resolveDirectTool("yes", "Would you like me to turn on the seat heater?")
         assertEquals("setSeatHeater(2)", tool)

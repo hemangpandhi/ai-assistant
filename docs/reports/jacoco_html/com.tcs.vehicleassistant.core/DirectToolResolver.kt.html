@@ -71,7 +71,7 @@ object DirectToolResolver {
     )
 
 <span class="fc" id="L73">    fun resolve(query: String, tools: Collection&lt;ToolSpec&gt;, policy: Policy = Policy()): Outcome {</span>
-<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (!policy.enabled) return Outcome.Skip(Rejection(&quot;direct_execution_disabled&quot;))</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">        if (!policy.enabled) return Outcome.Skip(Rejection(&quot;direct_execution_disabled&quot;))</span>
 
         // Trailing &quot;?&quot; is common ASR/demo punctuation (&quot;What's the weather?&quot;); only reject
         // mid-utterance question marks that signal a compound interrogative.
@@ -162,22 +162,24 @@ object DirectToolResolver {
     fun normalize(raw: String): String =
 <span class="fc" id="L163">        raw.lowercase()</span>
 <span class="fc" id="L164">            .replace(Regex(&quot;[^a-z0-9\\s]&quot;), &quot; &quot;)</span>
-<span class="fc" id="L165">            .replace(Regex(&quot;\\s+&quot;), &quot; &quot;)</span>
-<span class="fc" id="L166">            .trim()</span>
+            // &quot;what's&quot; → &quot;what s&quot; after punctuation strip; treat as &quot;whats&quot;
+<span class="fc" id="L166">            .replace(Regex(&quot;&quot;&quot;\bwhat\s+s\b&quot;&quot;&quot;), &quot;whats&quot;)</span>
+<span class="fc" id="L167">            .replace(Regex(&quot;\\s+&quot;), &quot; &quot;)</span>
+<span class="fc" id="L168">            .trim()</span>
 
     /**
      * Longest whole-phrase keyword contained in [normalizedQuery]. Longer phrases win so
      * &quot;increase temperature&quot; outranks a shorter accidental substring.
      */
     fun bestKeywordMatch(normalizedQuery: String, keywords: List&lt;String&gt;): String? {
-<span class="fc" id="L173">        var best: String? = null</span>
-<span class="fc bfc" id="L174" title="All 2 branches covered.">        for (rawKeyword in keywords) {</span>
-<span class="fc" id="L175">            val keyword = normalize(rawKeyword)</span>
-<span class="pc bpc" id="L176" title="2 of 4 branches missed.">            if (keyword.isEmpty()) continue</span>
-<span class="fc bfc" id="L177" title="All 2 branches covered.">            if (!containsWholePhrase(normalizedQuery, keyword)) continue</span>
-<span class="fc bfc" id="L178" title="All 4 branches covered.">            if (best == null || keyword.length &gt; best.length) best = keyword</span>
+<span class="fc" id="L175">        var best: String? = null</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">        for (rawKeyword in keywords) {</span>
+<span class="fc" id="L177">            val keyword = normalize(rawKeyword)</span>
+<span class="pc bpc" id="L178" title="2 of 4 branches missed.">            if (keyword.isEmpty()) continue</span>
+<span class="fc bfc" id="L179" title="All 2 branches covered.">            if (!containsWholePhrase(normalizedQuery, keyword)) continue</span>
+<span class="fc bfc" id="L180" title="All 4 branches covered.">            if (best == null || keyword.length &gt; best.length) best = keyword</span>
         }
-<span class="fc" id="L180">        return best</span>
+<span class="fc" id="L182">        return best</span>
     }
 
     /**
@@ -191,21 +193,21 @@ object DirectToolResolver {
         tool: ToolSpec,
         policy: Policy,
     ): Boolean {
-<span class="fc bfc" id="L194" title="All 2 branches covered.">        if (keyword.length &gt;= policy.minKeywordChars) return true</span>
-<span class="pc bpc" id="L195" title="1 of 2 branches missed.">        if (keyword.length &lt; 3) return false</span>
-<span class="fc bfc" id="L196" title="All 2 branches covered.">        val needsTrailing = tool.promptString.contains(&quot;SONG&quot;, ignoreCase = true) ||</span>
-<span class="pc bpc" id="L197" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;PLACE_NAME&quot;, ignoreCase = true) ||</span>
-<span class="pc bpc" id="L198" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;CITY&quot;, ignoreCase = true) ||</span>
-<span class="pc bpc" id="L199" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;AMENITY&quot;, ignoreCase = true)</span>
-<span class="fc bfc" id="L200" title="All 2 branches covered.">        if (!needsTrailing) return false</span>
-<span class="fc bfc" id="L201" title="All 2 branches covered.">        return normalizedQuery.startsWith(&quot;$keyword &quot;) &amp;&amp;</span>
-<span class="pc bpc" id="L202" title="1 of 2 branches missed.">            normalizedQuery.length &gt;= keyword.length + 2</span>
+<span class="fc bfc" id="L196" title="All 2 branches covered.">        if (keyword.length &gt;= policy.minKeywordChars) return true</span>
+<span class="pc bpc" id="L197" title="1 of 2 branches missed.">        if (keyword.length &lt; 3) return false</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">        val needsTrailing = tool.promptString.contains(&quot;SONG&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L199" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;PLACE_NAME&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L200" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;CITY&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L201" title="1 of 2 branches missed.">            tool.promptString.contains(&quot;AMENITY&quot;, ignoreCase = true)</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">        if (!needsTrailing) return false</span>
+<span class="fc bfc" id="L203" title="All 2 branches covered.">        return normalizedQuery.startsWith(&quot;$keyword &quot;) &amp;&amp;</span>
+<span class="pc bpc" id="L204" title="1 of 2 branches missed.">            normalizedQuery.length &gt;= keyword.length + 2</span>
     }
 
     fun containsWholePhrase(haystack: String, phrase: String): Boolean {
-<span class="fc bfc" id="L206" title="All 2 branches covered.">        if (haystack == phrase) return true</span>
-<span class="fc" id="L207">        val pattern = Regex(&quot;&quot;&quot;(?:^|\s)${Regex.escape(phrase)}(?:\s|$)&quot;&quot;&quot;)</span>
-<span class="fc" id="L208">        return pattern.containsMatchIn(haystack)</span>
+<span class="fc bfc" id="L208" title="All 2 branches covered.">        if (haystack == phrase) return true</span>
+<span class="fc" id="L209">        val pattern = Regex(&quot;&quot;&quot;(?:^|\s)${Regex.escape(phrase)}(?:\s|$)&quot;&quot;&quot;)</span>
+<span class="fc" id="L210">        return pattern.containsMatchIn(haystack)</span>
     }
 
     /**
@@ -213,99 +215,99 @@ object DirectToolResolver {
      * Returns null when a required placeholder cannot be filled safely.
      */
     fun buildToolCall(tool: ToolSpec, normalizedQuery: String): String? {
-<span class="fc" id="L216">        val key = tool.handlerKey</span>
-<span class="fc" id="L217">        val argTemplate = tool.promptString</span>
-<span class="fc" id="L218">            .substringAfter(&quot;&lt;TOOL&gt;&quot;, missingDelimiterValue = &quot;&quot;)</span>
-<span class="fc" id="L219">            .substringBefore(&quot;&lt;/TOOL&gt;&quot;, missingDelimiterValue = &quot;&quot;)</span>
-<span class="fc" id="L220">            .substringAfter(&quot;(&quot;, missingDelimiterValue = &quot;&quot;)</span>
-<span class="fc" id="L221">            .substringBefore(&quot;)&quot;, missingDelimiterValue = &quot;&quot;)</span>
-<span class="fc" id="L222">            .trim()</span>
-<span class="fc" id="L223">            .removeSurrounding(&quot;\&quot;&quot;)</span>
+<span class="fc" id="L218">        val key = tool.handlerKey</span>
+<span class="fc" id="L219">        val argTemplate = tool.promptString</span>
+<span class="fc" id="L220">            .substringAfter(&quot;&lt;TOOL&gt;&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L221">            .substringBefore(&quot;&lt;/TOOL&gt;&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L222">            .substringAfter(&quot;(&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L223">            .substringBefore(&quot;)&quot;, missingDelimiterValue = &quot;&quot;)</span>
+<span class="fc" id="L224">            .trim()</span>
+<span class="fc" id="L225">            .removeSurrounding(&quot;\&quot;&quot;)</span>
 
-<span class="fc bfc" id="L225" title="All 4 branches covered.">        if (argTemplate.isEmpty()) return &quot;$key()&quot;</span>
+<span class="fc bfc" id="L227" title="All 4 branches covered.">        if (argTemplate.isEmpty()) return &quot;$key()&quot;</span>
 
-<span class="fc" id="L227">        val tokens = argTemplate.split(',').map { it.trim().removeSurrounding(&quot;\&quot;&quot;).uppercase() }</span>
-<span class="fc bfc" id="L228" title="All 4 branches covered.">        if (tokens.any { it !in SUPPORTED_PLACEHOLDERS }) return null</span>
-<span class="pc bpc" id="L229" title="1 of 2 branches missed.">        if (tokens.size != 1) return null // multi-arg tools stay on the LLM path</span>
+<span class="fc" id="L229">        val tokens = argTemplate.split(',').map { it.trim().removeSurrounding(&quot;\&quot;&quot;).uppercase() }</span>
+<span class="fc bfc" id="L230" title="All 4 branches covered.">        if (tokens.any { it !in SUPPORTED_PLACEHOLDERS }) return null</span>
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">        if (tokens.size != 1) return null // multi-arg tools stay on the LLM path</span>
 
-<span class="pc bpc" id="L231" title="1 of 8 branches missed.">        return when (tokens.single()) {</span>
+<span class="pc bpc" id="L233" title="1 of 8 branches missed.">        return when (tokens.single()) {</span>
             &quot;VAL&quot;, &quot;LEVEL&quot;, &quot;PCT&quot; -&gt; {
-<span class="fc bfc" id="L233" title="All 2 branches covered.">                val value = extractNumericOrDirectionalArg(normalizedQuery, key) ?: return null</span>
-<span class="fc" id="L234">                &quot;$key($value)&quot;</span>
+<span class="fc bfc" id="L235" title="All 2 branches covered.">                val value = extractNumericOrDirectionalArg(normalizedQuery, key) ?: return null</span>
+<span class="fc" id="L236">                &quot;$key($value)&quot;</span>
             }
             &quot;SONG&quot; -&gt; {
-<span class="fc bfc" id="L237" title="All 2 branches covered.">                val song = extractSongArg(normalizedQuery) ?: &quot;music&quot;</span>
-<span class="fc" id="L238">                &quot;$key($song)&quot;</span>
+<span class="fc bfc" id="L239" title="All 2 branches covered.">                val song = extractSongArg(normalizedQuery) ?: &quot;music&quot;</span>
+<span class="fc" id="L240">                &quot;$key($song)&quot;</span>
             }
             &quot;PLACE_NAME&quot; -&gt; {
-<span class="pc bpc" id="L241" title="1 of 2 branches missed.">                val place = extractTrailingArg(</span>
-<span class="fc" id="L242">                    normalizedQuery,</span>
-<span class="fc" id="L243">                    prefixes = listOf(</span>
-<span class="fc" id="L244">                        &quot;navigate me to&quot;,</span>
-<span class="fc" id="L245">                        &quot;take me to the&quot;,</span>
-<span class="fc" id="L246">                        &quot;take me to&quot;,</span>
-<span class="fc" id="L247">                        &quot;directions to&quot;,</span>
-<span class="fc" id="L248">                        &quot;route to&quot;,</span>
-<span class="fc" id="L249">                        &quot;drive to&quot;,</span>
-<span class="fc" id="L250">                        &quot;go to&quot;,</span>
-<span class="fc" id="L251">                        &quot;navigate to&quot;,</span>
-<span class="fc" id="L252">                        &quot;navigate&quot;,</span>
+<span class="pc bpc" id="L243" title="1 of 2 branches missed.">                val place = extractTrailingArg(</span>
+<span class="fc" id="L244">                    normalizedQuery,</span>
+<span class="fc" id="L245">                    prefixes = listOf(</span>
+<span class="fc" id="L246">                        &quot;navigate me to&quot;,</span>
+<span class="fc" id="L247">                        &quot;take me to the&quot;,</span>
+<span class="fc" id="L248">                        &quot;take me to&quot;,</span>
+<span class="fc" id="L249">                        &quot;directions to&quot;,</span>
+<span class="fc" id="L250">                        &quot;route to&quot;,</span>
+<span class="fc" id="L251">                        &quot;drive to&quot;,</span>
+<span class="fc" id="L252">                        &quot;go to&quot;,</span>
+<span class="fc" id="L253">                        &quot;navigate to&quot;,</span>
+<span class="fc" id="L254">                        &quot;navigate&quot;,</span>
                     ),
-<span class="nc" id="L254">                ) ?: return null</span>
-<span class="fc" id="L255">                &quot;$key(\&quot;$place\&quot;)&quot;</span>
+<span class="nc" id="L256">                ) ?: return null</span>
+<span class="fc" id="L257">                &quot;$key(\&quot;$place\&quot;)&quot;</span>
             }
             &quot;CITY&quot; -&gt; {
-<span class="fc bfc" id="L258" title="All 2 branches covered.">                val city = extractCityArg(normalizedQuery) ?: &quot;here&quot;</span>
-<span class="fc" id="L259">                &quot;$key($city)&quot;</span>
+<span class="fc bfc" id="L260" title="All 2 branches covered.">                val city = extractCityArg(normalizedQuery) ?: &quot;here&quot;</span>
+<span class="fc" id="L261">                &quot;$key($city)&quot;</span>
             }
             &quot;DIRECTION&quot; -&gt; {
-<span class="pc bpc" id="L262" title="1 of 2 branches missed.">                val direction = extractAirflowDirection(normalizedQuery) ?: return null</span>
-<span class="fc" id="L263">                &quot;$key($direction)&quot;</span>
+<span class="pc bpc" id="L264" title="1 of 2 branches missed.">                val direction = extractAirflowDirection(normalizedQuery) ?: return null</span>
+<span class="fc" id="L265">                &quot;$key($direction)&quot;</span>
             }
             &quot;AMENITY&quot; -&gt; {
                 // Bare &quot;find nearby&quot; / &quot;craving&quot; default to restaurant; specific cues override.
-<span class="pc bpc" id="L267" title="1 of 2 branches missed.">                val amenity = extractAmenityArg(normalizedQuery) ?: &quot;restaurant&quot;</span>
-<span class="fc" id="L268">                &quot;$key($amenity)&quot;</span>
+<span class="pc bpc" id="L269" title="1 of 2 branches missed.">                val amenity = extractAmenityArg(normalizedQuery) ?: &quot;restaurant&quot;</span>
+<span class="fc" id="L270">                &quot;$key($amenity)&quot;</span>
             }
-<span class="fc" id="L270">            &quot;ALERT_LEVEL&quot; -&gt; &quot;$key(2)&quot;</span>
-<span class="nc" id="L271">            else -&gt; null</span>
+<span class="fc" id="L272">            &quot;ALERT_LEVEL&quot; -&gt; &quot;$key(2)&quot;</span>
+<span class="nc" id="L273">            else -&gt; null</span>
         }
     }
 
     private fun extractNumericOrDirectionalArg(query: String, handlerKey: String): String? {
-<span class="fc" id="L276">        when {</span>
-<span class="pc bpc" id="L277" title="2 of 4 branches missed.">            query.contains(&quot;mute&quot;) || Regex(&quot;&quot;&quot;\b(zero|off)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
-<span class="nc bnc" id="L278" title="All 2 branches missed.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;0&quot;</span>
-<span class="fc bfc" id="L279" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(up|louder|higher|increase|raise)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
-<span class="fc bfc" id="L280" title="All 2 branches covered.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;up&quot;</span>
-<span class="fc bfc" id="L281" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(down|quieter|lower|decrease|softer)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
-<span class="fc bfc" id="L282" title="All 2 branches covered.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;down&quot;</span>
-<span class="pc bpc" id="L283" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(max|maximum)\b&quot;&quot;&quot;).containsMatchIn(query) -&gt; {</span>
-<span class="nc bnc" id="L284" title="All 2 branches missed.">                return if (handlerKey.contains(&quot;Fan&quot;, ignoreCase = true)) &quot;7&quot; else &quot;100&quot;</span>
+<span class="fc" id="L278">        when {</span>
+<span class="pc bpc" id="L279" title="1 of 4 branches missed.">            query.contains(&quot;mute&quot;) || Regex(&quot;&quot;&quot;\b(zero|off)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="pc bnc" id="L280" title="All 2 branches missed.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;0&quot;</span>
+<span class="fc bfc" id="L281" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(up|louder|higher|increase|raise)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="fc bfc" id="L282" title="All 2 branches covered.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;up&quot;</span>
+<span class="fc bfc" id="L283" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(down|quieter|lower|decrease|softer)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="fc bfc" id="L284" title="All 2 branches covered.">                handlerKey.contains(&quot;Volume&quot;, ignoreCase = true) -&gt; return &quot;down&quot;</span>
+<span class="fc bfc" id="L285" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(max|maximum)\b&quot;&quot;&quot;).containsMatchIn(query) -&gt; {</span>
+<span class="pc bpc" id="L286" title="1 of 2 branches missed.">                return if (handlerKey.contains(&quot;Fan&quot;, ignoreCase = true)) &quot;7&quot; else &quot;100&quot;</span>
             }
-<span class="pc bpc" id="L286" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(min|minimum)\b&quot;&quot;&quot;).containsMatchIn(query) -&gt; return &quot;1&quot;</span>
-<span class="pc bpc" id="L287" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(off|disable)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
-<span class="nc bnc" id="L288" title="All 2 branches missed.">                handlerKey.contains(&quot;Seat&quot;, ignoreCase = true) -&gt; return &quot;0&quot;</span>
-<span class="pc bpc" id="L289" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(on|enable)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
-<span class="nc bnc" id="L290" title="All 2 branches missed.">                handlerKey.contains(&quot;Seat&quot;, ignoreCase = true) -&gt; return &quot;2&quot;</span>
+<span class="pc bpc" id="L288" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(min|minimum)\b&quot;&quot;&quot;).containsMatchIn(query) -&gt; return &quot;1&quot;</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(off|disable)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="pc bpc" id="L290" title="1 of 2 branches missed.">                handlerKey.contains(&quot;Seat&quot;, ignoreCase = true) -&gt; return &quot;0&quot;</span>
+<span class="fc bfc" id="L291" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(on|enable)\b&quot;&quot;&quot;).containsMatchIn(query) &amp;&amp;</span>
+<span class="pc bpc" id="L292" title="1 of 2 branches missed.">                handlerKey.contains(&quot;Seat&quot;, ignoreCase = true) -&gt; return &quot;2&quot;</span>
         }
-<span class="pc bpc" id="L292" title="2 of 6 branches missed.">        Regex(&quot;&quot;&quot;\b(\d{1,3})\b&quot;&quot;&quot;).find(query)?.groupValues?.getOrNull(1)?.let { return it }</span>
+<span class="pc bpc" id="L294" title="2 of 6 branches missed.">        Regex(&quot;&quot;&quot;\b(\d{1,3})\b&quot;&quot;&quot;).find(query)?.groupValues?.getOrNull(1)?.let { return it }</span>
         // Seat heater without a level but matched &quot;seat heater&quot; → default comfort level.
-<span class="fc bfc" id="L294" title="All 2 branches covered.">        if (handlerKey.contains(&quot;SeatHeater&quot;, ignoreCase = true)) return &quot;2&quot;</span>
-<span class="fc" id="L295">        return null</span>
+<span class="fc bfc" id="L296" title="All 2 branches covered.">        if (handlerKey.contains(&quot;SeatHeater&quot;, ignoreCase = true)) return &quot;2&quot;</span>
+<span class="fc" id="L297">        return null</span>
     }
 
     private fun extractTrailingArg(query: String, prefixes: List&lt;String&gt;): String? {
-<span class="fc bfc" id="L299" title="All 2 branches covered.">        for (prefix in prefixes.sortedByDescending { it.length }) {</span>
-<span class="fc bfc" id="L300" title="All 2 branches covered.">            if (query == prefix) return null</span>
-<span class="fc bfc" id="L301" title="All 2 branches covered.">            if (query.startsWith(&quot;$prefix &quot;)) {</span>
-<span class="fc" id="L302">                val rest = query.removePrefix(&quot;$prefix &quot;).trim()</span>
-<span class="fc" id="L303">                    .removePrefix(&quot;some &quot;).removePrefix(&quot;the &quot;).removePrefix(&quot;a &quot;)</span>
-<span class="fc" id="L304">                    .trim()</span>
-<span class="pc bpc" id="L305" title="3 of 6 branches missed.">                if (rest.length in 2..60) return rest</span>
+<span class="fc bfc" id="L301" title="All 2 branches covered.">        for (prefix in prefixes.sortedByDescending { it.length }) {</span>
+<span class="fc bfc" id="L302" title="All 2 branches covered.">            if (query == prefix) return null</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">            if (query.startsWith(&quot;$prefix &quot;)) {</span>
+<span class="fc" id="L304">                val rest = query.removePrefix(&quot;$prefix &quot;).trim()</span>
+<span class="fc" id="L305">                    .removePrefix(&quot;some &quot;).removePrefix(&quot;the &quot;).removePrefix(&quot;a &quot;)</span>
+<span class="fc" id="L306">                    .trim()</span>
+<span class="pc bpc" id="L307" title="3 of 6 branches missed.">                if (rest.length in 2..60) return rest</span>
             }
         }
-<span class="fc" id="L308">        return null</span>
+<span class="fc" id="L310">        return null</span>
     }
 
     /**
@@ -313,65 +315,90 @@ object DirectToolResolver {
      * so &quot;play arijit singh music&quot; becomes a searchable &quot;arijit singh&quot;.
      */
     fun extractSongArg(normalizedQuery: String): String? {
-<span class="pc bpc" id="L316" title="1 of 2 branches missed.">        val raw = extractTrailingArg(</span>
-<span class="fc" id="L317">            normalizedQuery,</span>
-<span class="fc" id="L318">            prefixes = listOf(</span>
-<span class="fc" id="L319">                &quot;play songs by&quot;,</span>
-<span class="fc" id="L320">                &quot;play music by&quot;,</span>
-<span class="fc" id="L321">                &quot;play song by&quot;,</span>
-<span class="fc" id="L322">                &quot;turn on music&quot;,</span>
-<span class="fc" id="L323">                &quot;put on&quot;,</span>
-<span class="fc" id="L324">                &quot;play some&quot;,</span>
-<span class="fc" id="L325">                &quot;start playing&quot;,</span>
-<span class="fc" id="L326">                &quot;turn on&quot;,</span>
-<span class="fc" id="L327">                &quot;play&quot;,</span>
-<span class="fc" id="L328">                &quot;start&quot;,</span>
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">        val raw = extractTrailingArg(</span>
+<span class="fc" id="L319">            normalizedQuery,</span>
+<span class="fc" id="L320">            prefixes = listOf(</span>
+<span class="fc" id="L321">                &quot;play songs by&quot;,</span>
+<span class="fc" id="L322">                &quot;play music by&quot;,</span>
+<span class="fc" id="L323">                &quot;play song by&quot;,</span>
+<span class="fc" id="L324">                &quot;turn on music&quot;,</span>
+<span class="fc" id="L325">                &quot;put on&quot;,</span>
+<span class="fc" id="L326">                &quot;play some&quot;,</span>
+<span class="fc" id="L327">                &quot;start playing&quot;,</span>
+<span class="fc" id="L328">                &quot;turn on&quot;,</span>
+<span class="fc" id="L329">                &quot;play&quot;,</span>
+<span class="fc" id="L330">                &quot;start&quot;,</span>
             ),
-<span class="nc" id="L330">        ) ?: return null</span>
+<span class="nc" id="L332">        ) ?: return null</span>
 
-<span class="fc" id="L332">        var song = raw</span>
-<span class="fc" id="L333">            .replace(Regex(&quot;&quot;&quot;^(songs?|tracks?|music|playlist)\s+(by|from)\s+&quot;&quot;&quot;), &quot;&quot;)</span>
-<span class="fc" id="L334">            .replace(Regex(&quot;&quot;&quot;^(by|from)\s+&quot;&quot;&quot;), &quot;&quot;)</span>
-<span class="fc" id="L335">            .trim()</span>
+<span class="fc" id="L334">        var song = raw</span>
+<span class="fc" id="L335">            .replace(Regex(&quot;&quot;&quot;^(songs?|tracks?|music|playlist)\s+(by|from)\s+&quot;&quot;&quot;), &quot;&quot;)</span>
+<span class="fc" id="L336">            .replace(Regex(&quot;&quot;&quot;^(by|from)\s+&quot;&quot;&quot;), &quot;&quot;)</span>
+<span class="fc" id="L337">            .trim()</span>
 
         // Drop trailing genre/container words that dilute artist/title search.
-<span class="fc" id="L338">        song = song</span>
-<span class="fc" id="L339">            .replace(Regex(&quot;&quot;&quot;\s+(music|songs?|tracks?|playlist|audio)$&quot;&quot;&quot;), &quot;&quot;)</span>
-<span class="fc" id="L340">            .trim()</span>
+<span class="fc" id="L340">        song = song</span>
+<span class="fc" id="L341">            .replace(Regex(&quot;&quot;&quot;\s+(music|songs?|tracks?|playlist|audio)$&quot;&quot;&quot;), &quot;&quot;)</span>
+<span class="fc" id="L342">            .trim()</span>
 
         // &quot;play music&quot; / &quot;play some music&quot; → no specific request.
-<span class="pc bpc" id="L343" title="2 of 6 branches missed.">        if (song.isEmpty() || song in setOf(&quot;music&quot;, &quot;song&quot;, &quot;songs&quot;, &quot;track&quot;, &quot;tracks&quot;, &quot;something&quot;)) {</span>
-<span class="fc" id="L344">            return null</span>
+<span class="pc bpc" id="L345" title="2 of 6 branches missed.">        if (song.isEmpty() || song in setOf(&quot;music&quot;, &quot;song&quot;, &quot;songs&quot;, &quot;track&quot;, &quot;tracks&quot;, &quot;something&quot;)) {</span>
+<span class="fc" id="L346">            return null</span>
         }
-<span class="pc bpc" id="L346" title="3 of 6 branches missed.">        return song.takeIf { it.length in 2..60 }</span>
+<span class="pc bpc" id="L348" title="3 of 6 branches missed.">        return song.takeIf { it.length in 2..60 }</span>
     }
 
-<span class="fc" id="L349">    private fun extractAirflowDirection(query: String): String? = when {</span>
-<span class="pc bpc" id="L350" title="1 of 4 branches missed.">        query.contains(&quot;face and floor&quot;) || query.contains(&quot;floor and face&quot;) ||</span>
-<span class="pc bpc" id="L351" title="1 of 4 branches missed.">            query.contains(&quot;face and feet&quot;) || query.contains(&quot;feet and face&quot;) -&gt; &quot;face and floor&quot;</span>
-<span class="fc bfc" id="L352" title="All 2 branches covered.">        query.contains(&quot;defrost&quot;) -&gt; &quot;defrost&quot;</span>
-<span class="pc bpc" id="L353" title="1 of 4 branches missed.">        query.contains(&quot;floor&quot;) || query.contains(&quot;feet&quot;) -&gt; &quot;floor&quot;</span>
-<span class="pc bpc" id="L354" title="1 of 2 branches missed.">        query.contains(&quot;face&quot;) -&gt; &quot;face&quot;</span>
-<span class="nc" id="L355">        else -&gt; null</span>
-<span class="fc" id="L356">    }</span>
+<span class="fc" id="L351">    private fun extractAirflowDirection(query: String): String? = when {</span>
+<span class="pc bpc" id="L352" title="1 of 4 branches missed.">        query.contains(&quot;face and floor&quot;) || query.contains(&quot;floor and face&quot;) ||</span>
+<span class="pc bpc" id="L353" title="1 of 4 branches missed.">            query.contains(&quot;face and feet&quot;) || query.contains(&quot;feet and face&quot;) -&gt; &quot;face and floor&quot;</span>
+<span class="fc bfc" id="L354" title="All 2 branches covered.">        query.contains(&quot;defrost&quot;) -&gt; &quot;defrost&quot;</span>
+<span class="pc bpc" id="L355" title="1 of 4 branches missed.">        query.contains(&quot;floor&quot;) || query.contains(&quot;feet&quot;) -&gt; &quot;floor&quot;</span>
+<span class="pc bpc" id="L356" title="1 of 2 branches missed.">        query.contains(&quot;face&quot;) -&gt; &quot;face&quot;</span>
+<span class="nc" id="L357">        else -&gt; null</span>
+<span class="fc" id="L358">    }</span>
 
     /** City for getWeather; &quot;here&quot; means use LocationManager at execution time. */
     fun extractCityArg(normalizedQuery: String): String? {
-<span class="fc" id="L360">        extractTrailingArg(</span>
-<span class="fc" id="L361">            normalizedQuery,</span>
-<span class="fc" id="L362">            prefixes = listOf(</span>
-<span class="fc" id="L363">                &quot;what is the weather in&quot;,</span>
-<span class="fc" id="L364">                &quot;whats the weather in&quot;,</span>
-<span class="fc" id="L365">                &quot;weather forecast in&quot;,</span>
-<span class="fc" id="L366">                &quot;weather forecast for&quot;,</span>
-<span class="fc" id="L367">                &quot;forecast in&quot;,</span>
-<span class="fc" id="L368">                &quot;forecast for&quot;,</span>
-<span class="fc" id="L369">                &quot;weather in&quot;,</span>
-<span class="fc" id="L370">                &quot;weather for&quot;,</span>
-<span class="fc" id="L371">                &quot;weather at&quot;,</span>
+<span class="fc" id="L362">        extractTrailingArg(</span>
+<span class="fc" id="L363">            normalizedQuery,</span>
+<span class="fc" id="L364">            prefixes = listOf(</span>
+<span class="fc" id="L365">                &quot;what is the current weather in&quot;,</span>
+<span class="fc" id="L366">                &quot;whats the current weather in&quot;,</span>
+<span class="fc" id="L367">                &quot;what is the weather in&quot;,</span>
+<span class="fc" id="L368">                &quot;whats the weather in&quot;,</span>
+<span class="fc" id="L369">                &quot;current weather in&quot;,</span>
+<span class="fc" id="L370">                &quot;current weather for&quot;,</span>
+<span class="fc" id="L371">                &quot;current weather at&quot;,</span>
+<span class="fc" id="L372">                &quot;weather forecast in&quot;,</span>
+<span class="fc" id="L373">                &quot;weather forecast for&quot;,</span>
+<span class="fc" id="L374">                &quot;forecast in&quot;,</span>
+<span class="fc" id="L375">                &quot;forecast for&quot;,</span>
+<span class="fc" id="L376">                &quot;weather in&quot;,</span>
+<span class="fc" id="L377">                &quot;weather for&quot;,</span>
+<span class="fc" id="L378">                &quot;weather at&quot;,</span>
             ),
-<span class="fc bfc" id="L373" title="All 2 branches covered.">        )?.let { return it }</span>
-<span class="fc" id="L374">        return null</span>
+<span class="fc bfc" id="L380" title="All 2 branches covered.">        )?.let { return sanitizeCityArg(it) }</span>
+
+        // Mid-phrase fallback when fillers precede the weather preposition.
+<span class="fc" id="L383">        Regex(&quot;&quot;&quot;\b(?:current\s+)?weather\s+(?:in|for|at)\s+(.+)$&quot;&quot;&quot;)</span>
+<span class="fc" id="L384">            .find(normalizedQuery)</span>
+<span class="fc bfc" id="L385" title="All 2 branches covered.">            ?.groupValues</span>
+<span class="pc bpc" id="L386" title="1 of 2 branches missed.">            ?.getOrNull(1)</span>
+<span class="pc bpc" id="L387" title="1 of 2 branches missed.">            ?.let { return sanitizeCityArg(it) }</span>
+<span class="pc" id="L388">        Regex(&quot;&quot;&quot;\bforecast\s+(?:in|for)\s+(.+)$&quot;&quot;&quot;)</span>
+<span class="fc" id="L389">            .find(normalizedQuery)</span>
+<span class="pc bpc" id="L390" title="1 of 2 branches missed.">            ?.groupValues</span>
+<span class="nc bnc" id="L391" title="All 2 branches missed.">            ?.getOrNull(1)</span>
+<span class="nc bnc" id="L392" title="All 2 branches missed.">            ?.let { return sanitizeCityArg(it) }</span>
+<span class="fc" id="L393">        return null</span>
+    }
+
+    private fun sanitizeCityArg(raw: String): String? {
+<span class="fc" id="L397">        val city = raw.trim()</span>
+<span class="fc" id="L398">            .removePrefix(&quot;the &quot;)</span>
+<span class="fc" id="L399">            .removePrefix(&quot;a &quot;)</span>
+<span class="fc" id="L400">            .trim()</span>
+<span class="pc bpc" id="L401" title="3 of 6 branches missed.">        return city.takeIf { it.length in 2..60 }</span>
     }
 
     /**
@@ -379,31 +406,31 @@ object DirectToolResolver {
      * for short cabin asks (&quot;gas station&quot;, &quot;i am hungry&quot;, &quot;pizza nearby&quot;).
      */
     fun extractAmenityArg(normalizedQuery: String): String? {
-<span class="fc" id="L382">        extractTrailingArg(</span>
-<span class="fc" id="L383">            normalizedQuery,</span>
-<span class="fc" id="L384">            prefixes = listOf(</span>
-<span class="fc" id="L385">                &quot;find nearby&quot;,</span>
-<span class="fc" id="L386">                &quot;search nearby&quot;,</span>
-<span class="fc" id="L387">                &quot;looking for nearby&quot;,</span>
-<span class="fc" id="L388">                &quot;craving some good&quot;,</span>
-<span class="fc" id="L389">                &quot;craving some&quot;,</span>
-<span class="fc" id="L390">                &quot;craving&quot;,</span>
-<span class="fc" id="L391">                &quot;find a nearby&quot;,</span>
-<span class="fc" id="L392">                &quot;find me&quot;,</span>
-<span class="fc" id="L393">                &quot;search for&quot;,</span>
-<span class="fc" id="L394">                &quot;nearby&quot;,</span>
-<span class="fc" id="L395">                &quot;find&quot;,</span>
+<span class="fc" id="L409">        extractTrailingArg(</span>
+<span class="fc" id="L410">            normalizedQuery,</span>
+<span class="fc" id="L411">            prefixes = listOf(</span>
+<span class="fc" id="L412">                &quot;find nearby&quot;,</span>
+<span class="fc" id="L413">                &quot;search nearby&quot;,</span>
+<span class="fc" id="L414">                &quot;looking for nearby&quot;,</span>
+<span class="fc" id="L415">                &quot;craving some good&quot;,</span>
+<span class="fc" id="L416">                &quot;craving some&quot;,</span>
+<span class="fc" id="L417">                &quot;craving&quot;,</span>
+<span class="fc" id="L418">                &quot;find a nearby&quot;,</span>
+<span class="fc" id="L419">                &quot;find me&quot;,</span>
+<span class="fc" id="L420">                &quot;search for&quot;,</span>
+<span class="fc" id="L421">                &quot;nearby&quot;,</span>
+<span class="fc" id="L422">                &quot;find&quot;,</span>
             ),
-<span class="fc bfc" id="L397" title="All 2 branches covered.">        )?.let { rest -&gt;</span>
-<span class="pc bpc" id="L398" title="1 of 2 branches missed.">            return rest.removeSuffix(&quot; nearby&quot;).removePrefix(&quot;nearby &quot;).trim().ifBlank { null }</span>
+<span class="fc bfc" id="L424" title="All 2 branches covered.">        )?.let { rest -&gt;</span>
+<span class="pc bpc" id="L425" title="1 of 2 branches missed.">            return rest.removeSuffix(&quot; nearby&quot;).removePrefix(&quot;nearby &quot;).trim().ifBlank { null }</span>
         }
-<span class="fc" id="L400">        return when {</span>
-<span class="fc bfc" id="L401" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(gas station|petrol|fuel)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;gas&quot;</span>
-<span class="fc bfc" id="L402" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\bcharg(e|ing)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;charging&quot;</span>
-<span class="pc bpc" id="L403" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\bcoffee\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;coffee shop&quot;</span>
-<span class="fc bfc" id="L404" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\bpizza\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;pizza&quot;</span>
-<span class="pc bpc" id="L405" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(restaurant|food|hungry|eat)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;restaurant&quot;</span>
-<span class="nc" id="L406">            else -&gt; null</span>
+<span class="fc" id="L427">        return when {</span>
+<span class="fc bfc" id="L428" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\b(gas station|petrol|fuel)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;gas&quot;</span>
+<span class="fc bfc" id="L429" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\bcharg(e|ing)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;charging&quot;</span>
+<span class="fc bfc" id="L430" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\bcoffee\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;coffee shop&quot;</span>
+<span class="fc bfc" id="L431" title="All 2 branches covered.">            Regex(&quot;&quot;&quot;\bpizza\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;pizza&quot;</span>
+<span class="pc bpc" id="L432" title="1 of 2 branches missed.">            Regex(&quot;&quot;&quot;\b(restaurant|food|hungry|eat)\b&quot;&quot;&quot;).containsMatchIn(normalizedQuery) -&gt; &quot;restaurant&quot;</span>
+<span class="nc" id="L433">            else -&gt; null</span>
         }
     }
 }

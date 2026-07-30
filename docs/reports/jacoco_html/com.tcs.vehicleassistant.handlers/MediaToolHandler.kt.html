@@ -211,58 +211,25 @@ import android.net.Uri
                 )
             }
             &quot;setVolumeLevel&quot; -&gt; {
-<span class="nc" id="L214">                val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager</span>
-<span class="nc" id="L215">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).replace(&quot;\&quot;&quot;, &quot;&quot;).trim()</span>
-                
-<span class="nc bnc" id="L217" title="All 6 branches missed.">                if (argStr.isBlank() || argStr.equals(&quot;UP&quot;, ignoreCase = true) || argStr.equals(&quot;DOWN&quot;, ignoreCase = true)) {</span>
-<span class="nc bnc" id="L218" title="All 4 branches missed.">                    val isDecrease = toolCall.contains(&quot;decrease&quot;, ignoreCase = true) || argStr.equals(&quot;DOWN&quot;, ignoreCase = true)</span>
-<span class="nc bnc" id="L219" title="All 2 branches missed.">                    val direction = if (isDecrease) android.media.AudioManager.ADJUST_LOWER else android.media.AudioManager.ADJUST_RAISE</span>
-<span class="nc" id="L220">                    audioManager.adjustStreamVolume(android.media.AudioManager.STREAM_MUSIC, direction, 0)</span>
-                    
-<span class="nc" id="L222">                    val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)</span>
-<span class="nc" id="L223">                    val newVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)</span>
-<span class="nc" id="L224">                    val percentage = Math.round((newVol.toFloat() / maxVol) * 100)</span>
-<span class="nc" id="L225">                    return ToolExecutionResult(true, &quot;I've set the volume to $percentage%.&quot;)</span>
-                }
-
-<span class="nc" id="L228">                val maxVol = audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC)</span>
-<span class="nc" id="L229">                val curVol = audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)</span>
-<span class="nc" id="L230">                var targetVol = curVol</span>
-
-<span class="nc bnc" id="L232" title="All 2 branches missed.">                if (argStr.equals(&quot;MAX&quot;, ignoreCase = true)) {</span>
-<span class="nc" id="L233">                    targetVol = maxVol</span>
-<span class="nc bnc" id="L234" title="All 4 branches missed.">                } else if (argStr.startsWith(&quot;+&quot;) || argStr.startsWith(&quot;-&quot;)) {</span>
-<span class="nc" id="L235">                    val hasPercentSign = argStr.contains(&quot;%&quot;)</span>
-<span class="nc bnc" id="L236" title="All 2 branches missed.">                    val parsedNum = argStr.replace(&quot;%&quot;, &quot;&quot;).toIntOrNull() ?: 0</span>
-<span class="nc bnc" id="L237" title="All 4 branches missed.">                    val delta = if (hasPercentSign || Math.abs(parsedNum) &gt; maxVol) {</span>
-<span class="nc" id="L238">                        Math.round((parsedNum / 100f) * maxVol).toInt()</span>
-                    } else {
-<span class="nc" id="L240">                        parsedNum</span>
-                    }
-<span class="nc" id="L242">                    targetVol = Math.max(0, Math.min(maxVol, curVol + delta))</span>
+<span class="nc" id="L214">                val argStr = toolCall.substringAfter(&quot;(&quot;).substringBefore(&quot;)&quot;).replace(&quot;\&quot;&quot;, &quot;&quot;).trim()</span>
+<span class="nc" id="L215">                val before = CabinVolumeController.read(context)</span>
+<span class="nc" id="L216">                val plan = VolumeLevelResolver.plan(argStr, before.current, before.max, toolCall)</span>
+<span class="nc" id="L217">                Log.i(</span>
+<span class="nc" id="L218">                    TAG,</span>
+<span class="nc" id="L219">                    &quot;setVolumeLevel arg='$argStr' source=${before.source} cur=${before.current}/${before.max} target=${plan.targetIndex}&quot;,</span>
+                )
+<span class="nc bnc" id="L221" title="All 2 branches missed.">                val after = if (plan.targetIndex != before.current) {</span>
+<span class="nc" id="L222">                    CabinVolumeController.write(context, plan.targetIndex)</span>
                 } else {
-<span class="nc" id="L244">                    val hasPercentSign = argStr.contains(&quot;%&quot;)</span>
-<span class="nc" id="L245">                    val parsedNum = argStr.replace(&quot;%&quot;, &quot;&quot;).replace(&quot;+&quot;, &quot;&quot;).toIntOrNull()</span>
-<span class="nc bnc" id="L246" title="All 2 branches missed.">                    if (parsedNum != null) {</span>
-<span class="nc bnc" id="L247" title="All 4 branches missed.">                        if (hasPercentSign || parsedNum &gt; maxVol) {</span>
-                            // Treat as percentage
-<span class="nc" id="L249">                            targetVol = Math.round((parsedNum / 100f) * maxVol).toInt()</span>
-                        } else {
-                            // Treat as absolute hardware index
-<span class="nc" id="L252">                            targetVol = parsedNum</span>
-                        }
-<span class="nc" id="L254">                        targetVol = Math.max(0, Math.min(maxVol, targetVol))</span>
-                    } else {
-<span class="nc" id="L256">                        val isDecrease = toolCall.contains(&quot;decrease&quot;, ignoreCase = true)</span>
-<span class="nc bnc" id="L257" title="All 2 branches missed.">                        targetVol = if (isDecrease) Math.max(0, curVol - 1) else Math.min(maxVol, curVol + 1)</span>
-                    }
+<span class="nc" id="L224">                    before</span>
                 }
-
-<span class="nc" id="L261">                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, targetVol, 0)</span>
-<span class="nc" id="L262">                val finalPercentage = Math.round((targetVol.toFloat() / maxVol) * 100)</span>
-<span class="nc" id="L263">                ToolExecutionResult(true, &quot;I've set the volume to $finalPercentage%.&quot;)</span>
+                // Re-plan percentages against the max we actually wrote against.
+<span class="nc" id="L227">                val planForFeedback = plan.copy(maxIndex = after.max, previousIndex = before.current)</span>
+<span class="nc" id="L228">                val message = VolumeLevelResolver.feedback(planForFeedback, after.current)</span>
+<span class="nc bnc" id="L229" title="All 4 branches missed.">                val success = after.current != before.current || plan.targetIndex == before.current</span>
+<span class="nc" id="L230">                ToolExecutionResult(success, message)</span>
             }
-<span class="nc" id="L265">            else -&gt; ToolExecutionResult(false, &quot;System Error: Media Handler not recognized.&quot;)</span>
+<span class="nc" id="L232">            else -&gt; ToolExecutionResult(false, &quot;System Error: Media Handler not recognized.&quot;)</span>
         }
     }
 }

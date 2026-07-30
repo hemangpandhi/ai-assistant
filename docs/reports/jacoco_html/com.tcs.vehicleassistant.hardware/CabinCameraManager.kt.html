@@ -66,7 +66,7 @@ object CabinCameraManager {
 <span class="nc" id="L66">                boundProvider = cameraProvider</span>
 <span class="nc" id="L67">                val imageAnalysis = ImageAnalysis.Builder()</span>
 <span class="nc" id="L68">                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)</span>
-<span class="nc" id="L69">                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_YUV_420_888)</span>
+<span class="nc" id="L69">                    .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)</span>
 <span class="nc" id="L70">                    .build()</span>
 
 <span class="nc" id="L72">                imageAnalysis.setAnalyzer(cameraExecutor!!) { imageProxy -&gt;</span>
@@ -164,48 +164,34 @@ object CabinCameraManager {
 <span class="fc" id="L164">    }</span>
 
     private fun imageProxyToBitmap(image: ImageProxy): Bitmap? {
-<span class="nc bnc" id="L167" title="All 2 branches missed.">        if (image.format != ImageFormat.YUV_420_888) return null</span>
-<span class="nc" id="L168">        val yBuffer = image.planes[0].buffer</span>
-<span class="nc" id="L169">        val uBuffer = image.planes[1].buffer</span>
-<span class="nc" id="L170">        val vBuffer = image.planes[2].buffer</span>
+<span class="nc" id="L167">        val rawBitmap = try {</span>
+<span class="nc" id="L168">            image.toBitmap()</span>
+<span class="nc" id="L169">        } catch (e: Exception) {</span>
+<span class="nc" id="L170">            Log.e(TAG, &quot;Failed to convert ImageProxy to Bitmap&quot;, e)</span>
+<span class="nc" id="L171">            return null</span>
+        }
+
+        // Force rotate the image 90 degrees to ensure it is portrait and upright.
+        // Also mirror it for the front camera.
+<span class="nc" id="L176">        val matrix = android.graphics.Matrix()</span>
+<span class="nc" id="L177">        matrix.postRotate(90f)</span>
+<span class="nc" id="L178">        matrix.preScale(-1.0f, 1.0f)</span>
         
-<span class="nc" id="L172">        val ySize = yBuffer.remaining()</span>
-<span class="nc" id="L173">        val uSize = uBuffer.remaining()</span>
-<span class="nc" id="L174">        val vSize = vBuffer.remaining()</span>
+<span class="nc" id="L180">        val finalBitmap = Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)</span>
         
-<span class="nc" id="L176">        val nv21 = ByteArray(ySize + uSize + vSize)</span>
-<span class="nc" id="L177">        yBuffer.get(nv21, 0, ySize)</span>
-<span class="nc" id="L178">        vBuffer.get(nv21, ySize, vSize)</span>
-<span class="nc" id="L179">        uBuffer.get(nv21, ySize + vSize, uSize)</span>
-        
-<span class="nc" id="L181">        val yuvImage = YuvImage(nv21, ImageFormat.NV21, image.width, image.height, null)</span>
-<span class="nc" id="L182">        val out = ByteArrayOutputStream()</span>
-<span class="nc" id="L183">        yuvImage.compressToJpeg(Rect(0, 0, yuvImage.width, yuvImage.height), 100, out)</span>
-<span class="nc" id="L184">        val imageBytes = out.toByteArray()</span>
-<span class="nc bnc" id="L185" title="All 2 branches missed.">        val rawBitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size) ?: return null</span>
-        
-        // Use dynamic rotation provided by CameraX
-<span class="nc" id="L188">        val rotation = image.imageInfo.rotationDegrees.toFloat()</span>
-<span class="nc" id="L189">        Log.d(TAG, &quot;Raw Image: ${image.width}x${image.height}, applying $rotation degree rotation&quot;)</span>
-        
-<span class="nc" id="L191">        val matrix = android.graphics.Matrix()</span>
-<span class="nc" id="L192">        matrix.postRotate(rotation)</span>
-        
-<span class="nc" id="L194">        val finalBitmap = Bitmap.createBitmap(rawBitmap, 0, 0, rawBitmap.width, rawBitmap.height, matrix, true)</span>
-        
-<span class="nc bnc" id="L196" title="All 4 branches missed.">        if (frameCount++ % 100 == 0 &amp;&amp; cacheDir != null) {</span>
-<span class="nc" id="L197">            try {</span>
-<span class="nc" id="L198">                val file = java.io.File(cacheDir, &quot;camera_debug.jpg&quot;)</span>
-<span class="nc" id="L199">                val fos = java.io.FileOutputStream(file)</span>
-<span class="nc" id="L200">                finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)</span>
-<span class="nc" id="L201">                fos.close()</span>
-<span class="nc" id="L202">                Log.d(TAG, &quot;Saved debug frame to ${file.absolutePath}&quot;)</span>
-<span class="nc" id="L203">            } catch (e: Exception) {</span>
-<span class="nc" id="L204">                Log.e(TAG, &quot;Failed to save debug frame&quot;, e)</span>
+<span class="nc bnc" id="L182" title="All 4 branches missed.">        if (frameCount++ % 100 == 0 &amp;&amp; cacheDir != null) {</span>
+<span class="nc" id="L183">            try {</span>
+<span class="nc" id="L184">                val file = java.io.File(cacheDir, &quot;camera_debug.jpg&quot;)</span>
+<span class="nc" id="L185">                val fos = java.io.FileOutputStream(file)</span>
+<span class="nc" id="L186">                finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, fos)</span>
+<span class="nc" id="L187">                fos.close()</span>
+<span class="nc" id="L188">                Log.d(TAG, &quot;Saved debug frame to ${file.absolutePath}&quot;)</span>
+<span class="nc" id="L189">            } catch (e: Exception) {</span>
+<span class="nc" id="L190">                Log.e(TAG, &quot;Failed to save debug frame&quot;, e)</span>
             }
         }
         
-<span class="nc" id="L208">        return finalBitmap</span>
+<span class="nc" id="L194">        return finalBitmap</span>
     }
 
     private var frameCount = 0
@@ -218,26 +204,26 @@ object CabinCameraManager {
      * [startCamera] bound a second analyzer on a dead executor.
      */
     fun stopCamera() {
-<span class="nc" id="L221">        try {</span>
-<span class="nc bnc" id="L222" title="All 2 branches missed.">            boundProvider?.unbindAll()</span>
-<span class="nc" id="L223">        } catch (e: Exception) {</span>
-<span class="nc" id="L224">            Log.w(TAG, &quot;Failed to unbind camera use cases&quot;, e)</span>
+<span class="nc" id="L207">        try {</span>
+<span class="nc bnc" id="L208" title="All 2 branches missed.">            boundProvider?.unbindAll()</span>
+<span class="nc" id="L209">        } catch (e: Exception) {</span>
+<span class="nc" id="L210">            Log.w(TAG, &quot;Failed to unbind camera use cases&quot;, e)</span>
         }
-<span class="nc" id="L226">        boundProvider = null</span>
+<span class="nc" id="L212">        boundProvider = null</span>
 
-<span class="nc bnc" id="L228" title="All 2 branches missed.">        cameraExecutor?.shutdown()</span>
-<span class="nc" id="L229">        cameraExecutor = null</span>
+<span class="nc bnc" id="L214" title="All 2 branches missed.">        cameraExecutor?.shutdown()</span>
+<span class="nc" id="L215">        cameraExecutor = null</span>
 
-<span class="nc" id="L231">        try {</span>
-<span class="nc bnc" id="L232" title="All 2 branches missed.">            faceLandmarker?.close()</span>
-<span class="nc" id="L233">        } catch (e: Exception) {</span>
-<span class="nc" id="L234">            Log.w(TAG, &quot;Failed to close face landmarker&quot;, e)</span>
+<span class="nc" id="L217">        try {</span>
+<span class="nc bnc" id="L218" title="All 2 branches missed.">            faceLandmarker?.close()</span>
+<span class="nc" id="L219">        } catch (e: Exception) {</span>
+<span class="nc" id="L220">            Log.w(TAG, &quot;Failed to close face landmarker&quot;, e)</span>
         }
-<span class="nc" id="L236">        faceLandmarker = null</span>
+<span class="nc" id="L222">        faceLandmarker = null</span>
 
-<span class="nc" id="L238">        frameCallback = null</span>
-<span class="nc" id="L239">        occupantCount = 0</span>
-<span class="nc" id="L240">        currentMood = &quot;Neutral&quot;</span>
-<span class="nc" id="L241">    }</span>
+<span class="nc" id="L224">        frameCallback = null</span>
+<span class="nc" id="L225">        occupantCount = 0</span>
+<span class="nc" id="L226">        currentMood = &quot;Neutral&quot;</span>
+<span class="nc" id="L227">    }</span>
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

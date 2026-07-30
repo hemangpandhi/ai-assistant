@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ParameterParser.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">ParameterParser.kt</span></div><h1>ParameterParser.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
 
 object ParameterParser {
-<span class="nc" id="L4">    fun extractDouble(args: String, default: Double = 0.0): Double {</span>
-<span class="nc bnc" id="L5" title="All 6 branches missed.">        return Math.abs(Regex(&quot;-?\\d+(\\.\\d+)?&quot;).find(args)?.value?.toDoubleOrNull() ?: default)</span>
+<span class="fc" id="L4">    fun extractDouble(args: String, default: Double = 0.0): Double {</span>
+<span class="pc bpc" id="L5" title="2 of 6 branches missed.">        return Math.abs(Regex(&quot;-?\\d+(\\.\\d+)?&quot;).find(args)?.value?.toDoubleOrNull() ?: default)</span>
     }
 
-<span class="nc" id="L8">    fun extractInt(args: String, default: Int = 0): Int {</span>
-<span class="nc bnc" id="L9" title="All 6 branches missed.">        return Math.abs(Regex(&quot;-?\\d+&quot;).find(args)?.value?.toIntOrNull() ?: default)</span>
+<span class="fc" id="L8">    fun extractInt(args: String, default: Int = 0): Int {</span>
+<span class="pc bpc" id="L9" title="2 of 6 branches missed.">        return Math.abs(Regex(&quot;-?\\d+&quot;).find(args)?.value?.toIntOrNull() ?: default)</span>
     }
 
-<span class="nc" id="L12">    fun extractString(args: String, default: String = &quot;&quot;): String {</span>
-<span class="nc bnc" id="L13" title="All 2 branches missed.">        return if (args.isBlank()) default else args.trim().replace(&quot;\&quot;&quot;, &quot;&quot;)</span>
+<span class="fc" id="L12">    fun extractString(args: String, default: String = &quot;&quot;): String {</span>
+<span class="fc bfc" id="L13" title="All 2 branches covered.">        return if (args.isBlank()) default else args.trim().replace(&quot;\&quot;&quot;, &quot;&quot;)</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

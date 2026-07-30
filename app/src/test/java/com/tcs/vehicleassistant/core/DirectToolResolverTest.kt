@@ -66,7 +66,7 @@ class DirectToolResolverTest {
         handlerKey = "turnOnAC",
         promptString = "<TOOL>turnOnAC()</TOOL>",
         // Short ambient words must not win; phrases are required for production safety.
-        keywords = listOf("turn on ac", "ac on", "start ac", "hot", "warm"),
+        keywords = listOf("turn on ac", "turn on the ac", "ac on", "start ac", "hot", "warm"),
         successMessage = "AC on.",
         requiresConfirmation = false,
         requiresAgenticLoop = false,
@@ -320,5 +320,64 @@ class DirectToolResolverTest {
                 DirectToolResolver.normalize("whats the weather in tokyo"),
             ),
         )
+    }
+
+    @Test
+    fun normalize_collapsesSlashAc() {
+        assertEquals("turn on the ac", DirectToolResolver.normalize("Turn on the A/C."))
+        assertEquals("done off the ac", DirectToolResolver.normalize("Done off the AC."))
+    }
+
+    @Test
+    fun collapseAsrRepeats_shortCabinPhrases() {
+        assertEquals(
+            "play music",
+            DirectToolResolver.collapseAsrRepeats(
+                "play music play music play music play music play music play music play music",
+            ),
+        )
+        assertEquals(
+            "turn on ac",
+            DirectToolResolver.collapseAsrRepeats(
+                "turn on AC turn on AC turn on AC turn on AC turn on AC turn on",
+            ),
+        )
+        assertEquals("play music", DirectToolResolver.collapseAsrRepeats("play music"))
+    }
+
+    @Test
+    fun resolve_acSlashAndAsrDoneOff() {
+        assertEquals(
+            "turnOnAC",
+            (DirectToolResolver.resolve("Turn on the A/C.", catalogue)
+                as DirectToolResolver.Outcome.Execute).hit.toolId,
+        )
+
+        val catalogueWithOff = catalogue + DirectToolResolver.ToolSpec(
+            id = "turnOffAC",
+            handlerKey = "turnOffAC",
+            promptString = "<TOOL>turnOffAC()</TOOL>",
+            keywords = listOf(
+                "turn off ac", "turn off the ac", "ac off", "off the ac", "done off the ac",
+            ),
+            successMessage = "I've turned off the AC.",
+            requiresConfirmation = false,
+            requiresAgenticLoop = false,
+            directExecutable = true,
+        )
+        assertEquals(
+            "turnOffAC",
+            (DirectToolResolver.resolve("Done off the AC.", catalogueWithOff)
+                as DirectToolResolver.Outcome.Execute).hit.toolId,
+        )
+    }
+
+    @Test
+    fun resolve_asrStutterPlayMusic() {
+        val stutter =
+            "play music play music play music play music play music play music play music"
+        val hit = (DirectToolResolver.resolve(stutter, catalogue)
+            as DirectToolResolver.Outcome.Execute).hit
+        assertEquals("playMusic", hit.toolId)
     }
 }

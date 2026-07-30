@@ -524,69 +524,72 @@ import org.json.JSONObject
 <span class="nc bnc" id="L524" title="All 2 branches missed.">                    if (handler != null) {</span>
 <span class="nc" id="L525">                        val args = toolCall.substringAfter(&quot;(&quot;).substringBeforeLast(&quot;)&quot;)</span>
 <span class="nc" id="L526">                        val startToolTime = System.currentTimeMillis()</span>
-<span class="nc" id="L527">                        val result = handler.execute(context, toolCall, args, intentHandler)</span>
-<span class="nc" id="L528">                        val endToolTime = System.currentTimeMillis()</span>
-<span class="nc" id="L529">                        val latency = endToolTime - startToolTime</span>
-<span class="nc" id="L530">                        com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency</span>
-<span class="nc" id="L531">                        com.tcs.vehicleassistant.LatencyLogger.log(&quot;ToolManager&quot;, &quot;Tool Execution Time for $handlerKey: ${latency}ms&quot;)</span>
-<span class="nc" id="L532">                        return result.message</span>
+                        // DirectTool often runs on Main; keep network/disk off the UI thread.
+<span class="nc" id="L528">                        val result = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {</span>
+<span class="nc" id="L529">                            handler.execute(context, toolCall, args, intentHandler)</span>
+                        }
+<span class="nc" id="L531">                        val endToolTime = System.currentTimeMillis()</span>
+<span class="nc" id="L532">                        val latency = endToolTime - startToolTime</span>
+<span class="nc" id="L533">                        com.tcs.vehicleassistant.LatencyLogger.lastToolTimeMs = latency</span>
+<span class="nc" id="L534">                        com.tcs.vehicleassistant.LatencyLogger.log(&quot;ToolManager&quot;, &quot;Tool Execution Time for $handlerKey: ${latency}ms&quot;)</span>
+<span class="nc" id="L535">                        return result.message</span>
                     } else {
-<span class="nc" id="L534">                        Log.w(TAG, &quot;No handler registered for key: $handlerKey&quot;)</span>
-<span class="nc" id="L535">                        return &quot;System Error: Handler not implemented for $handlerKey.&quot;</span>
+<span class="nc" id="L537">                        Log.w(TAG, &quot;No handler registered for key: $handlerKey&quot;)</span>
+<span class="nc" id="L538">                        return &quot;System Error: Handler not implemented for $handlerKey.&quot;</span>
                     }
                 } else {
-<span class="nc" id="L538">                    return &quot;System Error: Missing handler_key for CUSTOM_KOTLIN tool.&quot;</span>
+<span class="nc" id="L541">                    return &quot;System Error: Missing handler_key for CUSTOM_KOTLIN tool.&quot;</span>
                 }
             }
 
-<span class="nc" id="L542">            return &quot;System Error: Unknown handler type ${matchedTool.handlerType}.&quot;</span>
-<span class="nc" id="L543">        } catch (e: Exception) {</span>
-<span class="nc" id="L544">            Log.e(TAG, &quot;Exception during tool execution&quot;, e)</span>
-<span class="nc" id="L545">            return &quot;System Error: An exception occurred while executing the tool.&quot;</span>
+<span class="nc" id="L545">            return &quot;System Error: Unknown handler type ${matchedTool.handlerType}.&quot;</span>
+<span class="nc" id="L546">        } catch (e: Exception) {</span>
+<span class="nc" id="L547">            Log.e(TAG, &quot;Exception during tool execution&quot;, e)</span>
+<span class="nc" id="L548">            return &quot;System Error: An exception occurred while executing the tool.&quot;</span>
         }
     }
 
     /**
      * Executes a dummy command for every registered tool to verify the VHAL pipeline.
      */
-<span class="nc" id="L552">    suspend fun runSystemDiagnostics(context: Context): String {</span>
-<span class="nc" id="L553">        val sb = StringBuilder()</span>
-<span class="nc" id="L554">        sb.append(&quot;## System Diagnostics Report\n\n&quot;)</span>
-<span class="nc" id="L555">        sb.append(&quot;| Tool Name | Handler Type | Status | Note |\n&quot;)</span>
-<span class="nc" id="L556">        sb.append(&quot;|---|---|---|---|\n&quot;)</span>
+<span class="nc" id="L555">    suspend fun runSystemDiagnostics(context: Context): String {</span>
+<span class="nc" id="L556">        val sb = StringBuilder()</span>
+<span class="nc" id="L557">        sb.append(&quot;## System Diagnostics Report\n\n&quot;)</span>
+<span class="nc" id="L558">        sb.append(&quot;| Tool Name | Handler Type | Status | Note |\n&quot;)</span>
+<span class="nc" id="L559">        sb.append(&quot;|---|---|---|---|\n&quot;)</span>
 
-<span class="nc bnc" id="L558" title="All 2 branches missed.">        for ((key, def) in activeTools) {</span>
-<span class="nc" id="L559">            var status = &quot;✅ PASS&quot;</span>
-<span class="nc" id="L560">            var note = &quot;Executed successfully&quot;</span>
-<span class="nc" id="L561">            try {</span>
+<span class="nc bnc" id="L561" title="All 2 branches missed.">        for ((key, def) in activeTools) {</span>
+<span class="nc" id="L562">            var status = &quot;✅ PASS&quot;</span>
+<span class="nc" id="L563">            var note = &quot;Executed successfully&quot;</span>
+<span class="nc" id="L564">            try {</span>
                 // Generate a dummy tool call string based on the required signature
-<span class="nc" id="L563">                val dummyCall = when {</span>
-<span class="nc bnc" id="L564" title="All 2 branches missed.">                    def.promptString.contains(&quot;VAL&quot;) -&gt; &quot;$key(72.0)&quot;</span>
-<span class="nc bnc" id="L565" title="All 2 branches missed.">                    def.promptString.contains(&quot;LEVEL&quot;) -&gt; &quot;$key(1)&quot;</span>
-<span class="nc bnc" id="L566" title="All 2 branches missed.">                    def.promptString.contains(&quot;PCT&quot;) -&gt; &quot;$key(50)&quot;</span>
-<span class="nc bnc" id="L567" title="All 2 branches missed.">                    def.promptString.contains(&quot;DEST&quot;) -&gt; &quot;$key(Home)&quot;</span>
-<span class="nc bnc" id="L568" title="All 2 branches missed.">                    def.promptString.contains(&quot;SONG&quot;) -&gt; &quot;$key(Test)&quot;</span>
-<span class="nc bnc" id="L569" title="All 2 branches missed.">                    def.promptString.contains(&quot;NAME&quot;) -&gt; &quot;$key(Mechanic)&quot;</span>
-<span class="nc bnc" id="L570" title="All 2 branches missed.">                    def.promptString.contains(&quot;FACT&quot;) -&gt; &quot;$key(TestFact)&quot;</span>
-<span class="nc" id="L571">                    else -&gt; &quot;$key()&quot; // No args</span>
+<span class="nc" id="L566">                val dummyCall = when {</span>
+<span class="nc bnc" id="L567" title="All 2 branches missed.">                    def.promptString.contains(&quot;VAL&quot;) -&gt; &quot;$key(72.0)&quot;</span>
+<span class="nc bnc" id="L568" title="All 2 branches missed.">                    def.promptString.contains(&quot;LEVEL&quot;) -&gt; &quot;$key(1)&quot;</span>
+<span class="nc bnc" id="L569" title="All 2 branches missed.">                    def.promptString.contains(&quot;PCT&quot;) -&gt; &quot;$key(50)&quot;</span>
+<span class="nc bnc" id="L570" title="All 2 branches missed.">                    def.promptString.contains(&quot;DEST&quot;) -&gt; &quot;$key(Home)&quot;</span>
+<span class="nc bnc" id="L571" title="All 2 branches missed.">                    def.promptString.contains(&quot;SONG&quot;) -&gt; &quot;$key(Test)&quot;</span>
+<span class="nc bnc" id="L572" title="All 2 branches missed.">                    def.promptString.contains(&quot;NAME&quot;) -&gt; &quot;$key(Mechanic)&quot;</span>
+<span class="nc bnc" id="L573" title="All 2 branches missed.">                    def.promptString.contains(&quot;FACT&quot;) -&gt; &quot;$key(TestFact)&quot;</span>
+<span class="nc" id="L574">                    else -&gt; &quot;$key()&quot; // No args</span>
                 }
 
-<span class="nc" id="L574">                val result = executeToolCall(context, dummyCall)</span>
-<span class="nc bnc" id="L575" title="All 4 branches missed.">                if (result.startsWith(&quot;System Error&quot;) || result.startsWith(&quot;Failed&quot;)) {</span>
-<span class="nc" id="L576">                    status = &quot;❌ FAIL&quot;</span>
-<span class="nc" id="L577">                    note = result</span>
+<span class="nc" id="L577">                val result = executeToolCall(context, dummyCall)</span>
+<span class="nc bnc" id="L578" title="All 4 branches missed.">                if (result.startsWith(&quot;System Error&quot;) || result.startsWith(&quot;Failed&quot;)) {</span>
+<span class="nc" id="L579">                    status = &quot;❌ FAIL&quot;</span>
+<span class="nc" id="L580">                    note = result</span>
                 }
-<span class="nc" id="L579">            } catch (e: Exception) {</span>
-<span class="nc" id="L580">                status = &quot;❌ CRASH&quot;</span>
-<span class="nc bnc" id="L581" title="All 2 branches missed.">                note = e.message ?: &quot;Unknown Exception&quot;</span>
+<span class="nc" id="L582">            } catch (e: Exception) {</span>
+<span class="nc" id="L583">                status = &quot;❌ CRASH&quot;</span>
+<span class="nc bnc" id="L584" title="All 2 branches missed.">                note = e.message ?: &quot;Unknown Exception&quot;</span>
             }
-<span class="nc" id="L583">            sb.append(&quot;| $key | ${def.handlerType} | $status | $note |\n&quot;)</span>
+<span class="nc" id="L586">            sb.append(&quot;| $key | ${def.handlerType} | $status | $note |\n&quot;)</span>
         }
 
-<span class="nc" id="L586">        sb.append(&quot;\n&quot;)</span>
-<span class="nc" id="L587">        sb.append(VehicleManager.runPropertyDiagnostics())</span>
+<span class="nc" id="L589">        sb.append(&quot;\n&quot;)</span>
+<span class="nc" id="L590">        sb.append(VehicleManager.runPropertyDiagnostics())</span>
         
-<span class="nc" id="L589">        return sb.toString()</span>
+<span class="nc" id="L592">        return sb.toString()</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

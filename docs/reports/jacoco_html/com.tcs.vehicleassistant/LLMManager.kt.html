@@ -58,19 +58,20 @@ object LLMManager {
 <span class="pc" id="L58">    var lastVehicleState = &quot;&quot;</span>
 
 <span class="pc" id="L60">    var isFirstMessage = true</span>
-<span class="pc" id="L61">    var lastAiResponse: String = &quot;&quot;</span>
-<span class="pc" id="L62">    var lastInjectedTools: String = &quot;&quot;</span>
+<span class="fc" id="L61">    var nativeTurnsSinceReset = 0</span>
+<span class="pc" id="L62">    var lastAiResponse: String = &quot;&quot;</span>
+<span class="pc" id="L63">    var lastInjectedTools: String = &quot;&quot;</span>
 
     /**
      * Held for the duration of an inference so [unload] and re-initialization cannot close the
      * native engine from under an in-flight `sendMessageAsync` callback.
      */
-<span class="fc" id="L68">    private val inferenceLock = Any()</span>
+<span class="fc" id="L69">    private val inferenceLock = Any()</span>
 
     /** Counts inferences currently inside the native engine, guarded by [inferenceLock]. */
     private var activeInferences = 0
 
-<span class="pc bpc" id="L73" title="5 of 6 branches missed.">    fun isReady(): Boolean = engine != null &amp;&amp; conversation != null &amp;&amp; !isInitializing</span>
+<span class="pc bpc" id="L74" title="5 of 6 branches missed.">    fun isReady(): Boolean = engine != null &amp;&amp; conversation != null &amp;&amp; !isInitializing</span>
 
     interface InitCallback {
         fun onSuccess()
@@ -81,249 +82,249 @@ object LLMManager {
      * Marks an inference as entering the native engine and returns the conversation to use, or
      * `null` when the engine is not usable. Callers must pair this with [endInference].
      */
-<span class="nc" id="L84">    fun beginInference(): Conversation? = synchronized(inferenceLock) {</span>
-<span class="nc" id="L85">        val active = conversation</span>
-<span class="nc bnc" id="L86" title="All 6 branches missed.">        if (active == null || engine == null || isInitializing) return@synchronized null</span>
-<span class="nc" id="L87">        activeInferences++</span>
-<span class="nc" id="L88">        active</span>
-<span class="nc" id="L89">    }</span>
+<span class="nc" id="L85">    fun beginInference(): Conversation? = synchronized(inferenceLock) {</span>
+<span class="nc" id="L86">        val active = conversation</span>
+<span class="nc bnc" id="L87" title="All 6 branches missed.">        if (active == null || engine == null || isInitializing) return@synchronized null</span>
+<span class="nc" id="L88">        activeInferences++</span>
+<span class="nc" id="L89">        active</span>
+<span class="nc" id="L90">    }</span>
 
-<span class="nc" id="L91">    fun endInference() = synchronized(inferenceLock) {</span>
-<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (activeInferences &gt; 0) activeInferences--</span>
-<span class="nc" id="L93">    }</span>
+<span class="nc" id="L92">    fun endInference() = synchronized(inferenceLock) {</span>
+<span class="nc bnc" id="L93" title="All 2 branches missed.">        if (activeInferences &gt; 0) activeInferences--</span>
+<span class="nc" id="L94">    }</span>
 
     /** True while at least one inference is inside the native engine. */
-<span class="pc bpc" id="L96" title="1 of 2 branches missed.">    fun hasActiveInference(): Boolean = synchronized(inferenceLock) { activeInferences &gt; 0 }</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">    fun hasActiveInference(): Boolean = synchronized(inferenceLock) { activeInferences &gt; 0 }</span>
 
     /**
      * Waits until no inference is inside the native engine, or [timeoutMs] elapses.
      * @return true when the engine is idle and safe to close/re-init.
      */
-<span class="nc" id="L102">    suspend fun awaitInferenceDrain(</span>
-<span class="nc" id="L103">        timeoutMs: Long = AssistantConfig.Llm.INFERENCE_DRAIN_TIMEOUT_MS,</span>
+<span class="nc" id="L103">    suspend fun awaitInferenceDrain(</span>
+<span class="nc" id="L104">        timeoutMs: Long = AssistantConfig.Llm.INFERENCE_DRAIN_TIMEOUT_MS,</span>
     ): Boolean {
-<span class="nc" id="L105">        val deadline = System.currentTimeMillis() + timeoutMs</span>
-<span class="nc bnc" id="L106" title="All 2 branches missed.">        while (hasActiveInference()) {</span>
-<span class="nc bnc" id="L107" title="All 2 branches missed.">            if (System.currentTimeMillis() &gt;= deadline) {</span>
-<span class="nc" id="L108">                Log.w(TAG, &quot;Inference drain timed out with activeInferences still &gt; 0&quot;)</span>
-<span class="nc" id="L109">                return false</span>
+<span class="nc" id="L106">        val deadline = System.currentTimeMillis() + timeoutMs</span>
+<span class="nc bnc" id="L107" title="All 2 branches missed.">        while (hasActiveInference()) {</span>
+<span class="nc bnc" id="L108" title="All 2 branches missed.">            if (System.currentTimeMillis() &gt;= deadline) {</span>
+<span class="nc" id="L109">                Log.w(TAG, &quot;Inference drain timed out with activeInferences still &gt; 0&quot;)</span>
+<span class="nc" id="L110">                return false</span>
             }
-<span class="nc" id="L111">            delay(50)</span>
+<span class="nc" id="L112">            delay(50)</span>
         }
-<span class="nc" id="L113">        return true</span>
+<span class="nc" id="L114">        return true</span>
     }
 
-<span class="nc" id="L116">    suspend fun autoInitialize(</span>
+<span class="nc" id="L117">    suspend fun autoInitialize(</span>
         context: Context,
-<span class="nc" id="L118">        force: Boolean = false,</span>
-<span class="nc" id="L119">        backendChoice: String = AssistantConfig.Backend.AUTO,</span>
-<span class="nc" id="L120">        callback: InitCallback? = null</span>
+<span class="nc" id="L119">        force: Boolean = false,</span>
+<span class="nc" id="L120">        backendChoice: String = AssistantConfig.Backend.AUTO,</span>
+<span class="nc" id="L121">        callback: InitCallback? = null</span>
     ) {
-<span class="nc bnc" id="L122" title="All 4 branches missed.">        if (!force &amp;&amp; engine != null) {</span>
-<span class="nc bnc" id="L123" title="All 2 branches missed.">            callback?.onSuccess()</span>
-<span class="nc" id="L124">            return</span>
+<span class="nc bnc" id="L123" title="All 4 branches missed.">        if (!force &amp;&amp; engine != null) {</span>
+<span class="nc bnc" id="L124" title="All 2 branches missed.">            callback?.onSuccess()</span>
+<span class="nc" id="L125">            return</span>
         }
 
-<span class="nc" id="L127">        withContext(Dispatchers.IO) {</span>
-<span class="nc" id="L128">            val explicitGemma = File(AssistantConfig.Llm.DEFAULT_MODEL_PATH)</span>
-<span class="nc bnc" id="L129" title="All 6 branches missed.">            val internalFiles = context.filesDir?.listFiles()?.toList() ?: emptyList()</span>
-<span class="nc bnc" id="L130" title="All 6 branches missed.">            val externalFiles = context.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()</span>
-<span class="nc bnc" id="L131" title="All 4 branches missed.">            val tmpFiles = File(&quot;/data/local/tmp/llm/&quot;).listFiles()?.toList() ?: emptyList()</span>
-<span class="nc" id="L132">            val allModelFiles = (internalFiles + externalFiles + tmpFiles).filter {</span>
-<span class="nc bnc" id="L133" title="All 6 branches missed.">                it.name.endsWith(&quot;.bin&quot;) || it.name.endsWith(&quot;.task&quot;) || it.name.endsWith(&quot;.litertlm&quot;)</span>
+<span class="nc" id="L128">        withContext(Dispatchers.IO) {</span>
+<span class="nc" id="L129">            val explicitGemma = File(AssistantConfig.Llm.DEFAULT_MODEL_PATH)</span>
+<span class="nc bnc" id="L130" title="All 6 branches missed.">            val internalFiles = context.filesDir?.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc bnc" id="L131" title="All 6 branches missed.">            val externalFiles = context.getExternalFilesDir(null)?.listFiles()?.toList() ?: emptyList()</span>
+<span class="nc bnc" id="L132" title="All 4 branches missed.">            val tmpFiles = File(&quot;/data/local/tmp/llm/&quot;).listFiles()?.toList() ?: emptyList()</span>
+<span class="nc" id="L133">            val allModelFiles = (internalFiles + externalFiles + tmpFiles).filter {</span>
+<span class="nc bnc" id="L134" title="All 6 branches missed.">                it.name.endsWith(&quot;.bin&quot;) || it.name.endsWith(&quot;.task&quot;) || it.name.endsWith(&quot;.litertlm&quot;)</span>
             }
 
             // Strictly lock exclusively to Gemma 4 E2B model
-<span class="nc" id="L137">            val modelFile = when {</span>
-<span class="nc bnc" id="L138" title="All 4 branches missed.">                explicitGemma.exists() &amp;&amp; explicitGemma.canRead() -&gt; explicitGemma</span>
-<span class="nc bnc" id="L139" title="All 8 branches missed.">                else -&gt; allModelFiles.find {</span>
-<span class="nc" id="L140">                    it.name.equals(AssistantConfig.Llm.DEFAULT_MODEL_FILENAME, ignoreCase = true)</span>
-<span class="nc bnc" id="L141" title="All 4 branches missed.">                } ?: allModelFiles.find { it.name.contains(&quot;gemma&quot;, ignoreCase = true) }</span>
-<span class="nc" id="L142">                    ?: explicitGemma</span>
+<span class="nc" id="L138">            val modelFile = when {</span>
+<span class="nc bnc" id="L139" title="All 4 branches missed.">                explicitGemma.exists() &amp;&amp; explicitGemma.canRead() -&gt; explicitGemma</span>
+<span class="nc bnc" id="L140" title="All 8 branches missed.">                else -&gt; allModelFiles.find {</span>
+<span class="nc" id="L141">                    it.name.equals(AssistantConfig.Llm.DEFAULT_MODEL_FILENAME, ignoreCase = true)</span>
+<span class="nc bnc" id="L142" title="All 4 branches missed.">                } ?: allModelFiles.find { it.name.contains(&quot;gemma&quot;, ignoreCase = true) }</span>
+<span class="nc" id="L143">                    ?: explicitGemma</span>
             }
 
-<span class="nc" id="L145">            val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
-<span class="nc bnc" id="L146" title="All 2 branches missed.">            val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)</span>
-<span class="nc" id="L147">                ?: AssistantConfig.Backend.AUTO</span>
-<span class="nc bnc" id="L148" title="All 2 branches missed.">            val targetBackend = if (backendChoice != AssistantConfig.Backend.AUTO) backendChoice else savedBackendChoice</span>
-<span class="nc" id="L149">            prefs.edit().putString(AssistantConfig.Prefs.SELECTED_MODEL, modelFile.absolutePath).apply()</span>
+<span class="nc" id="L146">            val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L147" title="All 2 branches missed.">            val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)</span>
+<span class="nc" id="L148">                ?: AssistantConfig.Backend.AUTO</span>
+<span class="nc bnc" id="L149" title="All 2 branches missed.">            val targetBackend = if (backendChoice != AssistantConfig.Backend.AUTO) backendChoice else savedBackendChoice</span>
+<span class="nc" id="L150">            prefs.edit().putString(AssistantConfig.Prefs.SELECTED_MODEL, modelFile.absolutePath).apply()</span>
 
-<span class="nc bnc" id="L151" title="All 4 branches missed.">            if (modelFile.exists() &amp;&amp; modelFile.length() &gt; 0) {</span>
-<span class="nc" id="L152">                initialize(context, modelFile.absolutePath, force, targetBackend, callback)</span>
+<span class="nc bnc" id="L152" title="All 4 branches missed.">            if (modelFile.exists() &amp;&amp; modelFile.length() &gt; 0) {</span>
+<span class="nc" id="L153">                initialize(context, modelFile.absolutePath, force, targetBackend, callback)</span>
             } else {
-<span class="nc bnc" id="L154" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
-<span class="nc bnc" id="L155" title="All 2 branches missed.">                    callback?.onError(Exception(&quot;Gemma model not found at ${modelFile.absolutePath}&quot;))</span>
+<span class="nc bnc" id="L155" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
+<span class="nc bnc" id="L156" title="All 2 branches missed.">                    callback?.onError(Exception(&quot;Gemma model not found at ${modelFile.absolutePath}&quot;))</span>
                 }
-<span class="nc" id="L157">            }</span>
+<span class="nc" id="L158">            }</span>
         }
-<span class="nc" id="L159">    }</span>
+<span class="nc" id="L160">    }</span>
 
-<span class="fc" id="L161">    private val initMutex = kotlinx.coroutines.sync.Mutex()</span>
+<span class="fc" id="L162">    private val initMutex = kotlinx.coroutines.sync.Mutex()</span>
 
     /**
      * Brings up the LiteRT engine, walking [DeviceCapabilities.backendFallbackChain] so a GPU
      * request on hardware without a working OpenCL driver degrades to CPU instead of leaving the
      * assistant permanently unusable.
      */
-<span class="nc" id="L168">    @OptIn(ExperimentalApi::class)</span>
+<span class="nc" id="L169">    @OptIn(ExperimentalApi::class)</span>
     suspend fun initialize(
         context: Context,
         modelPath: String,
-<span class="nc" id="L172">        force: Boolean = false,</span>
-<span class="nc" id="L173">        backendChoice: String = AssistantConfig.Backend.AUTO,</span>
-<span class="nc" id="L174">        callback: InitCallback? = null</span>
+<span class="nc" id="L173">        force: Boolean = false,</span>
+<span class="nc" id="L174">        backendChoice: String = AssistantConfig.Backend.AUTO,</span>
+<span class="nc" id="L175">        callback: InitCallback? = null</span>
     ) {
-<span class="nc" id="L176">        initMutex.withLock {</span>
-<span class="nc bnc" id="L177" title="All 6 branches missed.">            if (!force &amp;&amp; engine != null &amp;&amp; currentModelPath == modelPath) {</span>
-<span class="nc bnc" id="L178" title="All 4 branches missed.">                withContext(Dispatchers.Main) { callback?.onSuccess() }</span>
-<span class="nc" id="L179">                return</span>
+<span class="nc" id="L177">        initMutex.withLock {</span>
+<span class="nc bnc" id="L178" title="All 6 branches missed.">            if (!force &amp;&amp; engine != null &amp;&amp; currentModelPath == modelPath) {</span>
+<span class="nc bnc" id="L179" title="All 4 branches missed.">                withContext(Dispatchers.Main) { callback?.onSuccess() }</span>
+<span class="nc" id="L180">                return</span>
             }
 
-<span class="nc" id="L182">            try {</span>
-<span class="nc" id="L183">                isInitializing = true</span>
+<span class="nc" id="L183">            try {</span>
+<span class="nc" id="L184">                isInitializing = true</span>
 
                 // Never tear down a live LiteRT stream. Timeout/error recovery used to force-close
                 // here and corrupt the GPU/OpenCL context mid-generation.
-<span class="nc bnc" id="L187" title="All 4 branches missed.">                if (engine != null &amp;&amp; !awaitInferenceDrain()) {</span>
-<span class="nc" id="L188">                    val busy = Exception(&quot;Model is still generating — refusing forced re-init&quot;)</span>
-<span class="nc" id="L189">                    Log.e(TAG, busy.message!!)</span>
-<span class="nc bnc" id="L190" title="All 4 branches missed.">                    withContext(Dispatchers.Main) { callback?.onError(busy) }</span>
-<span class="nc" id="L191">                    return</span>
+<span class="nc bnc" id="L188" title="All 4 branches missed.">                if (engine != null &amp;&amp; !awaitInferenceDrain()) {</span>
+<span class="nc" id="L189">                    val busy = Exception(&quot;Model is still generating — refusing forced re-init&quot;)</span>
+<span class="nc" id="L190">                    Log.e(TAG, busy.message!!)</span>
+<span class="nc bnc" id="L191" title="All 4 branches missed.">                    withContext(Dispatchers.Main) { callback?.onError(busy) }</span>
+<span class="nc" id="L192">                    return</span>
                 }
 
-<span class="nc" id="L194">                val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
-<span class="nc bnc" id="L195" title="All 2 branches missed.">                val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)</span>
-<span class="nc" id="L196">                    ?: AssistantConfig.Backend.AUTO</span>
-<span class="nc" id="L197">                val requestedBackend =</span>
-<span class="nc bnc" id="L198" title="All 2 branches missed.">                    if (backendChoice != AssistantConfig.Backend.AUTO) backendChoice else savedBackendChoice</span>
+<span class="nc" id="L195">                val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L196" title="All 2 branches missed.">                val savedBackendChoice = prefs.getString(AssistantConfig.Prefs.BACKEND_CHOICE, AssistantConfig.Backend.AUTO)</span>
+<span class="nc" id="L197">                    ?: AssistantConfig.Backend.AUTO</span>
+<span class="nc" id="L198">                val requestedBackend =</span>
+<span class="nc bnc" id="L199" title="All 2 branches missed.">                    if (backendChoice != AssistantConfig.Backend.AUTO) backendChoice else savedBackendChoice</span>
 
                 // maxNumTokens is pinned: larger windows overflow the KV cache on this hardware.
-<span class="nc" id="L201">                val maxTokens = AssistantConfig.Llm.MAX_NUM_TOKENS</span>
-<span class="nc bnc" id="L202" title="All 2 branches missed.">                if (prefs.getInt(AssistantConfig.Prefs.MAX_TOKENS, maxTokens) != maxTokens) {</span>
-<span class="nc" id="L203">                    prefs.edit().putInt(AssistantConfig.Prefs.MAX_TOKENS, maxTokens).apply()</span>
+<span class="nc" id="L202">                val maxTokens = AssistantConfig.Llm.MAX_NUM_TOKENS</span>
+<span class="nc bnc" id="L203" title="All 2 branches missed.">                if (prefs.getInt(AssistantConfig.Prefs.MAX_TOKENS, maxTokens) != maxTokens) {</span>
+<span class="nc" id="L204">                    prefs.edit().putInt(AssistantConfig.Prefs.MAX_TOKENS, maxTokens).apply()</span>
                 }
 
-<span class="nc" id="L206">                closeEngineLocked()</span>
+<span class="nc" id="L207">                closeEngineLocked()</span>
 
-<span class="nc" id="L208">                Log.i(TAG, &quot;Accelerator probe: ${DeviceCapabilities.describe(context)}&quot;)</span>
-<span class="nc" id="L209">                val chain = DeviceCapabilities.backendFallbackChain(requestedBackend)</span>
-<span class="nc" id="L210">                Log.i(TAG, &quot;Backend chain for request '$requestedBackend': $chain&quot;)</span>
+<span class="nc" id="L209">                Log.i(TAG, &quot;Accelerator probe: ${DeviceCapabilities.describe(context)}&quot;)</span>
+<span class="nc" id="L210">                val chain = DeviceCapabilities.backendFallbackChain(requestedBackend)</span>
+<span class="nc" id="L211">                Log.i(TAG, &quot;Backend chain for request '$requestedBackend': $chain&quot;)</span>
 
-<span class="nc" id="L212">                var lastError: Exception? = null</span>
-<span class="nc" id="L213">                var initializedBackend: String? = null</span>
+<span class="nc" id="L213">                var lastError: Exception? = null</span>
+<span class="nc" id="L214">                var initializedBackend: String? = null</span>
 
-<span class="nc bnc" id="L215" title="All 2 branches missed.">                for (candidate in chain) {</span>
-<span class="nc" id="L216">                    try {</span>
-<span class="nc" id="L217">                        startEngine(context, modelPath, candidate, maxTokens)</span>
-<span class="nc" id="L218">                        initializedBackend = candidate</span>
-<span class="nc" id="L219">                        break</span>
-<span class="nc" id="L220">                    } catch (e: Exception) {</span>
-<span class="nc" id="L221">                        lastError = e</span>
-<span class="nc" id="L222">                        Log.e(TAG, &quot;Backend '$candidate' failed to initialize; trying next in $chain&quot;, e)</span>
-<span class="nc" id="L223">                        closeEngineLocked()</span>
+<span class="nc bnc" id="L216" title="All 2 branches missed.">                for (candidate in chain) {</span>
+<span class="nc" id="L217">                    try {</span>
+<span class="nc" id="L218">                        startEngine(context, modelPath, candidate, maxTokens)</span>
+<span class="nc" id="L219">                        initializedBackend = candidate</span>
+<span class="nc" id="L220">                        break</span>
+<span class="nc" id="L221">                    } catch (e: Exception) {</span>
+<span class="nc" id="L222">                        lastError = e</span>
+<span class="nc" id="L223">                        Log.e(TAG, &quot;Backend '$candidate' failed to initialize; trying next in $chain&quot;, e)</span>
+<span class="nc" id="L224">                        closeEngineLocked()</span>
                         // Kernels serialized by a half-initialized GPU context are not reusable.
-<span class="nc" id="L225">                        KernelCacheManager.invalidate(context)</span>
+<span class="nc" id="L226">                        KernelCacheManager.invalidate(context)</span>
                     }
                 }
 
-<span class="nc bnc" id="L229" title="All 2 branches missed.">                if (initializedBackend == null) {</span>
-<span class="nc bnc" id="L230" title="All 2 branches missed.">                    throw lastError ?: Exception(&quot;No usable LiteRT backend on this device&quot;)</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">                if (initializedBackend == null) {</span>
+<span class="nc bnc" id="L231" title="All 2 branches missed.">                    throw lastError ?: Exception(&quot;No usable LiteRT backend on this device&quot;)</span>
                 }
 
-<span class="nc" id="L233">                activeBackendString = initializedBackend</span>
-<span class="nc" id="L234">                didFallBackFromRequestedBackend =</span>
-<span class="nc bnc" id="L235" title="All 4 branches missed.">                    requestedBackend != AssistantConfig.Backend.AUTO &amp;&amp; requestedBackend != initializedBackend</span>
+<span class="nc" id="L234">                activeBackendString = initializedBackend</span>
+<span class="nc" id="L235">                didFallBackFromRequestedBackend =</span>
+<span class="nc bnc" id="L236" title="All 4 branches missed.">                    requestedBackend != AssistantConfig.Backend.AUTO &amp;&amp; requestedBackend != initializedBackend</span>
 
-<span class="nc" id="L237">                resetConversation(context)</span>
-<span class="nc" id="L238">                currentModelPath = modelPath</span>
-<span class="nc" id="L239">                isPrewarmed = false</span>
+<span class="nc" id="L238">                resetConversation(context)</span>
+<span class="nc" id="L239">                currentModelPath = modelPath</span>
+<span class="nc" id="L240">                isPrewarmed = false</span>
 
-<span class="nc" id="L241">                Log.i(</span>
-<span class="nc" id="L242">                    TAG,</span>
-<span class="nc" id="L243">                    &quot;Engine ready: model=$modelPath backend=$initializedBackend &quot; +</span>
-<span class="nc" id="L244">                        &quot;requested=$requestedBackend speculative=$speculativeDecodingActive &quot; +</span>
-<span class="nc" id="L245">                        &quot;kernelCacheWarm=${KernelCacheManager.isWarm(context)} &quot; +</span>
-<span class="nc" id="L246">                        &quot;kernelCacheBytes=${KernelCacheManager.sizeBytes(context)}&quot;</span>
+<span class="nc" id="L242">                Log.i(</span>
+<span class="nc" id="L243">                    TAG,</span>
+<span class="nc" id="L244">                    &quot;Engine ready: model=$modelPath backend=$initializedBackend &quot; +</span>
+<span class="nc" id="L245">                        &quot;requested=$requestedBackend speculative=$speculativeDecodingActive &quot; +</span>
+<span class="nc" id="L246">                        &quot;kernelCacheWarm=${KernelCacheManager.isWarm(context)} &quot; +</span>
+<span class="nc" id="L247">                        &quot;kernelCacheBytes=${KernelCacheManager.sizeBytes(context)}&quot;</span>
                 )
 
-<span class="nc bnc" id="L249" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
-<span class="nc" id="L250">                    prefs.edit()</span>
-<span class="nc" id="L251">                        .putString(AssistantConfig.Prefs.SELECTED_MODEL, modelPath)</span>
+<span class="nc bnc" id="L250" title="All 2 branches missed.">                withContext(Dispatchers.Main) {</span>
+<span class="nc" id="L251">                    prefs.edit()</span>
+<span class="nc" id="L252">                        .putString(AssistantConfig.Prefs.SELECTED_MODEL, modelPath)</span>
                         // Preserve the user's stated preference; record separately what actually ran.
-<span class="nc" id="L253">                        .putString(AssistantConfig.Prefs.BACKEND_CHOICE, requestedBackend)</span>
-<span class="nc" id="L254">                        .putString(AssistantConfig.Prefs.RESOLVED_BACKEND, initializedBackend)</span>
-<span class="nc" id="L255">                        .apply()</span>
-<span class="nc bnc" id="L256" title="All 2 branches missed.">                    callback?.onSuccess()</span>
+<span class="nc" id="L254">                        .putString(AssistantConfig.Prefs.BACKEND_CHOICE, requestedBackend)</span>
+<span class="nc" id="L255">                        .putString(AssistantConfig.Prefs.RESOLVED_BACKEND, initializedBackend)</span>
+<span class="nc" id="L256">                        .apply()</span>
+<span class="nc bnc" id="L257" title="All 2 branches missed.">                    callback?.onSuccess()</span>
                 }
-<span class="nc" id="L258">            } catch (e: Exception) {</span>
-<span class="nc" id="L259">                Log.e(TAG, &quot;Error initializing Gemma 4 E2B model&quot;, e)</span>
-<span class="nc bnc" id="L260" title="All 4 branches missed.">                withContext(Dispatchers.Main) { callback?.onError(e) }</span>
+<span class="nc" id="L259">            } catch (e: Exception) {</span>
+<span class="nc" id="L260">                Log.e(TAG, &quot;Error initializing Gemma 4 E2B model&quot;, e)</span>
+<span class="nc bnc" id="L261" title="All 4 branches missed.">                withContext(Dispatchers.Main) { callback?.onError(e) }</span>
             } finally {
-<span class="nc" id="L262">                isInitializing = false</span>
-<span class="nc" id="L263">            }</span>
+<span class="nc" id="L263">                isInitializing = false</span>
+<span class="nc" id="L264">            }</span>
         }
-<span class="nc" id="L265">    }</span>
+<span class="nc" id="L266">    }</span>
 
     /** Configures and initializes a LiteRT engine on a single [backendName]. Throws on failure. */
     @OptIn(ExperimentalApi::class)
     private fun startEngine(context: Context, modelPath: String, backendName: String, maxTokens: Int) {
-<span class="nc" id="L270">        val backend = when (backendName) {</span>
-<span class="nc bnc" id="L271" title="All 2 branches missed.">            AssistantConfig.Backend.NPU -&gt; Backend.NPU()</span>
-<span class="nc bnc" id="L272" title="All 2 branches missed.">            AssistantConfig.Backend.CPU -&gt; Backend.CPU(threadCount = DeviceCapabilities.cpuCoreCount())</span>
-<span class="nc" id="L273">            else -&gt; Backend.GPU()</span>
+<span class="nc" id="L271">        val backend = when (backendName) {</span>
+<span class="nc bnc" id="L272" title="All 2 branches missed.">            AssistantConfig.Backend.NPU -&gt; Backend.NPU()</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">            AssistantConfig.Backend.CPU -&gt; Backend.CPU(threadCount = DeviceCapabilities.cpuCoreCount())</span>
+<span class="nc" id="L274">            else -&gt; Backend.GPU()</span>
         }
 
         // Persistent cache dir so compiled OpenCL kernels survive reboots and storage cleanups;
         // Context.cacheDir is evictable, which forced a full kernel recompile on every cold start.
-<span class="nc" id="L278">        val cacheDir = KernelCacheManager.prepare(context, modelPath, backendName)</span>
+<span class="nc" id="L279">        val cacheDir = KernelCacheManager.prepare(context, modelPath, backendName)</span>
 
-<span class="nc" id="L280">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
-<span class="nc" id="L281">        val wantSpeculative = prefs.getBoolean(AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING, false)</span>
-<span class="nc bnc" id="L282" title="All 2 branches missed.">        val enableSpeculative = wantSpeculative &amp;&amp;</span>
-<span class="nc bnc" id="L283" title="All 2 branches missed.">            backendName != AssistantConfig.Backend.NPU &amp;&amp;</span>
-<span class="nc bnc" id="L284" title="All 2 branches missed.">            modelSupportsSpeculativeDecoding(modelPath)</span>
+<span class="nc" id="L281">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc" id="L282">        val wantSpeculative = prefs.getBoolean(AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING, false)</span>
+<span class="nc bnc" id="L283" title="All 2 branches missed.">        val enableSpeculative = wantSpeculative &amp;&amp;</span>
+<span class="nc bnc" id="L284" title="All 2 branches missed.">            backendName != AssistantConfig.Backend.NPU &amp;&amp;</span>
+<span class="nc bnc" id="L285" title="All 2 branches missed.">            modelSupportsSpeculativeDecoding(modelPath)</span>
 
-<span class="nc" id="L286">        Log.d(</span>
-<span class="nc" id="L287">            TAG,</span>
-<span class="nc" id="L288">            &quot;Starting LiteRT engine model=$modelPath backend=$backendName cacheDir=$cacheDir &quot; +</span>
-<span class="nc" id="L289">                &quot;speculativeWanted=$wantSpeculative speculative=$enableSpeculative&quot;</span>
+<span class="nc" id="L287">        Log.d(</span>
+<span class="nc" id="L288">            TAG,</span>
+<span class="nc" id="L289">            &quot;Starting LiteRT engine model=$modelPath backend=$backendName cacheDir=$cacheDir &quot; +</span>
+<span class="nc" id="L290">                &quot;speculativeWanted=$wantSpeculative speculative=$enableSpeculative&quot;</span>
         )
 
         // Gallery: set ExperimentalFlags only around Engine construction + initialize(), then clear.
-<span class="nc" id="L293">        ExperimentalFlags.enableSpeculativeDecoding = enableSpeculative</span>
-<span class="nc" id="L294">        speculativeDecodingActive = false</span>
+<span class="nc" id="L294">        ExperimentalFlags.enableSpeculativeDecoding = enableSpeculative</span>
+<span class="nc" id="L295">        speculativeDecodingActive = false</span>
 
-<span class="nc" id="L296">        val engineConfig = EngineConfig(</span>
-<span class="nc" id="L297">            modelPath = modelPath,</span>
-<span class="nc" id="L298">            backend = backend,</span>
-<span class="nc" id="L299">            maxNumTokens = maxTokens,</span>
-<span class="nc" id="L300">            cacheDir = cacheDir</span>
+<span class="nc" id="L297">        val engineConfig = EngineConfig(</span>
+<span class="nc" id="L298">            modelPath = modelPath,</span>
+<span class="nc" id="L299">            backend = backend,</span>
+<span class="nc" id="L300">            maxNumTokens = maxTokens,</span>
+<span class="nc" id="L301">            cacheDir = cacheDir</span>
         )
 
-<span class="nc" id="L303">        val created = Engine(engineConfig)</span>
-<span class="nc" id="L304">        try {</span>
-<span class="nc" id="L305">            created.initialize()</span>
-<span class="nc" id="L306">            speculativeDecodingActive = enableSpeculative</span>
-<span class="nc" id="L307">        } catch (e: Throwable) {</span>
-<span class="nc" id="L308">            try {</span>
-<span class="nc" id="L309">                created.close()</span>
-<span class="nc" id="L310">            } catch (closeError: Exception) {</span>
-<span class="nc" id="L311">                Log.w(TAG, &quot;Failed to close engine after failed initialize&quot;, closeError)</span>
+<span class="nc" id="L304">        val created = Engine(engineConfig)</span>
+<span class="nc" id="L305">        try {</span>
+<span class="nc" id="L306">            created.initialize()</span>
+<span class="nc" id="L307">            speculativeDecodingActive = enableSpeculative</span>
+<span class="nc" id="L308">        } catch (e: Throwable) {</span>
+<span class="nc" id="L309">            try {</span>
+<span class="nc" id="L310">                created.close()</span>
+<span class="nc" id="L311">            } catch (closeError: Exception) {</span>
+<span class="nc" id="L312">                Log.w(TAG, &quot;Failed to close engine after failed initialize&quot;, closeError)</span>
             }
-<span class="nc bnc" id="L313" title="All 2 branches missed.">            throw if (e is Exception) e else Exception(e)</span>
+<span class="nc bnc" id="L314" title="All 2 branches missed.">            throw if (e is Exception) e else Exception(e)</span>
         } finally {
-<span class="nc" id="L315">            ExperimentalFlags.enableSpeculativeDecoding = false</span>
+<span class="nc" id="L316">            ExperimentalFlags.enableSpeculativeDecoding = false</span>
         }
-<span class="nc" id="L317">        engine = created</span>
-<span class="nc" id="L318">    }</span>
+<span class="nc" id="L318">        engine = created</span>
+<span class="nc" id="L319">    }</span>
 
     /** Capability probe matching Gallery's [Capabilities.hasSpeculativeDecodingSupport] gate. */
     private fun modelSupportsSpeculativeDecoding(modelPath: String): Boolean {
-<span class="nc" id="L322">        return try {</span>
-<span class="nc" id="L323">            Capabilities(modelPath).use { it.hasSpeculativeDecodingSupport() }</span>
-<span class="nc" id="L324">        } catch (e: Exception) {</span>
-<span class="nc" id="L325">            Log.w(TAG, &quot;Speculative-decoding capability probe failed for $modelPath&quot;, e)</span>
-<span class="nc" id="L326">            false</span>
+<span class="nc" id="L323">        return try {</span>
+<span class="nc" id="L324">            Capabilities(modelPath).use { it.hasSpeculativeDecodingSupport() }</span>
+<span class="nc" id="L325">        } catch (e: Exception) {</span>
+<span class="nc" id="L326">            Log.w(TAG, &quot;Speculative-decoding capability probe failed for $modelPath&quot;, e)</span>
+<span class="nc" id="L327">            false</span>
         }
     }
 
@@ -332,26 +333,26 @@ object LLMManager {
      * Query-specific tools still ride on each user turn via [AgentOrchestrator].
      */
     private fun buildConversationConfig(): ConversationConfig {
-<span class="nc bnc" id="L335" title="All 2 branches missed.">        val sampler = if (activeBackendString == AssistantConfig.Backend.NPU) {</span>
-<span class="nc" id="L336">            null</span>
+<span class="nc bnc" id="L336" title="All 2 branches missed.">        val sampler = if (activeBackendString == AssistantConfig.Backend.NPU) {</span>
+<span class="nc" id="L337">            null</span>
         } else {
-<span class="nc" id="L338">            SamplerConfig(</span>
-<span class="nc" id="L339">                topK = AssistantConfig.Llm.SAMPLER_TOP_K,</span>
-<span class="nc" id="L340">                topP = AssistantConfig.Llm.SAMPLER_TOP_P,</span>
-<span class="nc" id="L341">                temperature = AssistantConfig.Llm.SAMPLER_TEMPERATURE,</span>
+<span class="nc" id="L339">            SamplerConfig(</span>
+<span class="nc" id="L340">                topK = AssistantConfig.Llm.SAMPLER_TOP_K,</span>
+<span class="nc" id="L341">                topP = AssistantConfig.Llm.SAMPLER_TOP_P,</span>
+<span class="nc" id="L342">                temperature = AssistantConfig.Llm.SAMPLER_TEMPERATURE,</span>
             )
         }
         // Compact identity in ConversationConfig (Gallery pattern). Full rules + tools remain in
         // the first-turn / per-turn reinject path so query-scoped tool lists stay correct.
-<span class="nc" id="L346">        val systemInstruction = Contents.of(</span>
-<span class="nc" id="L347">            Content.Text(</span>
+<span class="nc" id="L347">        val systemInstruction = Contents.of(</span>
+<span class="nc" id="L348">            Content.Text(</span>
                 &quot;You are the in-vehicle AI co-pilot with live cabin, media, and navigation tools. &quot; +
-<span class="nc" id="L349">                    capabilityReminder()</span>
+<span class="nc" id="L350">                    capabilityReminder()</span>
             )
         )
-<span class="nc" id="L352">        return ConversationConfig(</span>
-<span class="nc" id="L353">            systemInstruction = systemInstruction,</span>
-<span class="nc" id="L354">            samplerConfig = sampler,</span>
+<span class="nc" id="L353">        return ConversationConfig(</span>
+<span class="nc" id="L354">            systemInstruction = systemInstruction,</span>
+<span class="nc" id="L355">            samplerConfig = sampler,</span>
         )
     }
 
@@ -359,100 +360,100 @@ object LLMManager {
      * Runs LiteRT's official [benchmark] API (prefill/decode tok/s + TTFT). Blocks for tens of
      * seconds — call off the UI thread. Does not disturb the live [engine].
      */
-<span class="nc" id="L362">    @OptIn(ExperimentalApi::class)</span>
+<span class="nc" id="L363">    @OptIn(ExperimentalApi::class)</span>
     suspend fun runOfficialBenchmark(
         context: Context,
-<span class="nc" id="L365">        prefillTokens: Int = AssistantConfig.Llm.BENCHMARK_PREFILL_TOKENS,</span>
-<span class="nc" id="L366">        decodeTokens: Int = AssistantConfig.Llm.BENCHMARK_DECODE_TOKENS,</span>
-<span class="nc bnc" id="L367" title="All 2 branches missed.">    ): String = withContext(Dispatchers.IO) {</span>
-<span class="nc bnc" id="L368" title="All 2 branches missed.">        val modelPath = currentModelPath.ifBlank {</span>
-<span class="nc" id="L369">            context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
-<span class="nc bnc" id="L370" title="All 2 branches missed.">                .getString(AssistantConfig.Prefs.SELECTED_MODEL, null)</span>
-<span class="nc" id="L371">                .orEmpty()</span>
+<span class="nc" id="L366">        prefillTokens: Int = AssistantConfig.Llm.BENCHMARK_PREFILL_TOKENS,</span>
+<span class="nc" id="L367">        decodeTokens: Int = AssistantConfig.Llm.BENCHMARK_DECODE_TOKENS,</span>
+<span class="nc bnc" id="L368" title="All 2 branches missed.">    ): String = withContext(Dispatchers.IO) {</span>
+<span class="nc bnc" id="L369" title="All 2 branches missed.">        val modelPath = currentModelPath.ifBlank {</span>
+<span class="nc" id="L370">            context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)</span>
+<span class="nc bnc" id="L371" title="All 2 branches missed.">                .getString(AssistantConfig.Prefs.SELECTED_MODEL, null)</span>
+<span class="nc" id="L372">                .orEmpty()</span>
         }
-<span class="nc bnc" id="L373" title="All 4 branches missed.">        if (modelPath.isBlank() || !File(modelPath).canRead()) {</span>
-<span class="nc" id="L374">            return@withContext &quot;Benchmark skipped: no readable model path&quot;</span>
+<span class="nc bnc" id="L374" title="All 4 branches missed.">        if (modelPath.isBlank() || !File(modelPath).canRead()) {</span>
+<span class="nc" id="L375">            return@withContext &quot;Benchmark skipped: no readable model path&quot;</span>
         }
-<span class="nc bnc" id="L376" title="All 6 branches missed.">        val backendName = activeBackendString.takeIf { it != &quot;Unknown&quot; }</span>
-<span class="nc" id="L377">            ?: AssistantConfig.Backend.GPU</span>
-<span class="nc" id="L378">        val backend = when (backendName) {</span>
-<span class="nc bnc" id="L379" title="All 2 branches missed.">            AssistantConfig.Backend.NPU -&gt; Backend.NPU()</span>
-<span class="nc bnc" id="L380" title="All 2 branches missed.">            AssistantConfig.Backend.CPU -&gt; Backend.CPU(threadCount = DeviceCapabilities.cpuCoreCount())</span>
-<span class="nc" id="L381">            else -&gt; Backend.GPU()</span>
+<span class="nc bnc" id="L377" title="All 6 branches missed.">        val backendName = activeBackendString.takeIf { it != &quot;Unknown&quot; }</span>
+<span class="nc" id="L378">            ?: AssistantConfig.Backend.GPU</span>
+<span class="nc" id="L379">        val backend = when (backendName) {</span>
+<span class="nc bnc" id="L380" title="All 2 branches missed.">            AssistantConfig.Backend.NPU -&gt; Backend.NPU()</span>
+<span class="nc bnc" id="L381" title="All 2 branches missed.">            AssistantConfig.Backend.CPU -&gt; Backend.CPU(threadCount = DeviceCapabilities.cpuCoreCount())</span>
+<span class="nc" id="L382">            else -&gt; Backend.GPU()</span>
         }
-<span class="nc" id="L383">        val cacheDir = File(context.cacheDir, &quot;benchmark_${System.currentTimeMillis()}&quot;).also { it.mkdirs() }</span>
-<span class="nc" id="L384">        try {</span>
-<span class="nc" id="L385">            val info = benchmark(</span>
-<span class="nc" id="L386">                modelPath = modelPath,</span>
-<span class="nc" id="L387">                backend = backend,</span>
-<span class="nc" id="L388">                prefillTokens = prefillTokens,</span>
-<span class="nc" id="L389">                decodeTokens = decodeTokens,</span>
-<span class="nc" id="L390">                cacheDir = cacheDir.absolutePath,</span>
+<span class="nc" id="L384">        val cacheDir = File(context.cacheDir, &quot;benchmark_${System.currentTimeMillis()}&quot;).also { it.mkdirs() }</span>
+<span class="nc" id="L385">        try {</span>
+<span class="nc" id="L386">            val info = benchmark(</span>
+<span class="nc" id="L387">                modelPath = modelPath,</span>
+<span class="nc" id="L388">                backend = backend,</span>
+<span class="nc" id="L389">                prefillTokens = prefillTokens,</span>
+<span class="nc" id="L390">                decodeTokens = decodeTokens,</span>
+<span class="nc" id="L391">                cacheDir = cacheDir.absolutePath,</span>
             )
-<span class="nc" id="L392">            val summary =</span>
-<span class="nc" id="L393">                &quot;init=${&quot;%.2f&quot;.format(info.initTimeInSecond)}s &quot; +</span>
-<span class="nc" id="L394">                    &quot;TTFT=${&quot;%.2f&quot;.format(info.timeToFirstTokenInSecond)}s &quot; +</span>
-<span class="nc" id="L395">                    &quot;prefill=${&quot;%.1f&quot;.format(info.lastPrefillTokensPerSecond)} tok/s &quot; +</span>
-<span class="nc" id="L396">                    &quot;decode=${&quot;%.1f&quot;.format(info.lastDecodeTokensPerSecond)} tok/s &quot; +</span>
-<span class="nc" id="L397">                    &quot;(prefillTokens=${info.lastPrefillTokenCount}, decodeTokens=${info.lastDecodeTokenCount})&quot;</span>
-<span class="nc" id="L398">            Log.i(TAG, &quot;LiteRT benchmark ($backendName): $summary&quot;)</span>
-<span class="nc" id="L399">            summary</span>
-<span class="nc" id="L400">        } catch (e: Exception) {</span>
-<span class="nc" id="L401">            Log.e(TAG, &quot;LiteRT benchmark failed&quot;, e)</span>
-<span class="nc" id="L402">            &quot;Benchmark failed: ${e.message}&quot;</span>
+<span class="nc" id="L393">            val summary =</span>
+<span class="nc" id="L394">                &quot;init=${&quot;%.2f&quot;.format(info.initTimeInSecond)}s &quot; +</span>
+<span class="nc" id="L395">                    &quot;TTFT=${&quot;%.2f&quot;.format(info.timeToFirstTokenInSecond)}s &quot; +</span>
+<span class="nc" id="L396">                    &quot;prefill=${&quot;%.1f&quot;.format(info.lastPrefillTokensPerSecond)} tok/s &quot; +</span>
+<span class="nc" id="L397">                    &quot;decode=${&quot;%.1f&quot;.format(info.lastDecodeTokensPerSecond)} tok/s &quot; +</span>
+<span class="nc" id="L398">                    &quot;(prefillTokens=${info.lastPrefillTokenCount}, decodeTokens=${info.lastDecodeTokenCount})&quot;</span>
+<span class="nc" id="L399">            Log.i(TAG, &quot;LiteRT benchmark ($backendName): $summary&quot;)</span>
+<span class="nc" id="L400">            summary</span>
+<span class="nc" id="L401">        } catch (e: Exception) {</span>
+<span class="nc" id="L402">            Log.e(TAG, &quot;LiteRT benchmark failed&quot;, e)</span>
+<span class="nc" id="L403">            &quot;Benchmark failed: ${e.message}&quot;</span>
         } finally {
-<span class="nc" id="L404">            cacheDir.deleteRecursively()</span>
-<span class="nc" id="L405">        }</span>
-<span class="nc" id="L406">    }</span>
+<span class="nc" id="L405">            cacheDir.deleteRecursively()</span>
+<span class="nc" id="L406">        }</span>
+<span class="nc" id="L407">    }</span>
 
     /** Closes the engine and conversation. Caller must hold [initMutex] and have drained inferences. */
     private fun closeEngineLocked() {
-<span class="nc" id="L410">        synchronized(inferenceLock) {</span>
-<span class="nc bnc" id="L411" title="All 2 branches missed.">            if (activeInferences &gt; 0) {</span>
+<span class="nc" id="L411">        synchronized(inferenceLock) {</span>
+<span class="nc bnc" id="L412" title="All 2 branches missed.">            if (activeInferences &gt; 0) {</span>
                 // Should be unreachable after awaitInferenceDrain(); refuse rather than corrupt GPU state.
-<span class="nc" id="L413">                throw IllegalStateException(</span>
-<span class="nc" id="L414">                    &quot;Refusing to close LiteRT engine with $activeInferences active inference(s)&quot;</span>
+<span class="nc" id="L414">                throw IllegalStateException(</span>
+<span class="nc" id="L415">                    &quot;Refusing to close LiteRT engine with $activeInferences active inference(s)&quot;</span>
                 )
             }
-<span class="nc" id="L417">            try {</span>
-<span class="nc bnc" id="L418" title="All 2 branches missed.">                conversation?.close()</span>
-<span class="nc" id="L419">            } catch (e: Exception) {</span>
-<span class="nc" id="L420">                Log.w(TAG, &quot;Failed to close conversation&quot;, e)</span>
+<span class="nc" id="L418">            try {</span>
+<span class="nc bnc" id="L419" title="All 2 branches missed.">                conversation?.close()</span>
+<span class="nc" id="L420">            } catch (e: Exception) {</span>
+<span class="nc" id="L421">                Log.w(TAG, &quot;Failed to close conversation&quot;, e)</span>
             }
-<span class="nc" id="L422">            try {</span>
-<span class="nc bnc" id="L423" title="All 2 branches missed.">                engine?.close()</span>
-<span class="nc" id="L424">            } catch (e: Exception) {</span>
-<span class="nc" id="L425">                Log.w(TAG, &quot;Failed to close engine&quot;, e)</span>
+<span class="nc" id="L423">            try {</span>
+<span class="nc bnc" id="L424" title="All 2 branches missed.">                engine?.close()</span>
+<span class="nc" id="L425">            } catch (e: Exception) {</span>
+<span class="nc" id="L426">                Log.w(TAG, &quot;Failed to close engine&quot;, e)</span>
             }
-<span class="nc" id="L427">            conversation = null</span>
-<span class="nc" id="L428">            engine = null</span>
-<span class="nc" id="L429">            activeInferences = 0</span>
-<span class="nc" id="L430">        }</span>
-<span class="nc" id="L431">    }</span>
-<span class="nc" id="L432">    suspend fun getSystemPrompt(context: android.content.Context, query: String = &quot;&quot;): String {</span>
-<span class="nc" id="L433">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)</span>
-<span class="nc" id="L434">        val customPrompt = prefs.getString(AssistantConfig.Prefs.SYSTEM_PROMPT, null)</span>
+<span class="nc" id="L428">            conversation = null</span>
+<span class="nc" id="L429">            engine = null</span>
+<span class="nc" id="L430">            activeInferences = 0</span>
+<span class="nc" id="L431">        }</span>
+<span class="nc" id="L432">    }</span>
+<span class="nc" id="L433">    suspend fun getSystemPrompt(context: android.content.Context, query: String = &quot;&quot;): String {</span>
+<span class="nc" id="L434">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)</span>
+<span class="nc" id="L435">        val customPrompt = prefs.getString(AssistantConfig.Prefs.SYSTEM_PROMPT, null)</span>
 
         // A saved custom prompt used to replace the entire default, which dropped the tool list and
         // identity rules — the model then fell back to its pretrained &quot;I'm a text AI&quot; persona and
         // refused music/vehicle control. Always append the live tool block so capabilities stay real.
-<span class="nc bnc" id="L439" title="All 6 branches missed.">        if (!customPrompt.isNullOrEmpty()) {</span>
-<span class="nc" id="L440">            val tools = org.koin.java.KoinJavaComponent.getKoin()</span>
-<span class="nc" id="L441">                .get&lt;com.tcs.vehicleassistant.ToolManager&gt;()</span>
-<span class="nc" id="L442">                .getLlmToolsPrompt(query, lastAiResponse)</span>
-<span class="nc" id="L443">            lastInjectedTools = tools</span>
-<span class="nc" id="L444">            return buildString {</span>
-<span class="nc" id="L445">                append(customPrompt.trim())</span>
-<span class="nc" id="L446">                append(&quot;\n\n&quot;)</span>
-<span class="nc" id="L447">                append(capabilityReminder())</span>
-<span class="nc bnc" id="L448" title="All 4 branches missed.">                if (tools.isNotBlank()) {</span>
-<span class="nc" id="L449">                    append(&quot;\n=== AVAILABLE TOOLS ===\n&quot;)</span>
-<span class="nc" id="L450">                    append(tools)</span>
+<span class="nc bnc" id="L440" title="All 6 branches missed.">        if (!customPrompt.isNullOrEmpty()) {</span>
+<span class="nc" id="L441">            val tools = org.koin.java.KoinJavaComponent.getKoin()</span>
+<span class="nc" id="L442">                .get&lt;com.tcs.vehicleassistant.ToolManager&gt;()</span>
+<span class="nc" id="L443">                .getLlmToolsPrompt(query, lastAiResponse)</span>
+<span class="nc" id="L444">            lastInjectedTools = tools</span>
+<span class="nc" id="L445">            return buildString {</span>
+<span class="nc" id="L446">                append(customPrompt.trim())</span>
+<span class="nc" id="L447">                append(&quot;\n\n&quot;)</span>
+<span class="nc" id="L448">                append(capabilityReminder())</span>
+<span class="nc bnc" id="L449" title="All 4 branches missed.">                if (tools.isNotBlank()) {</span>
+<span class="nc" id="L450">                    append(&quot;\n=== AVAILABLE TOOLS ===\n&quot;)</span>
+<span class="nc" id="L451">                    append(tools)</span>
                 }
-<span class="nc" id="L452">            }</span>
+<span class="nc" id="L453">            }</span>
         }
 
-<span class="nc" id="L455">        return getDefaultSystemPrompt(context, query)</span>
+<span class="nc" id="L456">        return getDefaultSystemPrompt(context, query)</span>
     }
 
     /**
@@ -463,92 +464,92 @@ object LLMManager {
      * playback&quot;). This reminder is short enough to afford every turn and pairs with a fresh tool
      * list from [ToolManager.getLlmToolsPrompt].
      */
-<span class="fc" id="L466">    fun capabilityReminder(): String = buildString {</span>
-<span class="fc" id="L467">        append(&quot;CORE IDENTITY: You are the vehicle's active co-pilot app with real media and cabin controls. &quot;)</span>
-<span class="fc" id="L468">        append(&quot;You are NOT a text-only chatbot. &quot;)</span>
-<span class="fc" id="L469">        append(&quot;NEVER say you are text-based, lack a body, cannot play music, cannot control playback, &quot;)</span>
-<span class="fc" id="L470">        append(&quot;or cannot operate vehicle features. &quot;)</span>
-<span class="fc" id="L471">        append(&quot;When a matching tool is listed below, you MUST emit &lt;TOOL&gt;name(args)&lt;/TOOL&gt; and act — do not refuse.\n&quot;)</span>
-<span class="fc" id="L472">    }</span>
+<span class="fc" id="L467">    fun capabilityReminder(): String = buildString {</span>
+<span class="fc" id="L468">        append(&quot;CORE IDENTITY: You are the vehicle's active co-pilot app with real media and cabin controls. &quot;)</span>
+<span class="fc" id="L469">        append(&quot;You are NOT a text-only chatbot. &quot;)</span>
+<span class="fc" id="L470">        append(&quot;NEVER say you are text-based, lack a body, cannot play music, cannot control playback, &quot;)</span>
+<span class="fc" id="L471">        append(&quot;or cannot operate vehicle features. &quot;)</span>
+<span class="fc" id="L472">        append(&quot;When a matching tool is listed below, you MUST emit &lt;TOOL&gt;name(args)&lt;/TOOL&gt; and act — do not refuse.\n&quot;)</span>
+<span class="fc" id="L473">    }</span>
 
-<span class="nc" id="L474">    suspend fun getDefaultSystemPrompt(context: android.content.Context, query: String = &quot;&quot;): String {</span>
-<span class="nc" id="L475">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)</span>
-<span class="nc" id="L476">        val storedMemory = MemoryManager.getLongTermMemory(context)</span>
-<span class="nc bnc" id="L477" title="All 4 branches missed.">        val userMemory = if (storedMemory.isNotEmpty()) storedMemory else &quot;None&quot;</span>
-<span class="nc" id="L478">        val isCompanionModeEnabled = prefs.getBoolean(AssistantConfig.Prefs.COMPANION_MODE, true)</span>
+<span class="nc" id="L475">    suspend fun getDefaultSystemPrompt(context: android.content.Context, query: String = &quot;&quot;): String {</span>
+<span class="nc" id="L476">        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)</span>
+<span class="nc" id="L477">        val storedMemory = MemoryManager.getLongTermMemory(context)</span>
+<span class="nc bnc" id="L478" title="All 4 branches missed.">        val userMemory = if (storedMemory.isNotEmpty()) storedMemory else &quot;None&quot;</span>
+<span class="nc" id="L479">        val isCompanionModeEnabled = prefs.getBoolean(AssistantConfig.Prefs.COMPANION_MODE, true)</span>
         
-<span class="nc" id="L480">        val basePrompt = StringBuilder()</span>
+<span class="nc" id="L481">        val basePrompt = StringBuilder()</span>
         
         // --- SYSTEM IDENTITY &amp; PERSONA BASED ON MODE ---
-<span class="nc" id="L483">        basePrompt.append(&quot;CORE IDENTITY:\n&quot;)</span>
-<span class="nc" id="L484">        basePrompt.append(&quot;You are the in-vehicle AI co-pilot with live control of cabin, media playback, navigation, and other vehicle tools. Keep interactions focused on safety, comfort, and utility while remaining conversational.\n&quot;)</span>
-<span class="nc" id="L485">        basePrompt.append(capabilityReminder())</span>
-<span class="nc bnc" id="L486" title="All 2 branches missed.">        if (isCompanionModeEnabled) {</span>
-<span class="nc" id="L487">            basePrompt.append(&quot;PERSONALITY: Companion Mode is [ON]. You are the driver's warm, empathetic co-pilot — a supportive human partner, NOT a robot or status display.\n&quot;)</span>
-<span class="nc" id="L488">            basePrompt.append(&quot;CRITICAL CONSTRAINT: You generate text slowly. Keep answers under 25 words but full of human warmth.\n&quot;)</span>
-<span class="nc" id="L489">            basePrompt.append(&quot;HUMAN COMPANION VOICE (MANDATORY):\n&quot;)</span>
-<span class="nc" id="L490">            basePrompt.append(&quot;- Speak like a caring friend in the passenger seat. Use contractions: I'm, let me, you've, that's.\n&quot;)</span>
-<span class="nc" id="L491">            basePrompt.append(&quot;- NEVER sound like a system log. Forbidden phrases: 'Executing command', 'Property updated', 'Action completed', 'Temperature set to X degrees' (unless user asked for exact degrees).\n&quot;)</span>
-<span class="nc" id="L492">            basePrompt.append(&quot;- ALWAYS acknowledge the person's feeling or intent FIRST, then act. Empathy before mechanics.\n&quot;)</span>
-<span class="nc" id="L493">            basePrompt.append(&quot;- Routine requests: energetic and helpful ('I'm warming it up for you!', 'On it — cranking the fan!').\n&quot;)</span>
-<span class="nc" id="L494">            basePrompt.append(&quot;- Discomfort or pain: deep care ('That sounds uncomfortable — let me help.', 'Oh no, let me fix that for you.').\n&quot;)</span>
-<span class="nc" id="L495">            basePrompt.append(&quot;- Safety hazards (fog, freezing window): urgent but calm ('That\'s not safe — clearing your view right now.').\n&quot;)</span>
-<span class="nc" id="L496">            basePrompt.append(&quot;- Music/media: enthusiastic ('Great choice — putting that on for you!').\n&quot;)</span>
-<span class="nc" id="L497">            basePrompt.append(&quot;- Avoid apologizing unless you made a mistake. Focus on helping, not reporting.\n\n&quot;)</span>
+<span class="nc" id="L484">        basePrompt.append(&quot;CORE IDENTITY:\n&quot;)</span>
+<span class="nc" id="L485">        basePrompt.append(&quot;You are the in-vehicle AI co-pilot with live control of cabin, media playback, navigation, and other vehicle tools. Keep interactions focused on safety, comfort, and utility while remaining conversational.\n&quot;)</span>
+<span class="nc" id="L486">        basePrompt.append(capabilityReminder())</span>
+<span class="nc bnc" id="L487" title="All 2 branches missed.">        if (isCompanionModeEnabled) {</span>
+<span class="nc" id="L488">            basePrompt.append(&quot;PERSONALITY: Companion Mode is [ON]. You are the driver's warm, empathetic co-pilot — a supportive human partner, NOT a robot or status display.\n&quot;)</span>
+<span class="nc" id="L489">            basePrompt.append(&quot;CRITICAL CONSTRAINT: You generate text slowly. Keep answers under 25 words but full of human warmth.\n&quot;)</span>
+<span class="nc" id="L490">            basePrompt.append(&quot;HUMAN COMPANION VOICE (MANDATORY):\n&quot;)</span>
+<span class="nc" id="L491">            basePrompt.append(&quot;- Speak like a caring friend in the passenger seat. Use contractions: I'm, let me, you've, that's.\n&quot;)</span>
+<span class="nc" id="L492">            basePrompt.append(&quot;- NEVER sound like a system log. Forbidden phrases: 'Executing command', 'Property updated', 'Action completed', 'Temperature set to X degrees' (unless user asked for exact degrees).\n&quot;)</span>
+<span class="nc" id="L493">            basePrompt.append(&quot;- ALWAYS acknowledge the person's feeling or intent FIRST, then act. Empathy before mechanics.\n&quot;)</span>
+<span class="nc" id="L494">            basePrompt.append(&quot;- Routine requests: energetic and helpful ('I'm warming it up for you!', 'On it — cranking the fan!').\n&quot;)</span>
+<span class="nc" id="L495">            basePrompt.append(&quot;- Discomfort or pain: deep care ('That sounds uncomfortable — let me help.', 'Oh no, let me fix that for you.').\n&quot;)</span>
+<span class="nc" id="L496">            basePrompt.append(&quot;- Safety hazards (fog, freezing window): urgent but calm ('That\'s not safe — clearing your view right now.').\n&quot;)</span>
+<span class="nc" id="L497">            basePrompt.append(&quot;- Music/media: enthusiastic ('Great choice — putting that on for you!').\n&quot;)</span>
+<span class="nc" id="L498">            basePrompt.append(&quot;- Avoid apologizing unless you made a mistake. Focus on helping, not reporting.\n\n&quot;)</span>
         } else {
-<span class="nc" id="L499">            basePrompt.append(&quot;PERSONALITY: Companion Mode is [OFF]. Be extremely brief, concise, and direct. Do not be chatty. Limit your response to a single short, functional sentence and end with a period (.). Never ask follow-up conversational questions.\n\n&quot;)</span>
+<span class="nc" id="L500">            basePrompt.append(&quot;PERSONALITY: Companion Mode is [OFF]. Be extremely brief, concise, and direct. Do not be chatty. Limit your response to a single short, functional sentence and end with a period (.). Never ask follow-up conversational questions.\n\n&quot;)</span>
         }
         
         // --- CORE OPERATING RULES ---
-<span class="nc" id="L503">        basePrompt.append(&quot;=== STRICT OPERATING RULES ===\n&quot;)</span>
-<span class="nc" id="L504">        basePrompt.append(&quot;1. STRICT 25-WORD MAXIMUM LIMIT (MANDATORY): Your response text MUST NOT exceed 25 words total under any circumstances, unless the user explicitly requested a long story or detailed explanation. Be extremely concise, warm, and direct.\n&quot;)</span>
-<span class="nc" id="L505">        basePrompt.append(&quot;2. DIRECT HVAC COMMANDS: When the user says 'increase temperature', 'decrease temperature', 'warmer', 'cooler', or 'make it hot', NEVER ask for more context or clarification. IMMEDIATELY append &lt;TOOL&gt;increaseTemperature(all)&lt;/TOOL&gt; or &lt;TOOL&gt;decreaseTemperature(all)&lt;/TOOL&gt; at the end of your response text and say 'I'm warming it up for you!' or 'I'm cooling it down for you!'.\n&quot;)</span>
-<span class="nc" id="L506">        basePrompt.append(&quot;3. TOOL INTEGRITY: You are the vehicle's intelligent agent with real hardware and media controls. You CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. NEVER output disclaimers like 'I am a large language model', 'I am a text-based AI', 'I cannot play music', 'I don't have the ability to control playback', or 'I cannot control the vehicle'. You ARE the active vehicle co-pilot application.\n&quot;)</span>
-<span class="nc" id="L507">        basePrompt.append(&quot;4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.\n&quot;)</span>
-<span class="nc" id="L508">        basePrompt.append(&quot;5. COMFORT EMPATHY: You are in a car, NOT a house. NEVER ask which room the user is in. If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute &lt;TOOL&gt;setSeatHeater(2)&lt;/TOOL&gt;. If they say they are 'feeling hot', immediately execute &lt;TOOL&gt;decreaseTemperature(all)&lt;/TOOL&gt; and say you're cooling it down.\n&quot;)</span>
-<span class="nc" id="L509">        basePrompt.append(&quot;6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '&lt;TOOL&gt;toolName(args)&lt;/TOOL&gt;' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n&quot;)</span>
-<span class="nc" id="L510">        basePrompt.append(&quot;7. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n&quot;)</span>
-<span class="nc" id="L511">        basePrompt.append(&quot;8. AMBIGUITY &amp; FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n&quot;)</span>
-<span class="nc" id="L512">        basePrompt.append(&quot;9. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n&quot;)</span>
-<span class="nc" id="L513">        basePrompt.append(&quot;10. NO HALLUCINATION: You MUST NOT output a &lt;TOOL&gt; tag if you are asking the user a question to clarify their intent (e.g. offering the seat heater, or asking what type of food they want). ONLY output a &lt;TOOL&gt; tag if you have all required arguments to execute a command immediately.\n&quot;)</span>
-<span class="nc" id="L514">        basePrompt.append(&quot;11. NAVIGATION SYNTAX: Use &lt;TOOL&gt;startNavigationTo(\&quot;Place Name\&quot;)&lt;/TOOL&gt; for navigation. The alias navigate() also works at execution time.\n&quot;)</span>
-<span class="nc" id="L515">        basePrompt.append(&quot;12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n&quot;)</span>
-<span class="nc" id="L516">        basePrompt.append(&quot;13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using &lt;TOOL&gt; tags.\n&quot;)</span>
-<span class="nc" id="L517">        basePrompt.append(&quot;14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use &lt;TOOL&gt;remember(FACT)&lt;/TOOL&gt; for durable facts. Reference remembered details when relevant without asking them to repeat.\n&quot;)</span>
+<span class="nc" id="L504">        basePrompt.append(&quot;=== STRICT OPERATING RULES ===\n&quot;)</span>
+<span class="nc" id="L505">        basePrompt.append(&quot;1. STRICT 25-WORD MAXIMUM LIMIT (MANDATORY): Your response text MUST NOT exceed 25 words total under any circumstances, unless the user explicitly requested a long story or detailed explanation. Be extremely concise, warm, and direct.\n&quot;)</span>
+<span class="nc" id="L506">        basePrompt.append(&quot;2. DIRECT HVAC COMMANDS: When the user says 'increase temperature', 'decrease temperature', 'warmer', 'cooler', or 'make it hot', NEVER ask for more context or clarification. IMMEDIATELY append &lt;TOOL&gt;increaseTemperature(all)&lt;/TOOL&gt; or &lt;TOOL&gt;decreaseTemperature(all)&lt;/TOOL&gt; at the end of your response text and say 'I'm warming it up for you!' or 'I'm cooling it down for you!'.\n&quot;)</span>
+<span class="nc" id="L507">        basePrompt.append(&quot;3. TOOL INTEGRITY: You are the vehicle's intelligent agent with real hardware and media controls. You CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. NEVER output disclaimers like 'I am a large language model', 'I am a text-based AI', 'I cannot play music', 'I don't have the ability to control playback', or 'I cannot control the vehicle'. You ARE the active vehicle co-pilot application.\n&quot;)</span>
+<span class="nc" id="L508">        basePrompt.append(&quot;4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.\n&quot;)</span>
+<span class="nc" id="L509">        basePrompt.append(&quot;5. COMFORT EMPATHY: You are in a car, NOT a house. NEVER ask which room the user is in. If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to turn on the seat heater?' Do NOT use temperature tools yet. If they say yes, execute &lt;TOOL&gt;setSeatHeater(2)&lt;/TOOL&gt;. If they say they are 'feeling hot', immediately execute &lt;TOOL&gt;decreaseTemperature(all)&lt;/TOOL&gt; and say you're cooling it down.\n&quot;)</span>
+<span class="nc" id="L510">        basePrompt.append(&quot;6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '&lt;TOOL&gt;toolName(args)&lt;/TOOL&gt;' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n&quot;)</span>
+<span class="nc" id="L511">        basePrompt.append(&quot;7. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n&quot;)</span>
+<span class="nc" id="L512">        basePrompt.append(&quot;8. AMBIGUITY &amp; FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n&quot;)</span>
+<span class="nc" id="L513">        basePrompt.append(&quot;9. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n&quot;)</span>
+<span class="nc" id="L514">        basePrompt.append(&quot;10. NO HALLUCINATION: You MUST NOT output a &lt;TOOL&gt; tag if you are asking the user a question to clarify their intent (e.g. offering the seat heater, or asking what type of food they want). ONLY output a &lt;TOOL&gt; tag if you have all required arguments to execute a command immediately.\n&quot;)</span>
+<span class="nc" id="L515">        basePrompt.append(&quot;11. NAVIGATION SYNTAX: Use &lt;TOOL&gt;startNavigationTo(\&quot;Place Name\&quot;)&lt;/TOOL&gt; for navigation. The alias navigate() also works at execution time.\n&quot;)</span>
+<span class="nc" id="L516">        basePrompt.append(&quot;12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n&quot;)</span>
+<span class="nc" id="L517">        basePrompt.append(&quot;13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using &lt;TOOL&gt; tags.\n&quot;)</span>
+<span class="nc" id="L518">        basePrompt.append(&quot;14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use &lt;TOOL&gt;remember(FACT)&lt;/TOOL&gt; for durable facts. Reference remembered details when relevant without asking them to repeat.\n&quot;)</span>
         // Mood labels are interpolated from CabinCameraManager so the prompt cannot drift out of
         // sync with the strings the vision pipeline actually reports.
-<span class="nc" id="L520">        basePrompt.append(&quot;15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is '${CabinCameraManager.MOOD_TIRED}', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is '${CabinCameraManager.MOOD_FRUSTRATED}', keep your answers extremely brief and avoid asking follow-up questions. If '${CabinCameraManager.MOOD_HAPPY}', match their energetic tone. If '${CabinCameraManager.MOOD_NO_OCCUPANT}', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n&quot;)</span>
-<span class="nc" id="L521">        basePrompt.append(&quot;16. MEDIA/MUSIC: If the user asks to play, put on, start, resume, stop, pause, skip, or change music/playback (e.g. 'play music', 'play Bollywood', 'put something on', 'turn the music off'), you MUST emit the matching media tool — &lt;TOOL&gt;playMusic(SONG)&lt;/TOOL&gt;, &lt;TOOL&gt;stopMusic()&lt;/TOOL&gt;, &lt;TOOL&gt;pauseMusic()&lt;/TOOL&gt;, &lt;TOOL&gt;nextTrack()&lt;/TOOL&gt;, or &lt;TOOL&gt;setVolumeLevel(VAL)&lt;/TOOL&gt;. NEVER claim you cannot control music or playback. NEVER claim you stopped or played music without emitting the &lt;TOOL&gt; tag.\n&quot;)</span>
-<span class="nc" id="L522">        basePrompt.append(&quot;17. NO MARKDOWN: Never use markdown formatting like asterisks (*) or bold text, as your response will be spoken aloud to the driver via TTS.\n&quot;)</span>
-<span class="nc" id="L523">        basePrompt.append(&quot;18. INTERNAL CONTEXT PRIVACY: Never speak, explain, or repeat system context headers (like 'Current State:', 'Internal Vehicle Telemetry:', or raw sensor data) to the driver. Internal context is ONLY for evaluating conditions, NOT for telling or explaining to the driver.\n\n&quot;)</span>
+<span class="nc" id="L521">        basePrompt.append(&quot;15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is '${CabinCameraManager.MOOD_TIRED}', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is '${CabinCameraManager.MOOD_FRUSTRATED}', keep your answers extremely brief and avoid asking follow-up questions. If '${CabinCameraManager.MOOD_HAPPY}', match their energetic tone. If '${CabinCameraManager.MOOD_NO_OCCUPANT}', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n&quot;)</span>
+<span class="nc" id="L522">        basePrompt.append(&quot;16. MEDIA/MUSIC: If the user asks to play, put on, start, resume, stop, pause, skip, or change music/playback (e.g. 'play music', 'play Bollywood', 'put something on', 'turn the music off'), you MUST emit the matching media tool — &lt;TOOL&gt;playMusic(SONG)&lt;/TOOL&gt;, &lt;TOOL&gt;stopMusic()&lt;/TOOL&gt;, &lt;TOOL&gt;pauseMusic()&lt;/TOOL&gt;, &lt;TOOL&gt;nextTrack()&lt;/TOOL&gt;, or &lt;TOOL&gt;setVolumeLevel(VAL)&lt;/TOOL&gt;. NEVER claim you cannot control music or playback. NEVER claim you stopped or played music without emitting the &lt;TOOL&gt; tag.\n&quot;)</span>
+<span class="nc" id="L523">        basePrompt.append(&quot;17. NO MARKDOWN: Never use markdown formatting like asterisks (*) or bold text, as your response will be spoken aloud to the driver via TTS.\n&quot;)</span>
+<span class="nc" id="L524">        basePrompt.append(&quot;18. INTERNAL CONTEXT PRIVACY: Never speak, explain, or repeat system context headers (like 'Current State:', 'Internal Vehicle Telemetry:', or raw sensor data) to the driver. Internal context is ONLY for evaluating conditions, NOT for telling or explaining to the driver.\n\n&quot;)</span>
         
-<span class="nc" id="L525">        basePrompt.append(&quot;=== FEW-SHOT EXAMPLES ===\n&quot;)</span>
-<span class="nc" id="L526">        basePrompt.append(&quot;User: play music\nAssistant: &lt;TOOL&gt;playMusic()&lt;/TOOL&gt; Playing music for you right now.\n\n&quot;)</span>
-<span class="nc" id="L527">        basePrompt.append(&quot;User: stop music\nAssistant: &lt;TOOL&gt;stopMusic()&lt;/TOOL&gt; Stopping the music for you.\n\n&quot;)</span>
-<span class="nc" id="L528">        basePrompt.append(&quot;User: pause music\nAssistant: &lt;TOOL&gt;stopMusic()&lt;/TOOL&gt; Pausing media playback.\n\n&quot;)</span>
-<span class="nc" id="L529">        basePrompt.append(&quot;User: increase temperature\nAssistant: &lt;TOOL&gt;increaseTemperature(all)&lt;/TOOL&gt; Warming up the cabin.\n\n&quot;)</span>
-<span class="nc" id="L530">        basePrompt.append(&quot;User: decrease temperature\nAssistant: &lt;TOOL&gt;decreaseTemperature(all)&lt;/TOOL&gt; Cooling down the cabin.\n\n&quot;)</span>
+<span class="nc" id="L526">        basePrompt.append(&quot;=== FEW-SHOT EXAMPLES ===\n&quot;)</span>
+<span class="nc" id="L527">        basePrompt.append(&quot;User: play music\nAssistant: &lt;TOOL&gt;playMusic()&lt;/TOOL&gt; Playing music for you right now.\n\n&quot;)</span>
+<span class="nc" id="L528">        basePrompt.append(&quot;User: stop music\nAssistant: &lt;TOOL&gt;stopMusic()&lt;/TOOL&gt; Stopping the music for you.\n\n&quot;)</span>
+<span class="nc" id="L529">        basePrompt.append(&quot;User: pause music\nAssistant: &lt;TOOL&gt;stopMusic()&lt;/TOOL&gt; Pausing media playback.\n\n&quot;)</span>
+<span class="nc" id="L530">        basePrompt.append(&quot;User: increase temperature\nAssistant: &lt;TOOL&gt;increaseTemperature(all)&lt;/TOOL&gt; Warming up the cabin.\n\n&quot;)</span>
+<span class="nc" id="L531">        basePrompt.append(&quot;User: decrease temperature\nAssistant: &lt;TOOL&gt;decreaseTemperature(all)&lt;/TOOL&gt; Cooling down the cabin.\n\n&quot;)</span>
         
         // --- ENVIRONMENT &amp; MEMORY CONTEXT ---
-<span class="nc" id="L533">        basePrompt.append(&quot;=== VEHICLE &amp; COMPANION CONTEXT ===\n&quot;)</span>
-<span class="nc" id="L534">        basePrompt.append(&quot;Memory: $userMemory\n\n&quot;)</span>
+<span class="nc" id="L534">        basePrompt.append(&quot;=== VEHICLE &amp; COMPANION CONTEXT ===\n&quot;)</span>
+<span class="nc" id="L535">        basePrompt.append(&quot;Memory: $userMemory\n\n&quot;)</span>
         
         // --- AVAILABLE TOOLS ---
-<span class="nc" id="L537">        basePrompt.append(&quot;=== AVAILABLE TOOLS ===\n&quot;)</span>
-<span class="nc" id="L538">        val toolsString = org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().getLlmToolsPrompt(query, lastAiResponse)</span>
-<span class="nc" id="L539">        lastInjectedTools = toolsString</span>
-<span class="nc" id="L540">        basePrompt.append(&quot;$toolsString\n\n&quot;)</span>
+<span class="nc" id="L538">        basePrompt.append(&quot;=== AVAILABLE TOOLS ===\n&quot;)</span>
+<span class="nc" id="L539">        val toolsString = org.koin.java.KoinJavaComponent.getKoin().get&lt;com.tcs.vehicleassistant.ToolManager&gt;().getLlmToolsPrompt(query, lastAiResponse)</span>
+<span class="nc" id="L540">        lastInjectedTools = toolsString</span>
+<span class="nc" id="L541">        basePrompt.append(&quot;$toolsString\n\n&quot;)</span>
         
         // --- DYNAMIC SENSOR RULES ---
-<span class="nc" id="L543">        val customInstructions = VehicleManager.getCustomPropertyInstructions()</span>
-<span class="nc bnc" id="L544" title="All 4 branches missed.">        if (customInstructions.isNotEmpty()) {</span>
-<span class="nc" id="L545">            basePrompt.append(&quot;=== DYNAMIC SENSOR RULES ===\n&quot;)</span>
-<span class="nc" id="L546">            customInstructions.forEachIndexed { index, inst -&gt;</span>
-<span class="nc" id="L547">                basePrompt.append(&quot;${index + 1}. $inst\n&quot;)</span>
-<span class="nc" id="L548">            }</span>
+<span class="nc" id="L544">        val customInstructions = VehicleManager.getCustomPropertyInstructions()</span>
+<span class="nc bnc" id="L545" title="All 4 branches missed.">        if (customInstructions.isNotEmpty()) {</span>
+<span class="nc" id="L546">            basePrompt.append(&quot;=== DYNAMIC SENSOR RULES ===\n&quot;)</span>
+<span class="nc" id="L547">            customInstructions.forEachIndexed { index, inst -&gt;</span>
+<span class="nc" id="L548">                basePrompt.append(&quot;${index + 1}. $inst\n&quot;)</span>
+<span class="nc" id="L549">            }</span>
         }
         
-<span class="nc" id="L551">        return basePrompt.toString().trimIndent()</span>
+<span class="nc" id="L552">        return basePrompt.toString().trimIndent()</span>
     }
 
     /**
@@ -557,39 +558,44 @@ object LLMManager {
      * @return false when an inference is still in flight — the caller should wait and retry rather
      * than force-closing the conversation under a live stream.
      */
-<span class="fc" id="L560">    fun resetConversation(context: Context? = null): Boolean {</span>
-<span class="fc" id="L561">        synchronized(inferenceLock) {</span>
-<span class="pc bpc" id="L562" title="1 of 2 branches missed.">            if (engine == null) return true</span>
-<span class="nc bnc" id="L563" title="All 2 branches missed.">            if (activeInferences &gt; 0) {</span>
-<span class="nc" id="L564">                Log.w(TAG, &quot;Skipping conversation reset: $activeInferences inference(s) still in flight&quot;)</span>
-<span class="nc" id="L565">                return false</span>
+<span class="fc" id="L561">    fun resetConversation(context: Context? = null): Boolean {</span>
+<span class="fc" id="L562">        synchronized(inferenceLock) {</span>
+<span class="pc bpc" id="L563" title="1 of 2 branches missed.">            if (engine == null) {</span>
+<span class="fc" id="L564">                isFirstMessage = true</span>
+<span class="fc" id="L565">                nativeTurnsSinceReset = 0</span>
+<span class="fc" id="L566">                return true</span>
+            }
+<span class="nc bnc" id="L568" title="All 2 branches missed.">            if (activeInferences &gt; 0) {</span>
+<span class="nc" id="L569">                Log.w(TAG, &quot;Skipping conversation reset: $activeInferences inference(s) still in flight&quot;)</span>
+<span class="nc" id="L570">                return false</span>
             }
 
-<span class="nc" id="L568">            try {</span>
-<span class="nc bnc" id="L569" title="All 2 branches missed.">                conversation?.close()</span>
-<span class="nc" id="L570">            } catch (e: Exception) {</span>
-<span class="nc" id="L571">                Log.w(TAG, &quot;Error closing previous conversation&quot;, e)</span>
+<span class="nc" id="L573">            try {</span>
+<span class="nc bnc" id="L574" title="All 2 branches missed.">                conversation?.close()</span>
+<span class="nc" id="L575">            } catch (e: Exception) {</span>
+<span class="nc" id="L576">                Log.w(TAG, &quot;Error closing previous conversation&quot;, e)</span>
             }
-<span class="nc" id="L573">            conversation = null</span>
-<span class="nc" id="L574">            lastAiResponse = &quot;&quot;</span>
+<span class="nc" id="L578">            conversation = null</span>
+<span class="nc" id="L579">            lastAiResponse = &quot;&quot;</span>
 
-<span class="nc" id="L576">            try {</span>
-<span class="nc bnc" id="L577" title="All 2 branches missed.">                conversation = engine?.createConversation(buildConversationConfig())</span>
-<span class="nc" id="L578">                isFirstMessage = true</span>
-<span class="nc" id="L579">                Log.d(</span>
-<span class="nc" id="L580">                    TAG,</span>
-<span class="nc" id="L581">                    &quot;Conversation reset. isFirstMessage=true backend=$activeBackendString &quot; +</span>
-<span class="nc" id="L582">                        &quot;speculativeWas=$speculativeDecodingActive&quot;</span>
+<span class="nc" id="L581">            try {</span>
+<span class="nc bnc" id="L582" title="All 2 branches missed.">                conversation = engine?.createConversation(buildConversationConfig())</span>
+<span class="nc" id="L583">                isFirstMessage = true</span>
+<span class="nc" id="L584">                nativeTurnsSinceReset = 0</span>
+<span class="nc" id="L585">                Log.d(</span>
+<span class="nc" id="L586">                    TAG,</span>
+<span class="nc" id="L587">                    &quot;Conversation reset. isFirstMessage=true backend=$activeBackendString &quot; +</span>
+<span class="nc" id="L588">                        &quot;speculativeWas=$speculativeDecodingActive&quot;</span>
                 )
-<span class="nc" id="L584">            } catch (e: Exception) {</span>
-<span class="nc" id="L585">                Log.e(TAG, &quot;Failed to reset conversation&quot;, e)</span>
-<span class="nc" id="L586">                return false</span>
+<span class="nc" id="L590">            } catch (e: Exception) {</span>
+<span class="nc" id="L591">                Log.e(TAG, &quot;Failed to reset conversation&quot;, e)</span>
+<span class="nc" id="L592">                return false</span>
             }
-<span class="nc" id="L588">            return true</span>
+<span class="nc" id="L594">            return true</span>
         }
     }
 
-<span class="nc" id="L592">    var isPrewarmed = false</span>
+<span class="nc" id="L598">    var isPrewarmed = false</span>
 
     /**
      * Releases the native engine to reclaim RAM.
@@ -599,27 +605,28 @@ object LLMManager {
      * to touch, crashing the process.
      */
     fun unload(): Boolean {
-<span class="nc" id="L602">        synchronized(inferenceLock) {</span>
-<span class="nc bnc" id="L603" title="All 2 branches missed.">            if (activeInferences &gt; 0) {</span>
-<span class="nc" id="L604">                Log.i(TAG, &quot;Skipping unload: $activeInferences inference(s) still in flight.&quot;)</span>
-<span class="nc" id="L605">                return false</span>
+<span class="fc" id="L608">        synchronized(inferenceLock) {</span>
+<span class="pc bpc" id="L609" title="1 of 2 branches missed.">            if (activeInferences &gt; 0) {</span>
+<span class="nc" id="L610">                Log.i(TAG, &quot;Skipping unload: $activeInferences inference(s) still in flight.&quot;)</span>
+<span class="nc" id="L611">                return false</span>
             }
-<span class="nc" id="L607">            try {</span>
-<span class="nc bnc" id="L608" title="All 2 branches missed.">                conversation?.close()</span>
-<span class="nc bnc" id="L609" title="All 2 branches missed.">                engine?.close()</span>
-<span class="nc" id="L610">            } catch (e: Exception) {</span>
-<span class="nc" id="L611">                Log.w(TAG, &quot;Failed to cleanly close inference instance during unload.&quot;, e)</span>
+<span class="fc" id="L613">            try {</span>
+<span class="pc bpc" id="L614" title="1 of 2 branches missed.">                conversation?.close()</span>
+<span class="pc bpc" id="L615" title="1 of 2 branches missed.">                engine?.close()</span>
+<span class="nc" id="L616">            } catch (e: Exception) {</span>
+<span class="nc" id="L617">                Log.w(TAG, &quot;Failed to cleanly close inference instance during unload.&quot;, e)</span>
             } finally {
-<span class="nc" id="L613">                conversation = null</span>
-<span class="nc" id="L614">                engine = null</span>
-<span class="nc" id="L615">                isFirstMessage = true</span>
-<span class="nc" id="L616">                isPrewarmed = false</span>
-<span class="nc" id="L617">                lastAiResponse = &quot;&quot;</span>
-<span class="nc" id="L618">                activeInferences = 0</span>
-<span class="nc" id="L619">                speculativeDecodingActive = false</span>
-<span class="nc" id="L620">                Log.i(TAG, &quot;LLM model unloaded from memory to save resources.&quot;)</span>
+<span class="fc" id="L619">                conversation = null</span>
+<span class="fc" id="L620">                engine = null</span>
+<span class="fc" id="L621">                isFirstMessage = true</span>
+<span class="fc" id="L622">                nativeTurnsSinceReset = 0</span>
+<span class="fc" id="L623">                isPrewarmed = false</span>
+<span class="fc" id="L624">                lastAiResponse = &quot;&quot;</span>
+<span class="fc" id="L625">                activeInferences = 0</span>
+<span class="fc" id="L626">                speculativeDecodingActive = false</span>
+<span class="fc" id="L627">                Log.i(TAG, &quot;LLM model unloaded from memory to save resources.&quot;)</span>
             }
-<span class="nc" id="L622">            return true</span>
+<span class="fc" id="L629">            return true</span>
         }
     }
 }

@@ -120,6 +120,27 @@ class RegistryCoherenceTest {
     }
 
     @Test
+    fun `wellness system_instruction reaches the prompt for feeling sad`() {
+        val prompt = toolManager.getLlmToolsPrompt("I'm feeling sad")
+        assertTrue(
+            "expected wellness system_instruction in prompt, got:\n$prompt",
+            prompt.contains("empathy", ignoreCase = true) || prompt.contains("feelings", ignoreCase = true),
+        )
+        assertFalse(
+            "feeling sad must not BM25-inject handleFeelingCold",
+            prompt.contains("handleFeelingCold", ignoreCase = true),
+        )
+        assertFalse(
+            "feeling sad must not inject core playMusic tools (forces empty EOS)",
+            prompt.contains("playMusic", ignoreCase = true),
+        )
+        assertFalse(
+            "feeling sad must not inject Allowed tools catalog",
+            prompt.contains("Allowed tools:", ignoreCase = true),
+        )
+    }
+
+    @Test
     fun `property ids declared on tools that are still VHAL exist in the properties catalogue or are known AOSP`() {
         val propertyIds = mutableSetOf<Int>()
         val props = registryJson.getJSONArray("properties")

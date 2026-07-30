@@ -50,6 +50,19 @@ class GoldenPathMatrixUnitTest {
         expectDirect("Turn off AC", "turnOffAC")
         expectDirect("turn off the AC", "turnOffAC")
         expectDirect("AC off", "turnOffAC")
+        // ASR/UI variants seen on device: "A/C" slash form and "Done" for "Turn".
+        expectDirect("Turn on the A/C.", "turnOnAC")
+        expectDirect("Turn off the A/C.", "turnOffAC")
+        expectDirect("Done off the AC.", "turnOffAC")
+        // ASR stutter must not force LLM (query_word_count) — collapse then DirectTool.
+        expectDirect(
+            "turn on AC turn on AC turn on AC turn on AC turn on AC turn on",
+            "turnOnAC",
+        )
+        expectDirect(
+            "play music play music play music play music play music play music play music",
+            "playMusic",
+        )
         expectDirect("Increase FAN speed", "increaseFanSpeed")
         expectDirect("Decrease FAN speed", "decreaseFanSpeed")
         expectDirect("I am feeling hot", "decreaseTemperature")
