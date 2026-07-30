@@ -121,6 +121,11 @@ class ToolManager {
     var directExecutionPolicy: DirectToolResolver.Policy = DirectToolResolver.Policy()
         private set
 
+    /** Handler keys last injected into the LLM prompt (per-turn allow-list). */
+    @Volatile
+    var lastPromptedToolKeys: Set<String> = emptySet()
+        private set
+
     fun initialize(context: Context) {
         if (isInitialized) return
         try {
@@ -452,6 +457,7 @@ class ToolManager {
             sb.append(toolNames.joinToString(", "))
             sb.append("\n")
         }
+        lastPromptedToolKeys = toolNames.toSet()
 
         val haystack = "$conversationalContext $userQuery".lowercase()
         val matchedInstructions = systemInstructions.filter { inst ->
@@ -467,13 +473,40 @@ class ToolManager {
     }
 
     /**
+     * True when [toolName] (or its registry alias) was offered in the latest LLM tools prompt.
+     * DirectTool / confirmation follow-ups bypass this check in the orchestrator.
+     */
+    fun isToolAllowedForCurrentPrompt(toolName: String): Boolean {
+        val def = getToolDefinition(toolName)
+        val canonical = def?.handlerKey ?: toolName.substringBefore("(").trim()
+        return com.tcs.vehicleassistant.core.LlmToolAllowList.isAllowed(
+            toolName = toolName.substringBefore("(").trim(),
+            allowedKeys = lastPromptedToolKeys,
+            canonicalKey = canonical,
+        )
+    }
+
+    /**
      * Executes the requested tool call if it is enabled in vehicle_skills_registry.json.
      * Returns a string summarizing the outcome for the chat UI.
+     *
+     * @param enforcePromptAllowList when true, reject tools not injected in the latest LLM prompt
      */
-    suspend fun executeToolCall(context: Context, rawToolCall: String, intentHandler: ((Intent) -> Unit)? = null): String {
+    suspend fun executeToolCall(
+        context: Context,
+        rawToolCall: String,
+        enforcePromptAllowList: Boolean = false,
+        intentHandler: ((Intent) -> Unit)? = null,
+    ): String {
         val toolCall = rawToolCall.replace(Regex("(?i)<TOOL>|</TOOL>|<\\|tool_call>call:"), "").trim()
         Log.d(TAG, "Executing toolCall: $toolCall")
         try {
+            if (enforcePromptAllowList && !isToolAllowedForCurrentPrompt(toolCall)) {
+                val name = toolCall.substringBefore("(").trim()
+                Log.w(TAG, "Tool rejected by per-turn allow-list: $toolCall keys=$lastPromptedToolKeys")
+                return com.tcs.vehicleassistant.core.LlmToolAllowList.rejectionMessage(name)
+            }
+
             // Check if the requested tool corresponds to an enabled handler
             var matchedTool: ToolDefinition? = null
             for ((key, def) in activeTools) {
