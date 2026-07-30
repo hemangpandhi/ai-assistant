@@ -58,13 +58,20 @@ class VisionOrchestratorBridge(private val context: Context, private val orchest
             if (now - lastStressTrigger > DEBOUNCE_MS) {
                 lastStressTrigger = now
                 Log.w("VisionOrchestrator", "High stress and angry mood detected!")
-                
-                CoroutineScope(Dispatchers.Main).launch {
-                    VehicleManager.setTemperature(19f)
-                    VehicleManager.setAmbientColor(0, 0, 255) // Cool blue
+
+                val actuated = isProactiveSpeechEnabled
+                if (actuated) {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        VehicleManager.setTemperature(19f)
+                        VehicleManager.setAmbientColor(0, 0, 255) // Cool blue
+                    }
                 }
-                
-                val prompt = "[SYSTEM EVENT: The driver's biometric stress is High and they look angry. I have automatically lowered the cabin temperature and changed ambient lighting to a calming blue. Proactively say: 'You seem a bit stressed. I've lowered the temperature and set a calming ambient color. Would you like me to play some relaxing jazz?']"
+
+                val prompt = if (actuated) {
+                    "[SYSTEM EVENT: The driver's biometric stress is High and they look angry. I have automatically lowered the cabin temperature and changed ambient lighting to a calming blue. Proactively say: 'You seem a bit stressed. I've lowered the temperature and set a calming ambient color. Would you like me to play some relaxing jazz?']"
+                } else {
+                    "[SYSTEM EVENT: The driver's biometric stress is High and they look angry. Ask if they'd like cooler air, calmer lighting, or relaxing music — do not claim you already changed the cabin.]"
+                }
                 triggerLLM(prompt)
             }
         }
@@ -77,11 +84,13 @@ class VisionOrchestratorBridge(private val context: Context, private val orchest
                 Log.w("VisionOrchestrator", "Emergency vitals detected: BPM = $bpm")
                 val prompt = "[SYSTEM EVENT: URGENT! The driver's heart rate is dangerously abnormal ($bpm BPM). Interrupt immediately: 'Are you feeling okay? I've noticed a severe anomaly in your vitals. Should I route us to the nearest hospital or pull over and call emergency services?']"
                 triggerLLM(prompt)
-                
-                // Fire navigation intent to hospital for safety
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=nearest+hospital"))
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                context.startActivity(intent)
+
+                // Never auto-navigate unless proactive interventions are enabled.
+                if (isProactiveSpeechEnabled) {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("google.navigation:q=nearest+hospital"))
+                    intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(intent)
+                }
             }
         }
 
@@ -104,12 +113,19 @@ class VisionOrchestratorBridge(private val context: Context, private val orchest
                 Log.w("VisionOrchestrator", "Vitality Guard triggered! State: $mood")
 
                 CoroutineScope(Dispatchers.Main).launch {
-                    VehicleManager.writeTemperatureToVhalVerified(16f) // Max Cold
-                    VehicleManager.writeFanSpeedToVhalVerified(7) // Max Fan
-                    VehicleManager.writeWindowPositionToVhalVerified(50) // Roll window down
+                    // Hard climate/window actuation only when proactive mode is on.
+                    if (isProactiveSpeechEnabled) {
+                        VehicleManager.writeTemperatureToVhalVerified(16f)
+                        VehicleManager.writeFanSpeedToVhalVerified(7)
+                        VehicleManager.writeWindowPositionToVhalVerified(50)
+                    }
                 }
 
-                val prompt = "[SYSTEM EVENT: URGENT! The driver is falling asleep or highly distracted. I have automatically blasted the AC to max cold and rolled down the window to wake them up. Proactively speak and say EXACTLY this: 'Hey, keep your eyes on the road! I've lowered the temperature to help wake you up. I see a coffee shop 2 miles ahead—shall I route us there?']"
+                val prompt = if (isProactiveSpeechEnabled) {
+                    "[SYSTEM EVENT: URGENT! The driver is falling asleep or highly distracted. I have automatically blasted the AC to max cold and rolled down the window to wake them up. Proactively speak and say EXACTLY this: 'Hey, keep your eyes on the road! I've lowered the temperature to help wake you up. I see a coffee shop 2 miles ahead—shall I route us there?']"
+                } else {
+                    "[SYSTEM EVENT: URGENT! The driver appears drowsy or distracted. Proactively speak and say EXACTLY this: 'Hey, keep your eyes on the road! Would you like me to cool the cabin or find a place to stop?']"
+                }
                 triggerLLM(prompt)
             }
         }

@@ -26,7 +26,10 @@ object ContextGuard {
     data class SensorCondition(
         val source: String,
         val op: String,
-        val value: Double,
+        /** Literal threshold; mutually exclusive with [compareTo] in practice. */
+        val value: Double? = null,
+        /** Compare [source] against another cabin sensor (e.g. fan_level vs fan_max). */
+        val compareTo: String? = null,
     )
 
     data class PolicyRule(
@@ -95,10 +98,20 @@ object ContextGuard {
             val sensors = mutableListOf<SensorCondition>()
             for (j in 0 until sensorsArr.length()) {
                 val s = sensorsArr.getJSONObject(j)
+                val compareTo = s.optString("compare_to", "").trim().ifEmpty { null }
+                val value = when {
+                    s.has("value") -> s.getDouble("value")
+                    else -> null
+                }
+                if (compareTo == null && value == null) {
+                    Log.w(TAG, "Skipping sensor in ${o.optString("id")}: need value or compare_to")
+                    continue
+                }
                 sensors += SensorCondition(
                     source = s.getString("source"),
                     op = s.optString("op", ">="),
-                    value = s.getDouble("value"),
+                    value = value,
+                    compareTo = compareTo,
                 )
             }
             val whenObj = o.optJSONObject("when")
@@ -197,13 +210,18 @@ object ContextGuard {
         if (sensors.isEmpty()) return true
         for (s in sensors) {
             val actual = snapshot.sensor(s.source) ?: return false
+            val expected = when {
+                !s.compareTo.isNullOrBlank() -> snapshot.sensor(s.compareTo) ?: return false
+                s.value != null -> s.value
+                else -> return false
+            }
             val ok = when (s.op) {
-                ">=" -> actual >= s.value
-                ">" -> actual > s.value
-                "<=" -> actual <= s.value
-                "<" -> actual < s.value
-                "==", "=" -> actual == s.value
-                "!=" -> actual != s.value
+                ">=" -> actual >= expected
+                ">" -> actual > expected
+                "<=" -> actual <= expected
+                "<" -> actual < expected
+                "==", "=" -> actual == expected
+                "!=" -> actual != expected
                 else -> false
             }
             if (!ok) return false
