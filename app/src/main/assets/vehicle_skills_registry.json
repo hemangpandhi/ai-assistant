@@ -179,7 +179,7 @@
         "i am feeling hot"
       ],
       "offline_capable": true,
-      "success_message": "Cooling it down — you should feel better soon.",
+      "success_message": "Cooling it down \u2014 you should feel better soon.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "aliases": [
@@ -257,7 +257,7 @@
         "vents to floor"
       ],
       "offline_capable": true,
-      "success_message": "Adjusting the airflow — you should feel it soon.",
+      "success_message": "Adjusting the airflow \u2014 you should feel it soon.",
       "requires_vehicle_state": false,
       "direct_executable": true
     },
@@ -268,7 +268,7 @@
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
-      "success_message": "AC is on — you should feel that soon.",
+      "success_message": "AC is on \u2014 you should feel that soon.",
       "keywords": [
         "turn on ac",
         "ac on",
@@ -299,7 +299,9 @@
         "stop ac",
         "deactivate ac",
         "air conditioning off",
-        "turn off air conditioning"
+        "turn off air conditioning",
+        "turn off the ac",
+        "turn off the air conditioning"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
@@ -444,7 +446,7 @@
       "data_type": "BOOLEAN",
       "area_id": 1,
       "value_to_write": "true",
-      "success_message": "Defroster's on — your view should clear up.",
+      "success_message": "Defroster's on \u2014 your view should clear up.",
       "keywords": [
         "turn on front defroster",
         "front defroster",
@@ -606,7 +608,7 @@
       "data_type": "INT",
       "area_id": 0,
       "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
-      "success_message": "Seat heater's on — hope that warms you up!",
+      "success_message": "Seat heater's on \u2014 hope that warms you up!",
       "keywords": [
         "seat heater",
         "seat heat",
@@ -747,7 +749,7 @@
       "prompt_string": "<TOOL>defogWindshield()</TOOL>",
       "handler_key": "defogWindshield",
       "handler_type": "CUSTOM_KOTLIN",
-      "success_message": "Clearing your windshield — safety first.",
+      "success_message": "Clearing your windshield \u2014 safety first.",
       "keywords": [
         "defog windshield",
         "fogged windshield",
@@ -1241,7 +1243,7 @@
       ],
       "offline_capable": false,
       "requires_agentic_loop": false,
-      "success_message": "Great choice — putting that on for you!",
+      "success_message": "Great choice \u2014 putting that on for you!",
       "requires_vehicle_state": false,
       "instruction": "Plays music. Output <TOOL>playMusic(SONG)</TOOL> replacing SONG with the artist or track name only (e.g. playMusic(arijit singh) for 'play arijit singh music'). If no song/artist is specified, output <TOOL>playMusic(music)</TOOL>. Always name the requested music in your spoken reply.",
       "aliases": [
@@ -1768,7 +1770,7 @@
         "im freezing"
       ],
       "offline_capable": true,
-      "success_message": "That sounds uncomfortable — would you like me to turn on the seat heater?",
+      "success_message": "That sounds uncomfortable \u2014 would you like me to turn on the seat heater?",
       "requires_vehicle_state": false,
       "direct_executable": true
     },
@@ -1984,7 +1986,7 @@
             ]
           },
           "action": "confirm",
-          "message": "You're going about {speed_mph} mph — open the windows anyway?"
+          "message": "You're going about {speed_mph} mph \u2014 open the windows anyway?"
         },
         {
           "id": "set_windows_open_while_moving",
@@ -2010,7 +2012,7 @@
             ]
           },
           "action": "confirm",
-          "message": "You're going about {speed_mph} mph — open the windows anyway?"
+          "message": "You're going about {speed_mph} mph \u2014 open the windows anyway?"
         },
         {
           "id": "windows_already_open",
