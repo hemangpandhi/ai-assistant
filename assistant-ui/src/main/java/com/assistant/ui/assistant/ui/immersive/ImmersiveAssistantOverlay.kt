@@ -914,7 +914,7 @@ fun ImmersiveTranscript(
                 color = bodyColor,
                 live = live && who == DialogueSpeaker.User,
                 speaking = who == DialogueSpeaker.Assistant,
-                maxLines = 3,
+                maxLines = 1,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp),

@@ -127,7 +127,7 @@ fun LiveInputText(
     fontSize: TextUnit = 26.sp,
     fontWeight: FontWeight = FontWeight.SemiBold,
     textAlign: TextAlign = TextAlign.Center,
-    maxLines: Int = 3,
+    maxLines: Int = 1,
 ) {
     val tokens = remember(text) { liveInputTokens(text) }
     var committedText by remember { mutableStateOf("") }
