@@ -12,6 +12,15 @@ Living checklist. Update after each Pixel tablet run of
 | Snapshot throw fail-open on unlock/trunk/windows | **Fixed** — fail-closed Block for safety-critical tools |
 | Unknown gear silent Allow on safety tools | **Fixed** — Confirm ask instead |
 
+## Automated report (tablet)
+
+```bash
+ANDROID_SERIAL=<tablet> ANDROID_USER=10 ./scripts/run_tablet_usecase_report.sh
+```
+
+Use `docs/reports/tablet_usecase_report.md` → **Failures → next-step hints** as the
+evidence for the buckets below.
+
 ## Suggested priority after green suite
 
 1. **Stabilization — generic cabin ACK**  

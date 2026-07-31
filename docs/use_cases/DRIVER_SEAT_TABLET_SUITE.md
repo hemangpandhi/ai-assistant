@@ -57,7 +57,24 @@ Pass criteria for every row: **spoken/UI feedback is specific** (not only “Don
   --tests 'com.tcs.vehicleassistant.core.ContextGuardTest'
 ```
 
-## 3. On-device instrumented package
+## 3. Standalone automated tablet report (preferred)
+
+Runs every automatable use-case on-device (DirectTool matrix, safety, confirm honesty,
+wellness, follow-ups, Gemma fixtures) and writes a triage report:
+
+```bash
+export ANDROID_SERIAL="$SERIAL"
+export ANDROID_USER="$USER_ID"
+./scripts/run_tablet_usecase_report.sh
+# → docs/reports/tablet_usecase_report.md
+# → docs/reports/tablet_usecase_report.json
+```
+
+Or: `./scripts/run_instrumented_user10.sh report`
+
+Voice-only rows (D1 wake, D19–D21 barge-in / cancel, D23–D24 live LLM) still need human soak.
+
+## 3b. Full requirements instrumented package
 
 ```bash
 ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
@@ -67,8 +84,6 @@ adb -s "$SERIAL" shell am instrument -w --user "$USER_ID" \
   -e package com.tcs.vehicleassistant.requirements \
   com.tcs.vehicleassistant.test/androidx.test.runner.AndroidJUnitRunner
 ```
-
-Voice rows (D1 wake, D19–D20) still need human soak; instrumented covers text→DirectTool/ContextGuard.
 
 ## 4. Logcat watch
 
