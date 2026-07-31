@@ -38,7 +38,7 @@ import com.assistant.ui.assistant.ui.chrome.FaceGesture
  * Pull the face toward the transcript. The face canvas keeps chin / glow clearance
  * below the drawn shell, which otherwise reads as a large gap above the text.
  */
-private val FaceTowardTranscriptNudge = 42.dp
+private val FaceTowardTranscriptNudge = 58.dp
 
 /**
  * Shared bottom chrome for the immersive assistant stage:
