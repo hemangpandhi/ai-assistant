@@ -24,6 +24,7 @@ Related:
 |---------|---------|--------|
 | UI renderer | `compose` | Immersive Compose stage in the voice session |
 | Face | `hybrid` | Immersive hybrid eyes |
+| Placement | `fullscreen` | Full overlay, or left / right / bottom edge cards |
 | Backend (UI events) | `VehicleAgentAssistantBackend` (default) / `DemoAssistantBackend` | Production agent bridge; demo scripts for UI-only validation |
 
 Legacy XML plates (`polestar`, `pill`, `hud`, …) remain available via ADB and will be discarded gradually.
@@ -167,6 +168,54 @@ Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `
 
 ---
 
+## ADB — Chrome placement (fullscreen vs edge cards)
+
+Persisted in SharedPreferences + `Settings.Global` (`design_assistant_placement`). Live while the process is up. Compose immersive only.
+
+Also exposed as an **Assistant Placement** spinner on `LocalLLMActivity` (injected from `:assistant-ext`; no master Kotlin edit).
+
+```bash
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver \
+  --es placement left
+
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver
+adb logcat -d -s AssistantPlacement:I | tail -n 3
+
+adb shell settings put global design_assistant_placement left
+adb shell settings get global design_assistant_placement
+```
+
+### Placement tokens
+
+| Token | Chrome |
+|-------|--------|
+| `fullscreen` | Full-screen immersive (**default**) |
+| `left` | Left edge card |
+| `right` | Right edge card |
+| `bottom` | Bottom edge card |
+
+Aliases: `overlay` / `full` / `immersive` → fullscreen; `side_left` / `left_card`; `side_right` / `right_card`; `card_bottom` / `bottom_sheet`.  
+Host-package action alias: `com.tcs.vehicleassistant.action.SET_ASSISTANT_PLACEMENT` / `GET_ASSISTANT_PLACEMENT`. Extra key alias: `--es mode …`.
+
+---
+
+## ADB — Face cues (in-face Material icons)
+
+ADB preview overrides LLM-driven cues until cleared. See [assistant-adb.md](./assistant-adb.md) for the full icon list and presets.
+
+```bash
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
+  --es preset weather
+
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+```
+
+---
+
 ## ADB — Debug strip (Compose immersive)
 
 On debuggable builds the overlay shows model/backend tags + a live log strip. Toggle without reinstalling:
@@ -262,8 +311,17 @@ Demo / clean chrome (hide debug strip, short idle close):
 ```bash
 adb shell settings put global vehicle_assistant_ui compose
 adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_placement fullscreen
 adb shell settings put global vehicle_assistant_debug_strip off
 adb shell settings put global vehicle_assistant_idle_timeout_sec 5
+```
+
+Left-edge card demo:
+
+```bash
+adb shell settings put global vehicle_assistant_ui compose
+adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_placement left
 ```
 
 After changing Global settings, summon the assistant again (or restart the app process) so the session reinflates.

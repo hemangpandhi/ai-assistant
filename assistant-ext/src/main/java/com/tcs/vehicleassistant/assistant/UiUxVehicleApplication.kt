@@ -25,5 +25,6 @@ class UiUxVehicleApplication : Application() {
 
         DemoSettingsPresets.ensureDefaults(this)
         AssistantRuntimeBootstrap.install(this, useDemoBackend = false)
+        LocalLlmPlacementSettingsHook.install(this)
     }
 }

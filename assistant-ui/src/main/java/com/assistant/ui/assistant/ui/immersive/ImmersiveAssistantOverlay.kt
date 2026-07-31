@@ -149,6 +149,7 @@ fun ImmersiveAssistantOverlay(
 
     LaunchedEffect(Unit) {
         AssistantFaceConfig.install(context)
+        AssistantPlacementConfig.install(context)
         AssistantDebugStripConfig.install(context)
     }
 
@@ -183,6 +184,10 @@ fun ImmersiveAssistantOverlay(
     // ADB preview wins over LLM cues when set.
     val faceCues = previewFaceCues ?: stageFaceCues
     val lastError = stage.lastError
+    val placement by AssistantPlacementConfig.placement.collectAsStateWithLifecycle()
+    val cardPlacement = placement.isCard
+    // Soft dim for cards so the stage does not fully hijack the screen.
+    val targetBackdropAlpha = if (cardPlacement) 0.42f else 1f
 
     fun summon(origin: ImmersiveSummonOrigin) {
         summonOrigin = origin
@@ -364,8 +369,37 @@ fun ImmersiveAssistantOverlay(
                     withFrameNanos { }
                     wake.play()
                 }
-                when (origin) {
-                    ImmersiveSummonOrigin.Icon -> {
+                when {
+                    cardPlacement -> {
+                        // Edge slide for card chrome — no icon expand / hotword wipe.
+                        backdropAlpha.snapTo(0f)
+                        faceRise.snapTo(0f)
+                        faceScale.snapTo(0.96f)
+                        try {
+                            launch {
+                                backdropAlpha.animateTo(
+                                    targetBackdropAlpha,
+                                    tween(280, easing = FastOutSlowInEasing),
+                                )
+                            }
+                            launch {
+                                faceScale.animateTo(
+                                    1f,
+                                    spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
+                                )
+                            }
+                            overlayReveal.animateTo(
+                                1f,
+                                tween(380, easing = FastOutSlowInEasing),
+                            )
+                        } finally {
+                            if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
+                            if (backdropAlpha.value < targetBackdropAlpha * 0.95f) {
+                                backdropAlpha.snapTo(targetBackdropAlpha)
+                            }
+                        }
+                    }
+                    origin == ImmersiveSummonOrigin.Icon -> {
                         // Emerge from assist-icon / bottom-end — whole stage scales up.
                         backdropAlpha.snapTo(1f)
                         faceRise.snapTo(0.18f)
@@ -385,7 +419,7 @@ fun ImmersiveAssistantOverlay(
                             if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
                         }
                     }
-                    ImmersiveSummonOrigin.Hotword -> {
+                    else -> {
                         // Bottom → top wipe; border completes as the wipe reaches the top.
                         backdropAlpha.snapTo(1f)
                         faceRise.snapTo(0.35f)
@@ -446,26 +480,43 @@ fun ImmersiveAssistantOverlay(
 
     val brandGlow = rememberAssistantBrandGlow(mood, brandAccent).copy(alpha = 0.65f)
     val reveal = overlayReveal.value.coerceIn(0f, 1f)
-    val glowReveal = when (summonOrigin) {
+    val glowReveal = when {
+        cardPlacement -> 0f
         // Border blooms as the icon expand finishes.
-        ImmersiveSummonOrigin.Icon -> ((reveal - 0.45f) / 0.55f).coerceIn(0f, 1f)
+        summonOrigin == ImmersiveSummonOrigin.Icon -> ((reveal - 0.45f) / 0.55f).coerceIn(0f, 1f)
         // Full rim under the wipe — bottom edge appears first, top completes last.
-        ImmersiveSummonOrigin.Hotword -> if (reveal > 0.02f) 1f else 0f
+        else -> if (reveal > 0.02f) 1f else 0f
     }
     val showOverlay = visible ||
         backdropAlpha.value > 0.02f ||
         reveal > 0.02f
     val debugStripVisible by AssistantDebugStripConfig.visible.collectAsStateWithLifecycle()
 
+    // Keep card dim soft if placement flips while already presented.
+    LaunchedEffect(cardPlacement, visible) {
+        if (visible && cardPlacement && backdropAlpha.value > targetBackdropAlpha + 0.02f) {
+            backdropAlpha.animateTo(targetBackdropAlpha, tween(220, easing = FastOutSlowInEasing))
+        } else if (visible && !cardPlacement && backdropAlpha.value < 0.95f) {
+            backdropAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
+        }
+    }
+
     Box(
         modifier = modifier.fillMaxSize(),
     ) {
         if (showOverlay) {
-            // One transform for the whole stage: icon emerge OR hotword bottom→top wipe.
+            // Fullscreen: icon emerge / hotword wipe. Cards: no whole-stage transform —
+            // the card itself slides from its edge via [ImmersiveAssistantCardChrome].
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(immersiveSummonGraphics(summonOrigin, reveal)),
+                    .then(
+                        if (cardPlacement) {
+                            Modifier
+                        } else {
+                            immersiveSummonGraphics(summonOrigin, reveal)
+                        },
+                    ),
             ) {
                 Box(
                     modifier = Modifier
@@ -483,7 +534,7 @@ fun ImmersiveAssistantOverlay(
                             },
                         ),
                 ) {
-                    ImmersiveBackdrop(rich = richEffects)
+                    ImmersiveBackdrop(rich = richEffects && !cardPlacement)
                     if (glowReveal > 0.01f) {
                         // Faster breath while either party is talking *or* we're listening.
                         val speechActive = mood == AssistantMood.Listening ||
@@ -525,27 +576,49 @@ fun ImmersiveAssistantOverlay(
                     }
 
                 CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
-                    ImmersiveAssistantBottomChrome(
-                        mood = mood,
-                        faceKind = faceKind,
-                        transcript = transcript,
-                        speaker = speaker,
-                        gazeX = effectiveGazeX,
-                        gazeY = effectiveGazeY,
-                        mouthAmplitude = mouthAmplitude,
-                        brandGlow = brandGlow,
-                        highContrast = highContrast,
-                        gesture = gesture,
-                        contextGlyph = contextGlyph,
-                        // Main overlay: icons live inside the face via [faceCues], not floating HUD.
-                        floatContextGlyph = false,
-                        showFace = faceKind != AssistantFaceKind.None,
-                        faceRise = faceRise.value,
-                        faceScale = faceScale.value,
-                        faceAlpha = faceAlpha.value,
-                        transcriptAlpha = transcriptAlpha.value,
-                        faceCues = faceCues,
-                    )
+                    if (cardPlacement) {
+                        ImmersiveAssistantCardChrome(
+                            placement = placement,
+                            mood = mood,
+                            faceKind = faceKind,
+                            transcript = transcript,
+                            speaker = speaker,
+                            gazeX = effectiveGazeX,
+                            gazeY = effectiveGazeY,
+                            mouthAmplitude = mouthAmplitude,
+                            brandGlow = brandGlow,
+                            highContrast = highContrast,
+                            gesture = gesture,
+                            showFace = faceKind != AssistantFaceKind.None,
+                            faceScale = faceScale.value,
+                            faceAlpha = faceAlpha.value,
+                            transcriptAlpha = transcriptAlpha.value,
+                            faceCues = faceCues,
+                            reveal = reveal,
+                        )
+                    } else {
+                        ImmersiveAssistantBottomChrome(
+                            mood = mood,
+                            faceKind = faceKind,
+                            transcript = transcript,
+                            speaker = speaker,
+                            gazeX = effectiveGazeX,
+                            gazeY = effectiveGazeY,
+                            mouthAmplitude = mouthAmplitude,
+                            brandGlow = brandGlow,
+                            highContrast = highContrast,
+                            gesture = gesture,
+                            contextGlyph = contextGlyph,
+                            // Main overlay: icons live inside the face via [faceCues], not floating HUD.
+                            floatContextGlyph = false,
+                            showFace = faceKind != AssistantFaceKind.None,
+                            faceRise = faceRise.value,
+                            faceScale = faceScale.value,
+                            faceAlpha = faceAlpha.value,
+                            transcriptAlpha = transcriptAlpha.value,
+                            faceCues = faceCues,
+                        )
+                    }
                 }
 
                 if (richEffects && debugStripVisible) {

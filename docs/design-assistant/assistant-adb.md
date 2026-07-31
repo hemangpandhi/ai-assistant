@@ -9,6 +9,7 @@ Legacy XML voice plates remain available via UI profile.
 |---------|---------------------|
 | UI profile | `vehicle_assistant_ui` |
 | Face | `design_assistant_face` |
+| Placement (chrome) | `design_assistant_placement` |
 | Debug strip | `vehicle_assistant_debug_strip` |
 | Idle timeout | `vehicle_assistant_idle_timeout_sec` |
 
@@ -70,6 +71,82 @@ adb logcat -d -s AssistantFace:I | tail -n 3
 adb shell settings put global design_assistant_face hybrid
 adb shell settings get global design_assistant_face
 ```
+
+## Chrome placement (fullscreen vs edge cards)
+
+Compose immersive only. Default: **fullscreen** overlay. Cards use a soft dim + edge slide (left / right / bottom).
+
+Also available as an **Assistant Placement** spinner on `LocalLLMActivity` (injected; no master Kotlin edit).
+
+```bash
+# Fullscreen (default)
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver \
+  --es placement fullscreen
+
+# Left / right / bottom edge cards
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver \
+  --es placement left
+
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver \
+  --es placement right
+
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver \
+  --es placement bottom
+
+# Host-package action alias
+adb shell am broadcast -a com.tcs.vehicleassistant.action.SET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver \
+  --es placement left
+
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_PLACEMENT \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver
+adb logcat -d -s AssistantPlacement:I | tail -n 3
+
+# Survives process
+adb shell settings put global design_assistant_placement left
+adb shell settings get global design_assistant_placement
+```
+
+Tokens: `fullscreen` | `left` | `right` | `bottom`  
+Aliases: `overlay` / `full` / `immersive` → fullscreen; `side_left` / `left_card`; `side_right` / `right_card`; `card_bottom` / `bottom_sheet`  
+Extra key alias: `--es mode …` (same as `placement`).
+
+## Face cues (in-face Material icons, ADB preview)
+
+Preview overrides LLM cues while set. Clear to return to LLM / geometry.
+
+```bash
+# Per-slot
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
+  --es left_eye sunny --es right_eye sunny --es mouth music \
+  --es left_accent sparkle --es right_accent star
+
+# Compact XML tag (same vocabulary as the LLM)
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
+  --es face '<face left_eye="sunny" right_eye="rain" mouth="music"/>'
+
+# Named presets
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
+  --es preset weather
+
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES \
+  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb logcat -d -s AssistantFaceCue:I | tail -n 3
+```
+
+Icons: `rain|storm|snow|cloudy|sunny|thermostat|ac|heat|fan|defrost|music|podcast|mic|search|navigate|sparkle|star|wave|heart`  
+Presets: `weather|music|search|climate|sparkle|nav|clear`  
+Pass `--ez summon false` to skip opening the immersive overlay.
 
 ## Debug strip (model / backend / live log)
 
@@ -157,10 +234,17 @@ Wake-word / home-button VIS session uses the same Compose immersive UI by defaul
 ### Quick presets
 
 ```bash
-# Compose + hybrid face + hide debug strip + 5s idle close
+# Compose + hybrid face + fullscreen + hide debug strip + 5s idle close
 adb shell settings put global vehicle_assistant_ui compose
 adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_placement fullscreen
 adb shell settings put global vehicle_assistant_debug_strip off
 adb shell settings put global vehicle_assistant_idle_timeout_sec 5
+adb shell am force-stop com.tcs.vehicleassistant
+
+# Left-edge card demo
+adb shell settings put global vehicle_assistant_ui compose
+adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_placement left
 adb shell am force-stop com.tcs.vehicleassistant
 ```

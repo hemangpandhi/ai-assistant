@@ -249,6 +249,17 @@
         </receiver>
 
         <receiver
+            android:name="com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_PLACEMENT" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_PLACEMENT" />
+                <action android:name="com.tcs.vehicleassistant.action.SET_ASSISTANT_PLACEMENT" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_ASSISTANT_PLACEMENT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name="com.assistant.ui.assistant.api.AssistantDebugStripReceiver"
             android:exported="true">
             <intent-filter>
