@@ -12,7 +12,7 @@ class ImmersiveFirstFrameContractTest {
 
     @Test
     fun liteBackdropSkipsOffscreenPasses() {
-        // rich=false → single scrim + vertical gradient (no CompositingStrategy.Offscreen).
+        // rich=false → single lower-half vertical gradient (no CompositingStrategy.Offscreen).
         assertFalse(shouldUseOffscreenBackdrop(rich = false))
         assertTrue(shouldUseOffscreenBackdrop(rich = true))
     }
