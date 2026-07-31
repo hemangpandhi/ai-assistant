@@ -93,8 +93,11 @@ fun ImmersiveAssistantBottomChrome(
         val glyphSize = (faceSize * 0.38f).coerceIn(40.dp, 96.dp)
         val density = LocalDensity.current
         val risePx = with(density) { (bandHeight * 0.95f).toPx() }
-        // Wide enough for the face shell + 60% transcript band; never full-bleed.
-        val dockWidth = (faceSize * 1.7f).coerceIn(260.dp, maxWidth * 0.72f)
+        // Diameter ≥ ~2× face+transcript stack so the semicircle's 0% rim clears
+        // the top of the chrome (avoids left/right clip → hard edges).
+        val estimatedStack = faceSize + 100.dp
+        val dockWidth = maxOf(faceSize * 2.5f, estimatedStack * 2.2f)
+            .coerceIn(320.dp, maxWidth)
         val dockAlpha = maxOf(faceAlpha, transcriptAlpha).coerceIn(0f, 1f)
 
         // Only the face + transcript dock consumes taps; empty stage passes through
