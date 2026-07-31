@@ -710,90 +710,59 @@ private fun ImmersiveAssistantDebugStrip(
 }
 
 /**
- * Full-stage dim for the immersive assistant: clear upper half so maps /
- * launcher stay fully visible; soft darken only in the lower half with a
- * stronger bottom-center pool behind the face / transcript.
+ * Face-stage dim for the immersive assistant: a dark radial pool behind the
+ * face / transcript so the frame stays readable, blooming outward through a
+ * soft glow until full transparency. Upper stage and side gutters stay clear
+ * so maps / launcher show through.
  *
- * @param rich when false, skips Offscreen compositing / DstIn masks so the first
- * frame is a single cheap gradient (target &lt; 100ms TTFF).
+ * @param rich when false, draws only the dark radial (no glow bloom) for a
+ * cheap first frame (target &lt; 100ms TTFF).
  */
 @Composable
 fun ImmersiveBackdrop(
     modifier: Modifier = Modifier,
     rich: Boolean = true,
 ) {
-    Box(modifier = modifier.fillMaxSize()) {
-        if (!rich) {
-            // Single-pass vertical darken — no Offscreen layer, no blend mask.
-            // Upper half stays fully transparent; dim ramps in below mid-stage.
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colorStops = arrayOf(
-                                0.0f to Color.Transparent,
-                                0.50f to Color.Transparent,
-                                0.68f to Color(0x440E1218),
-                                1.0f to Color(0x99050608),
-                            ),
-                        ),
-                    ),
-            )
-        } else {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
-                .background(
-                    Brush.verticalGradient(
-                        colorStops = arrayOf(
-                            0.0f to Color.Transparent,
-                            0.50f to Color.Transparent,
-                            0.62f to Color(0x28101820),
-                            0.76f to Color(0x660E1218),
-                            0.88f to Color(0x990A0C10),
-                            1.0f to Color(0xCC050608),
-                        ),
-                    ),
-                )
-                .drawWithContent {
-                    drawContent()
-                    drawRect(
-                        brush = Brush.horizontalGradient(
-                            colorStops = AssistantCenterBandHorizontalStops,
-                        ),
-                        blendMode = BlendMode.DstIn,
-                    )
-                },
+    Canvas(modifier = modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        // Centered on the bottom face band (~37.5% stage height chrome).
+        val center = Offset(w * 0.5f, h * 0.82f)
+        val radius = minOf(w * 0.62f, h * 0.72f)
+
+        // Dark readable core → soft falloff → clear. Upper half stays open
+        // because the radial is anchored low and dies before mid-stage.
+        drawRect(
+            brush = Brush.radialGradient(
+                colorStops = arrayOf(
+                    0.0f to Color(0xF205060A),
+                    0.18f to Color(0xCC0A0E14),
+                    0.38f to Color(0x880E1218),
+                    0.58f to Color(0x440A1018),
+                    0.78f to Color(0x18081014),
+                    1.0f to Color.Transparent,
+                ),
+                center = center,
+                radius = radius,
+            ),
         )
-        // Readable pool behind face + transcript — confined to the center band.
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen },
-        ) {
-            val w = size.width
-            val h = size.height
+
+        if (rich) {
+            // Soft brand glow bloom around the dark pool — reads as a luminous
+            // halo under the face frame, then dissolves to transparency.
             drawRect(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
-                        0.0f to Color(0xCC000000),
-                        0.38f to Color(0x88000000),
-                        0.70f to Color(0x33000000),
+                        0.0f to Color.Transparent,
+                        0.22f to Color(0x338AB4F8),
+                        0.48f to Color(0x2A8AB4F8),
+                        0.72f to Color(0x148AB4F8),
                         1.0f to Color.Transparent,
                     ),
-                    center = Offset(w * 0.5f, h * 0.88f),
-                    radius = minOf(w * 0.28f, h * 0.42f),
+                    center = center,
+                    radius = radius * 1.12f,
                 ),
             )
-            drawRect(
-                brush = Brush.horizontalGradient(
-                    colorStops = AssistantCenterBandHorizontalStops,
-                ),
-                blendMode = BlendMode.DstIn,
-            )
-        }
         }
     }
 }

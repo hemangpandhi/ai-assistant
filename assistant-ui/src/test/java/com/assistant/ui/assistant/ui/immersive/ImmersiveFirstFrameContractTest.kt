@@ -11,10 +11,13 @@ import org.junit.Test
 class ImmersiveFirstFrameContractTest {
 
     @Test
-    fun liteBackdropSkipsOffscreenPasses() {
-        // rich=false → single lower-half vertical gradient (no CompositingStrategy.Offscreen).
+    fun liteBackdropSkipsGlowBloom() {
+        // rich=false → dark radial only; rich=true adds brand glow bloom.
+        // Neither path uses Offscreen / DstIn compositing.
         assertFalse(shouldUseOffscreenBackdrop(rich = false))
-        assertTrue(shouldUseOffscreenBackdrop(rich = true))
+        assertFalse(shouldUseOffscreenBackdrop(rich = true))
+        assertFalse(shouldDrawGlowBloom(rich = false))
+        assertTrue(shouldDrawGlowBloom(rich = true))
     }
 
     @Test
@@ -54,8 +57,11 @@ class ImmersiveFirstFrameContractTest {
     }
 }
 
-/** Mirrors ImmersiveBackdrop(rich=…) policy without Compose runtime. */
-internal fun shouldUseOffscreenBackdrop(rich: Boolean): Boolean = rich
+/** Mirrors ImmersiveBackdrop(rich=…) Offscreen policy without Compose runtime. */
+internal fun shouldUseOffscreenBackdrop(rich: Boolean): Boolean = false
+
+/** Mirrors ImmersiveBackdrop glow-bloom gating. */
+internal fun shouldDrawGlowBloom(rich: Boolean): Boolean = rich
 
 /** Mirrors LocalAssistantIdleMotion / richEffects gating. */
 internal fun shouldEnableIdleMotion(richEffects: Boolean): Boolean = richEffects
