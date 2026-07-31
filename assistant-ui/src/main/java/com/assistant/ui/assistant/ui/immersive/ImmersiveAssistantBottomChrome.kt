@@ -76,6 +76,7 @@ fun ImmersiveAssistantBottomChrome(
     faceSizeScale: Float = 1f,
     faceCues: AssistantFaceCues? = null,
     faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)? = null,
+    glowBreath: ImmersiveGlowBreath = ImmersiveGlowBreath(1f, 0f, 0.62f),
 ) {
     val showGlyph = floatContextGlyph &&
         faceKind == AssistantFaceKind.FusionEyes &&
@@ -113,6 +114,7 @@ fun ImmersiveAssistantBottomChrome(
             brandGlow = brandGlow,
             width = dockWidth,
             contentAlpha = dockAlpha,
+            glowBreath = glowBreath,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 12.dp)

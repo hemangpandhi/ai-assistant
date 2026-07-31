@@ -496,75 +496,74 @@ fun ImmersiveAssistantOverlay(
         if (showOverlay) {
             // Fullscreen: icon emerge / hotword wipe. Cards: no whole-stage transform —
             // the card itself slides from its edge via [ImmersiveAssistantCardChrome].
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .then(
-                        if (cardPlacement) {
-                            Modifier
-                        } else {
-                            immersiveSummonGraphics(summonOrigin, reveal)
-                        },
-                    ),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) }
-                        .then(
-                            if (visible) {
-                                Modifier.clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { stageStore.dispatch(StageIntent.Dismiss) },
-                                )
-                            } else {
-                                Modifier
-                            },
-                        ),
-                ) {
-                    ImmersiveBackdrop(rich = richEffects && !cardPlacement)
-                    if (glowReveal > 0.01f) {
-                        // Faster breath while either party is talking *or* we're listening.
-                        val speechActive = mood == AssistantMood.Listening ||
-                            mood == AssistantMood.Speaking ||
-                            speaker == DialogueSpeaker.User ||
-                            (mouthAmplitude != null && mouthAmplitude > 0.04f)
-                        val speechEnergy = when {
-                            mouthAmplitude != null -> mouthAmplitude.coerceIn(0f, 1f)
-                            // User turns / listening have no lip-sync — keep mid energy so
-                            // the rim still feels responsive.
-                            speaker == DialogueSpeaker.User -> 0.55f
-                            mood == AssistantMood.Listening -> 0.40f
-                            mood == AssistantMood.Speaking -> 0.45f
-                            else -> 0f
-                        }
-                        ImmersiveBorderGlow(
-                            glowColor = brandGlow,
-                            // Hotword: full rim under the vertical wipe (bottom appears first).
-                            // Icon: fade rim in as the scale-up finishes.
-                            revealProgress = glowReveal,
-                            speechActive = speechActive,
-                            speechEnergy = speechEnergy,
-                        )
-                    }
-                }
-
-                val glyphGaze = contextGlyphGaze()
-                val effectiveGazeX =
-                    if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
-                        glyphGaze.first
-                    } else {
-                        gazeX
-                    }
-                val effectiveGazeY =
-                    if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
-                        glyphGaze.second
-                    } else {
-                        gazeY
-                    }
-
                 CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
+                    // Shared breath so border rim + face dock inhale together.
+                    val speechActive = mood == AssistantMood.Listening ||
+                        mood == AssistantMood.Speaking ||
+                        speaker == DialogueSpeaker.User ||
+                        (mouthAmplitude != null && mouthAmplitude > 0.04f)
+                    val speechEnergy = when {
+                        mouthAmplitude != null -> mouthAmplitude.coerceIn(0f, 1f)
+                        speaker == DialogueSpeaker.User -> 0.55f
+                        mood == AssistantMood.Listening -> 0.40f
+                        mood == AssistantMood.Speaking -> 0.45f
+                        else -> 0f
+                    }
+                    val glowBreath = rememberImmersiveGlowBreath(speechActive, speechEnergy)
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .then(
+                                if (cardPlacement) {
+                                    Modifier
+                                } else {
+                                    immersiveSummonGraphics(summonOrigin, reveal)
+                                },
+                            ),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) }
+                                .then(
+                                    if (visible) {
+                                        Modifier.clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = { stageStore.dispatch(StageIntent.Dismiss) },
+                                        )
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
+                        ) {
+                            ImmersiveBackdrop(rich = richEffects && !cardPlacement)
+                            if (glowReveal > 0.01f) {
+                                ImmersiveBorderGlow(
+                                    glowColor = brandGlow,
+                                    revealProgress = glowReveal,
+                                    speechActive = speechActive,
+                                    speechEnergy = speechEnergy,
+                                    glowBreath = glowBreath,
+                                )
+                            }
+                        }
+
+                        val glyphGaze = contextGlyphGaze()
+                        val effectiveGazeX =
+                            if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
+                                glyphGaze.first
+                            } else {
+                                gazeX
+                            }
+                        val effectiveGazeY =
+                            if (faceKind == AssistantFaceKind.FusionEyes && glyphGazeActive && contextGlyph != null) {
+                                glyphGaze.second
+                            } else {
+                                gazeY
+                            }
+
                     if (cardPlacement) {
                         ImmersiveAssistantCardChrome(
                             placement = placement,
@@ -606,23 +605,24 @@ fun ImmersiveAssistantOverlay(
                             faceAlpha = faceAlpha.value,
                             transcriptAlpha = transcriptAlpha.value,
                             faceCues = faceCues,
+                            glowBreath = glowBreath,
                         )
                     }
-                }
 
-                if (richEffects && debugStripVisible) {
-                    ImmersiveAssistantDebugStrip(
-                        debugInfo = host.debugInfo(),
-                        errorMessage = lastError,
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .fillMaxWidth()
-                            .windowInsetsPadding(WindowInsets.safeDrawing)
-                            .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
-                    )
+                        if (richEffects && debugStripVisible) {
+                            ImmersiveAssistantDebugStrip(
+                                debugInfo = host.debugInfo(),
+                                errorMessage = lastError,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .fillMaxWidth()
+                                    .windowInsetsPadding(WindowInsets.safeDrawing)
+                                    .graphicsLayer { alpha = backdropAlpha.value.coerceIn(0f, 1f) },
+                            )
+                        }
+                    }
                 }
             }
-        }
 
         if (!visible && awaitHotword) {
             // Awaiting hotword — tap anywhere to summon.
@@ -771,56 +771,38 @@ fun ImmersiveBorderGlow(
     revealProgress: Float = 1f,
     speechActive: Boolean = false,
     speechEnergy: Float = 0f,
+    /** Shared breath — pass the same instance used by [FaceStageDock] for sync. */
+    glowBreath: ImmersiveGlowBreath? = null,
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
     val sweepAngle = remember { Animatable(0f) }
-    val breathScale = remember { Animatable(1f) }
-    LaunchedEffect(idleMotion, speechActive) {
-        val breathEnabled = idleMotion || speechActive
-        if (!breathEnabled) {
+    // Local breath only when caller does not supply a shared one (gallery / previews).
+    val localBreath = if (glowBreath == null) {
+        rememberImmersiveGlowBreath(speechActive, speechEnergy)
+    } else {
+        null
+    }
+    val breathState = glowBreath ?: localBreath!!
+    LaunchedEffect(idleMotion) {
+        if (!idleMotion) {
             sweepAngle.snapTo(0f)
-            breathScale.snapTo(1f)
             return@LaunchedEffect
         }
-        // Spectrum sweep only while idle-motion is allowed (TTFR-safe first frame).
-        if (idleMotion) {
-            launch {
-                while (true) {
-                    sweepAngle.snapTo(0f)
-                    sweepAngle.animateTo(
-                        targetValue = 360f,
-                        animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
-                    )
-                }
-            }
-        } else {
-            sweepAngle.snapTo(0f)
-        }
-        // Idle: ambient inhale. Listening/speaking: faster, wider bloom.
-        val peak = if (speechActive) 1.85f else 1.65f
-        val halfCycleMs = if (speechActive) 1_500 else 2_600
         while (true) {
-            breathScale.animateTo(
-                targetValue = peak,
-                animationSpec = tween(durationMillis = halfCycleMs, easing = FastOutSlowInEasing),
-            )
-            breathScale.animateTo(
-                targetValue = 1f,
-                animationSpec = tween(durationMillis = halfCycleMs, easing = FastOutSlowInEasing),
+            sweepAngle.snapTo(0f)
+            sweepAngle.animateTo(
+                targetValue = 360f,
+                animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
             )
         }
     }
     val paint = remember { Paint().asFrameworkPaint().apply { isAntiAlias = true } }
     val shaderMatrix = remember { Matrix() }
     val angle = sweepAngle.value
-    val energy = speechEnergy.coerceIn(0f, 1f)
-    // Soft voice kick on top of the breath cycle (lip-sync / live user speech).
-    val breath = breathScale.value + energy * 0.22f
+    val breath = breathState.scale
     val progress = revealProgress.coerceIn(0f, 1f)
-    // 0 at rest → 1 near peak inhale (speech peak ~1.85).
-    val inhale = ((breath - 1f) / 0.85f).coerceIn(0f, 1f)
-    // Brighten on inhale so the motion is readable (dimming canceled the old subtle breath).
-    val breathFade = 0.62f + inhale * 0.38f + energy * 0.12f
+    val inhale = breathState.inhale
+    val breathFade = breathState.fade
     val spectrum = remember(glowColor) {
         fun tint(c: Color): Color = Color(
             red = c.red * 0.72f + glowColor.red * 0.28f,
