@@ -45,6 +45,8 @@ private val FaceTowardTranscriptNudge = 20.dp
  * local [FaceStageDock] glass plate + face (optional floating context glyph) +
  * [ImmersiveTranscript].
  *
+ * [faceRise] entrance lift: -1 = off-screen below, +1 = stage center, 0 = settled.
+ *
  * [faceContent] replaces [ConfigurableAssistantFace] when provided (e.g. Weather sink).
  * [floatContextGlyph] shows the Material icon above Fusion Eyes; Weather sink keeps this off
  * and swaps the icon into the eye band instead.
@@ -87,12 +89,17 @@ fun ImmersiveAssistantBottomChrome(
             .assistantChromePadding()
             .padding(start = 32.dp, top = 16.dp, end = 32.dp, bottom = 0.dp),
     ) {
-        val bandHeight = maxHeight * 0.28f
         // Face targets ~37.5% of the immersive stage (app area) height (1.5× prior 25%).
         val faceSize = (maxHeight * 0.375f * faceSizeScale).coerceIn(88.dp, 480.dp)
         val glyphSize = (faceSize * 0.38f).coerceIn(40.dp, 96.dp)
         val density = LocalDensity.current
-        val risePx = with(density) { (bandHeight * 0.95f).toPx() }
+        // Travel distances for bottom → center → settle entrance.
+        val belowPx = with(density) { (maxHeight * 0.38f).toPx() }
+        val centerPx = with(density) { (maxHeight * 0.42f).toPx() }
+        val entranceY = when {
+            faceRise >= 0f -> -faceRise * centerPx // up toward center
+            else -> -faceRise * belowPx // faceRise=-1 → push below
+        }.roundToInt()
         // Diameter ≥ ~2× face+transcript stack so the semicircle's 0% rim clears
         // the top of the chrome (avoids left/right clip → hard edges).
         val estimatedStack = faceSize + 100.dp
@@ -109,6 +116,7 @@ fun ImmersiveAssistantBottomChrome(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 12.dp)
+                .offset { IntOffset(0, entranceY) }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -121,8 +129,7 @@ fun ImmersiveAssistantBottomChrome(
                     modifier = Modifier
                         .padding(top = if (showGlyph) glyphSize * 0.72f else 0.dp)
                         .offset {
-                            val nudgePx = FaceTowardTranscriptNudge.roundToPx()
-                            IntOffset(0, (faceRise * risePx).roundToInt() + nudgePx)
+                            IntOffset(0, FaceTowardTranscriptNudge.roundToPx())
                         }
                         .graphicsLayer {
                             val s = faceScale

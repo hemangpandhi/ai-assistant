@@ -5,6 +5,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -326,7 +327,11 @@ fun ImmersiveAssistantOverlay(
     }
 
     val backdropAlpha = remember { Animatable(0f) }
-    val faceRise = remember { Animatable(0.28f) } // 1 = below screen, 0 = settled
+    /**
+     * Face/dock entrance lift:
+     * -1 = off-screen below, +1 = stage center (peak), 0 = settled home.
+     */
+    val faceRise = remember { Animatable(-1f) }
     val faceScale = remember { Animatable(0.94f) }
     val faceAlpha = remember { Animatable(1f) }
     val transcriptAlpha = remember { Animatable(0f) }
@@ -398,50 +403,47 @@ fun ImmersiveAssistantOverlay(
                             }
                         }
                     }
-                    origin == ImmersiveSummonOrigin.Icon -> {
-                        // Emerge from assist-icon / bottom-end — whole stage scales up.
+                    else -> {
+                        // Face: bottom → center peak → settle home (wake word + icon launch).
+                        // Stage reveal still differs by origin (icon scale vs hotword wipe).
                         backdropAlpha.snapTo(1f)
-                        faceRise.snapTo(0.18f)
-                        faceScale.snapTo(1f)
+                        faceRise.snapTo(-1f)
+                        faceScale.snapTo(0.88f)
+                        faceAlpha.snapTo(1f)
+                        val revealMs =
+                            if (origin == ImmersiveSummonOrigin.Icon) 420 else 560
                         try {
                             launch {
+                                // Bottom → center, then ease down to settled position.
                                 faceRise.animateTo(
-                                    0f,
-                                    spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+                                    targetValue = 0f,
+                                    animationSpec = keyframes {
+                                        durationMillis = 880
+                                        -1f at 0
+                                        1f at 460 using FastOutSlowInEasing
+                                        0f at 880 using FastOutSlowInEasing
+                                    },
                                 )
                             }
-                            overlayReveal.animateTo(
-                                1f,
-                                tween(420, easing = FastOutSlowInEasing),
-                            )
-                        } finally {
-                            if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
-                        }
-                    }
-                    else -> {
-                        // Bottom → top wipe; border completes as the wipe reaches the top.
-                        backdropAlpha.snapTo(1f)
-                        faceRise.snapTo(0.35f)
-                        faceScale.snapTo(0.96f)
-                        try {
                             launch {
                                 faceScale.animateTo(
-                                    1f,
-                                    spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
-                                )
-                            }
-                            launch {
-                                faceRise.animateTo(
-                                    0f,
-                                    spring(dampingRatio = 0.84f, stiffness = Spring.StiffnessMedium),
+                                    targetValue = 1f,
+                                    animationSpec = keyframes {
+                                        durationMillis = 880
+                                        0.88f at 0
+                                        1.06f at 460 using FastOutSlowInEasing
+                                        1f at 880 using FastOutSlowInEasing
+                                    },
                                 )
                             }
                             overlayReveal.animateTo(
                                 1f,
-                                tween(560, easing = FastOutSlowInEasing),
+                                tween(revealMs, easing = FastOutSlowInEasing),
                             )
                         } finally {
                             if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
+                            if (faceRise.value !in -0.02f..0.02f) faceRise.snapTo(0f)
+                            if (faceScale.value !in 0.98f..1.02f) faceScale.snapTo(1f)
                         }
                     }
                 }
@@ -453,11 +455,12 @@ fun ImmersiveAssistantOverlay(
             wake.playDismiss()
             transcriptAlpha.animateTo(0f, tween(140))
             launch {
-                faceRise.animateTo(0.35f, tween(300, easing = FastOutSlowInEasing))
+                // Exit: drop back below the stage.
+                faceRise.animateTo(-1f, tween(300, easing = FastOutSlowInEasing))
             }
             overlayReveal.animateTo(0f, tween(340, easing = FastOutSlowInEasing))
             backdropAlpha.animateTo(0f, tween(280, easing = FastOutSlowInEasing))
-            faceRise.snapTo(0.28f)
+            faceRise.snapTo(-1f)
             faceScale.snapTo(0.94f)
             faceAlpha.snapTo(1f)
             transcriptAlpha.snapTo(0f)
