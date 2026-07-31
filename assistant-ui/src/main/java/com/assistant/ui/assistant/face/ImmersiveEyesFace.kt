@@ -56,11 +56,11 @@ import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
 import com.assistant.ui.assistant.ui.theme.immersiveMatchedShellBounds
 import com.assistant.ui.assistant.ui.theme.ImmersiveShellWidthFactor
 
-/** Matte black face fill (NOMI-like). */
+/** Deep black face fill (NOMI-like) — base for [drawGlossyBlackFaceShell]. */
 internal val NomiFaceBlack = Color(0xFF050508)
 
 /**
- * NIO NOMI–style glyphs: hollow ring eyes + mouth on a matte black SemiCircle face.
+ * NIO NOMI–style glyphs: hollow ring eyes + mouth on a glossy black SemiCircle face.
  */
 internal data class ImmersiveEyePose(
     val eyeOpen: Float = 1f,
@@ -272,7 +272,7 @@ fun ImmersiveEyesFace(
     val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val target = mood.toImmersiveEyePose()
     val enableIdleMotion = LocalAssistantIdleMotion.current
-    // Fixed SemiCircle shell — matte black face fill.
+    // Fixed SemiCircle shell — glossy layered black face fill.
     val shellMorph = remember {
         ExpressiveShellMorphState(
             morph = Morph(
@@ -584,24 +584,12 @@ fun ImmersiveEyesFace(
             // SemiCircle: narrower base diameter, same height (chin clearance unchanged).
             val shellBounds = immersiveMatchedShellBounds(size.width, size.height, breath = breath)
 
-            // Matte black SemiCircle face (color only — shape unchanged).
-            drawExpressiveFaceShell(
+            // Glossy black SemiCircle — layered depth (not flat matte).
+            drawGlossyBlackFaceShell(
                 morphState = shellMorph,
                 bounds = shellBounds,
-                color = NomiFaceBlack,
-            )
-            // Soft top-left sheen on the black shell.
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(
-                        Color.White.copy(alpha = 0.08f),
-                        Color.Transparent,
-                    ),
-                    center = Offset(cx - faceR * 0.28f, cy - faceR * 0.32f),
-                    radius = faceR * 0.72f,
-                ),
-                radius = faceR * 0.72f,
-                center = Offset(cx - faceR * 0.28f, cy - faceR * 0.32f),
+                base = NomiFaceBlack,
+                rimTint = Color(0xFF8AB4F8),
             )
             // Hairline pale rim stroke.
             val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
