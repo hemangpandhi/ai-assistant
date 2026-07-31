@@ -96,7 +96,8 @@ fun ImmersiveAssistantBottomChrome(
         val density = LocalDensity.current
         // Travel distances for bottom → center → settle entrance.
         val belowPx = with(density) { (maxHeight * 0.38f).toPx() }
-        val centerPx = with(density) { (maxHeight * 0.42f).toPx() }
+        // Peak lift — keep below true stage center so the arc doesn't overshoot.
+        val centerPx = with(density) { (maxHeight * 0.26f).toPx() }
         val entranceY = when {
             faceRise >= 0f -> -faceRise * centerPx // up toward center
             else -> -faceRise * belowPx // faceRise=-1 → push below
