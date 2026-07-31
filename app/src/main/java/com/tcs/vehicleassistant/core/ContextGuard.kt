@@ -155,7 +155,9 @@ object ContextGuard {
     }
 
     fun evaluate(toolCall: String, snapshot: CabinSnapshot): Decision {
-        if (!enabled || rules.isEmpty()) return Decision.Allow()
+        if (!enabled || rules.isEmpty()) {
+            return safetyUnknownGearGate(toolCall, snapshot) ?: Decision.Allow()
+        }
 
         val handler = toolCall.substringBefore("(").trim()
         val args = toolCall.substringAfter("(", missingDelimiterValue = "")
@@ -203,7 +205,24 @@ object ContextGuard {
                 Action.ESCALATE -> Decision.Escalate(message, rule.id)
             }
         }
-        return Decision.Allow()
+        // No rule fired — still refuse silent allow for safety tools when gear is unknown.
+        return safetyUnknownGearGate(toolCall, snapshot) ?: Decision.Allow()
+    }
+
+    /**
+     * Unlock / trunk / windows must not silently Allow when Park/Drive cannot be read.
+     * Ask the driver instead of writing VHAL blind.
+     */
+    private fun safetyUnknownGearGate(toolCall: String, snapshot: CabinSnapshot): Decision? {
+        if (!SafetyCriticalTools.isSafetyCritical(toolCall)) return null
+        val gear = snapshot.gear.trim()
+        if (!gear.equals("Unknown", ignoreCase = true) && gear.isNotEmpty()) return null
+        Log.w(TAG, "Fail-closed confirm: safety tool with unknown gear tool=$toolCall")
+        return Decision.Confirm(
+            message = SafetyCriticalTools.gearUnknownConfirmMessage(toolCall),
+            policyId = SafetyCriticalTools.GEAR_UNKNOWN_POLICY_ID,
+            originalToolCall = toolCall,
+        )
     }
 
     private fun sensorsMatch(sensors: List<SensorCondition>, snapshot: CabinSnapshot): Boolean {

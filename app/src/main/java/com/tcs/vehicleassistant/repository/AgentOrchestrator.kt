@@ -664,8 +664,20 @@ class AgentOrchestrator(
             val snapshot = CabinSnapshotReader.capture(context.applicationContext)
             ContextGuard.evaluate(toolCall, snapshot)
         } catch (e: Exception) {
-            android.util.Log.w(TAG, "ContextGuard snapshot failed; allowing $toolCall", e)
-            ContextGuard.Decision.Allow()
+            if (com.tcs.vehicleassistant.core.SafetyCriticalTools.isSafetyCritical(toolCall)) {
+                android.util.Log.w(
+                    TAG,
+                    "ContextGuard snapshot failed; fail-closed for safety tool $toolCall",
+                    e,
+                )
+                ContextGuard.Decision.Block(
+                    message = com.tcs.vehicleassistant.core.SafetyCriticalTools.SNAPSHOT_UNAVAILABLE_MESSAGE,
+                    policyId = com.tcs.vehicleassistant.core.SafetyCriticalTools.SNAPSHOT_UNAVAILABLE_POLICY_ID,
+                )
+            } else {
+                android.util.Log.w(TAG, "ContextGuard snapshot failed; allowing $toolCall", e)
+                ContextGuard.Decision.Allow()
+            }
         }
     }
 
@@ -991,6 +1003,8 @@ class AgentOrchestrator(
 
                     // Now parse tools — use a turn-local list so a newer turn cannot clear ours.
                     val pendingTools = mutableListOf<Deferred<String?>>()
+                    val confirmationAsks = mutableListOf<String>()
+                    val actuallyExecutedTools = linkedSetOf<String>()
                     val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
@@ -1005,19 +1019,34 @@ class AgentOrchestrator(
                             }
                             val toolDef = toolManager.getToolDefinition(toolCall)
                             if (toolDef?.requiresConfirmation == true) {
+                                // Stash only — never narrate as "I ran X" and never write yet.
                                 pendingConfirmationTool = toolCall
+                                val ask = com.tcs.vehicleassistant.core.LlmToolTurnPolicy.confirmationAskMessage(
+                                    parsed.toolName,
+                                    toolDef.confirmationMessage,
+                                )
+                                confirmationAsks.add(ask)
+                                toolFeedbacks.add(ask)
+                                android.util.Log.i(TAG, "LLM tool requires confirmation; stashed $toolCall")
                             } else {
                                 val job = scope.async(Dispatchers.IO) {
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
                                         when (val decision = evaluateContextGuard(toolCall)) {
                                             is ContextGuard.Decision.Confirm -> {
                                                 pendingConfirmationTool = decision.originalToolCall
+                                                confirmationAsks.add(decision.message)
                                                 decision.message
                                             }
                                             is ContextGuard.Decision.Block -> decision.message
                                             is ContextGuard.Decision.Escalate -> decision.message
-                                            is ContextGuard.Decision.Allow ->
-                                                executeToolCall(toolCall, enforcePromptAllowList = true)
+                                            is ContextGuard.Decision.Allow -> {
+                                                val result = executeToolCall(
+                                                    toolCall,
+                                                    enforcePromptAllowList = true,
+                                                )
+                                                actuallyExecutedTools.add(toolCall)
+                                                result
+                                            }
                                         }
                                     } ?: "System Error: Tool execution timed out."
                                 }
@@ -1081,75 +1110,79 @@ class AgentOrchestrator(
                         }
                     }
 
-                    // Append error feedback if needed, but DO NOT speak it automatically if we already spoke the main text.
-                    // Prefer live tool feedback over a fake "Done" ACK whenever a tool actually ran —
-                    // empty LLM prose (tool-tag-only / template-token replies) used to sound like a no-op.
+                    // Prefer live tool feedback / confirmation asks over a fake "Done" or "I ran X" ACK.
+                    // Confirmation-only tool tags must never narrate as if the write already happened.
                     var finalDisplayMsg = finalMsg
                     if (finalMsg.isEmpty() || finalMsg == TAKING_ACTION_PLACEHOLDER) {
-                        val usefulFeedback = toolFeedbacks
-                            .map { it.trim() }
-                            .filter { it.isNotEmpty() && !it.equals("Action completed.", ignoreCase = true) }
-                            .distinct()
-                        finalDisplayMsg = when {
-                            usefulFeedback.isNotEmpty() -> usefulFeedback.joinToString(" ")
-                            executedTools.isNotEmpty() ->
-                                "Okay — I ran ${executedTools.first().substringBefore("(")}."
-                            else -> {
-                                android.util.Log.w(
-                                    TAG,
-                                    "Empty model text (no tools). raw='${tempFinalMsg.take(160)}' query='${query.take(80)}'",
-                                )
-                                // Short EOS / chat-template-only replies have left the next
-                                // sendMessageAsync hung; recycle so the following turn can run.
-                                if (!LocalLLMActivity.isCloudModelActive) {
-                                    withContext(Dispatchers.IO) {
-                                        if (LLMManager.awaitInferenceDrain() &&
-                                            LLMManager.resetConversation(context)
-                                        ) {
-                                            android.util.Log.i(TAG, "Reset conversation after empty model reply")
-                                        }
-                                    }
-                                }
-                                // Clear emotional/open chat: one chat-oriented retry before any canned line.
-                                if (emptyChatRetry < 1 &&
-                                    com.tcs.vehicleassistant.core.ConversationalIntent.isOpenChat(query)
-                                ) {
-                                    android.util.Log.i(TAG, "Retrying empty open-chat turn with empathy hint")
-                                    processQuery(
-                                        query,
-                                        retryCount,
-                                        loopCount,
-                                        isAgenticObservation,
-                                        previousExecutedTools,
-                                        turnId = turnId,
-                                        emptyChatRetry = emptyChatRetry + 1,
-                                    )
-                                    return@launch
-                                }
-                                resolveEmptyModelFallback(query).also { fallback ->
-                                    if (fallback == WELLNESS_OFFER ||
-                                        FollowUpRouter.offeredMusic(fallback)
+                        if (confirmationAsks.isEmpty() &&
+                            toolFeedbacks.isEmpty() &&
+                            actuallyExecutedTools.isEmpty()
+                        ) {
+                            android.util.Log.w(
+                                TAG,
+                                "Empty model text (no tools). raw='${tempFinalMsg.take(160)}' query='${query.take(80)}'",
+                            )
+                            if (!LocalLLMActivity.isCloudModelActive) {
+                                withContext(Dispatchers.IO) {
+                                    if (LLMManager.awaitInferenceDrain() &&
+                                        LLMManager.resetConversation(context)
                                     ) {
-                                        pendingOfferedTool = "playMusic(relaxing)"
-                                        android.util.Log.i(TAG, "Stashed soft music offer from empty fallback")
+                                        android.util.Log.i(TAG, "Reset conversation after empty model reply")
                                     }
                                 }
                             }
+                            if (emptyChatRetry < 1 &&
+                                com.tcs.vehicleassistant.core.ConversationalIntent.isOpenChat(query)
+                            ) {
+                                android.util.Log.i(TAG, "Retrying empty open-chat turn with empathy hint")
+                                processQuery(
+                                    query,
+                                    retryCount,
+                                    loopCount,
+                                    isAgenticObservation,
+                                    previousExecutedTools,
+                                    turnId = turnId,
+                                    emptyChatRetry = emptyChatRetry + 1,
+                                )
+                                return@launch
+                            }
                         }
-                        // Speak only when we have something useful — silent ignore for mic/TTS-echo
-                        // noise avoids overwriting a good empathy reply with "I didn't catch that".
+                        val emptyFallback = resolveEmptyModelFallback(query).also { fallback ->
+                            if (fallback == WELLNESS_OFFER || FollowUpRouter.offeredMusic(fallback)) {
+                                pendingOfferedTool = "playMusic(relaxing)"
+                                android.util.Log.i(TAG, "Stashed soft music offer from empty fallback")
+                            }
+                        }
+                        val resolved = com.tcs.vehicleassistant.core.LlmToolTurnPolicy.resolveEmptyProseDisplay(
+                            confirmationAsks = confirmationAsks,
+                            toolFeedbacks = toolFeedbacks,
+                            actuallyExecutedToolCalls = actuallyExecutedTools,
+                            emptyFallback = emptyFallback,
+                        )
+                        finalDisplayMsg = resolved.text
                         if (finalDisplayMsg.isNotBlank()) {
                             audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
                         }
-                    } else if (toolFeedbacks.isNotEmpty()) {
-                        val hasError = toolFeedbacks.any {
-                            it.contains("Error", true) || it.contains("Failed", true) ||
-                            it.contains("couldn't", true) || it.contains("didn't confirm", true)
+                    } else if (
+                        com.tcs.vehicleassistant.core.LlmToolTurnPolicy.shouldSpeakToolFeedback(
+                            pendingConfirmation = pendingConfirmationTool != null,
+                            confirmationAsks = confirmationAsks,
+                            toolFeedbacks = toolFeedbacks,
+                        )
+                    ) {
+                        val feedbackMsg = when {
+                            confirmationAsks.isNotEmpty() -> confirmationAsks.first()
+                            else -> toolFeedbacks.joinToString(" ")
                         }
-                        if (hasError) {
-                            val errorMsg = toolFeedbacks.joinToString(" ")
-                            finalDisplayMsg += " " + errorMsg
-                            audioManager.speak(errorMsg, "SENTENCE_FINAL_ERR")
+                        if (feedbackMsg.isNotBlank()) {
+                            finalDisplayMsg = if (
+                                finalDisplayMsg.contains(feedbackMsg, ignoreCase = true)
+                            ) {
+                                finalDisplayMsg
+                            } else {
+                                "$finalDisplayMsg $feedbackMsg".trim()
+                            }
+                            audioManager.speak(feedbackMsg, "SENTENCE_FINAL_CONFIRM")
                         }
                     }
 
@@ -1160,7 +1193,9 @@ class AgentOrchestrator(
 
                     val spokenIsQuestion = finalDisplayMsg.isNotBlank() && (
                         isQuestion ||
-                        finalDisplayMsg.trim().endsWith("?") ||
+                        pendingConfirmationTool != null ||
+                        confirmationAsks.isNotEmpty() ||
+                        com.tcs.vehicleassistant.core.LlmToolTurnPolicy.looksLikeQuestion(finalDisplayMsg) ||
                         finalDisplayMsg.contains("could you say", ignoreCase = true) ||
                         finalDisplayMsg.contains("want to try again", ignoreCase = true)
                     )
@@ -1170,7 +1205,8 @@ class AgentOrchestrator(
                     audioManager.playSilentUtterance(10, finalUtterance)
 
                     // Only now is the turn finished — re-enable input for the next utterance.
-                    if (finalMsg.isBlank() && spokenIsQuestion) {
+                    // Pending confirmation must re-open the mic even if the model already spoke prose.
+                    if (spokenIsQuestion && (finalMsg.isBlank() || pendingConfirmationTool != null)) {
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     }
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))

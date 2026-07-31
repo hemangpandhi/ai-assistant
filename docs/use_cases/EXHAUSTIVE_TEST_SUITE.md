@@ -18,6 +18,7 @@ Covers:
 - LLM_All_Use_Cases triggers vs registry / DirectTool
 - Documented demo/use-case prompts + play-artist matrix
 - Follow-up / affirmatives / numbered picks
+- Driver-seat safety/routing matrix (`DriverSeatScenarioMatrixUnitTest`) — see [DRIVER_SEAT_TABLET_SUITE.md](DRIVER_SEAT_TABLET_SUITE.md)
 
 ## Instrumented on tablet (user 10)
 

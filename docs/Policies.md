@@ -70,7 +70,11 @@ Both paths are guarded:
 - **DirectTool / FollowUp** — `AgentOrchestrator.completeDirectToolTurn`
 - **LLM `<TOOL>` loop** — same `evaluateContextGuard` before execute
 
-If snapshot capture throws, the orchestrator **allows** the tool (fail-open) and logs a warning.
+If snapshot capture throws:
+- **Safety-critical tools** (`unlockDoors`, `openTrunk`, window open/close) → **Block** (fail-closed) with a clear spoken reason.
+- **Other tools** → **Allow** (fail-open) and log a warning.
+
+Separately, if gear reads as `Unknown` for a safety-critical tool and no other policy fired, ContextGuard returns **Confirm** instead of silent Allow.
 
 ---
 
