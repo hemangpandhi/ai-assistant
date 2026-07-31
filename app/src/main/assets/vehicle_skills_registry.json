@@ -1845,6 +1845,20 @@
         "tourist",
         "best places"
       ]
+    },
+    {
+      "keywords": [
+        "feeling sad",
+        "i'm feeling sad",
+        "not feeling good",
+        "depressed",
+        "stressed",
+        "lonely",
+        "upset",
+        "anxious",
+        "feelings"
+      ],
+      "instruction": "Respond with empathy for the driver's feelings. Acknowledge how they feel and offer optional help such as music or climate — do not call tools until they accept."
     }
   ],
   "config": {
