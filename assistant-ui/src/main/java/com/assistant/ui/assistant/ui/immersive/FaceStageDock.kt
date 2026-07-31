@@ -22,9 +22,8 @@ import androidx.compose.ui.unit.dp
  * Soft semicircle stage under the immersive face + transcript.
  *
  * Bottom-center pivot (same fashion as the SemiCircle face shell): core is
- * fully opaque (100%), then the fill dissolves to 0% along the semicircle arc.
- * Radius is always half the dock width so left / right / top of the arc hit
- * true 0% inside the layout — never clipped into a hard edge.
+ * fully opaque (100%) in the outer-border blue, then dissolves to 0% along the
+ * semicircle arc — no rectangle, no stroke, no hard silhouette.
  */
 @Composable
 fun FaceStageDock(
@@ -34,7 +33,8 @@ fun FaceStageDock(
     contentAlpha: Float = 1f,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val glowTint = brandGlow.copy(alpha = 0.16f)
+    // Match ImmersiveBorderGlow / panel blue — ignore incoming alpha, own the fade.
+    val blue = brandGlow.copy(alpha = 1f)
 
     Box(
         modifier = modifier
@@ -45,33 +45,17 @@ fun FaceStageDock(
                 // Sit the pivot on the bottom edge → only the upper semicircle paints.
                 val cy = size.height
                 // Half-width radius: 0% lands exactly at left, right, and the top arc.
-                // Parent must size [width] ≥ ~2× content height so the face fits inside.
                 val radius = size.width * 0.5f
 
                 drawCircle(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.00f to Color(0xFF121418), // 100%
-                            0.25f to Color(0xFF121418),
-                            0.50f to Color(0xC2121418),
-                            0.72f to Color(0x73101418),
-                            0.88f to Color(0x2A101418),
-                            1.00f to Color.Transparent, // 0%
-                        ),
-                        center = Offset(cx, cy),
-                        radius = radius,
-                    ),
-                    center = Offset(cx, cy),
-                    radius = radius,
-                )
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colorStops = arrayOf(
-                            0.00f to Color.Transparent,
-                            0.45f to glowTint.copy(alpha = 0.08f),
-                            0.72f to glowTint,
-                            0.90f to glowTint.copy(alpha = 0.05f),
-                            1.00f to Color.Transparent,
+                            0.00f to blue.copy(alpha = 1.00f), // 100%
+                            0.25f to blue.copy(alpha = 0.92f),
+                            0.50f to blue.copy(alpha = 0.62f),
+                            0.72f to blue.copy(alpha = 0.32f),
+                            0.88f to blue.copy(alpha = 0.10f),
+                            1.00f to blue.copy(alpha = 0.00f), // 0%
                         ),
                         center = Offset(cx, cy),
                         radius = radius,
