@@ -94,7 +94,6 @@ import com.assistant.ui.assistant.face.AssistantFaceKind
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.AssistantPresentation
 import com.assistant.ui.assistant.audio.AssistantSpeechEvent
-import com.assistant.ui.assistant.ui.theme.AssistantTokens
 import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
 import com.assistant.ui.assistant.dialogue.DialogueBeat
 import com.assistant.ui.assistant.dialogue.DialogueSpeaker
@@ -711,11 +710,12 @@ private fun ImmersiveAssistantDebugStrip(
 }
 
 /**
- * Full-stage dim for the immersive assistant: light empty areas, stronger
- * bottom-center pool behind the face / transcript so chrome stays readable.
+ * Full-stage dim for the immersive assistant: clear upper half so maps /
+ * launcher stay fully visible; soft darken only in the lower half with a
+ * stronger bottom-center pool behind the face / transcript.
  *
  * @param rich when false, skips Offscreen compositing / DstIn masks so the first
- * frame is a single scrim + cheap gradient (target &lt; 100ms TTFF).
+ * frame is a single cheap gradient (target &lt; 100ms TTFF).
  */
 @Composable
 fun ImmersiveBackdrop(
@@ -723,23 +723,18 @@ fun ImmersiveBackdrop(
     rich: Boolean = true,
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        // Soft full-screen base — mostly transparent so maps / launcher show through.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(AssistantTokens.Scrim),
-        )
         if (!rich) {
             // Single-pass vertical darken — no Offscreen layer, no blend mask.
-            // Keep the lite path soft to match the transparent stage.
+            // Upper half stays fully transparent; dim ramps in below mid-stage.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
                             colorStops = arrayOf(
-                                0.0f to Color(0x1410141C),
-                                0.55f to Color(0x440E1218),
+                                0.0f to Color.Transparent,
+                                0.50f to Color.Transparent,
+                                0.68f to Color(0x440E1218),
                                 1.0f to Color(0x99050608),
                             ),
                         ),
@@ -753,10 +748,11 @@ fun ImmersiveBackdrop(
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to Color(0x1410141C),
-                            0.45f to Color(0x28101820),
-                            0.70f to Color(0x660E1218),
-                            0.86f to Color(0x990A0C10),
+                            0.0f to Color.Transparent,
+                            0.50f to Color.Transparent,
+                            0.62f to Color(0x28101820),
+                            0.76f to Color(0x660E1218),
+                            0.88f to Color(0x990A0C10),
                             1.0f to Color(0xCC050608),
                         ),
                     ),

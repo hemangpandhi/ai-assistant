@@ -354,8 +354,8 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.MATCH_PARENT,
             )
-            // Soft scrim so the window paints before Compose finishes (matches AssistantTokens.Scrim).
-            setBackgroundColor(0x52101014.toInt())
+            // Transparent host — ImmersiveBackdrop owns lower-half dim after Compose paints.
+            setBackgroundColor(android.graphics.Color.TRANSPARENT)
         }
 
         // VoiceInteractionSession is not a LifecycleOwner; provide a host that
