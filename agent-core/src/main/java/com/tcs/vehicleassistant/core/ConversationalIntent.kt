@@ -3,15 +3,12 @@ package com.tcs.vehicleassistant.core
 /**
  * Lightweight utterance classifiers for chat / wellness / ASR-noise routing.
  *
- * Extracted so [com.tcs.vehicleassistant.repository.AgentOrchestrator] and
- * [com.tcs.vehicleassistant.ToolManager] share one definition of "this turn is
- * emotional / open chat" vs "cabin command" vs "mic garbage".
+ * Shared by [com.tcs.vehicleassistant.repository.AgentOrchestrator] and
+ * [com.tcs.vehicleassistant.ToolManager] so "emotional / open chat" vs cabin
+ * command vs mic garbage use one definition.
  *
- * Climate phrases like "I'm feeling hot/cold" are intentionally excluded — those
- * remain DirectTool / BM25 cabin intents.
- *
- * Note: `origin/master` currently references this type but does not yet ship the
- * source file; this restores a compiling tree until master adds its own copy.
+ * Climate phrases like "I'm feeling hot/cold" are intentionally excluded —
+ * those remain DirectTool / BM25 cabin intents.
  */
 object ConversationalIntent {
 

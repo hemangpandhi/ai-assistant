@@ -1902,10 +1902,6 @@
       {
         "user": "I am not feeling good",
         "assistant": "I'm sorry you're not feeling well. Would you like me to play some music?"
-      },
-      {
-        "user": "I'm feeling sad",
-        "assistant": "I'm here with you. Would you like me to play some music?"
       }
     ],
     "context_policies": {
