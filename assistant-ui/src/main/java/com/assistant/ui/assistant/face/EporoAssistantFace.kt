@@ -259,7 +259,7 @@ private fun DrawScope.drawHead(
         morphState = shellMorph,
         bounds = bounds,
         color = EporoShellRim.copy(alpha = 0.55f),
-        style = Stroke(width = 0.022f, cap = StrokeCap.Round),
+        style = Stroke(width = bounds.width * 0.022f, cap = StrokeCap.Round),
     )
 }
 

@@ -816,7 +816,7 @@ private fun DrawScope.drawFusionHead(
         morphState = shellMorph,
         bounds = bounds,
         color = EporoShellRim.copy(alpha = (0.45f + 0.2f * glow).coerceIn(0.35f, 0.7f)),
-        style = Stroke(width = 0.022f, cap = StrokeCap.Round),
+        style = Stroke(width = bounds.width * 0.022f, cap = StrokeCap.Round),
     )
 }
 

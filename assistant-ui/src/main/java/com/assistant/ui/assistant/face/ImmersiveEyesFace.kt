@@ -597,7 +597,7 @@ fun ImmersiveEyesFace(
                 morphState = shellMorph,
                 bounds = shellBounds,
                 color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.65f),
-                style = Stroke(width = 0.028f, cap = StrokeCap.Round),
+                style = Stroke(width = shellBounds.width * 0.028f, cap = StrokeCap.Round),
             )
 
             val liveTilt = tilt.value + 0.35f * sin(life * 0.28f).toFloat()

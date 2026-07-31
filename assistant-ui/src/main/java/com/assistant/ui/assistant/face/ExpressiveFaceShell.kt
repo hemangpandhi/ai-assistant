@@ -16,12 +16,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.drawscope.scale
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.assistant.ui.assistant.face.AssistantMood
@@ -151,18 +150,26 @@ private inline fun DrawScope.drawExpressiveFaceShellPath(
     draw: DrawScope.(Path) -> Unit,
 ) {
     if (bounds.width <= 0f || bounds.height <= 0f) return
-    val unit = morphState.morph.toPath(morphState.progress)
-    translate(left = bounds.left, top = bounds.top) {
-        scale(scaleX = bounds.width, scaleY = bounds.height, pivot = Offset.Zero) {
-            draw(unit)
-        }
+    // Map the unit morph into draw-space so Brush gradients (pixel coords) sample
+    // correctly. Scaling the DrawScope instead would leave brushes in the wrong space
+    // and collapse glossy fills to a flat black.
+    val path = Path().apply {
+        addPath(morphState.morph.toPath(morphState.progress))
+        transform(
+            Matrix().apply {
+                values[Matrix.ScaleX] = bounds.width
+                values[Matrix.ScaleY] = bounds.height
+                values[Matrix.TranslateX] = bounds.left
+                values[Matrix.TranslateY] = bounds.top
+            },
+        )
     }
+    draw(path)
 }
 
 /**
- * Layered black-glass face fill — replaces flat matte black with depth:
- * lifted crown, soft specular, cool rim whisper, chin vignette.
- * Each pass is clipped to the shell path via [drawExpressiveFaceShell] brush fills.
+ * Layered black-glass face fill — replaces flat matte black with readable depth:
+ * lifted crown, bright specular, cool rim whisper, soft chin shade.
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun DrawScope.drawGlossyBlackFaceShell(
@@ -175,90 +182,91 @@ internal fun DrawScope.drawGlossyBlackFaceShell(
     val top = bounds.top
     val bottom = bounds.bottom
     val glossCenter = Offset(
-        bounds.left + bounds.width * 0.34f,
-        bounds.top + bounds.height * 0.22f,
+        bounds.left + bounds.width * 0.36f,
+        bounds.top + bounds.height * 0.20f,
+    )
+    val streakCenter = Offset(
+        bounds.left + bounds.width * 0.50f,
+        bounds.top + bounds.height * 0.14f,
     )
     val rimCenter = Offset(
-        bounds.left + bounds.width * 0.72f,
-        bounds.top + bounds.height * 0.58f,
+        bounds.left + bounds.width * 0.70f,
+        bounds.top + bounds.height * 0.55f,
     )
     val minSide = minOf(bounds.width, bounds.height)
 
-    // 1) Base volume — soft crown lift → deep chin.
+    // 1) Base volume — clearly lifted crown → deep chin (visible on AAOS screens).
     drawExpressiveFaceShell(
         morphState = morphState,
         bounds = bounds,
         brush = Brush.verticalGradient(
             colorStops = arrayOf(
-                0.00f to Color(0xFF1C1E26),
-                0.22f to Color(0xFF101218),
-                0.55f to base,
-                0.82f to Color(0xFF030306),
+                0.00f to Color(0xFF2A2E38),
+                0.18f to Color(0xFF161920),
+                0.48f to base,
+                0.78f to Color(0xFF030306),
                 1.00f to Color(0xFF000000),
             ),
             startY = top,
             endY = bottom,
         ),
     )
-    // 2) Specular gloss — soft top-left highlight (glass, not plastic).
+    // 2) Specular gloss — soft top-left glass highlight.
     drawExpressiveFaceShell(
         morphState = morphState,
         bounds = bounds,
         brush = Brush.radialGradient(
             colorStops = arrayOf(
-                0.00f to Color.White.copy(alpha = 0.16f),
-                0.28f to Color.White.copy(alpha = 0.07f),
-                0.55f to Color.White.copy(alpha = 0.02f),
+                0.00f to Color.White.copy(alpha = 0.28f),
+                0.22f to Color.White.copy(alpha = 0.12f),
+                0.50f to Color.White.copy(alpha = 0.04f),
                 1.00f to Color.Transparent,
             ),
             center = glossCenter,
-            radius = minSide * 0.62f,
+            radius = minSide * 0.58f,
         ),
     )
-    // 3) Cool rim whisper — blends with the outer border glow blue.
+    // 3) Crown streak — thin elongated specular.
     drawExpressiveFaceShell(
         morphState = morphState,
         bounds = bounds,
         brush = Brush.radialGradient(
             colorStops = arrayOf(
-                0.00f to rimTint.copy(alpha = 0.10f),
-                0.40f to rimTint.copy(alpha = 0.04f),
+                0.00f to Color.White.copy(alpha = 0.22f),
+                0.40f to Color.White.copy(alpha = 0.06f),
+                1.00f to Color.Transparent,
+            ),
+            center = streakCenter,
+            radius = minSide * 0.20f,
+        ),
+    )
+    // 4) Cool rim whisper — blends with the outer border glow blue.
+    drawExpressiveFaceShell(
+        morphState = morphState,
+        bounds = bounds,
+        brush = Brush.radialGradient(
+            colorStops = arrayOf(
+                0.00f to rimTint.copy(alpha = 0.18f),
+                0.45f to rimTint.copy(alpha = 0.06f),
                 1.00f to Color.Transparent,
             ),
             center = rimCenter,
-            radius = minSide * 0.70f,
+            radius = minSide * 0.68f,
         ),
     )
-    // 4) Inner vignette — pulls depth toward the chin / edges.
+    // 5) Soft chin shade only — don't crush the crown gloss.
     drawExpressiveFaceShell(
         morphState = morphState,
         bounds = bounds,
-        brush = Brush.radialGradient(
+        brush = Brush.verticalGradient(
             colorStops = arrayOf(
                 0.00f to Color.Transparent,
                 0.55f to Color.Transparent,
-                0.82f to Color.Black.copy(alpha = 0.22f),
-                1.00f to Color.Black.copy(alpha = 0.42f),
+                0.80f to Color.Black.copy(alpha = 0.18f),
+                1.00f to Color.Black.copy(alpha = 0.38f),
             ),
-            center = Offset(bounds.center.x, bounds.top + bounds.height * 0.42f),
-            radius = minSide * 0.78f,
-        ),
-    )
-    // 5) Thin elongated specular streak near the crown.
-    drawExpressiveFaceShell(
-        morphState = morphState,
-        bounds = bounds,
-        brush = Brush.radialGradient(
-            colorStops = arrayOf(
-                0.00f to Color.White.copy(alpha = 0.12f),
-                0.35f to Color.White.copy(alpha = 0.04f),
-                1.00f to Color.Transparent,
-            ),
-            center = Offset(
-                bounds.left + bounds.width * 0.48f,
-                bounds.top + bounds.height * 0.16f,
-            ),
-            radius = minSide * 0.22f,
+            startY = top,
+            endY = bottom,
         ),
     )
 }
