@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Quiet ambient presence — soft Google-like nebula, not a waveform.
@@ -58,7 +59,7 @@ private val PresenceSpring = spring<Float>(
 )
 
 private val OrbPalette = listOf(
-    Color(0xFF8AB4F8),
+    AssistantTokens.Accent,
     Color(0xFFC58AF9),
     Color(0xFF81C995),
 )

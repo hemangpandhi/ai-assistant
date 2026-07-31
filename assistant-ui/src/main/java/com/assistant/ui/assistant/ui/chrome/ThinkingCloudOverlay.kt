@@ -27,15 +27,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
 import kotlin.math.sin
-
-private val ThinkCloudFill = Color(0xFFE8ECFF)
-private val ThinkCloudStroke = Color(0xFFF5F7FF)
-private val ThinkCloudDot = Color(0xFFB39DDB)
 
 /**
  * Thinking cloud that animates in/out at the top-right of a face (or stage).
@@ -85,7 +78,7 @@ fun ThinkingCloudOverlay(
             val side = minOf(size.width, size.height)
             val bob = sin(phase.toDouble()).toFloat() * side * 0.04f
             val anchor = Offset(size.width * 0.58f, size.height * 0.42f + bob)
-            drawThinkingThoughtCloud(
+            drawThoughtCloud(
                 anchor = anchor,
                 cloudSize = side * 0.72f,
                 life = phase,
@@ -112,42 +105,6 @@ fun FaceWithThinkingCloud(
                 .align(Alignment.TopEnd)
                 .offset(x = 6.dp, y = (-4).dp)
                 .fillMaxSize(cloudFraction),
-        )
-    }
-}
-
-private fun DrawScope.drawThinkingThoughtCloud(
-    anchor: Offset,
-    cloudSize: Float,
-    life: Float,
-) {
-    val fill = ThinkCloudFill.copy(alpha = 0.94f)
-    val stroke = ThinkCloudStroke.copy(alpha = 0.95f)
-    val s = cloudSize
-
-    val c1 = Offset(anchor.x, anchor.y)
-    val c2 = Offset(anchor.x - s * 0.28f, anchor.y + s * 0.06f)
-    val c3 = Offset(anchor.x + s * 0.3f, anchor.y + s * 0.04f)
-    val c4 = Offset(anchor.x + s * 0.05f, anchor.y - s * 0.22f)
-    drawCircle(fill, s * 0.32f, c1)
-    drawCircle(fill, s * 0.26f, c2)
-    drawCircle(fill, s * 0.28f, c3)
-    drawCircle(fill, s * 0.24f, c4)
-    drawCircle(stroke, s * 0.32f, c1, style = Stroke(1.5f))
-    drawCircle(stroke, s * 0.26f, c2, style = Stroke(1.5f))
-    drawCircle(stroke, s * 0.28f, c3, style = Stroke(1.5f))
-    drawCircle(stroke, s * 0.24f, c4, style = Stroke(1.5f))
-
-    drawCircle(fill, s * 0.08f, Offset(anchor.x - s * 0.42f, anchor.y + s * 0.32f))
-    drawCircle(fill, s * 0.05f, Offset(anchor.x - s * 0.55f, anchor.y + s * 0.48f))
-
-    val dotY = anchor.y + s * 0.02f
-    for (i in 0..2) {
-        val bounce = sin(life * 2f + i * 0.9f).toFloat() * s * 0.06f
-        drawCircle(
-            color = ThinkCloudDot.copy(alpha = 0.9f),
-            radius = s * 0.055f,
-            center = Offset(anchor.x - s * 0.16f + i * s * 0.16f, dotY + bounce),
         )
     }
 }

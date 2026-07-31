@@ -51,6 +51,7 @@ import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 import com.assistant.ui.assistant.ui.theme.auraAlphaForContrast
 import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
 import com.assistant.ui.assistant.ui.theme.immersiveMatchedShellBounds
@@ -212,10 +213,7 @@ internal fun AssistantMood.toImmersiveEyePose(): ImmersiveEyePose = when (this) 
     )
 }
 
-private val PoseSpring = spring<Float>(
-    dampingRatio = 0.86f,
-    stiffness = Spring.StiffnessLow,
-)
+private val PoseSpring = AssistantFaceMotion.PoseSpring
 
 /**
  * Floating Nomi glyphs on a matte black SemiCircle face.
@@ -237,7 +235,7 @@ fun ImmersiveEyesFace(
     gazeX: Float? = null,
     gazeY: Float? = null,
     mouthAmplitude: Float? = null,
-    brandGlow: Color = Color(0xFF8AB4F8),
+    brandGlow: Color = AssistantTokens.Accent,
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color? = null,
@@ -299,29 +297,27 @@ fun ImmersiveEyesFace(
     val externalGaze = gazeX != null || gazeY != null
 
     LaunchedEffect(mood, highContrast) {
-        val glowBoost = if (highContrast) 1.25f else 1f
+        val glowBoost = if (highContrast) AssistantFaceMotion.HighContrastGlowBoost else 1f
         launch { eyeOpen.animateTo(target.eyeOpen, PoseSpring) }
         launch { eyeWidth.animateTo(target.eyeWidth, PoseSpring) }
         launch { eyeHeight.animateTo(target.eyeHeight, PoseSpring) }
         launch { eyeGap.animateTo(target.eyeGap, PoseSpring) }
         launch { lookY.animateTo(gazeY ?: target.lookY, PoseSpring) }
         launch { tilt.animateTo(target.tilt, PoseSpring) }
-        launch { faceGlow.animateTo((target.faceGlow * glowBoost).coerceAtMost(1.2f), PoseSpring) }
+        launch {
+            faceGlow.animateTo(
+                (target.faceGlow * glowBoost).coerceAtMost(AssistantFaceMotion.MaxFaceGlow),
+                PoseSpring,
+            )
+        }
         launch { eyeStyle.animateTo(target.eyeStyle, PoseSpring) }
         launch { mouthCurve.animateTo(target.mouthCurve, PoseSpring) }
         launch { mouthVisible.animateTo(target.mouthVisible, PoseSpring) }
         launch { blush.animateTo(target.blush, PoseSpring) }
-        if (mouthAmplitude == null &&
-            mood != AssistantMood.Speaking &&
-            mood != AssistantMood.Excited
-        ) {
+        if (mouthAmplitude == null && !mood.isSpeechMouthMood()) {
             launch { mouthOpen.animateTo(target.mouthOpen, PoseSpring) }
         }
-        if (!externalGaze &&
-            mood != AssistantMood.Reading &&
-            mood != AssistantMood.Searching &&
-            mood != AssistantMood.Bored
-        ) {
+        if (!externalGaze && !mood.isGazeScanMood()) {
             launch { lookX.animateTo(target.lookX, PoseSpring) }
         }
     }
@@ -333,41 +329,25 @@ fun ImmersiveEyesFace(
 
     LaunchedEffect(mouthAmplitude, mood) {
         if (mouthAmplitude != null) {
-            mouthVisible.animateTo(maxOf(target.mouthVisible, 0.85f), PoseSpring)
+            mouthVisible.animateTo(
+                maxOf(target.mouthVisible, AssistantFaceMotion.ExternalMouthVisibleFloor),
+                PoseSpring,
+            )
             mouthOpen.snapTo(mouthAmplitude.coerceIn(0f, 1f))
             return@LaunchedEffect
         }
-        if (mood != AssistantMood.Speaking && mood != AssistantMood.Excited) return@LaunchedEffect
-        while (isActive) {
-            mouthOpen.animateTo(
-                Random.nextFloat() * 0.4f + 0.3f,
-                tween(Random.nextInt(70, 130)),
-            )
-            mouthOpen.animateTo(
-                Random.nextFloat() * 0.12f + 0.04f,
-                tween(Random.nextInt(55, 100)),
-            )
-        }
+        if (!mood.isSpeechMouthMood()) return@LaunchedEffect
+        mouthOpen.runSyntheticSpeechMouth()
     }
 
     LaunchedEffect(gesture) {
-        when (gesture) {
-            FaceGesture.None -> Unit
-            FaceGesture.Nod -> {
-                repeat(2) {
-                    tilt.animateTo(target.tilt + 10f, tween(120))
-                    tilt.animateTo(target.tilt - 4f, tween(120))
-                }
-                tilt.animateTo(target.tilt, PoseSpring)
-            }
-            FaceGesture.Shake -> {
-                repeat(2) {
-                    lookX.animateTo(0.55f, tween(100))
-                    lookX.animateTo(-0.55f, tween(100))
-                }
-                lookX.animateTo(gazeX ?: target.lookX, PoseSpring)
-            }
-        }
+        runFaceGesture(
+            gesture = gesture,
+            tilt = tilt,
+            lookX = lookX,
+            restTilt = target.tilt,
+            restLookX = gazeX ?: target.lookX,
+        )
     }
 
     val life: Float
@@ -381,16 +361,16 @@ fun ImmersiveEyesFace(
             initialValue = 0f,
             targetValue = (2f * PI).toFloat(),
             animationSpec = infiniteRepeatable(
-                animation = tween(3600, easing = LinearEasing),
+                animation = tween(AssistantFaceMotion.LifeCycleMs, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart,
             ),
             label = "life",
         ).value
         breath = infinite.animateFloat(
-            initialValue = 0.985f,
-            targetValue = 1.02f,
+            initialValue = AssistantFaceMotion.BreathMin,
+            targetValue = AssistantFaceMotion.BreathMax,
             animationSpec = infiniteRepeatable(
-                animation = tween(2800, easing = FastOutSlowInEasing),
+                animation = tween(AssistantFaceMotion.BreathCycleMs, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
             label = "breath",
@@ -400,7 +380,7 @@ fun ImmersiveEyesFace(
             initialValue = -1f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(3400, easing = FastOutSlowInEasing),
+                animation = tween(AssistantFaceMotion.BobCycleMs, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
             label = "idle_bob",
@@ -409,7 +389,7 @@ fun ImmersiveEyesFace(
             initialValue = -1f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(4600, easing = FastOutSlowInEasing),
+                animation = tween(AssistantFaceMotion.SwayCycleMs, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
             label = "idle_sway",
@@ -419,7 +399,7 @@ fun ImmersiveEyesFace(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(2400, easing = FastOutSlowInEasing),
+                animation = tween(AssistantFaceMotion.ActivityPulseMs, easing = FastOutSlowInEasing),
                 repeatMode = RepeatMode.Reverse,
             ),
             label = "activity_pulse",
@@ -465,35 +445,8 @@ fun ImmersiveEyesFace(
     LaunchedEffect(mood, externalGaze, enableIdleMotion) {
         if (!enableIdleMotion) return@LaunchedEffect
         if (externalGaze) return@LaunchedEffect
-        if (mood != AssistantMood.Reading &&
-            mood != AssistantMood.Searching &&
-            mood != AssistantMood.Bored
-        ) {
-            return@LaunchedEffect
-        }
-        while (isActive) {
-            when (mood) {
-                AssistantMood.Reading -> {
-                    lookX.animateTo(0.38f, tween(700))
-                    delay(100)
-                    lookX.animateTo(-0.32f, tween(90))
-                    delay(70)
-                }
-                AssistantMood.Searching -> {
-                    lookX.animateTo(0.45f, tween(160))
-                    lookX.animateTo(-0.4f, tween(200))
-                    lookX.animateTo(0.08f, tween(140))
-                    delay(50)
-                }
-                AssistantMood.Bored -> {
-                    lookX.animateTo(0.5f, tween(1600, easing = FastOutSlowInEasing))
-                    delay(600)
-                    lookX.animateTo(-0.35f, tween(1800, easing = FastOutSlowInEasing))
-                    delay(800)
-                }
-                else -> delay(500)
-            }
-        }
+        if (!mood.isGazeScanMood()) return@LaunchedEffect
+        lookX.runMoodGazeScan(mood)
     }
 
     Canvas(modifier = modifier.aspectRatio(1f)) {

@@ -41,14 +41,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.assistant.ui.assistant.api.AssistantContextGlyph
-private val WeatherCool = Color(0xFF90CAF9)
-private val WeatherStorm = Color(0xFF80CBC4)
-private val WeatherSnow = Color(0xFFE3F2FD)
-private val WeatherCloudy = Color(0xFFB0BEC5)
-private val WeatherSunny = Color(0xFFFFD54F)
-private val ClimateCool = Color(0xFF4DD0E1)
-private val ClimateWarm = Color(0xFFFFB74D)
-private val ClimateNeutral = Color(0xFFCE93D8)
 
 internal fun AssistantContextGlyph.imageVector(): ImageVector = when (this) {
     AssistantContextGlyph.WeatherLightRain -> Icons.Outlined.WaterDrop
@@ -64,16 +56,16 @@ internal fun AssistantContextGlyph.imageVector(): ImageVector = when (this) {
 }
 
 internal fun AssistantContextGlyph.tint(): Color = when (this) {
-    AssistantContextGlyph.WeatherLightRain -> WeatherCool
-    AssistantContextGlyph.WeatherHeavyRain -> WeatherStorm
-    AssistantContextGlyph.WeatherSnow -> WeatherSnow
-    AssistantContextGlyph.WeatherCloudy -> WeatherCloudy
-    AssistantContextGlyph.WeatherSunny -> WeatherSunny
-    AssistantContextGlyph.ClimateThermostat -> ClimateNeutral
-    AssistantContextGlyph.ClimateAc -> ClimateCool
-    AssistantContextGlyph.ClimateHeat -> ClimateWarm
-    AssistantContextGlyph.ClimateFan -> ClimateCool
-    AssistantContextGlyph.ClimateDefrost -> WeatherCool
+    AssistantContextGlyph.WeatherLightRain -> AssistantGlyphPalette.WeatherCool
+    AssistantContextGlyph.WeatherHeavyRain -> AssistantGlyphPalette.WeatherStorm
+    AssistantContextGlyph.WeatherSnow -> AssistantGlyphPalette.WeatherSnow
+    AssistantContextGlyph.WeatherCloudy -> AssistantGlyphPalette.WeatherCloudy
+    AssistantContextGlyph.WeatherSunny -> AssistantGlyphPalette.WeatherSunny
+    AssistantContextGlyph.ClimateThermostat -> AssistantGlyphPalette.ClimateNeutral
+    AssistantContextGlyph.ClimateAc -> AssistantGlyphPalette.ClimateCool
+    AssistantContextGlyph.ClimateHeat -> AssistantGlyphPalette.ClimateWarm
+    AssistantContextGlyph.ClimateFan -> AssistantGlyphPalette.ClimateCool
+    AssistantContextGlyph.ClimateDefrost -> AssistantGlyphPalette.WeatherCool
 }
 
 /** Soft upward gaze toward a floating context glyph. */

@@ -33,12 +33,14 @@ import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.face.ConfigurableAssistantFace
 import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
+import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Pull the face toward the transcript. The face canvas keeps chin / glow clearance
  * below the drawn shell, which otherwise reads as a large gap above the text.
  */
-private val FaceTowardTranscriptNudge = 20.dp
+private val FaceTowardTranscriptNudge = AssistantOverlayTokens.FaceTowardTranscriptNudge
 
 /**
  * Shared bottom chrome for the immersive assistant stage:
@@ -62,7 +64,7 @@ fun ImmersiveAssistantBottomChrome(
     gazeX: Float? = null,
     gazeY: Float? = null,
     mouthAmplitude: Float? = null,
-    brandGlow: Color = Color(0xFF8AB4F8),
+    brandGlow: Color = AssistantTokens.Accent,
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     contextGlyph: AssistantContextGlyph? = null,
@@ -87,24 +89,37 @@ fun ImmersiveAssistantBottomChrome(
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .assistantChromePadding()
-            .padding(start = 32.dp, top = 16.dp, end = 32.dp, bottom = 0.dp),
+            .padding(
+                start = AssistantOverlayTokens.BottomChromePaddingStart,
+                top = AssistantOverlayTokens.BottomChromePaddingTop,
+                end = AssistantOverlayTokens.BottomChromePaddingEnd,
+                bottom = 0.dp,
+            ),
     ) {
         // Face targets ~37.5% of the immersive stage (app area) height (1.5× prior 25%).
-        val faceSize = (maxHeight * 0.375f * faceSizeScale).coerceIn(88.dp, 480.dp)
-        val glyphSize = (faceSize * 0.38f).coerceIn(40.dp, 96.dp)
+        val faceSize = (maxHeight * AssistantOverlayTokens.FaceStageHeightFraction * faceSizeScale)
+            .coerceIn(AssistantOverlayTokens.FaceSizeMin, AssistantOverlayTokens.FaceSizeMax)
+        val glyphSize = (faceSize * AssistantOverlayTokens.GlyphSizeFraction)
+            .coerceIn(AssistantOverlayTokens.GlyphSizeMin, AssistantOverlayTokens.GlyphSizeMax)
         val density = LocalDensity.current
         // Travel distances for bottom → center → settle entrance.
-        val belowPx = with(density) { (maxHeight * 0.38f).toPx() }
-        val centerPx = with(density) { (maxHeight * 0.42f).toPx() }
+        val belowPx = with(density) {
+            (maxHeight * AssistantOverlayTokens.FaceBelowTravelFraction).toPx()
+        }
+        val centerPx = with(density) {
+            (maxHeight * AssistantOverlayTokens.FaceCenterTravelFraction).toPx()
+        }
         val entranceY = when {
             faceRise >= 0f -> -faceRise * centerPx // up toward center
             else -> -faceRise * belowPx // faceRise=-1 → push below
         }.roundToInt()
         // Diameter ≥ ~2× face+transcript stack so the semicircle's 0% rim clears
         // the top of the chrome (avoids left/right clip → hard edges).
-        val estimatedStack = faceSize + 100.dp
-        val dockWidth = maxOf(faceSize * 2.5f, estimatedStack * 2.2f)
-            .coerceIn(320.dp, maxWidth)
+        val estimatedStack = faceSize + AssistantOverlayTokens.EstimatedStackExtra
+        val dockWidth = maxOf(
+            faceSize * AssistantOverlayTokens.DockWidthFaceMul,
+            estimatedStack * AssistantOverlayTokens.DockWidthStackMul,
+        ).coerceIn(AssistantOverlayTokens.DockWidthMin, maxWidth)
         val dockAlpha = maxOf(faceAlpha, transcriptAlpha).coerceIn(0f, 1f)
 
         // Only the face + transcript dock consumes taps; empty stage passes through
@@ -115,7 +130,7 @@ fun ImmersiveAssistantBottomChrome(
             contentAlpha = dockAlpha,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = 12.dp)
+                .padding(bottom = AssistantOverlayTokens.BottomChromeDockPadding)
                 .offset { IntOffset(0, entranceY) }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
