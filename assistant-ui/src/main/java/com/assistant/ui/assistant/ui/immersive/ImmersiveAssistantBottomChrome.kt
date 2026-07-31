@@ -4,10 +4,8 @@ import com.assistant.ui.assistant.ui.chrome.assistantChromePadding
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -44,7 +42,8 @@ private val FaceTowardTranscriptNudge = 20.dp
 
 /**
  * Shared bottom chrome for the immersive assistant stage:
- * face (optional floating context glyph) + [ImmersiveTranscript].
+ * local [FaceStageDock] glass plate + face (optional floating context glyph) +
+ * [ImmersiveTranscript].
  *
  * [faceContent] replaces [ConfigurableAssistantFace] when provided (e.g. Weather sink).
  * [floatContextGlyph] shows the Material icon above Fusion Eyes; Weather sink keeps this off
@@ -94,21 +93,24 @@ fun ImmersiveAssistantBottomChrome(
         val glyphSize = (faceSize * 0.38f).coerceIn(40.dp, 96.dp)
         val density = LocalDensity.current
         val risePx = with(density) { (bandHeight * 0.95f).toPx() }
+        // Wide enough for the face shell + 60% transcript band; never full-bleed.
+        val dockWidth = (faceSize * 1.7f).coerceIn(260.dp, maxWidth * 0.72f)
+        val dockAlpha = maxOf(faceAlpha, transcriptAlpha).coerceIn(0f, 1f)
 
-        // Only the face + transcript band consumes taps; empty stage passes through
+        // Only the face + transcript dock consumes taps; empty stage passes through
         // to the backdrop dismiss target underneath.
-        Column(
+        FaceStageDock(
+            brandGlow = brandGlow,
+            width = dockWidth,
+            contentAlpha = dockAlpha,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth()
                 .padding(bottom = 12.dp)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { /* keep session alive */ },
                 ),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Bottom,
         ) {
             if (showFace && faceKind != AssistantFaceKind.None) {
                 Box(
@@ -123,7 +125,8 @@ fun ImmersiveAssistantBottomChrome(
                             val s = faceScale
                             scaleX = s
                             scaleY = s
-                            alpha = faceAlpha.coerceIn(0f, 1f)
+                            // Dock owns fade; keep face fully painted inside the plate.
+                            alpha = 1f
                         },
                 ) {
                     if (showGlyph) {
@@ -159,7 +162,6 @@ fun ImmersiveAssistantBottomChrome(
                 live = speaker == DialogueSpeaker.User && mood == AssistantMood.Listening,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer { alpha = transcriptAlpha.coerceIn(0f, 1f) }
                     .padding(top = 2.dp),
             )
         }

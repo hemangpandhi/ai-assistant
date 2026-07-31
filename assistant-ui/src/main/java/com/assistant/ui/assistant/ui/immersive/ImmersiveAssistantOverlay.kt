@@ -710,12 +710,11 @@ private fun ImmersiveAssistantDebugStrip(
 }
 
 /**
- * Face-stage dim for the immersive assistant: a dark radial pool behind the
- * face / transcript so the frame stays readable, blooming outward through a
- * soft glow until full transparency. Upper stage and side gutters stay clear
- * so maps / launcher show through.
+ * Soft ambient bloom under the immersive chrome. Keeps the upper stage and
+ * side gutters clear for maps / launcher; the readable contrast lives in the
+ * local [FaceStageDock], not a full-screen scrim (cert-safe).
  *
- * @param rich when false, draws only the dark radial (no glow bloom) for a
+ * @param rich when false, draws only a light radial veil (no brand glow) for a
  * cheap first frame (target &lt; 100ms TTFF).
  */
 @Composable
@@ -726,20 +725,16 @@ fun ImmersiveBackdrop(
     Canvas(modifier = modifier.fillMaxSize()) {
         val w = size.width
         val h = size.height
-        // Centered on the bottom face band (~37.5% stage height chrome).
-        val center = Offset(w * 0.5f, h * 0.82f)
-        val radius = minOf(w * 0.62f, h * 0.72f)
+        // Anchored under the bottom face dock — soft, not opaque.
+        val center = Offset(w * 0.5f, h * 0.84f)
+        val radius = minOf(w * 0.48f, h * 0.52f)
 
-        // Dark readable core → soft falloff → clear. Upper half stays open
-        // because the radial is anchored low and dies before mid-stage.
         drawRect(
             brush = Brush.radialGradient(
                 colorStops = arrayOf(
-                    0.0f to Color(0xF205060A),
-                    0.18f to Color(0xCC0A0E14),
-                    0.38f to Color(0x880E1218),
-                    0.58f to Color(0x440A1018),
-                    0.78f to Color(0x18081014),
+                    0.0f to Color(0x6605060A),
+                    0.35f to Color(0x33081014),
+                    0.65f to Color(0x14081014),
                     1.0f to Color.Transparent,
                 ),
                 center = center,
@@ -748,19 +743,16 @@ fun ImmersiveBackdrop(
         )
 
         if (rich) {
-            // Soft brand glow bloom around the dark pool — reads as a luminous
-            // halo under the face frame, then dissolves to transparency.
             drawRect(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
                         0.0f to Color.Transparent,
-                        0.22f to Color(0x338AB4F8),
-                        0.48f to Color(0x2A8AB4F8),
-                        0.72f to Color(0x148AB4F8),
+                        0.30f to Color(0x228AB4F8),
+                        0.62f to Color(0x148AB4F8),
                         1.0f to Color.Transparent,
                     ),
                     center = center,
-                    radius = radius * 1.12f,
+                    radius = radius * 1.18f,
                 ),
             )
         }
