@@ -21,9 +21,9 @@ import androidx.compose.ui.unit.dp
 /**
  * Soft semicircle stage under the immersive face + transcript.
  *
- * Bottom-center pivot (same fashion as the SemiCircle face shell): core is
- * fully opaque (100%) in the outer-border blue, then dissolves to 0% along the
- * semicircle arc — no rectangle, no stroke, no hard silhouette.
+ * Bottom-center pivot (same fashion as the SemiCircle face shell): subtle
+ * outer-border blue at the core, dissolving to 0% along the semicircle arc —
+ * no rectangle, no stroke, no hard silhouette.
  */
 @Composable
 fun FaceStageDock(
@@ -33,7 +33,7 @@ fun FaceStageDock(
     contentAlpha: Float = 1f,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    // Match ImmersiveBorderGlow / panel blue — ignore incoming alpha, own the fade.
+    // Same blue as ImmersiveBorderGlow panel tint; keep the fill soft (not solid).
     val blue = brandGlow.copy(alpha = 1f)
 
     Box(
@@ -50,12 +50,12 @@ fun FaceStageDock(
                 drawCircle(
                     brush = Brush.radialGradient(
                         colorStops = arrayOf(
-                            0.00f to blue.copy(alpha = 1.00f), // 100%
-                            0.25f to blue.copy(alpha = 0.92f),
-                            0.50f to blue.copy(alpha = 0.62f),
-                            0.72f to blue.copy(alpha = 0.32f),
-                            0.88f to blue.copy(alpha = 0.10f),
-                            1.00f to blue.copy(alpha = 0.00f), // 0%
+                            0.00f to blue.copy(alpha = 0.34f),
+                            0.28f to blue.copy(alpha = 0.22f),
+                            0.52f to blue.copy(alpha = 0.12f),
+                            0.74f to blue.copy(alpha = 0.05f),
+                            0.90f to blue.copy(alpha = 0.015f),
+                            1.00f to blue.copy(alpha = 0.00f),
                         ),
                         center = Offset(cx, cy),
                         radius = radius,
@@ -69,7 +69,7 @@ fun FaceStageDock(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // Keep chrome inside the opaque core of the semicircle.
+                // Keep chrome inside the soft core of the semicircle.
                 .padding(start = 48.dp, top = 36.dp, end = 48.dp, bottom = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom,
