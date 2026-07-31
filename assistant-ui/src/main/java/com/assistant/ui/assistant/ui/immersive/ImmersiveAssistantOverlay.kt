@@ -5,7 +5,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -29,6 +28,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -114,6 +114,7 @@ import com.assistant.ui.assistant.audio.rememberAssistantWakeFeedback
  * Features: gaze-to-speaker, STT streaming, TTS lip-sync, drive-context prompts,
  * cluster hand-off, OEM brand tint, high-contrast eyes, wake haptic/chime, nod/shake.
  */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun ImmersiveAssistantOverlay(
     onDismiss: () -> Unit,
@@ -337,6 +338,10 @@ fun ImmersiveAssistantOverlay(
     val transcriptAlpha = remember { Animatable(0f) }
     /** 0 = hidden, 1 = fully presented (drives icon emerge / hotword wipe). */
     val overlayReveal = remember { Animatable(0f) }
+    // M3 expressive physics — slow spatial for the hero up/down path.
+    val spatialSlow = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    val effectsSlow = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
+    val effectsDefault = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     // Avoid calling onDismiss on first composition when awaitHotword keeps us hidden.
     var hasPresented by remember { mutableStateOf(false) }
     var immersiveEnteredSession by remember { mutableIntStateOf(-1) }
@@ -405,41 +410,23 @@ fun ImmersiveAssistantOverlay(
                     }
                     else -> {
                         // Face: bottom → center peak → settle home (wake word + icon launch).
-                        // Stage reveal still differs by origin (icon scale vs hotword wipe).
+                        // M3 expressive slow spatial springs (physics, not fixed keyframes).
                         backdropAlpha.snapTo(1f)
                         faceRise.snapTo(-1f)
                         faceScale.snapTo(0.88f)
                         faceAlpha.snapTo(1f)
-                        val revealMs =
-                            if (origin == ImmersiveSummonOrigin.Icon) 420 else 560
                         try {
                             launch {
-                                // Bottom → center, then ease down to settled position.
-                                faceRise.animateTo(
-                                    targetValue = 0f,
-                                    animationSpec = keyframes {
-                                        durationMillis = 880
-                                        -1f at 0
-                                        1f at 460 using FastOutSlowInEasing
-                                        0f at 880 using FastOutSlowInEasing
-                                    },
-                                )
+                                overlayReveal.animateTo(1f, effectsSlow)
                             }
                             launch {
-                                faceScale.animateTo(
-                                    targetValue = 1f,
-                                    animationSpec = keyframes {
-                                        durationMillis = 880
-                                        0.88f at 0
-                                        1.06f at 460 using FastOutSlowInEasing
-                                        1f at 880 using FastOutSlowInEasing
-                                    },
-                                )
+                                // Soft scale punch travels with the spatial path.
+                                faceScale.animateTo(1.05f, spatialSlow)
+                                faceScale.animateTo(1f, spatialSlow)
                             }
-                            overlayReveal.animateTo(
-                                1f,
-                                tween(revealMs, easing = FastOutSlowInEasing),
-                            )
+                            // Bottom → center, then spring down to settled home.
+                            faceRise.animateTo(1f, spatialSlow)
+                            faceRise.animateTo(0f, spatialSlow)
                         } finally {
                             if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
                             if (faceRise.value !in -0.02f..0.02f) faceRise.snapTo(0f)
@@ -447,19 +434,19 @@ fun ImmersiveAssistantOverlay(
                         }
                     }
                 }
-                delay(100)
-                transcriptAlpha.animateTo(1f, tween(240, easing = FastOutSlowInEasing))
+                delay(80)
+                transcriptAlpha.animateTo(1f, effectsDefault)
             }
         } else if (hasPresented) {
             richEffects = false
             wake.playDismiss()
-            transcriptAlpha.animateTo(0f, tween(140))
+            transcriptAlpha.animateTo(0f, effectsDefault)
             launch {
-                // Exit: drop back below the stage.
-                faceRise.animateTo(-1f, tween(300, easing = FastOutSlowInEasing))
+                // Exit: drop back below the stage on the same slow spatial spring.
+                faceRise.animateTo(-1f, spatialSlow)
             }
-            overlayReveal.animateTo(0f, tween(340, easing = FastOutSlowInEasing))
-            backdropAlpha.animateTo(0f, tween(280, easing = FastOutSlowInEasing))
+            overlayReveal.animateTo(0f, effectsSlow)
+            backdropAlpha.animateTo(0f, effectsSlow)
             faceRise.snapTo(-1f)
             faceScale.snapTo(0.94f)
             faceAlpha.snapTo(1f)
