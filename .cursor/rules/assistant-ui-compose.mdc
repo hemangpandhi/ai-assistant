@@ -1,0 +1,15 @@
+---
+description: Compose conventions for :assistant-ui presentation code
+globs: assistant-ui/**/*.kt
+alwaysApply: false
+---
+
+# `:assistant-ui` Compose conventions
+
+- Jetpack Compose + Material3 only; no new XML layouts in this module
+- Theme via `AssistantTheme` / `AssistantTokens` / `AssistantOverlayTokens` — avoid one-off magic colors in immersive/chrome
+- Keep composables free of agent/LLM/VHAL imports; use `AssistantBackend` events + host contracts
+- Prefer small focused composables; extract shared chrome to `ui/chrome/`, motion helpers beside the feature
+- Automotive: large touch targets, glanceable type, avoid dense “dashboard” chrome on the immersive stage
+- Motion should signal presence/state (enter, listening, thinking, speaking) — not decorative noise
+- Tests for stage/placement contracts live under `assistant-ui/src/test/`

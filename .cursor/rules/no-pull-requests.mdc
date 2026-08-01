@@ -1,0 +1,14 @@
+---
+description: Do not open PRs — commit and push directly to the selected branch
+alwaysApply: true
+---
+
+# Git: no pull requests
+
+Do **not** create, update, or register pull requests / merge requests.
+
+- Commit on the **currently selected / checked-out branch**
+- `git push` that branch to the remote directly
+- Do not use `ManagePullRequest`, `gh pr create`, or equivalent PR/MR tooling unless the user explicitly asks for a PR in that message
+
+If the user asks to merge, merge (or fast-forward) into the target branch locally and push that branch — still without opening a PR unless they ask for one.

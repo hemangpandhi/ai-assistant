@@ -14,12 +14,13 @@ val jacocoToolVersion = "0.8.12"
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
     id("jacoco")
 }
 
 android {
     namespace = "com.tcs.vehicleassistant"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.tcs.vehicleassistant"
@@ -32,6 +33,8 @@ android {
         buildConfigField("String", "GEMINI_API_KEY", "\"$geminiApiKey\"")
         
         ndk {
+            // Match master / device images: arm64-v8a only.
+            // Bundling x86_64 roughly doubles native .so payload and zip-align padding.
             abiFilters.add("arm64-v8a")
         }
     }
@@ -77,6 +80,7 @@ android {
     buildFeatures {
         viewBinding = true
         buildConfig = true
+        compose = true
     }
 
     lint {
@@ -131,6 +135,21 @@ jacoco {
 }
 
 dependencies {
+    implementation(project(":agent-core"))
+    implementation(project(":assistant-ext"))
+    implementation(project(":assistant-ui"))
+    implementation(project(":assistant-api"))
+
+    val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
+    implementation(composeBom)
+    implementation("androidx.activity:activity-compose")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3:1.5.0-alpha04")
+    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
+    implementation("androidx.savedstate:savedstate-ktx:1.2.1")
+
     // LiteRT ships 16 KB–aligned libtensorflowlite_jni (classic TFLite 2.13–2.16 are still 4 KB).
     implementation("com.google.ai.edge.litert:litert:1.4.0")
     implementation("com.google.mediapipe:tasks-vision:0.10.26")

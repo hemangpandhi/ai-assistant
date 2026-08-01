@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Package Visibility for Navigation intents -->
     <queries>
@@ -69,6 +70,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CAMERA" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <!-- Dismiss voice overlay when another app is brought to front (system bar). -->
+    <uses-permission android:name="android.permission.GET_TASKS" />
+    <uses-permission android:name="android.permission.REAL_GET_TASKS" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+        tools:ignore="ProtectedPermissions" />
 
     <!--
         Signature-level permission gating the wake-word microphone service. WakeWordService must
@@ -84,7 +91,7 @@
     <uses-permission android:name="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT" />
 
     <application
-        android:name=".VehicleApplication"
+        android:name=".assistant.UiUxVehicleApplication"
         android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
@@ -120,7 +127,8 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".AssistantVoiceInteractionService"
+        <!-- Primary UI/UX VoiceInteractionService (Compose + profile-aware wake). -->
+        <service android:name=".assistant.UiUxAssistantVoiceInteractionService"
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:icon="@drawable/ic_ai_assistant"
                  android:exported="true">
@@ -130,21 +138,34 @@
                 <action android:name="android.service.voice.VoiceInteractionService" />
             </intent-filter>
         </service>
+
+        <!-- Legacy refactor VIS — not system-bound; LocalLLMActivity / XML debug only. -->
+        <service android:name=".AssistantVoiceInteractionService"
+                 android:permission="android.permission.BIND_VOICE_INTERACTION"
+                 android:icon="@drawable/ic_mic_small"
+                 android:exported="true" />
         
+        <!-- Legacy refactor session factory — XML profile still reachable via UiUxAssistantSessionService. -->
         <service android:name=".AssistantSessionService"
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:exported="true" />
+
+        <!-- Primary session factory: Compose vs XML via AssistantUiProfile. -->
+        <service android:name=".assistant.UiUxAssistantSessionService"
+                 android:permission="android.permission.BIND_VOICE_INTERACTION"
+                 android:exported="true" />
                  
+        <!-- Master agent host — Compose + XML sessions bind here. -->
         <service android:name=".service.VehicleAgentService"
                  android:foregroundServiceType="dataSync"
                  android:exported="false" />
-
+                 
+        <!-- Master wake word (Compose + XML). -->
         <service android:name=".WakeWordService"
                  android:process=":wakeword"
                  android:foregroundServiceType="microphone"
                  android:permission="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT"
                  android:exported="true" />
-
 
         <activity
             android:name=".CockpitAwarenessActivity"
@@ -154,6 +175,116 @@
         <service android:name=".vision.CockpitVisionService"
                  android:foregroundServiceType="camera"
                  android:exported="false" />
+
+        <!-- Compose design assistant entry points (UI decoupled from agent core) -->
+        <activity
+            android:name=".assistant.UiUxOverlayActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.OPEN_UIUX_OVERLAY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.assistant.ui.assistant.entry.VirtualAssistantActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.OPEN_ASSISTANT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.assistant.ui.assistant.ui.gallery.AssistantUiGalleryActivity"
+            android:exported="true"
+            android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.OPEN_ASSISTANT_GALLERY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.assistant.ui.assistant.ui.overlay.AssistantOverlayBootstrapActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.START_ASSISTANT_OVERLAY" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="com.assistant.ui.assistant.ui.immersive.ImmersiveAssistantOverlayService"
+            android:exported="true" />
+
+        <service
+            android:name="com.assistant.ui.assistant.ui.overlay.AssistantOverlayService"
+            android:exported="false" />
+
+        <receiver
+            android:name="com.assistant.ui.assistant.face.AssistantFaceReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_FACE" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_FACE" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.assistant.ui.assistant.face.AssistantFaceCueReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_FACE_CUES" />
+                <action android:name="com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_FACE_CUES" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_PLACEMENT" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_PLACEMENT" />
+                <action android:name="com.tcs.vehicleassistant.action.SET_ASSISTANT_PLACEMENT" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_ASSISTANT_PLACEMENT" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name="com.assistant.ui.assistant.api.AssistantDebugStripReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_DEBUG_STRIP" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_DEBUG_STRIP" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".assistant.AssistantUiProfileReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.SET_ASSISTANT_UI" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_ASSISTANT_UI" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
+            android:name=".assistant.AssistantIdleTimeoutReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.SET_IDLE_TIMEOUT" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_IDLE_TIMEOUT" />
+            </intent-filter>
+        </receiver>
                  
         <!-- Platform-required RecognitionService for VoiceInteractionService; cabin STT uses Sherpa. -->
         <service android:name=".speech.StubRecognitionService"
