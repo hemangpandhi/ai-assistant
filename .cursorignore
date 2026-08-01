@@ -7,6 +7,7 @@
 **/captures/
 *.apk
 *.aab
+*.aar
 *.ap_
 *.dex
 *.class
@@ -24,6 +25,9 @@
 local.properties
 .DS_Store
 
+# Native / prebuilt libs (multi-MB; never search these)
+app/libs/
+
 # Large ML / STT / TTS model artifacts (multi-GB; sideloaded via adb)
 *.litertlm
 *.task
@@ -35,16 +39,30 @@ local.properties
 *.pth
 device_models/
 app/src/main/assets/sherpa-onnx-whisper-tiny.en/
+app/src/main/assets/sherpa-onnx-tts/
 app/src/main/assets/model.tar.bz2
 app/src/main/assets/tiny.en*.onnx
 app/src/main/assets/tiny.en-tokens.txt
 app/src/main/assets/test_wavs/
+app/src/main/assets/mobilefacenet.tflite
+app/src/main/assets/silero_vad.onnx
 
-# Generated / stale build logs
+# Large on-device JSON / registries (mention with @ if needed)
+app/src/main/assets/vehicle_skills_registry.json
+
+# Dedicated heavy non-code folders at repo root (mock/seed/fixture data)
+/mocks/
+/data/
+
+# Generated / stale build logs & coverage dumps
 build_error.txt
 build_error_latest.txt
 **/lint-results*.txt
 **/lint-results*.xml
+app/lint-baseline.xml
+docs/reports/jacoco*/
+docs/reports/*.xml
+docs/reports/*_instrumentation.log
 
 # VCS / tooling noise
 .git/
