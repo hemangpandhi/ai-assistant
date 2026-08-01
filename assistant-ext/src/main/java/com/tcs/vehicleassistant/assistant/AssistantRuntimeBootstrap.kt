@@ -28,7 +28,7 @@ object AssistantRuntimeBootstrap {
                 speakingTts = SilentAssistantTts,
             )
         } else {
-            VehicleAgentAssistantBackend()
+            VehicleAgentAssistantBackend().also { it.bindContext(app) }
         }
         AssistantRuntime.install(host = host, backend = backend)
     }

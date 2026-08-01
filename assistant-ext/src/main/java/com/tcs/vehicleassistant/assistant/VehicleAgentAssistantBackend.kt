@@ -1,5 +1,6 @@
 package com.tcs.vehicleassistant.assistant
 
+import android.content.Context
 import android.util.Log
 import com.assistant.ui.assistant.api.AssistantBackend
 import com.assistant.ui.assistant.api.AssistantCabinContext
@@ -14,7 +15,9 @@ import com.assistant.ui.assistant.api.FaceCueParser
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
+import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.hardware.IAudioManager
+import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,6 +49,7 @@ class VehicleAgentAssistantBackend(
 
     private var viewModel: AssistantViewModel? = null
     private var audioManager: IAudioManager? = null
+    private var appContext: Context? = null
     private var uiCollectJob: Job? = null
     private var eventCollectJob: Job? = null
     private var listenJob: Job? = null
@@ -53,8 +57,21 @@ class VehicleAgentAssistantBackend(
     /** True after onReadyForSpeech until stop / result / error. */
     private var micArmed = false
     private var clientErrorRetries = 0
+    /** Latched once we know Whisper sideloads are absent — skip fruitless STT retries. */
+    private var sherpaModelsMissing = false
 
-    fun attachViewModel(vm: AssistantViewModel?, audio: IAudioManager? = null) {
+    fun bindContext(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    fun attachViewModel(
+        vm: AssistantViewModel?,
+        audio: IAudioManager? = null,
+        context: Context? = null,
+    ) {
+        if (context != null) {
+            bindContext(context)
+        }
         attachSession(vm, audio)
     }
 
@@ -134,6 +151,7 @@ class VehicleAgentAssistantBackend(
         _sessionActive.value = true
         micArmed = false
         clientErrorRetries = 0
+        sherpaModelsMissing = false
         AssistantDebugLog.clear()
         AssistantDebugLog.d(TAG, "startSession reason=$reason")
         viewModel?.resetUiState()
@@ -225,15 +243,22 @@ class VehicleAgentAssistantBackend(
         reason: String,
         delayMs: Long = 0L,
         force: Boolean = false,
+        rebuildRecognizer: Boolean = false,
     ) {
         listenJob?.cancel()
         listenJob = scope.launch {
-            AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms")
+            AssistantDebugLog.d(TAG, "mic schedule '$reason' in ${delayMs}ms rebuild=$rebuildRecognizer")
             if (delayMs > 0) delay(delayMs)
             if (!isActive || !_sessionActive.value) return@launch
             repeat(8) { attempt ->
                 if (!_sessionActive.value) return@launch
-                if (startMic(reason = "$reason#$attempt", force = force || attempt == 0)) {
+                if (
+                    startMic(
+                        reason = "$reason#$attempt",
+                        force = force || attempt == 0,
+                        rebuildRecognizer = rebuildRecognizer && attempt == 0,
+                    )
+                ) {
                     return@launch
                 }
                 delay(300)
@@ -251,7 +276,11 @@ class VehicleAgentAssistantBackend(
     }
 
     /** @return true if startListening was issued (or already armed). */
-    private fun startMic(reason: String, force: Boolean = false): Boolean {
+    private suspend fun startMic(
+        reason: String,
+        force: Boolean = false,
+        rebuildRecognizer: Boolean = false,
+    ): Boolean {
         val vm = viewModel
         val audio = audioManager
         if (vm == null || audio == null) {
@@ -266,17 +295,38 @@ class VehicleAgentAssistantBackend(
             AssistantDebugLog.d(TAG, "startMic($reason) skip — armed")
             return true
         }
+        // Only gate on Whisper sideloads when prefs explicitly select Sherpa.
+        // If context/prefs are not ready yet, do not assume Sherpa — Google may be selected.
+        if (usesSherpaEngine() == true && !sherpaModelsPresent()) {
+            sherpaModelsMissing = true
+            micArmed = false
+            AssistantDebugLog.e(
+                TAG,
+                "startMic($reason) blocked — Whisper STT missing under " +
+                    AssistantConfig.Audio.STT_SIDELOAD_DIR,
+            )
+            emitMood(AssistantMoodId.Sad)
+            _events.emit(AssistantSessionEvent.Error(STT_MODELS_MISSING_MSG))
+            return true
+        }
         return try {
             // Forced starts must actually restart. A plain startListening() no-ops while
-            // Starting/Listening and returns "success", leaving the mic unarmed.
+            // isListening=true and returns "success", leaving the mic unarmed.
+            // Prefer stop-only: destroySpeechRecognizer() nulls Sherpa and races AudioRecord
+            // release, which surfaces as error code 0 → "Unknown recognition error".
             if (force) {
                 runCatching { audio.stopListening() }
-                runCatching { audio.destroySpeechRecognizer() }
-                // Brief settle so AudioRecord can be reacquired (master has no restartListening).
-                // Caller already delayed; tiny extra wait only for client-retry path.
+                if (rebuildRecognizer) {
+                    runCatching { audio.destroySpeechRecognizer() }
+                }
+                // Settle so prior AudioRecord / Google recognizer can release the mic.
+                delay(if (rebuildRecognizer) MIC_REBUILD_SETTLE_MS else MIC_RESTART_SETTLE_MS)
             }
             audio.startListening()
-            AssistantDebugLog.d(TAG, "startMic($reason) issued force=$force")
+            AssistantDebugLog.d(
+                TAG,
+                "startMic($reason) issued force=$force rebuild=$rebuildRecognizer",
+            )
             true
         } catch (t: Throwable) {
             micArmed = false
@@ -335,21 +385,73 @@ class VehicleAgentAssistantBackend(
             }
             is AssistantUiState.Error -> {
                 micArmed = false
-                AssistantDebugLog.e(TAG, "ui Error: ${state.errorMessage}")
+                val raw = state.errorMessage
+                val msg = raw.lowercase()
+                val missingModels = sherpaModelsMissing ||
+                    (msg.contains("unknown recognition") &&
+                        usesSherpaEngine() == true &&
+                        !sherpaModelsPresent())
+                if (missingModels) {
+                    sherpaModelsMissing = true
+                }
+                val display = if (missingModels) STT_MODELS_MISSING_MSG else raw
+                AssistantDebugLog.e(TAG, "ui Error: $display (raw=$raw)")
                 emitMood(AssistantMoodId.Sad)
-                _events.emit(AssistantSessionEvent.Error(state.errorMessage))
+                _events.emit(AssistantSessionEvent.Error(display))
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
 
-                // CLIENT/BUSY: rebuild recognizer with delay (ERROR_CLIENT=5).
-                val msg = state.errorMessage.lowercase()
-                val isClient = msg.contains("client") || msg.contains("busy") || msg.contains("(5)")
-                if (isClient && clientErrorRetries < 2 && _sessionActive.value) {
+                // Do not retry when Whisper sideloads are absent — same failure forever.
+                if (missingModels) return
+
+                // Recoverable STT failures: CLIENT/BUSY, AudioRecord contention, etc.
+                val recoverable = msg.contains("client") ||
+                    msg.contains("busy") ||
+                    msg.contains("unknown recognition") ||
+                    msg.contains("audio recording") ||
+                    msg.contains("(5)") ||
+                    msg.contains("(8)")
+                if (recoverable && clientErrorRetries < 2 && _sessionActive.value) {
                     clientErrorRetries += 1
-                    AssistantDebugLog.w(TAG, "ERROR_CLIENT retry #$clientErrorRetries")
-                    scheduleStartMic(reason = "client-retry", delayMs = 200L, force = true)
+                    AssistantDebugLog.w(
+                        TAG,
+                        "STT retry #$clientErrorRetries after: $raw",
+                    )
+                    scheduleStartMic(
+                        reason = "stt-retry",
+                        delayMs = 350L,
+                        force = true,
+                        rebuildRecognizer = true,
+                    )
                 }
             }
         }
+    }
+
+    /**
+     * @return true = Sherpa, false = Google, null = prefs/context unavailable
+     * (do not assume Sherpa — settings may already be Google).
+     */
+    private fun usesSherpaEngine(): Boolean? {
+        val ctx = appContext ?: return null
+        val prefs = ctx.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        val engine = prefs.getString(
+            AssistantConfig.Prefs.STT_ENGINE,
+            AssistantConfig.Prefs.STT_ENGINE_SHERPA,
+        )
+        return engine != AssistantConfig.Prefs.STT_ENGINE_GOOGLE
+    }
+
+    private fun sherpaModelsPresent(): Boolean {
+        val dir = File(AssistantConfig.Audio.STT_SIDELOAD_DIR)
+        fun triplet(prefix: String): Boolean =
+            listOf(
+                "$prefix-encoder.int8.onnx",
+                "$prefix-decoder.int8.onnx",
+                "$prefix-tokens.txt",
+            ).all { name ->
+                File(dir, name).let { it.exists() && it.canRead() && it.length() > 0L }
+            }
+        return triplet("base.en") || triplet("tiny.en")
     }
 
     private suspend fun emitMood(mood: AssistantMoodId) {
@@ -381,5 +483,9 @@ class VehicleAgentAssistantBackend(
 
     companion object {
         private const val TAG = "VehicleAgentBackend"
+        private const val MIC_RESTART_SETTLE_MS = 250L
+        private const val MIC_REBUILD_SETTLE_MS = 450L
+        private const val STT_MODELS_MISSING_MSG =
+            "STT models missing — push Whisper to /data/local/tmp/stt (see docs/MODEL_SIDELOAD.md)"
     }
 }

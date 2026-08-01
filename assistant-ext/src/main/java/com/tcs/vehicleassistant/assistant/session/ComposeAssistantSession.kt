@@ -221,6 +221,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
                 viewModel,
                 audioManager,
+                context,
             )
             // Duck as soon as the agent audio manager is ready (may have missed onShow).
             if (sessionUiVisible) {
@@ -794,8 +795,10 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             )
             // post + delayed retry: composition may register the summon bridge a frame late.
             overlayView.post {
+                val backend = AssistantRuntime.backend as? VehicleAgentAssistantBackend
+                backend?.bindContext(context)
                 notifyImmersiveAssistantSummon(origin)
-                (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.requestListen()
+                backend?.requestListen()
             }
             overlayView.postDelayed(
                 { notifyImmersiveAssistantSummon(origin) },
