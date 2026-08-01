@@ -41,6 +41,11 @@ object AssistantConfig {
         /** Speaking rate applied to Sherpa OfflineTts.generate(speed=…). */
         const val VOICE_RATE = "voice_rate"
 
+        /** STT Engine selection: 'sherpa' or 'google' */
+        const val STT_ENGINE = "stt_engine"
+        const val STT_ENGINE_SHERPA = "sherpa"
+        const val STT_ENGINE_GOOGLE = "google"
+
         /**
          * When true, LiteRT enables speculative decoding / MTP at Engine init if the model
          * reports support (Gallery-style; default off for stability).

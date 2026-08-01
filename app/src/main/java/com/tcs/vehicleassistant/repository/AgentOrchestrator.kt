@@ -158,8 +158,19 @@ class AgentOrchestrator(
         handleQuery(prompt)
     }
 
+    private var currentSpeakerName = "User"
+
     fun handleQuery(query: String, retryCount: Int = 0) {
-        val rawTrimmed = query.trim()
+        var rawTrimmed = query.trim()
+        currentSpeakerName = "User"
+        
+        // Extract speaker tag: [Seat: Name]
+        val seatTagRegex = Regex("^\\[Seat:\\s*(.*?)\\]\\s*(.*)")
+        val matchResult = seatTagRegex.matchEntire(rawTrimmed)
+        if (matchResult != null) {
+            currentSpeakerName = matchResult.groupValues[1]
+            rawTrimmed = matchResult.groupValues[2]
+        }
         // ASR often stutters cabin commands; collapse before DirectTool *and* LLM so allow-list
         // retrieval and tool execution see the intended short phrase.
         val normalizedFull = DirectToolResolver.normalize(rawTrimmed)
@@ -291,8 +302,20 @@ class AgentOrchestrator(
             if (MemoryManager.isAffirmative(trimmedQuery)) {
                 // keep — FollowUpRouter / LLM must see multi-turn "yes"
             } else if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
-                _events.tryEmit(OrchestratorEvent.FinishSession)
-                resetState()
+                if (trimmedQuery.isBlank() || lowerQuery.length < 3) {
+                    scope.launch {
+                        finishGuardedTurn(
+                            message = "How are you? What's on your mind? How can I help you?",
+                            pathLabel = "Greeting",
+                            toolCall = "",
+                            policyId = "greeting",
+                            asQuestion = true
+                        )
+                    }
+                } else {
+                    _events.tryEmit(OrchestratorEvent.FinishSession)
+                    resetState()
+                }
                 return
             }
         }
@@ -524,7 +547,7 @@ class AgentOrchestrator(
 
         scope.launch {
             MemoryManager.captureLongTermFacts(context, query)
-            MemoryManager.addTurn("User", query)
+            MemoryManager.addTurn(currentSpeakerName, query)
             pendingOfferedTool = "playMusic(relaxing)"
             finishGuardedTurn(
                 message = WELLNESS_OFFER,
@@ -552,7 +575,7 @@ class AgentOrchestrator(
         skipGuard: Boolean = false,
     ) {
         MemoryManager.captureLongTermFacts(context, query)
-        MemoryManager.addTurn("User", query)
+        MemoryManager.addTurn(currentSpeakerName, query)
 
         when (val decision = evaluateContextGuard(toolCall)) {
             is ContextGuard.Decision.Confirm -> {
@@ -782,7 +805,7 @@ class AgentOrchestrator(
                     MemoryManager.addTurn("System", interceptedQuery)
                 } else {
                     MemoryManager.captureLongTermFacts(context, interceptedQuery)
-                    MemoryManager.addTurn("User", interceptedQuery)
+                    MemoryManager.addTurn(currentSpeakerName, interceptedQuery)
                 }
             }
 
