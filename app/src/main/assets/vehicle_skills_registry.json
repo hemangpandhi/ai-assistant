@@ -2192,32 +2192,6 @@
           },
           "action": "confirm",
           "message": "Fuel is low ({fuel_level_pct}%) near {city}. Start navigation anyway?"
-        },
-        {
-          "id": "already_navigating_same_dest",
-          "priority": 9,
-          "applies_to": [
-            "startNavigationTo"
-          ],
-          "when": {
-            "nav_active": true,
-            "nav_dest_matches_arg": true
-          },
-          "action": "confirm",
-          "message": "You're already navigating to {nav_active_dest}. Restart that route?"
-        },
-        {
-          "id": "reroute_while_navigating",
-          "priority": 11,
-          "applies_to": [
-            "startNavigationTo"
-          ],
-          "when": {
-            "nav_active": true,
-            "nav_dest_differs_arg": true
-          },
-          "action": "confirm",
-          "message": "You're headed to {nav_active_dest}. Switch destination?"
         }
       ]
     }
