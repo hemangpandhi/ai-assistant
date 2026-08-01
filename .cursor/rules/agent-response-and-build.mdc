@@ -1,0 +1,19 @@
+---
+description: No unsolicited builds; keep replies extremely terse
+alwaysApply: true
+---
+
+# Agent behavior
+
+## Builds
+
+- Do **not** run Gradle/build commands (`assembleDebug`, `compile*`, `./gradlew`, etc.) unless the user explicitly asks
+- Make the code change and stop — the user builds separately
+- Do not “verify with a build” by default
+
+## Chat style
+
+- Cut to the point. No chitchat, preambles, or recaps of the ask
+- Prefer 1–3 short sentences or a tight bullet list
+- Skip “Here’s what I did”, praise, hedging, and filler
+- Only expand when the user asks for detail or a failure needs a precise cause

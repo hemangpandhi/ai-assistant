@@ -1,0 +1,34 @@
+---
+description: Scope UI work to :assistant-ui; avoid whole-repo searches
+globs: assistant-ui/**/*
+alwaysApply: false
+---
+
+# `:assistant-ui` search & edit scope
+
+When the task is UI, face, overlay, chrome, transcript, placement, gallery, theme, or stage MVI:
+
+## Do
+
+- Read `assistant-ui/README.md` (and the nearest package `README.md`) before broad search
+- Search / edit under `assistant-ui/` first
+- Prefer package READMEs over opening many large `.kt` files
+- Touch `:assistant-ext` or `:app` only for host wiring, VIS session, Koin, or manifest
+- Put large mock JSON/fixtures in repo-root `mocks/` or `data/` (ignored by Cursor)
+
+## Do not
+
+- Semantic-search `:agent-core`, `app/libs/`, model/TTS assets, or `docs/reports/` for UI tasks
+- Import agent/LLM/VHAL types into `:assistant-ui`
+- Edit `:agent-core` `.kt` files
+
+## Where things go
+
+| Change | Package |
+|--------|---------|
+| Face / mood / glyph | `…/face/` |
+| Immersive stage / placement | `…/ui/immersive/` |
+| Waveform / presence / thinking cloud | `…/ui/chrome/` |
+| Colors / typography / overlay tokens | `…/ui/theme/` |
+| Stage intent/state | `…/mvi/` |
+| Demo event stream | `…/backend/` |
