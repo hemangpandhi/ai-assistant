@@ -33,6 +33,10 @@ case "$MODE" in
     CLASS_FILTER="com.tcs.vehicleassistant.requirements.PlayMusicArtistInstrumentedTest"
     EXTRA_INSTR=()
     ;;
+  report)
+    # Prefer dedicated report runner (writes JSON/MD under docs/reports/).
+    exec "$ROOT/scripts/run_tablet_usecase_report.sh"
+    ;;
   overnight)
     # Same as all — intended for long unattended runs.
     CLASS_FILTER=""

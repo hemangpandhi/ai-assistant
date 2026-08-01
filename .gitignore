@@ -18,3 +18,8 @@ app/src/main/assets/tiny.en*.onnx
 app/src/main/assets/tiny.en-tokens.txt
 app/src/main/assets/test_wavs/
 device_models/
+
+# Generated on-device use-case reports (scripts/run_tablet_usecase_report.sh)
+/docs/reports/tablet_usecase_report.json
+/docs/reports/tablet_usecase_report.md
+/docs/reports/tablet_usecase_instrumentation.log

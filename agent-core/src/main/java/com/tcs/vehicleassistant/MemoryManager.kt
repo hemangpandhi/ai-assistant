@@ -145,7 +145,7 @@ object MemoryManager {
     fun getAnthropicHistory(): List<org.json.JSONObject> {
         return snapshot().map { turn ->
             org.json.JSONObject().apply {
-                val apiRole = if (turn.role.equals("User", true)) "user" else "assistant"
+                val apiRole = if (turn.role.equals("Assistant", true) || turn.role.equals("System", true)) "assistant" else "user"
                 put("role", apiRole)
                 put("content", turn.content)
             }

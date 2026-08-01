@@ -766,6 +766,8 @@ class LocalLLMActivity : AppCompatActivity() {
             com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,
             false
         )
+        val currentSttEngine = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE, com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA) ?: com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA
+
 
         etKvCache.setText(currentKvCache.toString())
         val etAutoFlush = dialogView.findViewById<android.widget.EditText>(R.id.etAutoFlush)
@@ -800,8 +802,20 @@ class LocalLLMActivity : AppCompatActivity() {
 
         val spinnerDemoPreset = dialogView.findViewById<Spinner>(R.id.spinnerDemoPreset)
         val spinnerLocationSource = dialogView.findViewById<Spinner>(R.id.spinnerLocationSource)
+        val spinnerSttEngine = dialogView.findViewById<Spinner>(R.id.spinnerSttEngine)
         val tvResolvedLocation = dialogView.findViewById<android.widget.TextView>(R.id.tvResolvedLocation)
         val btnApplyDemoPreset = dialogView.findViewById<Button>(R.id.btnApplyDemoPreset)
+
+        val sttEngines = listOf("Sherpa-ONNX (Local Whisper)", "Google Speech Engine")
+        val sttEngineValues = listOf(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA,
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_GOOGLE
+        )
+        val sttAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sttEngines)
+        sttAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerSttEngine.adapter = sttAdapter
+        spinnerSttEngine.setSelection(sttEngineValues.indexOf(currentSttEngine).coerceAtLeast(0))
+
 
         val presetAdapter = ArrayAdapter(
             this,
@@ -966,6 +980,10 @@ class LocalLLMActivity : AppCompatActivity() {
                     putBoolean(
                         com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,
                         switchSpeculativeDecoding.isChecked
+                    )
+                    putString(
+                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE,
+                        sttEngineValues[spinnerSttEngine.selectedItemPosition]
                     )
 
                     putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_VOICE_ID, chosenVoice.id)

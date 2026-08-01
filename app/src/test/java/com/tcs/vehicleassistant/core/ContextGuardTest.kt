@@ -320,6 +320,39 @@ class ContextGuardTest {
     }
 
     @Test
+    fun unlockWhenParkedKnownGear_allows() {
+        val parked = loudPlaying.copy(speedMph = 0, gear = "Park", isParked = true)
+        assertTrue(ContextGuard.evaluate("unlockDoors()", parked) is ContextGuard.Decision.Allow)
+    }
+
+    @Test
+    fun unlockWithUnknownGear_failClosedConfirm() {
+        val unknown = loudPlaying.copy(speedMph = 0, gear = "Unknown", isParked = false)
+        val d = ContextGuard.evaluate("unlockDoors()", unknown)
+        assertTrue("expected Confirm for unknown gear, got $d", d is ContextGuard.Decision.Confirm)
+        val c = d as ContextGuard.Decision.Confirm
+        assertEquals(SafetyCriticalTools.GEAR_UNKNOWN_POLICY_ID, c.policyId)
+        assertTrue(c.message.contains("parked", ignoreCase = true))
+    }
+
+    @Test
+    fun openTrunkWithUnknownGear_failClosedConfirm() {
+        val unknown = loudPlaying.copy(speedMph = 0, gear = "Unknown", isParked = false)
+        val d = ContextGuard.evaluate("openTrunk()", unknown)
+        assertTrue(d is ContextGuard.Decision.Confirm)
+        assertEquals(
+            SafetyCriticalTools.GEAR_UNKNOWN_POLICY_ID,
+            (d as ContextGuard.Decision.Confirm).policyId,
+        )
+    }
+
+    @Test
+    fun nonSafetyToolWithUnknownGear_stillAllows() {
+        val unknown = loudPlaying.copy(gear = "Unknown", isParked = false, mediaVolumePct = 20, mediaPlaying = false)
+        assertTrue(ContextGuard.evaluate("increaseTemperature()", unknown) is ContextGuard.Decision.Allow)
+    }
+
+    @Test
     fun snapshotInterpolatesGeoAndFuel() {
         val snap = loudPlaying.copy(
             fuelLevelPct = 12,

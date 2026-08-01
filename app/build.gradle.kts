@@ -56,6 +56,7 @@ android {
         debug {
             signingConfig = signingConfigs.getByName("platform")
             enableUnitTestCoverage = true
+            enableAndroidTestCoverage = true
         }
         release {
             signingConfig = signingConfigs.getByName("platform")
@@ -211,10 +212,10 @@ dependencies {
  * Coverage report for the JVM unit tests. Generated classes, DI wiring and the Android-only
  * surfaces we cannot exercise off-device are excluded so the number reflects testable logic.
  */
-tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
+tasks.register<JacocoReport>("jacocoUnifiedReport") {
     group = "verification"
-    description = "Generates a JaCoCo coverage report for the debug unit tests."
-    dependsOn("testDebugUnitTest")
+    description = "Generates a unified JaCoCo coverage report combining debug unit tests and android tests."
+    dependsOn("testDebugUnitTest", "connectedDebugAndroidTest")
 
     reports {
         html.required.set(true)
@@ -232,9 +233,13 @@ tasks.register<JacocoReport>("jacocoDebugUnitTestReport") {
         )
     )
     sourceDirectories.setFrom(files("src/main/java"))
-    // Pointing at the single exec file rather than scanning the build directory; a wildcard scan
-    // makes Gradle infer implicit dependencies on unrelated tasks such as mergeProjectDexDebug.
+    
     executionData.setFrom(
-        layout.buildDirectory.file("outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec")
+        fileTree(layout.buildDirectory.get()) {
+            include(
+                "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+                "outputs/code_coverage/debugAndroidTest/connected/*coverage.ec"
+            )
+        }
     )
 }

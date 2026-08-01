@@ -1,9 +1,14 @@
 package com.tcs.vehicleassistant.hardware
 
 import android.content.Context
+import android.content.Intent
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.os.Bundle
+import android.speech.RecognitionListener
+import android.speech.RecognizerIntent
+import android.speech.SpeechRecognizer
 import android.util.Log
 import com.tcs.vehicleassistant.LatencyLogger
 import com.tcs.vehicleassistant.core.AssistantConfig
@@ -161,6 +166,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     private var noiseSuppressor: android.media.audiofx.NoiseSuppressor? = null
     private var acousticEchoCanceler: android.media.audiofx.AcousticEchoCanceler? = null
     private var listeningJob: Job? = null
+    private var googleSpeechRecognizer: SpeechRecognizer? = null
 
     private fun initSpeechRecognizer() {
         if (sherpaRecognizer != null) return
@@ -281,6 +287,14 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         listeningJob?.cancel()
         listeningJob = null
         isListening = true
+
+        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
+        val sttEngine = prefs.getString(AssistantConfig.Prefs.STT_ENGINE, AssistantConfig.Prefs.STT_ENGINE_SHERPA)
+        
+        if (sttEngine == AssistantConfig.Prefs.STT_ENGINE_GOOGLE) {
+            startGoogleSpeechRecognizer()
+            return
+        }
 
         listeningJob = listeningScope.launch {
             try {
@@ -448,7 +462,9 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                                 
                                 withContext(Dispatchers.Main) {
                                     if (result.isNotBlank()) {
-                                        onSttResult?.invoke(result)
+                                        val speaker = com.tcs.vehicleassistant.vision.VisionState.recognizedUser
+                                        val taggedResult = "[Seat: $speaker] $result"
+                                        onSttResult?.invoke(taggedResult)
                                     } else {
                                         onSttEmptyResult?.invoke()
                                     }
@@ -478,6 +494,59 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         }
     }
 
+    private fun startGoogleSpeechRecognizer() {
+        CoroutineScope(Dispatchers.Main).launch {
+            if (googleSpeechRecognizer == null) {
+                googleSpeechRecognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+                    setRecognitionListener(object : RecognitionListener {
+                        override fun onReadyForSpeech(params: Bundle?) {
+                            onSttReadyForSpeech?.invoke()
+                        }
+                        override fun onBeginningOfSpeech() {
+                            LatencyLogger.log("STT", "Beginning of speech (Google)")
+                            onSttBeginningOfSpeech?.invoke()
+                        }
+                        override fun onRmsChanged(rmsdB: Float) {}
+                        override fun onBufferReceived(buffer: ByteArray?) {}
+                        override fun onEndOfSpeech() {
+                            LatencyLogger.log("STT", "End of speech (Google)")
+                            onSttEndOfSpeech?.invoke()
+                        }
+                        override fun onError(error: Int) {
+                            Log.e(TAG, "Google SpeechRecognizer error: $error")
+                            isListening = false
+                            onSttError?.invoke(error)
+                        }
+                        override fun onResults(results: Bundle?) {
+                            isListening = false
+                            val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            val bestResult = matches?.firstOrNull() ?: ""
+                            if (bestResult.isNotBlank()) {
+                                val speaker = com.tcs.vehicleassistant.vision.VisionState.recognizedUser
+                                val taggedResult = "[Seat: $speaker] $bestResult"
+                                onSttResult?.invoke(taggedResult)
+                            } else {
+                                onSttEmptyResult?.invoke()
+                            }
+                        }
+                        override fun onPartialResults(partialResults: Bundle?) {
+                            val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
+                            matches?.firstOrNull()?.let { onSttPartial?.invoke(it) }
+                        }
+                        override fun onEvent(eventType: Int, params: Bundle?) {}
+                    })
+                }
+            }
+            
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+                putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            }
+            googleSpeechRecognizer?.startListening(intent)
+        }
+    }
+
     private fun releaseCaptureResources() {
         try {
             if (audioRecord?.state == android.media.AudioRecord.STATE_INITIALIZED) audioRecord?.stop()
@@ -503,10 +572,25 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         isListening = false
         listeningJob?.cancel()
         listeningJob = null
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                googleSpeechRecognizer?.stopListening()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to stop Google SpeechRecognizer", e)
+            }
+        }
     }
 
     override fun destroySpeechRecognizer() {
         stopListening()
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                googleSpeechRecognizer?.destroy()
+                googleSpeechRecognizer = null
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to destroy Google SpeechRecognizer", e)
+            }
+        }
         try {
             sherpaRecognizer?.release()
         } catch (e: Exception) {

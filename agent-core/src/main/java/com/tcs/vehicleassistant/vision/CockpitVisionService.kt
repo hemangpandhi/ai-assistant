@@ -23,6 +23,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
 import java.util.Locale
+import android.graphics.Rect
+
+data class RecognizedFace(
+    val name: String,
+    val boundingBox: Rect
+)
 
 class CockpitVisionService : Service() {
 
@@ -48,14 +54,15 @@ class CockpitVisionService : Service() {
 
     // Callbacks for UI
     var onFrameCallback: ((Bitmap) -> Unit)? = null
-    // Updated signature to include recognized name
-    var onStatsUpdateCallback: ((HealthState, GestureFeedback?, Float, String) -> Unit)? = null
+    // Updated signature to include list of recognized faces
+    var onStatsUpdateCallback: ((HealthState, GestureFeedback?, Float, List<RecognizedFace>) -> Unit)? = null
 
     inner class LocalBinder : Binder() {
         fun getService(): CockpitVisionService = this@CockpitVisionService
     }
 
     private var latestHealthState: HealthState = HealthState(72, "Low", false)
+    private var activeFaces = mutableListOf<RecognizedFace>()
 
     private lateinit var aaosUserSwitchManager: com.tcs.vehicleassistant.hardware.AAOSUserSwitchManager
     private var currentDriverName: String = ""
@@ -73,7 +80,7 @@ class CockpitVisionService : Service() {
         gestureProcessor = GestureProcessor(this) { feedback ->
             latestGestureFeedback = feedback
             com.tcs.vehicleassistant.hardware.CabinCameraManager.currentMood = feedback.mood
-            onStatsUpdateCallback?.invoke(latestHealthState, feedback, identitySimilarity, recognizedUserName)
+            onStatsUpdateCallback?.invoke(latestHealthState, feedback, identitySimilarity, activeFaces)
         }
 
         healthProcessor = HealthProcessor { state ->
@@ -81,7 +88,7 @@ class CockpitVisionService : Service() {
             latestGestureFeedback?.let { feedback ->
                 visionBridge.onHealthUpdate(state, feedback)
             }
-            onStatsUpdateCallback?.invoke(state, latestGestureFeedback, identitySimilarity, recognizedUserName)
+            onStatsUpdateCallback?.invoke(state, latestGestureFeedback, identitySimilarity, activeFaces)
         }
     }
 
@@ -127,44 +134,92 @@ class CockpitVisionService : Service() {
             val currentMood = latestGestureFeedback?.mood
             healthProcessor.processFrame(bitmap, faceResult, currentMood)
 
+            val currentFaces = mutableListOf<RecognizedFace>()
+            
+            faceResult?.faceLandmarks()?.forEach { landmarks ->
+                var minX = Float.MAX_VALUE
+                var minY = Float.MAX_VALUE
+                var maxX = Float.MIN_VALUE
+                var maxY = Float.MIN_VALUE
+                for (landmark in landmarks) {
+                    if (landmark.x() < minX) minX = landmark.x()
+                    if (landmark.y() < minY) minY = landmark.y()
+                    if (landmark.x() > maxX) maxX = landmark.x()
+                    if (landmark.y() > maxY) maxY = landmark.y()
+                }
+                
+                val w = bitmap.width
+                val h = bitmap.height
+                val padX = (maxX - minX) * 0.2f
+                val padY = (maxY - minY) * 0.2f
+                val rect = Rect(
+                    ((minX - padX) * w).toInt().coerceIn(0, w - 1),
+                    ((minY - padY) * h).toInt().coerceIn(0, h - 1),
+                    ((maxX + padX) * w).toInt().coerceIn(0, w - 1),
+                    ((maxY + padY) * h).toInt().coerceIn(0, h - 1)
+                )
+                
+                if (rect.width() > 10 && rect.height() > 10) {
+                    currentFaces.add(RecognizedFace("Guest", rect)) // Temporary name
+                }
+            }
+
             identityCheckCounter++
-            if (identityCheckCounter % 30 == 0) { // Every ~3 seconds at 10fps
-                val embedding = faceIdentityProcessor.extractEmbedding(bitmap)
-                embedding?.let { currentEmb ->
-                    // Compare against all stored profiles
-                    val allProfiles = faceProfileManager.getAllProfiles()
-                    var bestMatchName = "Guest"
-                    var highestSimilarity = 0f
-
-                    for ((name, savedEmb) in allProfiles) {
-                        val sim = faceIdentityProcessor.computeSimilarity(currentEmb, savedEmb)
-                        if (sim > highestSimilarity) {
-                            highestSimilarity = sim
-                            bestMatchName = name
+            if (identityCheckCounter % 30 == 0 && currentFaces.isNotEmpty()) { 
+                // Every ~3 seconds, run the heavy face identification model on each cropped face
+                for (i in currentFaces.indices) {
+                    val rect = currentFaces[i].boundingBox
+                    val cropped = Bitmap.createBitmap(bitmap, rect.left, rect.top, rect.width(), rect.height())
+                    val embedding = faceIdentityProcessor.extractEmbedding(cropped)
+                    
+                    if (embedding != null) {
+                        var bestMatchName = "Guest"
+                        var highestSimilarity = 0f
+                        for ((name, savedEmb) in faceProfileManager.getAllProfiles()) {
+                            val sim = faceIdentityProcessor.computeSimilarity(embedding, savedEmb)
+                            if (sim > highestSimilarity) {
+                                highestSimilarity = sim
+                                bestMatchName = name
+                            }
                         }
-                    }
-
-                    identitySimilarity = highestSimilarity
-                    // 0.6 is a standard threshold for FaceNet cosine similarity
-                    if (highestSimilarity > 0.6f) {
-                        recognizedUserName = bestMatchName
-                        VisionState.recognizedUser = bestMatchName
-
-                        // Trigger zero-touch AAOS user switch & VHAL preferences if driver changed
-                        if (recognizedUserName != currentDriverName) {
-                            currentDriverName = recognizedUserName
-                            val targetUserId = faceProfileManager.getOsUserId(recognizedUserName)
-                            val targetTemp = faceProfileManager.getTargetTemp(recognizedUserName)
-
-                            android.util.Log.d("CockpitVisionService", "Face ID verified for $recognizedUserName! Triggering user switch to User ID $targetUserId")
-                            aaosUserSwitchManager.switchUser(targetUserId, recognizedUserName)
-                            VehicleManager.applySavedCabinPreferences(recognizedUserName, targetTemp)
+                        if (highestSimilarity > 0.6f) {
+                            currentFaces[i] = RecognizedFace(bestMatchName, rect)
                         }
-                    } else {
-                        recognizedUserName = "Guest"
-                        VisionState.recognizedUser = "Guest"
                     }
                 }
+                
+                // Update activeFaces with the newly identified names
+                activeFaces.clear()
+                activeFaces.addAll(currentFaces)
+                
+                // Driver switch logic: assume the largest face is the driver
+                val driverFace = currentFaces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
+                if (driverFace != null && driverFace.name != "Guest") {
+                    recognizedUserName = driverFace.name
+                    VisionState.recognizedUser = driverFace.name
+                    if (recognizedUserName != currentDriverName) {
+                        currentDriverName = recognizedUserName
+                        val targetUserId = faceProfileManager.getOsUserId(recognizedUserName)
+                        val targetTemp = faceProfileManager.getTargetTemp(recognizedUserName)
+                        aaosUserSwitchManager.switchUser(targetUserId, recognizedUserName)
+                        VehicleManager.applySavedCabinPreferences(recognizedUserName, targetTemp)
+                    }
+                }
+            } else if (currentFaces.isNotEmpty()) {
+                // For intermediate frames, just update the bounding boxes but carry over the names based on spatial proximity (left/right seat)
+                for (i in currentFaces.indices) {
+                    val rect = currentFaces[i].boundingBox
+                    // Simple heuristic: if center X is on the left side of the image, find the left-side name from activeFaces
+                    val centerX = rect.centerX()
+                    val prevMatch = activeFaces.minByOrNull { Math.abs(it.boundingBox.centerX() - centerX) }
+                    if (prevMatch != null && Math.abs(prevMatch.boundingBox.centerX() - centerX) < bitmap.width / 4) {
+                        currentFaces[i] = RecognizedFace(prevMatch.name, rect)
+                    }
+                }
+                activeFaces.clear()
+                activeFaces.addAll(currentFaces)
+            } else if (currentFaces.isEmpty() && identityCheckCounter % 30 == 0) {
+                 activeFaces.clear()
             }
         }
     }

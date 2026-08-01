@@ -14,6 +14,7 @@ agent-core/src/main/java/com/tcs/vehicleassistant/core/AssistantConfig.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/CabinSnapshot.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/ConfirmationPolicy.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/ContextGuard.kt
+agent-core/src/main/java/com/tcs/vehicleassistant/core/ConversationalIntent.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/ConversationResetPolicy.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/DebugBroadcasts.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/DeviceCapabilities.kt
@@ -22,9 +23,11 @@ agent-core/src/main/java/com/tcs/vehicleassistant/core/GemmaRegressionScorer.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/GpuBackendResolver.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/KernelCacheManager.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/LlmToolAllowList.kt
+agent-core/src/main/java/com/tcs/vehicleassistant/core/LlmToolTurnPolicy.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/LocalLlmPromptSupport.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/LocalModelResolver.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/NavSessionState.kt
+agent-core/src/main/java/com/tcs/vehicleassistant/core/SafetyCriticalTools.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/ToolRetriever.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/TtsVoiceCatalog.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/core/VehicleUnits.kt
@@ -80,6 +83,7 @@ agent-core/src/main/java/com/tcs/vehicleassistant/vision/CockpitPagerAdapter.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/vision/CockpitVisionService.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/vision/DriverSafetyFragment.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/vision/FaceIdentityProcessor.kt
+agent-core/src/main/java/com/tcs/vehicleassistant/vision/FaceOverlayView.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/vision/FaceProfileManager.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/vision/GestureMapper.kt
 agent-core/src/main/java/com/tcs/vehicleassistant/vision/GestureProcessor.kt

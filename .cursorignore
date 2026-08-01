@@ -1,0 +1,52 @@
+# Build outputs & caches (huge; never useful as model context)
+**/build/
+**/.gradle/
+**/.kotlin/
+**/.cxx/
+**/.externalNativeBuild/
+**/captures/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+*.jar
+*.war
+*.ear
+*.so
+*.o
+*.obj
+*.iml
+
+# IDE / local machine
+.idea/
+*.hprof
+local.properties
+.DS_Store
+
+# Large ML / STT / TTS model artifacts (multi-GB; sideloaded via adb)
+*.litertlm
+*.task
+*.bin
+*.onnx
+*.tflite
+*.gguf
+*.pt
+*.pth
+device_models/
+app/src/main/assets/sherpa-onnx-whisper-tiny.en/
+app/src/main/assets/model.tar.bz2
+app/src/main/assets/tiny.en*.onnx
+app/src/main/assets/tiny.en-tokens.txt
+app/src/main/assets/test_wavs/
+
+# Generated / stale build logs
+build_error.txt
+build_error_latest.txt
+**/lint-results*.txt
+**/lint-results*.xml
+
+# VCS / tooling noise
+.git/
+graphify-out/
+**/node_modules/

@@ -143,7 +143,15 @@
         "raise temp",
         "turn up heat",
         "warm up",
-        "heat up"
+        "heat up",
+        "make it warmer",
+        "make it hotter",
+        "turn up the heat",
+        "i need some warm air",
+        "warm up the cabin",
+        "it is too cold in here",
+        "raise the temperature",
+        "warming up"
       ],
       "offline_capable": true,
       "success_message": "I'm warming it up for you!",
@@ -176,7 +184,16 @@
         "i am hot",
         "i m hot",
         "im hot",
-        "i am feeling hot"
+        "i am feeling hot",
+        "make it cooler",
+        "make it colder",
+        "turn down the temp",
+        "turn down the heat",
+        "i need some cold air",
+        "it is too warm in here",
+        "cool down the cabin",
+        "cooling down",
+        "drop the temperature"
       ],
       "offline_capable": true,
       "success_message": "Cooling it down \u2014 you should feel better soon.",
@@ -281,7 +298,10 @@
         "activate ac",
         "air conditioning on",
         "turn on air conditioning",
-        "turn on the air conditioning"
+        "turn on the air conditioning",
+        "start the air conditioning",
+        "i need ac",
+        "blast the ac"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
@@ -314,7 +334,8 @@
         "deactivate ac",
         "air conditioning off",
         "turn off air conditioning",
-        "turn off the air conditioning"
+        "turn off the air conditioning",
+        "stop the air conditioning"
       ],
       "offline_capable": true,
       "error_message": "The vehicle hardware did not confirm the change.",
@@ -768,7 +789,14 @@
         "fogged windshield",
         "clear the fog",
         "fog on glass",
-        "mist on windshield"
+        "mist on windshield",
+        "i cant see through the windshield",
+        "windshield is foggy",
+        "foggy windshield",
+        "clear the windshield",
+        "defog the front",
+        "turn on the defroster",
+        "my windows are foggy"
       ],
       "offline_capable": true,
       "requires_vehicle_state": false,
@@ -1539,7 +1567,10 @@
         "pop the trunk",
         "pop trunk",
         "open boot",
-        "open cargo"
+        "open cargo",
+        "open the boot",
+        "unlock the trunk",
+        "i need to put things in the back"
       ],
       "requires_confirmation": true,
       "confirmation_message": "Warning: Are you sure you want to open the trunk?",
@@ -1780,7 +1811,11 @@
         "its freezing",
         "shivering",
         "i m freezing",
-        "im freezing"
+        "im freezing",
+        "my feet are freezing",
+        "im freezing in here",
+        "my hands are cold",
+        "turn up the heat"
       ],
       "offline_capable": true,
       "success_message": "That sounds uncomfortable \u2014 would you like me to turn on the seat heater?",
@@ -1800,7 +1835,7 @@
       "requires_vehicle_state": false
     },
     {
-      "prompt_string": "<TOOL>suggestNearbyPlaces()</TOOL>",
+      "prompt_string": "<TOOL>suggestNearby()</TOOL>",
       "handler_key": "suggestNearbyPlaces",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
