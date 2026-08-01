@@ -7,7 +7,6 @@ import com.tcs.vehicleassistant.core.ConversationalIntent
 import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.core.LlmToolTurnPolicy
 import com.tcs.vehicleassistant.core.SafetyCriticalTools
-import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -139,9 +138,17 @@ class DriverSeatScenarioMatrixUnitTest {
 
     @Test
     fun emptyModel_actionWhileDriving_admitsToolFailure() {
-        val msg = AgentOrchestrator.resolveEmptyModelFallback("turn on the AC")
-        assertTrue(msg.contains("couldn't run a tool", ignoreCase = true))
-        assertFalse(msg.contains("taken care", ignoreCase = true))
+        // Empty-model honesty for action queries lives in master-owned agent code
+        // (StreamTextHandlingTest). Here we lock the driver-seat display path:
+        // empty prose + no executed tools must admit failure, never claim success.
+        val display = LlmToolTurnPolicy.resolveEmptyProseDisplay(
+            confirmationAsks = emptyList(),
+            toolFeedbacks = emptyList(),
+            actuallyExecutedToolCalls = emptyList(),
+            emptyFallback = "I couldn't run a tool for that. Want to try again?",
+        )
+        assertTrue(display.text.contains("couldn't run a tool", ignoreCase = true))
+        assertFalse(display.text.contains("taken care", ignoreCase = true))
     }
 
     @Test
