@@ -30,19 +30,6 @@ import com.assistant.ui.assistant.api.AssistantFaceCueIcon
 import com.assistant.ui.assistant.api.FaceCueCategory
 import kotlin.math.max
 
-private val WeatherCool = Color(0xFF90CAF9)
-private val WeatherStorm = Color(0xFF80CBC4)
-private val WeatherSnowTint = Color(0xFFE3F2FD)
-private val WeatherCloudyTint = Color(0xFFB0BEC5)
-private val WeatherSunnyTint = Color(0xFFFFD54F)
-private val ClimateCool = Color(0xFF4DD0E1)
-private val ClimateWarm = Color(0xFFFFB74D)
-private val ClimateNeutral = Color(0xFFCE93D8)
-private val MediaTint = Color(0xFFE1BEE7)
-private val NavTint = Color(0xFF80CBC4)
-private val AccentTint = Color(0xFFFFF59D)
-private val GlyphWhite = Color(0xFFF5F7FA)
-
 /** Compose Material vector for [AssistantFaceCueIcon] — morphable / tintable. */
 fun AssistantFaceCueIcon.imageVector(): ImageVector = when (this) {
     AssistantFaceCueIcon.Rain -> Icons.Outlined.WaterDrop
@@ -68,26 +55,26 @@ fun AssistantFaceCueIcon.imageVector(): ImageVector = when (this) {
 
 fun AssistantFaceCueIcon.tint(): Color = when (category) {
     FaceCueCategory.Weather -> when (this) {
-        AssistantFaceCueIcon.Rain -> WeatherCool
-        AssistantFaceCueIcon.Storm -> WeatherStorm
-        AssistantFaceCueIcon.Snow -> WeatherSnowTint
-        AssistantFaceCueIcon.Cloudy -> WeatherCloudyTint
-        AssistantFaceCueIcon.Sunny -> WeatherSunnyTint
-        else -> WeatherCool
+        AssistantFaceCueIcon.Rain -> AssistantGlyphPalette.WeatherCool
+        AssistantFaceCueIcon.Storm -> AssistantGlyphPalette.WeatherStorm
+        AssistantFaceCueIcon.Snow -> AssistantGlyphPalette.WeatherSnow
+        AssistantFaceCueIcon.Cloudy -> AssistantGlyphPalette.WeatherCloudy
+        AssistantFaceCueIcon.Sunny -> AssistantGlyphPalette.WeatherSunny
+        else -> AssistantGlyphPalette.WeatherCool
     }
     FaceCueCategory.Climate -> when (this) {
-        AssistantFaceCueIcon.Heat -> ClimateWarm
-        AssistantFaceCueIcon.Thermostat -> ClimateNeutral
-        else -> ClimateCool
+        AssistantFaceCueIcon.Heat -> AssistantGlyphPalette.ClimateWarm
+        AssistantFaceCueIcon.Thermostat -> AssistantGlyphPalette.ClimateNeutral
+        else -> AssistantGlyphPalette.ClimateCool
     }
-    FaceCueCategory.Media -> MediaTint
-    FaceCueCategory.Nav -> NavTint
-    FaceCueCategory.Accent -> AccentTint
+    FaceCueCategory.Media -> AssistantGlyphPalette.Media
+    FaceCueCategory.Nav -> AssistantGlyphPalette.Nav
+    FaceCueCategory.Accent -> AssistantGlyphPalette.Accent
 }
 
 /** Fallback pale glyph tint when brand contrast wants white line-art. */
 fun AssistantFaceCueIcon.glyphTint(highContrast: Boolean = false): Color =
-    if (highContrast) GlyphWhite else tint()
+    if (highContrast) AssistantGlyphPalette.GlyphWhite else tint()
 
 /**
  * Draw a Material vector as a face-anatomy replacement — same *place* as the

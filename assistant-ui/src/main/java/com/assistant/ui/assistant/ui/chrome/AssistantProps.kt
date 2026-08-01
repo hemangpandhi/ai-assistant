@@ -35,9 +35,12 @@ internal fun DrawScope.drawMoodProp(
     when (mood) {
         AssistantMood.Thinking -> drawThoughtCloud(
             anchor = Offset(center.x + shell * 0.42f, center.y - shell * 0.48f + bob),
-            size = shell * 0.38f * (0.85f + 0.15f * visibility),
-            alpha = visibility,
+            cloudSize = shell * 0.38f * (0.85f + 0.15f * visibility),
             life = life,
+            alpha = visibility,
+            fill = PropSoft,
+            stroke = PropWhite,
+            dot = PropAccent,
         )
         AssistantMood.Searching -> drawScanGlass(
             anchor = Offset(center.x + shell * 0.48f, center.y - shell * 0.28f + bob),
@@ -85,46 +88,6 @@ internal fun DrawScope.drawMoodProp(
         AssistantMood.Drowsy,
         AssistantMood.Tired,
         AssistantMood.Idle -> Unit
-    }
-}
-
-private fun DrawScope.drawThoughtCloud(
-    anchor: Offset,
-    size: Float,
-    alpha: Float,
-    life: Float,
-) {
-    val a = alpha.coerceIn(0f, 1f)
-    val fill = PropSoft.copy(alpha = 0.92f * a)
-    val stroke = PropWhite.copy(alpha = 0.95f * a)
-
-    // Fluffy cloud — overlapping circles
-    val c1 = Offset(anchor.x, anchor.y)
-    val c2 = Offset(anchor.x - size * 0.28f, anchor.y + size * 0.06f)
-    val c3 = Offset(anchor.x + size * 0.3f, anchor.y + size * 0.04f)
-    val c4 = Offset(anchor.x + size * 0.05f, anchor.y - size * 0.22f)
-    drawCircle(fill, size * 0.32f, c1)
-    drawCircle(fill, size * 0.26f, c2)
-    drawCircle(fill, size * 0.28f, c3)
-    drawCircle(fill, size * 0.24f, c4)
-    drawCircle(stroke, size * 0.32f, c1, style = Stroke(1.5f))
-    drawCircle(stroke, size * 0.26f, c2, style = Stroke(1.5f))
-    drawCircle(stroke, size * 0.28f, c3, style = Stroke(1.5f))
-    drawCircle(stroke, size * 0.24f, c4, style = Stroke(1.5f))
-
-    // Trail bubbles toward the face
-    drawCircle(fill, size * 0.08f, Offset(anchor.x - size * 0.42f, anchor.y + size * 0.32f))
-    drawCircle(fill, size * 0.05f, Offset(anchor.x - size * 0.55f, anchor.y + size * 0.48f))
-
-    // Bouncing think dots
-    val dotY = anchor.y + size * 0.02f
-    for (i in 0..2) {
-        val bounce = sin(life * 2f + i * 0.9f).toFloat() * size * 0.06f
-        drawCircle(
-            color = PropAccent.copy(alpha = 0.9f * a),
-            radius = size * 0.055f,
-            center = Offset(anchor.x - size * 0.16f + i * size * 0.16f, dotY + bounce),
-        )
     }
 }
 

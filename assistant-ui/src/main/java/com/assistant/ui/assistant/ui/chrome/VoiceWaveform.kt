@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import kotlinx.coroutines.launch
 import kotlin.math.PI
 import kotlin.math.sin
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Energy for the shared Siri-style waveform — visual stays identical; only amplitude/speed change.
@@ -65,7 +66,7 @@ private val WaveLayers = listOf(
     WaveLayer(Color(0xFF40C4FF), 0.95f, 0.65f, 1.15f),
     WaveLayer(Color(0xFF7C4DFF), 0.82f, 0.55f, 0.8f),
     WaveLayer(Color(0xFF26C6DA), 0.72f, 0.7f, 1.05f),
-    WaveLayer(Color(0xFF8AB4F8), 0.62f, 0.6f, 0.95f),
+    WaveLayer(AssistantTokens.Accent, 0.62f, 0.6f, 0.95f),
 )
 
 private data class WaveLayer(
@@ -139,7 +140,7 @@ private fun DrawScope.drawSiriWaveform(
             brush = Brush.radialGradient(
                 colors = listOf(
                     Color(0xFF40C4FF).copy(alpha = 0.22f * bloom),
-                    Color(0xFF8AB4F8).copy(alpha = 0.12f * bloom),
+                    AssistantTokens.Accent.copy(alpha = 0.12f * bloom),
                     Color.Transparent,
                 ),
                 center = Offset(size.width * 0.5f, midY),

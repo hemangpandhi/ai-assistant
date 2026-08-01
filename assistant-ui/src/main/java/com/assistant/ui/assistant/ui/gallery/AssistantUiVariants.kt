@@ -124,7 +124,12 @@ fun AssistantUiVariant(
 }
 
 @Composable
-private fun FusionFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier) {
+private fun GalleryFaceStage(
+    mood: AssistantMood,
+    prompt: String,
+    modifier: Modifier,
+    face: @Composable () -> Unit,
+) {
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -139,10 +144,7 @@ private fun FusionFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FusionAssistantFace(
-                mood = mood,
-                modifier = Modifier.size(228.dp),
-            )
+            face()
             Spacer(Modifier.height(20.dp))
             Text(
                 text = mood.label,
@@ -159,84 +161,36 @@ private fun FusionFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier
                 modifier = Modifier.padding(horizontal = 28.dp),
             )
         }
+    }
+}
+
+@Composable
+private fun FusionFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier) {
+    GalleryFaceStage(mood = mood, prompt = prompt, modifier = modifier) {
+        FusionAssistantFace(
+            mood = mood,
+            modifier = Modifier.size(228.dp),
+        )
     }
 }
 
 @Composable
 private fun FusionGlowFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1C22),
-                        Color(0xFF0B0C10),
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FusionGlowAssistantFace(
-                mood = mood,
-                modifier = Modifier.size(228.dp),
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = mood.label,
-                color = mood.glowColor,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Spacer(Modifier.height(6.dp))
-            LiveInputText(
-                text = prompt,
-                color = Color(0xFFF1F3F4),
-                live = mood == AssistantMood.Listening,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = 28.dp),
-            )
-        }
+    GalleryFaceStage(mood = mood, prompt = prompt, modifier = modifier) {
+        FusionGlowAssistantFace(
+            mood = mood,
+            modifier = Modifier.size(228.dp),
+        )
     }
 }
 
 @Composable
 private fun FusionEyesFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1C22),
-                        Color(0xFF0B0C10),
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            FusionEyesAssistantFace(
-                mood = mood,
-                modifier = Modifier.size(228.dp),
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = mood.label,
-                color = mood.glowColor,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Spacer(Modifier.height(6.dp))
-            LiveInputText(
-                text = prompt,
-                color = Color(0xFFF1F3F4),
-                live = mood == AssistantMood.Listening,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = 28.dp),
-            )
-        }
+    GalleryFaceStage(mood = mood, prompt = prompt, modifier = modifier) {
+        FusionEyesAssistantFace(
+            mood = mood,
+            modifier = Modifier.size(228.dp),
+        )
     }
 }
 
@@ -374,40 +328,11 @@ private fun WeatherSinkUi(modifier: Modifier) {
 
 @Composable
 private fun EporoFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color(0xFF1A1C22),
-                        Color(0xFF0B0C10),
-                    ),
-                ),
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            EporoAssistantFace(
-                mood = mood,
-                modifier = Modifier.size(228.dp),
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                text = mood.label,
-                color = mood.glowColor,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            Spacer(Modifier.height(6.dp))
-            LiveInputText(
-                text = prompt,
-                color = Color(0xFFF1F3F4),
-                live = mood == AssistantMood.Listening,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(horizontal = 28.dp),
-            )
-        }
+    GalleryFaceStage(mood = mood, prompt = prompt, modifier = modifier) {
+        EporoAssistantFace(
+            mood = mood,
+            modifier = Modifier.size(228.dp),
+        )
     }
 }
 

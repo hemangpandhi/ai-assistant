@@ -11,6 +11,7 @@ import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.chrome.FaceWithThinkingCloud
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Renders the active [AssistantFaceKind] from [AssistantFaceConfig] (or an override).
@@ -27,7 +28,7 @@ fun ConfigurableAssistantFace(
     gazeX: Float? = null,
     gazeY: Float? = null,
     mouthAmplitude: Float? = null,
-    brandGlow: Color = Color(0xFF8AB4F8),
+    brandGlow: Color = AssistantTokens.Accent,
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     faceCues: AssistantFaceCues? = null,

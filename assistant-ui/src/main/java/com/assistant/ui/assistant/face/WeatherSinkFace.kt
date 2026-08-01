@@ -17,6 +17,7 @@ import kotlinx.coroutines.delay
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.chrome.FaceWithThinkingCloud
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Weather sink face: weather glyphs fully replace both eyes (same capsule size + morph).
@@ -30,7 +31,7 @@ fun WeatherSinkFace(
     gazeX: Float? = null,
     gazeY: Float? = null,
     mouthAmplitude: Float? = null,
-    brandGlow: Color = Color(0xFF8AB4F8),
+    brandGlow: Color = AssistantTokens.Accent,
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
 ) {

@@ -4,8 +4,6 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -100,6 +98,8 @@ import com.assistant.ui.assistant.dialogue.DialogueBeat
 import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.dialogue.LiveInputText
+import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 import com.assistant.ui.assistant.ui.theme.LocalAssistantHighContrast
 import com.assistant.ui.assistant.audio.assistantSpeechEvents
 import com.assistant.ui.assistant.face.contextGlyphGaze
@@ -249,7 +249,7 @@ fun ImmersiveAssistantOverlay(
     // lightweight secondary stream — keep the wait short so it never blocks feel.
     LaunchedEffect(visible, session, enableLiveSpeech) {
         if (!visible || !enableLiveSpeech) return@LaunchedEffect
-        delay(if (!awaitHotword) 120 else 80)
+        delay(if (!awaitHotword) AssistantOverlayTokens.LiveSpeechDelayDockMs else AssistantOverlayTokens.LiveSpeechDelayHotwordMs)
         if (!visible) return@LaunchedEffect
         assistantSpeechEvents(context).collectLatest { event ->
             if (!visible) return@collectLatest
@@ -308,13 +308,13 @@ fun ImmersiveAssistantOverlay(
             stageStore.update { it.copy(showThumbs = false) }
             return@LaunchedEffect
         }
-        delay(4_000)
+        delay(AssistantOverlayTokens.ThumbsHideMs)
         stageStore.update { it.copy(showThumbs = false) }
     }
 
     LaunchedEffect(gesture) {
         if (gesture == FaceGesture.Nod || gesture == FaceGesture.Shake) {
-            delay(700)
+            delay(AssistantOverlayTokens.GestureClearMs)
             if (stageStore.state.gesture == FaceGesture.Nod || stageStore.state.gesture == FaceGesture.Shake) {
                 stageStore.update { it.copy(gesture = FaceGesture.None) }
             }
@@ -323,7 +323,7 @@ fun ImmersiveAssistantOverlay(
 
     LaunchedEffect(contextGlyph, glyphGazeActive) {
         if (!glyphGazeActive || contextGlyph == null) return@LaunchedEffect
-        delay(800)
+        delay(AssistantOverlayTokens.GlyphGazeClearMs)
         stageStore.update { it.copy(glyphGazeActive = false) }
     }
 
@@ -333,7 +333,7 @@ fun ImmersiveAssistantOverlay(
      * -1 = off-screen below, +1 = stage center (peak), 0 = settled home.
      */
     val faceRise = remember { Animatable(-1f) }
-    val faceScale = remember { Animatable(0.94f) }
+    val faceScale = remember { Animatable(AssistantOverlayTokens.FaceHiddenScale) }
     val faceAlpha = remember { Animatable(1f) }
     val transcriptAlpha = remember { Animatable(0f) }
     /** 0 = hidden, 1 = fully presented (drives icon emerge / hotword wipe). */
@@ -368,7 +368,6 @@ fun ImmersiveAssistantOverlay(
             hasPresented = true
             if (immersiveEnteredSession != session) {
                 immersiveEnteredSession = session
-                val origin = summonOrigin
                 transcriptAlpha.snapTo(0f)
                 overlayReveal.snapTo(0f)
                 faceAlpha.snapTo(1f)
@@ -378,80 +377,44 @@ fun ImmersiveAssistantOverlay(
                     withFrameNanos { }
                     wake.play()
                 }
-                when {
-                    cardPlacement -> {
-                        // Edge slide for card chrome — no icon expand / hotword wipe.
-                        backdropAlpha.snapTo(0f)
-                        faceRise.snapTo(0f)
-                        faceScale.snapTo(0.96f)
-                        try {
-                            launch {
-                                backdropAlpha.animateTo(
-                                    targetBackdropAlpha,
-                                    tween(280, easing = FastOutSlowInEasing),
-                                )
-                            }
-                            launch {
-                                faceScale.animateTo(
-                                    1f,
-                                    spring(dampingRatio = 0.82f, stiffness = Spring.StiffnessMedium),
-                                )
-                            }
-                            overlayReveal.animateTo(
-                                1f,
-                                tween(380, easing = FastOutSlowInEasing),
-                            )
-                        } finally {
-                            if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
-                            if (backdropAlpha.value < targetBackdropAlpha * 0.95f) {
-                                backdropAlpha.snapTo(targetBackdropAlpha)
-                            }
-                        }
-                    }
-                    else -> {
-                        // Face: bottom → center peak → settle home (wake word + icon launch).
-                        // M3 expressive slow spatial springs (physics, not fixed keyframes).
-                        backdropAlpha.snapTo(1f)
-                        faceRise.snapTo(-1f)
-                        faceScale.snapTo(0.88f)
-                        faceAlpha.snapTo(1f)
-                        try {
-                            launch {
-                                overlayReveal.animateTo(1f, effectsSlow)
-                            }
-                            launch {
-                                // Soft scale punch travels with the spatial path.
-                                faceScale.animateTo(1.05f, spatialSlow)
-                                faceScale.animateTo(1f, spatialSlow)
-                            }
-                            // Bottom → center, then spring down to settled home.
-                            faceRise.animateTo(1f, spatialSlow)
-                            faceRise.animateTo(0f, spatialSlow)
-                        } finally {
-                            if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)
-                            if (faceRise.value !in -0.02f..0.02f) faceRise.snapTo(0f)
-                            if (faceScale.value !in 0.98f..1.02f) faceScale.snapTo(1f)
-                        }
-                    }
+                if (cardPlacement) {
+                    runImmersiveCardEnter(
+                        backdropAlpha = backdropAlpha,
+                        faceRise = faceRise,
+                        faceScale = faceScale,
+                        overlayReveal = overlayReveal,
+                        targetBackdropAlpha = targetBackdropAlpha,
+                    )
+                } else {
+                    runImmersiveFullscreenEnter(
+                        backdropAlpha = backdropAlpha,
+                        faceRise = faceRise,
+                        faceScale = faceScale,
+                        faceAlpha = faceAlpha,
+                        overlayReveal = overlayReveal,
+                        spatialSpec = spatialSlow,
+                        effectsSpec = effectsSlow,
+                    )
                 }
-                delay(80)
-                transcriptAlpha.animateTo(1f, effectsDefault)
+                fadeInImmersiveTranscript(
+                    transcriptAlpha = transcriptAlpha,
+                    effectsSpec = effectsDefault,
+                )
             }
         } else if (hasPresented) {
             richEffects = false
             wake.playDismiss()
-            transcriptAlpha.animateTo(0f, effectsDefault)
-            launch {
-                // Exit: drop back below the stage on the same slow spatial spring.
-                faceRise.animateTo(-1f, spatialSlow)
-            }
-            overlayReveal.animateTo(0f, effectsSlow)
-            backdropAlpha.animateTo(0f, effectsSlow)
-            faceRise.snapTo(-1f)
-            faceScale.snapTo(0.94f)
-            faceAlpha.snapTo(1f)
-            transcriptAlpha.snapTo(0f)
-            overlayReveal.snapTo(0f)
+            runImmersiveExit(
+                backdropAlpha = backdropAlpha,
+                faceRise = faceRise,
+                faceScale = faceScale,
+                faceAlpha = faceAlpha,
+                transcriptAlpha = transcriptAlpha,
+                overlayReveal = overlayReveal,
+                spatialSpec = spatialSlow,
+                effectsSlowSpec = effectsSlow,
+                effectsDefaultSpec = effectsDefault,
+            )
             immersiveEnteredSession = -1
             onPresentationChanged(AssistantPresentation.Compact)
             onDismiss()
@@ -651,7 +614,7 @@ private fun ImmersiveAssistantDebugStrip(
 ) {
     if (debugInfo == null) return
     val logLines by AssistantDebugLog.lines.collectAsStateWithLifecycle()
-    val tagColor = Color(0xFF8AB4F8).copy(alpha = 0.85f)
+    val tagColor = AssistantTokens.Accent.copy(alpha = 0.85f)
     val logColor = Color(0xFFB0BEC5).copy(alpha = 0.9f)
     val errorColor = Color(0xFFFF8A80).copy(alpha = 0.95f)
     Column(
@@ -716,8 +679,11 @@ fun ImmersiveBackdrop(
         val w = size.width
         val h = size.height
         // Anchored under the bottom face dock — soft, not opaque.
-        val center = Offset(w * 0.5f, h * 0.84f)
-        val radius = minOf(w * 0.48f, h * 0.52f)
+        val center = Offset(w * 0.5f, h * AssistantOverlayTokens.BackdropCenterY)
+        val radius = minOf(
+            w * AssistantOverlayTokens.BackdropRadiusWidth,
+            h * AssistantOverlayTokens.BackdropRadiusHeight,
+        )
 
         drawRect(
             brush = Brush.radialGradient(
@@ -737,12 +703,12 @@ fun ImmersiveBackdrop(
                 brush = Brush.radialGradient(
                     colorStops = arrayOf(
                         0.0f to Color.Transparent,
-                        0.30f to Color(0x228AB4F8),
-                        0.62f to Color(0x148AB4F8),
+                        0.30f to AssistantTokens.PanelGlowSoft.copy(alpha = 0.13f),
+                        0.62f to AssistantTokens.PanelGlowSoft.copy(alpha = 0.08f),
                         1.0f to Color.Transparent,
                     ),
                     center = center,
-                    radius = radius * 1.18f,
+                    radius = radius * AssistantOverlayTokens.BackdropGlowRadiusMul,
                 ),
             )
         }
@@ -766,7 +732,7 @@ fun ImmersiveBackdrop(
 @Composable
 fun ImmersiveBorderGlow(
     modifier: Modifier = Modifier,
-    glowColor: Color = Color(0xFF8AB4F8),
+    glowColor: Color = AssistantTokens.Accent,
     windowInsets: WindowInsets = WindowInsets.systemBars,
     revealProgress: Float = 1f,
     speechActive: Boolean = false,
@@ -792,7 +758,10 @@ fun ImmersiveBorderGlow(
             sweepAngle.snapTo(0f)
             sweepAngle.animateTo(
                 targetValue = 360f,
-                animationSpec = tween(durationMillis = 18_000, easing = LinearEasing),
+                animationSpec = tween(
+                    durationMillis = AssistantOverlayTokens.BorderSweepMs,
+                    easing = LinearEasing,
+                ),
             )
         }
     }
@@ -815,7 +784,7 @@ fun ImmersiveBorderGlow(
             tint(Color(0xFF0E6B78)).toArgb(), // deep teal
             tint(Color(0xFF1AA8C4)).toArgb(), // cyan
             tint(Color(0xFF6EC8FF)).toArgb(), // ice blue
-            tint(Color(0xFF8AB4F8)).toArgb(), // soft panel blue
+            tint(AssistantTokens.Accent).toArgb(), // soft panel blue
             tint(Color(0xFF4A90D9)).toArgb(), // steel blue
             tint(Color(0xFF3DDBC8)).toArgb(), // aqua
             tint(Color(0xFF2A7F9E)).toArgb(), // blue-teal
@@ -850,7 +819,7 @@ fun ImmersiveBorderGlow(
         val w = size.width
         val h = size.height
         // Explicit bloom — rest ~52dp, idle inhale ~86dp, speech inhale ~96dp.
-        val thickness = 52.dp.toPx() * breath
+        val thickness = AssistantOverlayTokens.BorderThickness.toPx() * breath
         val cx = w * 0.5f
         val cy = h * 0.5f
 

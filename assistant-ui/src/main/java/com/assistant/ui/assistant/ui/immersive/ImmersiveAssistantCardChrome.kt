@@ -37,6 +37,8 @@ import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.face.ConfigurableAssistantFace
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.chrome.assistantChromePadding
+import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
+import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Card-hosted immersive chrome: face + transcript inside a glass panel that
@@ -53,7 +55,7 @@ fun ImmersiveAssistantCardChrome(
     gazeX: Float? = null,
     gazeY: Float? = null,
     mouthAmplitude: Float? = null,
-    brandGlow: Color = Color(0xFF8AB4F8),
+    brandGlow: Color = AssistantTokens.Accent,
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     showFace: Boolean = true,
@@ -87,15 +89,18 @@ fun ImmersiveAssistantCardChrome(
             .fillMaxSize()
             .windowInsetsPadding(WindowInsets.safeDrawing)
             .assistantChromePadding()
-            .padding(12.dp),
+            .padding(AssistantOverlayTokens.CardEdgePadding),
         contentAlignment = align,
     ) {
-        val sideWidth = (maxWidth * 0.36f).coerceIn(280.dp, 380.dp)
-        val bottomWidth = (maxWidth * 0.72f).coerceIn(320.dp, 720.dp)
-        val bottomHeight = (maxHeight * 0.38f).coerceIn(220.dp, 360.dp)
+        val sideWidth = (maxWidth * AssistantOverlayTokens.CardSideWidthFraction)
+            .coerceIn(AssistantOverlayTokens.CardSideWidthMin, AssistantOverlayTokens.CardSideWidthMax)
+        val bottomWidth = (maxWidth * AssistantOverlayTokens.CardBottomWidthFraction)
+            .coerceIn(AssistantOverlayTokens.CardBottomWidthMin, AssistantOverlayTokens.CardBottomWidthMax)
+        val bottomHeight = (maxHeight * AssistantOverlayTokens.CardBottomHeightFraction)
+            .coerceIn(AssistantOverlayTokens.CardBottomHeightMin, AssistantOverlayTokens.CardBottomHeightMax)
         val faceSize: Dp = when (placement) {
-            AssistantPlacement.BottomCard -> 120.dp
-            else -> 140.dp
+            AssistantPlacement.BottomCard -> AssistantOverlayTokens.CardBottomFaceSize
+            else -> AssistantOverlayTokens.CardSideFaceSize
         }
 
         val cardModifier = when (placement) {
@@ -107,7 +112,7 @@ fun ImmersiveAssistantCardChrome(
                 .padding(vertical = 8.dp)
             AssistantPlacement.BottomCard -> Modifier
                 .widthIn(max = bottomWidth)
-                .fillMaxWidth(0.92f)
+                .fillMaxWidth(AssistantOverlayTokens.CardBottomFillWidth)
                 .height(bottomHeight)
                 .padding(bottom = 8.dp)
             AssistantPlacement.Fullscreen -> Modifier
@@ -181,7 +186,7 @@ fun ImmersiveAssistantCardChrome(
 @Composable
 private fun PlacementCardSurface(
     brandGlow: Color,
-    corner: Dp = 28.dp,
+    corner: Dp = AssistantOverlayTokens.CardCorner,
     content: @Composable () -> Unit,
 ) {
     val shape = RoundedCornerShape(corner)
@@ -193,8 +198,8 @@ private fun PlacementCardSurface(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xEE1A1C20),
-                        Color(0xF2121418),
+                        AssistantTokens.SurfaceTop,
+                        AssistantTokens.Surface,
                     ),
                 ),
                 shape,
