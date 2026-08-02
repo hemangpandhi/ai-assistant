@@ -238,7 +238,12 @@ fun ImmersiveAssistantOverlay(
             when (effect) {
                 StageEffect.RequestListen -> Unit // mic owned by agent backend in production
                 StageEffect.ClusterHandOff -> host.openClusterHandOff()
-                StageEffect.FinishSession -> Unit
+                StageEffect.FinishSession -> {
+                    // Agent turn complete (or reduce of SessionComplete) — dismiss chrome.
+                    if (stageStore.state.visible) {
+                        stageStore.dispatch(StageIntent.Dismiss)
+                    }
+                }
                 StageEffect.StopSession -> backend.stopSession()
             }
         }
@@ -280,8 +285,11 @@ fun ImmersiveAssistantOverlay(
         hasPresentedSession = true
         launch {
             backend.events.collect { event ->
-                if (event is AssistantSessionEvent.SessionComplete && awaitHotword) {
-                    if (stageStore.state.visible) stageStore.dispatch(StageIntent.Dismiss)
+                if (event is AssistantSessionEvent.SessionComplete) {
+                    // All summon paths: done turn → dismiss (idle remains safety for continue turns).
+                    if (stageStore.state.visible) {
+                        stageStore.dispatch(StageIntent.Dismiss)
+                    }
                 } else if (event is AssistantSessionEvent.Error) {
                     stageStore.dispatch(StageIntent.BackendEvent(event))
                     stageStore.update {
@@ -330,7 +338,7 @@ fun ImmersiveAssistantOverlay(
     val backdropAlpha = remember { Animatable(0f) }
     /**
      * Face/dock entrance lift:
-     * -1 = off-screen below, +1 = stage center (peak), 0 = settled home.
+     * -1 = off-screen below, 0 = settled home.
      */
     val faceRise = remember { Animatable(-1f) }
     val faceScale = remember { Animatable(AssistantOverlayTokens.FaceHiddenScale) }
@@ -338,7 +346,7 @@ fun ImmersiveAssistantOverlay(
     val transcriptAlpha = remember { Animatable(0f) }
     /** 0 = hidden, 1 = fully presented (drives icon emerge / hotword wipe). */
     val overlayReveal = remember { Animatable(0f) }
-    // M3 expressive physics — slow spatial for the hero up/down path.
+    // M3 expressive physics — slow spatial for the hero slide-up path.
     val spatialSlow = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
     val effectsSlow = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
     val effectsDefault = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
@@ -371,8 +379,7 @@ fun ImmersiveAssistantOverlay(
                 transcriptAlpha.snapTo(0f)
                 overlayReveal.snapTo(0f)
                 faceAlpha.snapTo(1f)
-                // Start chime on first frame — do not wait for enter anim (was ~420–560ms late
-                // and competed with STT / media duck on USAGE_MEDIA).
+                // Start chime on first frame — do not wait for enter anim (was ~420–560ms late).
                 launch {
                     withFrameNanos { }
                     wake.play()

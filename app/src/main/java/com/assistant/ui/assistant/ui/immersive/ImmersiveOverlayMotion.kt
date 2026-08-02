@@ -49,7 +49,7 @@ internal suspend fun runImmersiveCardEnter(
 }
 
 /**
- * Face: bottom → center peak → settle home (wake word + icon launch).
+ * Face: bottom → settled home (wake word + icon launch).
  * Uses M3 expressive slow spatial springs (physics, not fixed keyframes).
  */
 internal suspend fun runImmersiveFullscreenEnter(
@@ -70,12 +70,9 @@ internal suspend fun runImmersiveFullscreenEnter(
             overlayReveal.animateTo(1f, effectsSpec)
         }
         launch {
-            // Soft scale punch travels with the spatial path.
-            faceScale.animateTo(AssistantOverlayTokens.FacePeakScale, spatialSpec)
             faceScale.animateTo(1f, spatialSpec)
         }
-        // Bottom → center, then spring down to settled home.
-        faceRise.animateTo(1f, spatialSpec)
+        // Bottom → settled home (no peak overshoot).
         faceRise.animateTo(0f, spatialSpec)
     } finally {
         if (overlayReveal.value < 0.99f) overlayReveal.snapTo(1f)

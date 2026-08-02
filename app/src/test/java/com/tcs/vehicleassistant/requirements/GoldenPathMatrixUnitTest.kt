@@ -69,6 +69,13 @@ class GoldenPathMatrixUnitTest {
         expectDirect("I am feeling cold", "handleFeelingCold")
         expectDirect("clear windshield", "turnOnDefroster")
         expectDirect("turn on climate control", "turnOnHvacPower")
+        expectDirect("open climate screen", "openClimateScreen")
+        expectDirect("show climate panel", "openClimateScreen")
+        expectDirect("open climate", "openClimateScreen")
+        expectDirect("open vehicle screen", "openVehicleScreen")
+        expectDirect("what's my charging level", "openVehicleScreen")
+        expectDirect("is the car charging", "openVehicleScreen")
+        expectDirect("battery level", "openVehicleScreen")
     }
 
     @Test

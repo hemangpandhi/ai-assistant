@@ -47,7 +47,7 @@ private val FaceTowardTranscriptNudge = AssistantOverlayTokens.FaceTowardTranscr
  * local [FaceStageDock] glass plate + face (optional floating context glyph) +
  * [ImmersiveTranscript].
  *
- * [faceRise] entrance lift: -1 = off-screen below, +1 = stage center, 0 = settled.
+ * [faceRise] entrance lift: -1 = off-screen below, 0 = settled.
  *
  * [faceContent] replaces [ConfigurableAssistantFace] when provided (e.g. Weather sink).
  * [floatContextGlyph] shows the Material icon above Fusion Eyes; Weather sink keeps this off
@@ -74,7 +74,7 @@ fun ImmersiveAssistantBottomChrome(
     faceScale: Float = 1f,
     faceAlpha: Float = 1f,
     transcriptAlpha: Float = 1f,
-    /** Multiplier on the ~37.5%-of-stage face size (e.g. 1.05f for Weather sink). */
+    /** Multiplier on the ~32%-of-stage face size (e.g. 1.05f for Weather sink). */
     faceSizeScale: Float = 1f,
     faceCues: AssistantFaceCues? = null,
     faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)? = null,
@@ -97,24 +97,20 @@ fun ImmersiveAssistantBottomChrome(
                 bottom = 0.dp,
             ),
     ) {
-        // Face targets ~37.5% of the immersive stage (app area) height (1.5× prior 25%).
+        // Face targets ~32% of the immersive stage (app area) height.
         val faceSize = (maxHeight * AssistantOverlayTokens.FaceStageHeightFraction * faceSizeScale)
             .coerceIn(AssistantOverlayTokens.FaceSizeMin, AssistantOverlayTokens.FaceSizeMax)
         val glyphSize = (faceSize * AssistantOverlayTokens.GlyphSizeFraction)
             .coerceIn(AssistantOverlayTokens.GlyphSizeMin, AssistantOverlayTokens.GlyphSizeMax)
         val density = LocalDensity.current
-        // Travel distances for bottom → center → settle entrance.
+        // Travel distance for bottom → settled entrance (-1 → 0).
         val belowPx = with(density) {
             (maxHeight * AssistantOverlayTokens.FaceBelowTravelFraction).toPx()
         }
-        // Peak lift — keep below true stage center so the arc doesn't overshoot.
-        val centerPx = with(density) {
-            (maxHeight * AssistantOverlayTokens.FaceCenterTravelFraction).toPx()
-        }
         val entranceY = when {
-            faceRise >= 0f -> -faceRise * centerPx // up toward center
-            else -> -faceRise * belowPx // faceRise=-1 → push below
-        }.roundToInt()
+            faceRise >= 0f -> 0
+            else -> (-faceRise * belowPx).roundToInt() // faceRise=-1 → push below
+        }
         // Diameter ≥ ~2× face+transcript stack so the semicircle's 0% rim clears
         // the top of the chrome (avoids left/right clip → hard edges).
         val estimatedStack = faceSize + AssistantOverlayTokens.EstimatedStackExtra

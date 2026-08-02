@@ -1,5 +1,6 @@
 package com.tcs.vehicleassistant.handlers
 
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -17,6 +18,13 @@ class SystemToolHandler(
 
     private companion object {
         const val TAG = "SystemToolHandler"
+        const val DESIGN_PACKAGE = "com.test.design"
+        const val OPEN_CLIMATE_ACTION = "com.test.design.action.OPEN_CLIMATE"
+        const val CLIMATE_PANEL_ACTIVITY =
+            "com.test.design.presentation.ivi.glanceables.ClimatePanelActivity"
+        const val OPEN_VEHICLE_ACTION = "com.test.design.action.OPEN_VEHICLE"
+        const val VEHICLE_PANEL_ACTIVITY =
+            "com.test.design.presentation.ivi.glanceables.VehiclePanelActivity"
     }
 
     override suspend fun execute(
@@ -111,6 +119,24 @@ class SystemToolHandler(
                     ToolExecutionResult(false, "I couldn't open the app.")
                 }
             }
+            "openClimateScreen" -> launchDesignPanel(
+                action = OPEN_CLIMATE_ACTION,
+                activityClass = CLIMATE_PANEL_ACTIVITY,
+                intentHandler = intentHandler,
+                context = context,
+                successFallback = "Opening the climate screen.",
+                errorFallback = "I couldn't open the climate screen.",
+                logLabel = "climate panel",
+            )
+            "openVehicleScreen" -> launchDesignPanel(
+                action = OPEN_VEHICLE_ACTION,
+                activityClass = VEHICLE_PANEL_ACTIVITY,
+                intentHandler = intentHandler,
+                context = context,
+                successFallback = "Opening the vehicle info screen.",
+                errorFallback = "I couldn't open the vehicle info screen.",
+                logLabel = "vehicle panel",
+            )
             "sendUpcomingEventReminder" -> {
                 ToolExecutionResult(true, "You have a meeting scheduled in 30 minutes.")
             }
@@ -215,6 +241,28 @@ class SystemToolHandler(
             ToolExecutionResult(true, toolDefinition?.successMessage ?: successMessage)
         } else {
             ToolExecutionResult(false, toolDefinition?.errorMessage ?: "Cabin light change was not confirmed.")
+        }
+    }
+
+    private fun launchDesignPanel(
+        action: String,
+        activityClass: String,
+        intentHandler: ((Intent) -> Unit)?,
+        context: Context,
+        successFallback: String,
+        errorFallback: String,
+        logLabel: String,
+    ): ToolExecutionResult {
+        val intent = Intent(action).apply {
+            component = ComponentName(DESIGN_PACKAGE, activityClass)
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+        }
+        return try {
+            if (intentHandler != null) intentHandler(intent) else context.startActivity(intent)
+            ToolExecutionResult(true, toolDefinition?.successMessage ?: successFallback)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to launch $logLabel", e)
+            ToolExecutionResult(false, toolDefinition?.errorMessage ?: errorFallback)
         }
     }
 }

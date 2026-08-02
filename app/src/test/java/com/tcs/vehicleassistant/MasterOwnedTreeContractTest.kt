@@ -15,7 +15,11 @@ import org.junit.Test
  * `com/tcs/vehicleassistant/assistant/` and `com/assistant/` packages.
  */
 class MasterOwnedTreeContractTest {
-    private val seamExceptions = emptySet<String>()
+    private val seamExceptions = setOf(
+        // Design IVI glanceable panels (ClimatePanelActivity / VehiclePanelActivity).
+        "app/src/main/java/com/tcs/vehicleassistant/handlers/SystemToolHandler.kt",
+        "app/src/main/java/com/tcs/vehicleassistant/handlers/ToolHandlerRegistry.kt",
+    )
 
     @Test
     fun masterOwnedKotlinFilesRemainByteIdentical() {

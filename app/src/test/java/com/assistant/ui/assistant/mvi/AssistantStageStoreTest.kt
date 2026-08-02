@@ -3,6 +3,7 @@ package com.assistant.ui.assistant.mvi
 import com.assistant.ui.assistant.api.AssistantSessionEvent
 import com.assistant.ui.assistant.api.AssistantMoodId
 import com.assistant.ui.assistant.api.AssistantSpeaker
+import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.face.AssistantMood
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -15,6 +16,8 @@ class AssistantStageStoreTest {
         val (state, effects) = reduceStage(StageState(), StageIntent.Summon)
         assertTrue(state.visible)
         assertEquals(AssistantMood.Listening, state.mood)
+        assertEquals("", state.transcript)
+        assertEquals(DialogueSpeaker.User, state.speaker)
         assertTrue(effects.any { it is StageEffect.RequestListen })
     }
 
@@ -67,5 +70,17 @@ class AssistantStageStoreTest {
             ),
         )
         assertEquals(null, state.faceCues)
+    }
+
+    @Test
+    fun sessionComplete_hidesAndEmitsFinishStop() {
+        val (state, effects) = reduceStage(
+            StageState(visible = true, mood = AssistantMood.Speaking),
+            StageIntent.BackendEvent(AssistantSessionEvent.SessionComplete),
+        )
+        assertEquals(false, state.visible)
+        assertEquals(AssistantMood.Idle, state.mood)
+        assertTrue(effects.any { it is StageEffect.FinishSession })
+        assertTrue(effects.any { it is StageEffect.StopSession })
     }
 }

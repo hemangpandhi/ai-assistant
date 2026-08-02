@@ -56,8 +56,9 @@ fun reduceStage(state: StageState, intent: StageIntent): Pair<StageState, List<S
             visible = true,
             session = state.session + 1,
             mood = AssistantMood.Listening,
-            transcript = "Listening…",
-            speaker = DialogueSpeaker.System,
+            // Blank until live STT partials — no "Listening…" status caption.
+            transcript = "",
+            speaker = DialogueSpeaker.User,
             lastError = null,
             mouthAmplitude = null,
             faceCues = null,
@@ -131,11 +132,10 @@ private fun reduceBackendEvent(
 
         AssistantSessionEvent.SessionComplete ->
             state.copy(
-                mood = AssistantMood.Listening,
-                transcript = "Listening…",
-                speaker = DialogueSpeaker.System,
+                visible = false,
+                mood = AssistantMood.Idle,
                 mouthAmplitude = null,
                 faceCues = null,
-            ) to listOf(StageEffect.FinishSession)
+            ) to listOf(StageEffect.FinishSession, StageEffect.StopSession)
     }
 }

@@ -133,7 +133,7 @@ fun LiveInputText(
     var committedText by remember { mutableStateOf("") }
     val reveal = remember { Animatable(0f) }
 
-    LaunchedEffect(text, speaking) {
+    LaunchedEffect(text, speaking, live) {
         val nextTokens = liveInputTokens(text)
         val prevTokens = liveInputTokens(committedText)
         val shared = liveInputSharedPrefixCount(prevTokens, nextTokens)
@@ -143,6 +143,12 @@ fun LiveInputText(
             text.isBlank() -> {
                 reveal.snapTo(0f)
                 committedText = ""
+            }
+
+            // Live STT: commit immediately — Google already paces partials.
+            live && !speaking -> {
+                reveal.snapTo(target)
+                committedText = text
             }
 
             // Prefix-stable growth / light correction — retarget without rewinding.

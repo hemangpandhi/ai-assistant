@@ -30,16 +30,15 @@ internal object AssistantOverlayTokens {
     val BottomChromePaddingEnd = 32.dp
     val BottomChromeDockPadding = 12.dp
     // Pull face toward transcript; canvas chin/glow otherwise reads as a large gap.
-    val FaceTowardTranscriptNudge = 58.dp
-    val FaceStageHeightFraction = 0.375f
+    val FaceTowardTranscriptNudge = 76.dp
+    // ~32% of stage height (~15% smaller than prior 37.5%).
+    val FaceStageHeightFraction = 0.32f
     val FaceSizeMin = 88.dp
     val FaceSizeMax = 480.dp
     val GlyphSizeFraction = 0.38f
     val GlyphSizeMin = 40.dp
     val GlyphSizeMax = 96.dp
     val FaceBelowTravelFraction = 0.38f
-    // Peak lift — keep below true stage center so the arc doesn't overshoot.
-    val FaceCenterTravelFraction = 0.26f
     val DockWidthFaceMul = 2.5f
     val DockWidthStackMul = 2.2f
     val DockWidthMin = 320.dp
@@ -58,7 +57,6 @@ internal object AssistantOverlayTokens {
     const val CardRevealMs = 380
     const val CardStartScale = 0.96f
     const val FaceStartScale = 0.88f
-    const val FacePeakScale = 1.05f
     const val FaceHiddenScale = 0.94f
 
     // Border glow

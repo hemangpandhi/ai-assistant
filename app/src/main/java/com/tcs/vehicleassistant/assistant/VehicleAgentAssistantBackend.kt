@@ -53,6 +53,7 @@ class VehicleAgentAssistantBackend(
     private var uiCollectJob: Job? = null
     private var eventCollectJob: Job? = null
     private var listenJob: Job? = null
+    private var sttDismissJob: Job? = null
     private var pendingFinalQuery: String? = null
     /** True after onReadyForSpeech until stop / result / error. */
     private var micArmed = false
@@ -97,38 +98,36 @@ class VehicleAgentAssistantBackend(
         }
         eventCollectJob = scope.launch {
             vm.events.collect { event ->
-                when (event) {
-                    is ViewModelEvent.StartListening -> {
+                when (sessionTurnPolicyFor(event)) {
+                    SessionTurnPolicy.Continue -> {
                         AssistantDebugLog.d(TAG, "event StartListening")
                         scheduleStartMic(reason = "orchestrator", delayMs = 350L, force = true)
                     }
-                    is ViewModelEvent.SetInputText -> {
-                        if (event.text.isNotBlank()) {
-                            // Do not clear micArmed here — partials arrive while STT is still live.
-                            // Clearing it caused attach/requestListen to fight the recognizer.
-                            AssistantDebugLog.d(TAG, "user: ${event.text.take(48)}")
-                            _events.emit(
-                                AssistantSessionEvent.Transcript(
-                                    text = event.text,
-                                    speaker = AssistantSpeaker.User,
-                                ),
-                            )
-                            emitMood(AssistantMoodId.Listening)
+                    SessionTurnPolicy.Complete -> {
+                        // Agent says turn is done (e.g. play music) — dismiss overlay.
+                        // Continue turns use StartListening (wellness offer / question).
+                        AssistantDebugLog.d(TAG, "event FinishSession → SessionComplete")
+                        stopSession()
+                        emitMood(AssistantMoodId.Idle)
+                        _events.emit(AssistantSessionEvent.SessionComplete)
+                    }
+                    null -> when (event) {
+                        is ViewModelEvent.SetInputText -> {
+                            if (event.text.isNotBlank()) {
+                                // Do not clear micArmed here — partials arrive while STT is still live.
+                                // Clearing it caused attach/requestListen to fight the recognizer.
+                                AssistantDebugLog.d(TAG, "user: ${event.text.take(48)}")
+                                _events.emit(
+                                    AssistantSessionEvent.Transcript(
+                                        text = event.text,
+                                        speaker = AssistantSpeaker.User,
+                                    ),
+                                )
+                                emitMood(AssistantMoodId.Listening)
+                            }
                         }
+                        else -> Unit
                     }
-                    is ViewModelEvent.FinishSession -> {
-                        micArmed = false
-                        AssistantDebugLog.d(TAG, "event FinishSession → re-arm mic")
-                        emitMood(AssistantMoodId.Listening)
-                        _events.emit(
-                            AssistantSessionEvent.Transcript(
-                                text = "Listening…",
-                                speaker = AssistantSpeaker.System,
-                            ),
-                        )
-                        scheduleStartMic(reason = "finish-retry", delayMs = 500L, force = true)
-                    }
-                    else -> Unit
                 }
             }
         }
@@ -152,23 +151,23 @@ class VehicleAgentAssistantBackend(
         micArmed = false
         clientErrorRetries = 0
         sherpaModelsMissing = false
+        sttDismissJob?.cancel()
+        sttDismissJob = null
         AssistantDebugLog.clear()
         AssistantDebugLog.d(TAG, "startSession reason=$reason")
         viewModel?.resetUiState()
         scope.launch {
             emitMood(AssistantMoodId.Listening)
-            _events.emit(
-                AssistantSessionEvent.Transcript(
-                    text = when (reason) {
-                        AssistantStartReason.Hotword -> "Listening…"
-                        else -> "Hi, how can I help you?"
-                    },
-                    speaker = AssistantSpeaker.System,
-                ),
-            )
+            // No status captions ("Listening…") — stage stays blank until STT partials.
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
-        scheduleStartMic(reason = "startSession:$reason", delayMs = 1_400L, force = true)
+        // Open the ear ASAP. Wake-word AudioRecord stop needs a short settle only;
+        // the old 1.4s wait made press-to-listen feel broken vs Gemini.
+        scheduleStartMic(
+            reason = "startSession:$reason",
+            delayMs = MIC_OPEN_DELAY_MS,
+            force = true,
+        )
     }
 
     override fun stopSession() {
@@ -176,6 +175,8 @@ class VehicleAgentAssistantBackend(
         _sessionActive.value = false
         listenJob?.cancel()
         listenJob = null
+        sttDismissJob?.cancel()
+        sttDismissJob = null
         micArmed = false
         runCatching { audioManager?.stopListening() }
     }
@@ -221,7 +222,7 @@ class VehicleAgentAssistantBackend(
                 _events.emit(AssistantSessionEvent.MouthAmplitude((0.15f + n * 0.55f).coerceIn(0f, 1f)))
             }
             AssistantSpeechInput.Hotword ->
-                scheduleStartMic(reason = "hotword-input", delayMs = 700L, force = true)
+                scheduleStartMic(reason = "hotword-input", delayMs = MIC_OPEN_DELAY_MS, force = true)
         }
     }
 
@@ -236,7 +237,7 @@ class VehicleAgentAssistantBackend(
             return
         }
         AssistantDebugLog.d(TAG, "requestListen")
-        scheduleStartMic(reason = "session-request", delayMs = 1_400L, force = true)
+        scheduleStartMic(reason = "session-request", delayMs = MIC_OPEN_DELAY_MS, force = true)
     }
 
     private fun scheduleStartMic(
@@ -315,12 +316,16 @@ class VehicleAgentAssistantBackend(
             // Prefer stop-only: destroySpeechRecognizer() nulls Sherpa and races AudioRecord
             // release, which surfaces as error code 0 → "Unknown recognition error".
             if (force) {
+                val wasArmed = micArmed
                 runCatching { audio.stopListening() }
                 if (rebuildRecognizer) {
                     runCatching { audio.destroySpeechRecognizer() }
                 }
-                // Settle so prior AudioRecord / Google recognizer can release the mic.
-                delay(if (rebuildRecognizer) MIC_REBUILD_SETTLE_MS else MIC_RESTART_SETTLE_MS)
+                // Settle only when a prior capture may still hold the mic.
+                // Cold open (micArmed=false) skips the 250ms pause for Gemini-like TTFR.
+                if (wasArmed || rebuildRecognizer) {
+                    delay(if (rebuildRecognizer) MIC_REBUILD_SETTLE_MS else MIC_RESTART_SETTLE_MS)
+                }
             }
             audio.startListening()
             AssistantDebugLog.d(
@@ -349,14 +354,23 @@ class VehicleAgentAssistantBackend(
             is AssistantUiState.Listening -> {
                 micArmed = true
                 clientErrorRetries = 0
-                AssistantDebugLog.d(TAG, "ui Listening (ready)")
-                emitMood(AssistantMoodId.Listening)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = "Listening…",
-                        speaker = AssistantSpeaker.System,
-                    ),
+                sttDismissJob?.cancel()
+                sttDismissJob = null
+                AssistantDebugLog.d(
+                    TAG,
+                    "ui Listening partial='${state.partialText.take(48)}'",
                 )
+                emitMood(AssistantMoodId.Listening)
+                // Live captions only — never clobber with "Listening…".
+                // Blank ready-for-speech keeps the prior transcript (or empty stage).
+                if (state.partialText.isNotBlank()) {
+                    _events.emit(
+                        AssistantSessionEvent.Transcript(
+                            text = state.partialText,
+                            speaker = AssistantSpeaker.User,
+                        ),
+                    )
+                }
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                 _events.emit(AssistantSessionEvent.FaceCuesChanged(null))
             }
@@ -364,12 +378,16 @@ class VehicleAgentAssistantBackend(
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Thinking")
                 emitMood(AssistantMoodId.Thinking)
-                _events.emit(
-                    AssistantSessionEvent.Transcript(
-                        text = "Thinking…",
-                        speaker = AssistantSpeaker.System,
-                    ),
-                )
+                // Keep the user's last utterance visible — no "Thinking…" placeholder.
+                val query = state.userQuery?.trim().orEmpty()
+                if (query.isNotBlank()) {
+                    _events.emit(
+                        AssistantSessionEvent.Transcript(
+                            text = query,
+                            speaker = AssistantSpeaker.User,
+                        ),
+                    )
+                }
             }
             is AssistantUiState.Streaming -> {
                 micArmed = false
@@ -394,34 +412,42 @@ class VehicleAgentAssistantBackend(
                 if (missingModels) {
                     sherpaModelsMissing = true
                 }
-                val display = if (missingModels) STT_MODELS_MISSING_MSG else raw
+                val display = when {
+                    missingModels -> STT_MODELS_MISSING_MSG
+                    else -> friendlySttErrorMessage(raw)
+                }
                 AssistantDebugLog.e(TAG, "ui Error: $display (raw=$raw)")
                 emitMood(AssistantMoodId.Sad)
                 _events.emit(AssistantSessionEvent.Error(display))
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
 
-                // Do not retry when Whisper sideloads are absent — same failure forever.
-                if (missingModels) return
-
-                // Recoverable STT failures: CLIENT/BUSY, AudioRecord contention, etc.
-                val recoverable = msg.contains("client") ||
-                    msg.contains("busy") ||
-                    msg.contains("unknown recognition") ||
-                    msg.contains("audio recording") ||
-                    msg.contains("(5)") ||
-                    msg.contains("(8)")
-                if (recoverable && clientErrorRetries < 2 && _sessionActive.value) {
-                    clientErrorRetries += 1
-                    AssistantDebugLog.w(
-                        TAG,
-                        "STT retry #$clientErrorRetries after: $raw",
+                when (
+                    sttErrorPolicyFor(
+                        raw,
+                        missingModels = missingModels,
+                        retryCount = clientErrorRetries,
                     )
-                    scheduleStartMic(
-                        reason = "stt-retry",
-                        delayMs = 350L,
-                        force = true,
-                        rebuildRecognizer = true,
-                    )
+                ) {
+                    SttErrorPolicy.Hold -> Unit
+                    SttErrorPolicy.Retry -> {
+                        if (!_sessionActive.value) return
+                        clientErrorRetries += 1
+                        AssistantDebugLog.w(
+                            TAG,
+                            "STT retry #$clientErrorRetries after: $raw",
+                        )
+                        scheduleStartMic(
+                            reason = "stt-retry",
+                            delayMs = 350L,
+                            force = true,
+                            rebuildRecognizer = true,
+                        )
+                    }
+                    SttErrorPolicy.Complete -> {
+                        // Master ViewModel leaves Error open for XML mic retry; immersive
+                        // has no affordance — dismiss shortly so the session does not stick.
+                        scheduleSttErrorDismiss(raw)
+                    }
                 }
             }
         }
@@ -454,6 +480,21 @@ class VehicleAgentAssistantBackend(
         return triplet("base.en") || triplet("tiny.en")
     }
 
+    private fun scheduleSttErrorDismiss(rawError: String) {
+        if (!_sessionActive.value) return
+        sttDismissJob?.cancel()
+        AssistantDebugLog.d(TAG, "STT terminal error → SessionComplete shortly ($rawError)")
+        sttDismissJob = scope.launch {
+            delay(STT_ERROR_DISMISS_MS)
+            if (!_sessionActive.value) return@launch
+            // Clear before stopSession() so it does not cancel this coroutine mid-emit.
+            sttDismissJob = null
+            stopSession()
+            emitMood(AssistantMoodId.Idle)
+            _events.emit(AssistantSessionEvent.SessionComplete)
+        }
+    }
+
     private suspend fun emitMood(mood: AssistantMoodId) {
         _events.emit(AssistantSessionEvent.MoodChanged(mood))
     }
@@ -483,8 +524,15 @@ class VehicleAgentAssistantBackend(
 
     companion object {
         private const val TAG = "VehicleAgentBackend"
+        /**
+         * Brief pause so wake-word AudioRecord can release before agent STT.
+         * Keep tiny — Google / Gemini open the ear almost immediately on tap.
+         */
+        private const val MIC_OPEN_DELAY_MS = 80L
         private const val MIC_RESTART_SETTLE_MS = 250L
         private const val MIC_REBUILD_SETTLE_MS = 450L
+        /** Brief beat so "I didn't catch that." is readable before dismiss. */
+        private const val STT_ERROR_DISMISS_MS = 1_200L
         private const val STT_MODELS_MISSING_MSG =
             "STT models missing — push Whisper to /data/local/tmp/stt (see docs/MODEL_SIDELOAD.md)"
     }

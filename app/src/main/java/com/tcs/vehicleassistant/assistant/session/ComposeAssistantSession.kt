@@ -8,8 +8,6 @@ import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.LatencyLogger
 
-import com.tcs.vehicleassistant.hardware.AssistantAudioFocusDucker
-
 import android.app.Activity
 import android.app.ActivityManager
 import android.app.Application
@@ -50,6 +48,7 @@ import androidx.savedstate.SavedStateRegistryOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import com.assistant.ui.assistant.api.AssistantDebugLog
 import com.assistant.ui.assistant.api.AssistantRuntime
+import com.assistant.ui.assistant.audio.AssistantSessionAudioFocus
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
 import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
@@ -118,7 +117,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private var currentDisplayLength = 0
     private val typingSpeedMs: Long = 15L
     private var unloadJob: Job? = null
-    private val fallbackAudioFocusDucker = AssistantAudioFocusDucker(context)
+    private val sessionAudioFocus = AssistantSessionAudioFocus(context)
     /** Countdown that closes the overlay after quiet listening. */
     private var idleJob: Job? = null
     /** Collects uiState / events to arm or pause [idleJob]. */
@@ -223,9 +222,9 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 audioManager,
                 context,
             )
-            // Duck as soon as the agent audio manager is ready (may have missed onShow).
+            // Re-assert exclusive focus once the agent is bound (may have missed onShow).
             if (sessionUiVisible) {
-                fallbackAudioFocusDucker.request()
+                sessionAudioFocus.request()
             }
             if (usingComposeUi) {
                 startObservingComposeAgentEvents()
@@ -260,8 +259,8 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
         audioManager?.destroySpeechRecognizer()
-        // Restore music volume immediately when the overlay goes away.
-        fallbackAudioFocusDucker.abandon()
+        // Release exclusive focus so paused media can resume.
+        sessionAudioFocus.abandon()
 
         observerScope.launch {
             // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
@@ -376,7 +375,8 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             setContent {
                 AssistantTheme(darkTheme = true) {
                     VirtualAssistantOverlay(
-                        onDismiss = { hide() },
+                        // hide()+finish — some AAOS builds keep the VIS window after hide alone.
+                        onDismiss = { dismissForExternalUi("compose-overlay-dismiss") },
                         modifier = Modifier.fillMaxSize(),
                         awaitHotword = false,
                         // Wait for onShow → notifyImmersiveAssistantSummon(origin).
@@ -653,6 +653,15 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         // Calling hide() first cleared sessionUiVisible and skipped finish().
                         dismissForExternalUi("compose-launch-intent")
                     }
+                    is ViewModelEvent.FinishSession -> {
+                        // Match XML FinishSession → finish(); play Compose exit first.
+                        AssistantDebugLog.d("Session", "FinishSession — close overlay + session")
+                        notifyImmersiveAssistantDismiss()
+                        observerScope.launch {
+                            delay(320L)
+                            dismissForExternalUi("compose-finish-session")
+                        }
+                    }
                     is ViewModelEvent.ShowToast ->
                         Toast.makeText(context, event.message, Toast.LENGTH_SHORT).show()
                     else -> Unit
@@ -761,8 +770,8 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         registerDismissWatchers()
         startIdleWatch()
 
-        // Duck music immediately — do not wait for STT (~1.4s) or service bind.
-        fallbackAudioFocusDucker.request()
+        // Take exclusive focus immediately so media pauses for the assistant.
+        sessionAudioFocus.request()
 
         window?.window?.setLayout(
             ViewGroup.LayoutParams.MATCH_PARENT,

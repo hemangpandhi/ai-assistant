@@ -772,38 +772,20 @@ private fun DrawScope.drawFusionHead(
     )
 }
 
-private fun fusionVisorPath(w: Float, h: Float): Path = Path().apply {
-    moveTo(w * 0.18f, h * 0.34f)
-    cubicTo(w * 0.26f, h * 0.22f, w * 0.74f, h * 0.22f, w * 0.82f, h * 0.34f)
-    cubicTo(w * 0.88f, h * 0.44f, w * 0.86f, h * 0.62f, w * 0.76f, h * 0.68f)
-    cubicTo(w * 0.66f, h * 0.73f, w * 0.58f, h * 0.76f, w * 0.50f, h * 0.76f)
-    cubicTo(w * 0.42f, h * 0.76f, w * 0.34f, h * 0.73f, w * 0.24f, h * 0.68f)
-    cubicTo(w * 0.14f, h * 0.62f, w * 0.12f, h * 0.44f, w * 0.18f, h * 0.34f)
-    close()
-}
-
+/** Solid black rounded-rect visor — darker plate housing eyes + mouth in the shell. */
 private fun DrawScope.drawFusionVisor(visorColor: Color) {
     val w = size.width
     val h = size.height
-    val p = fusionVisorPath(w, h)
-    drawPath(path = p, color = visorColor)
-    drawPath(
-        path = p,
-        brush = Brush.verticalGradient(
-            colors = listOf(
-                Color.White.copy(alpha = 0.06f),
-                Color.Transparent,
-                Color.Black.copy(alpha = 0.45f),
-            ),
-            startY = h * 0.22f,
-            endY = h * 0.76f,
-        ),
-    )
+    val left = w * 0.20f
+    val top = h * 0.30f
+    val visorW = w * 0.60f
+    val visorH = h * 0.44f
+    val corner = CornerRadius(w * 0.08f, w * 0.08f)
     drawRoundRect(
-        color = Color.White.copy(alpha = 0.22f),
-        topLeft = Offset(w * 0.44f, h * 0.28f),
-        size = Size(w * 0.12f, h * 0.024f),
-        cornerRadius = CornerRadius(h * 0.02f, h * 0.02f),
+        color = visorColor,
+        topLeft = Offset(left, top),
+        size = Size(visorW, visorH),
+        cornerRadius = corner,
     )
 }
 

@@ -35,6 +35,15 @@
             <action android:name="android.speech.RecognitionService" />
         </intent>
         <package android:name="com.google.android.googlequicksearchbox" />
+
+        <!-- Design IVI glanceable panels -->
+        <package android:name="com.test.design" />
+        <intent>
+            <action android:name="com.test.design.action.OPEN_CLIMATE" />
+        </intent>
+        <intent>
+            <action android:name="com.test.design.action.OPEN_VEHICLE" />
+        </intent>
     </queries>
 
     <!-- Permissions required for downloading the model -->

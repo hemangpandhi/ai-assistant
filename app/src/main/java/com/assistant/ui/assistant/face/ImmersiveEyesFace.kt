@@ -555,6 +555,9 @@ fun ImmersiveEyesFace(
 
             val liveTilt = tilt.value + 0.35f * sin(life * 0.28f).toFloat()
             rotate(liveTilt, pivot = Offset(cx, cy)) {
+                // Solid darker plate housing eyes + mouth — frame (glossy shell) stays unchanged.
+                drawImmersiveVisor(cx = cx, cy = cy, faceR = faceR)
+
                 val open = (eyeOpen.value * blink.value).coerceIn(0.05f, 1.12f)
                 val gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
                 val eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
@@ -641,6 +644,23 @@ fun ImmersiveEyesFace(
             }
         }
     }
+}
+
+/**
+ * Solid black rounded-rect visor inset in the glossy SemiCircle frame.
+ * Sized to house eyes + mouth without shifting their geometry.
+ */
+private fun DrawScope.drawImmersiveVisor(cx: Float, cy: Float, faceR: Float) {
+    val halfW = faceR * 0.70f
+    val top = cy - faceR * 0.38f
+    val height = faceR * 0.88f
+    val corner = faceR * 0.12f
+    drawRoundRect(
+        color = Color.Black,
+        topLeft = Offset(cx - halfW, top),
+        size = Size(halfW * 2f, height),
+        cornerRadius = CornerRadius(corner, corner),
+    )
 }
 
 /** Immersive capsule eyes — [glowStrength] 0..1 morphs pale rings ↔ EPORO purple bloom. */
@@ -775,8 +795,9 @@ internal fun DrawScope.drawNomiGlyphEye(
             )
             val innerW = w * 0.52f
             val innerH = h * 0.52f
+            // Punch through to the solid black visor behind the ring.
             drawRoundRect(
-                color = NomiFaceBlack,
+                color = Color.Black,
                 topLeft = Offset(center.x - innerW, center.y - innerH),
                 size = Size(innerW * 2f, innerH * 2f),
                 cornerRadius = CornerRadius(innerW, innerW),
