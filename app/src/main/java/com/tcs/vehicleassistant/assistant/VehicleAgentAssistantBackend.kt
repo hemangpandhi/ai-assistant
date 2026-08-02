@@ -11,9 +11,11 @@ import com.assistant.ui.assistant.api.AssistantSessionEvent
 import com.assistant.ui.assistant.api.AssistantSpeaker
 import com.assistant.ui.assistant.api.AssistantSpeechInput
 import com.assistant.ui.assistant.api.AssistantStartReason
+import com.assistant.api.face.PendingToolFaceCues
 import com.assistant.ui.assistant.api.FaceCueParser
 import com.assistant.ui.assistant.api.FaceMoodResolver
 import com.assistant.ui.assistant.api.MoodTagParser
+import com.assistant.ui.assistant.api.ToolFaceCues
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
@@ -374,6 +376,7 @@ class VehicleAgentAssistantBackend(
     private suspend fun mapUiState(state: AssistantUiState) {
         when (state) {
             is AssistantUiState.Idle -> {
+                PendingToolFaceCues.clear()
                 emitPipelineMood(AssistantMoodId.Idle)
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                 _events.emit(AssistantSessionEvent.FaceCuesChanged(null))
@@ -389,6 +392,7 @@ class VehicleAgentAssistantBackend(
                 )
                 // Fresh turn — drop prior LLM face tint until the next reply.
                 affectiveMood = null
+                PendingToolFaceCues.clear()
                 emitPipelineMood(AssistantMoodId.Listening)
                 // Live captions only — never clobber with "Listening…".
                 // Blank ready-for-speech keeps the prior transcript (or empty stage).
@@ -575,14 +579,18 @@ class VehicleAgentAssistantBackend(
         }
 
         val faceParsed = FaceCueParser.parse(moodParsed.cleanedText)
-        if (faceParsed.found) {
-            _events.emit(
-                AssistantSessionEvent.FaceCuesChanged(
-                    faceParsed.cues?.takeUnless { it.isEmpty },
-                ),
-            )
-        }
         val text = faceParsed.cleanedText.ifBlank { moodParsed.cleanedText }.ifBlank { raw }
+        val cues = when {
+            faceParsed.found -> faceParsed.cues?.takeUnless { it.isEmpty }
+            else -> {
+                // DirectTool weather / music / nav has no <face> tags — use pending / spoken infer.
+                ToolFaceCues.forIconId(PendingToolFaceCues.take())
+                    ?: ToolFaceCues.fromSpokenText(text)
+            }
+        }
+        if (faceParsed.found || cues != null) {
+            _events.emit(AssistantSessionEvent.FaceCuesChanged(cues))
+        }
         _events.emit(
             AssistantSessionEvent.Transcript(
                 text = text,

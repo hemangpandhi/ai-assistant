@@ -6,7 +6,7 @@ package com.assistant.api.face
  * Slot keys: [LEFT_EYE], [RIGHT_EYE], [MOUTH], [LEFT_ACCENT], [RIGHT_ACCENT].
  * Null / omitted / empty / `"none"` keeps the geometric face part for that slot.
  * Eyes stay geometric unless that eye slot is set (icons fully replace geometry).
- * Accents sit at the top-left / top-right of the face (above the eyes), not center.
+ * Accents sit on the cheeks (between eyes and mouth), never above the eyes or outside the face.
  */
 object FaceCueCatalog {
     const val LEFT_EYE = "left_eye"
@@ -45,7 +45,7 @@ object FaceCueCatalog {
         appendLine("Slots:")
         appendLine("- left_eye / right_eye: replace that geometric eye (independent).")
         appendLine("- mouth: replace geometric mouth.")
-        appendLine("- left_accent / right_accent: top-left / top-right above the eyes.")
+        appendLine("- left_accent / right_accent: cheeks between eyes and mouth (never above eyes).")
         appendLine("Allowed IDs: ${iconIds.joinToString(", ")}")
         appendLine("Clear all cues with: <face/> or omit the tag.")
     }

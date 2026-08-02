@@ -631,83 +631,101 @@ fun ImmersiveEyesFace(
                 val left = Offset(cx - gap + gaze, eyeY)
                 val right = Offset(cx + gap + gaze, eyeY)
 
-                if (blush.value > 0.04f) {
-                    val blushA = 0.2f * blush.value
-                    val bx = gap * 0.95f
-                    drawCircle(
-                        Color(0xFFFF9BB0).copy(alpha = blushA),
-                        faceR * 0.1f,
-                        Offset(cx - bx, cy + faceR * 0.22f),
-                    )
-                    drawCircle(
-                        Color(0xFFFF9BB0).copy(alpha = blushA),
-                        faceR * 0.1f,
-                        Offset(cx + bx, cy + faceR * 0.22f),
-                    )
-                }
-
-                // Keep capsule eyes for all moods (clamp out of arc/dash branches).
-                val capsuleStyle = eyeStyle.value.coerceIn(-0.2f, 0.25f)
-                // Skip BlurMaskFilter blooms on the first frame — they dominate GPU cost.
-                val bloom = if (enableIdleMotion) glowAmount else 0f
-                // Icons replace geometry at the same place (slightly larger than capsules).
-                val eyeIconSide = faceR * 0.44f
-                if (leftEyeIcon != null && leftEyeTint != null) {
-                    drawFaceCueIcon(leftEyePainter, left, eyeIconSide, 1f, leftEyeTint)
-                } else {
-                    drawNomiGlyphEye(left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
-                }
-                if (rightEyeIcon != null && rightEyeTint != null) {
-                    drawFaceCueIcon(rightEyePainter, right, eyeIconSide, 1f, rightEyeTint)
-                } else {
-                    drawNomiGlyphEye(right, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom)
-                }
-
-                // Top-left / top-right accents (above eyes) — never hide eyes by themselves.
-                val accentSide = faceR * 0.30f
-                val accentY = eyeY - faceR * 0.40f
-                if (leftAccentIcon != null && leftAccentTint != null) {
-                    drawFaceCueIcon(
-                        leftAccentPainter,
-                        Offset(left.x - faceR * 0.06f, accentY),
-                        accentSide,
-                        1f,
-                        leftAccentTint,
-                    )
-                }
-                if (rightAccentIcon != null && rightAccentTint != null) {
-                    drawFaceCueIcon(
-                        rightAccentPainter,
-                        Offset(right.x + faceR * 0.06f, accentY),
-                        accentSide,
-                        1f,
-                        rightAccentTint,
-                    )
-                }
-
                 val speaking = mouthAmplitude != null ||
                     mood == AssistantMood.Speaking ||
                     mood == AssistantMood.Excited ||
                     mood == AssistantMood.Jubilation
                 val mouthCenter = Offset(cx, cy + faceR * 0.38f)
-                if (mouthIcon != null && mouthTintCue != null) {
-                    drawFaceCueIcon(mouthPainter, mouthCenter, faceR * 0.48f, 1f, mouthTintCue)
-                } else if (mouthVisible.value > 0.08f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
-                    drawNomiGlyphMouth(
-                        center = mouthCenter,
-                        faceR = faceR,
-                        curve = mouthCurve.value,
-                        open = mouthOpen.value,
-                        visible = maxOf(mouthVisible.value, if (mouthAmplitude != null) 0.9f else 0f),
-                        color = glyph,
-                        speaking = speaking,
-                        life = life,
-                    )
-                }
+                val capsuleStyle = eyeStyle.value.coerceIn(-0.2f, 0.25f)
+                val bloom = if (enableIdleMotion) glowAmount else 0f
+                val eyeIconSide = faceR * 0.40f
 
-                // Nomi-Mate decor stays inside the face shell (never outside the frame).
+                // All facial features + cues stay inside the shell — never outside / over eyes.
                 val shellClip = expressiveFaceShellPath(shellMorph, shellBounds)
                 clipPath(shellClip) {
+                    if (blush.value > 0.04f) {
+                        val blushA = 0.2f * blush.value
+                        val bx = gap * 0.95f
+                        drawCircle(
+                            Color(0xFFFF9BB0).copy(alpha = blushA),
+                            faceR * 0.1f,
+                            Offset(cx - bx, cy + faceR * 0.22f),
+                        )
+                        drawCircle(
+                            Color(0xFFFF9BB0).copy(alpha = blushA),
+                            faceR * 0.1f,
+                            Offset(cx + bx, cy + faceR * 0.22f),
+                        )
+                    }
+                    if (leftEyeIcon != null && leftEyeTint != null) {
+                        drawAnimatedFaceCueIcon(
+                            leftEyePainter, left, eyeIconSide, leftEyeTint, life, phaseOffset = 0.2f,
+                        )
+                    } else {
+                        drawNomiGlyphEye(
+                            left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom,
+                        )
+                    }
+                    if (rightEyeIcon != null && rightEyeTint != null) {
+                        drawAnimatedFaceCueIcon(
+                            rightEyePainter, right, eyeIconSide, rightEyeTint, life,
+                            phaseOffset = 1.1f,
+                        )
+                    } else {
+                        drawNomiGlyphEye(
+                            right, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom,
+                        )
+                    }
+
+                    // Cheek accents — lower sides of the face (not center, not over eyes).
+                    val cheekSide = faceR * 0.30f
+                    val cheekY = cy + faceR * 0.22f
+                    if (leftAccentIcon != null && leftAccentTint != null) {
+                        drawAnimatedFaceCueIcon(
+                            leftAccentPainter,
+                            Offset(cx - faceR * 0.42f, cheekY),
+                            cheekSide,
+                            leftAccentTint,
+                            life,
+                            phaseOffset = 0.6f,
+                        )
+                    }
+                    if (rightAccentIcon != null && rightAccentTint != null) {
+                        drawAnimatedFaceCueIcon(
+                            rightAccentPainter,
+                            Offset(cx + faceR * 0.42f, cheekY),
+                            cheekSide,
+                            rightAccentTint,
+                            life,
+                            phaseOffset = 2.0f,
+                        )
+                    }
+                    if (mouthIcon != null && mouthTintCue != null) {
+                        drawAnimatedFaceCueIcon(
+                            mouthPainter,
+                            mouthCenter,
+                            faceR * 0.42f,
+                            mouthTintCue,
+                            life,
+                            phaseOffset = 1.4f,
+                        )
+                    } else if (mouthVisible.value > 0.08f ||
+                        (mouthAmplitude != null && mouthAmplitude > 0.05f)
+                    ) {
+                        drawNomiGlyphMouth(
+                            center = mouthCenter,
+                            faceR = faceR,
+                            curve = mouthCurve.value,
+                            open = mouthOpen.value,
+                            visible = maxOf(
+                                mouthVisible.value,
+                                if (mouthAmplitude != null) 0.9f else 0f,
+                            ),
+                            color = glyph,
+                            speaking = speaking,
+                            life = life,
+                        )
+                    }
                     drawNomiMateDecor(
                         mood = mood,
                         cx = cx,
@@ -715,7 +733,8 @@ fun ImmersiveEyesFace(
                         faceR = faceR,
                         color = glyph,
                         life = life,
-                        skipParticles = leftAccentIcon != null || rightAccentIcon != null,
+                        skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
+                            mouthIcon != null,
                     )
                 }
             }

@@ -5,7 +5,7 @@ package com.assistant.ui.assistant.api
  *
  * Null slot = keep geometric eye / mouth / no accent.
  * Non-null eye / mouth **fully replaces** that geometric shape at the same place
- * (not necessarily the exact capsule size). Accents sit at top-left / top-right.
+ * (not necessarily the exact capsule size). Accents sit on the cheeks (below eyes).
  */
 data class AssistantFaceCues(
     val leftEye: AssistantFaceCueIcon? = null,

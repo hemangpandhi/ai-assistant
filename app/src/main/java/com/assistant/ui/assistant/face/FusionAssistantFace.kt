@@ -628,12 +628,18 @@ fun FusionAssistantFace(
 
                         if (useCueEyes) {
                             if (leftEyeIcon != null && leftEyeTint != null) {
-                                drawFaceCueIcon(leftEyePainter, left, eyeIconSide, 1f, leftEyeTint)
+                                drawAnimatedFaceCueIcon(
+                                    leftEyePainter, left, eyeIconSide, leftEyeTint,
+                                    lifePhase, phaseOffset = 0.2f,
+                                )
                             } else {
                                 drawGeometricEye(left, eyeTint)
                             }
                             if (rightEyeIcon != null && rightEyeTint != null) {
-                                drawFaceCueIcon(rightEyePainter, right, eyeIconSide, 1f, rightEyeTint)
+                                drawAnimatedFaceCueIcon(
+                                    rightEyePainter, right, eyeIconSide, rightEyeTint,
+                                    lifePhase, phaseOffset = 1.1f,
+                                )
                             } else {
                                 drawGeometricEye(right, eyeTint)
                             }
@@ -677,24 +683,27 @@ fun FusionAssistantFace(
                             )
                         }
 
-                        val accentSide = faceR * 0.30f
-                        val accentY = eyeY - faceR * 0.36f
+                        // Cheek accents — lower sides of the face (not center, not over eyes).
+                        val cheekSide = faceR * 0.30f
+                        val cheekY = h * 0.60f
                         if (leftAccentIcon != null && leftAccentTint != null) {
-                            drawFaceCueIcon(
+                            drawAnimatedFaceCueIcon(
                                 leftAccentPainter,
-                                Offset(left.x - faceR * 0.05f, accentY),
-                                accentSide,
-                                1f,
+                                Offset(cx - faceR * 0.42f, cheekY),
+                                cheekSide,
                                 leftAccentTint,
+                                lifePhase,
+                                phaseOffset = 0.6f,
                             )
                         }
                         if (rightAccentIcon != null && rightAccentTint != null) {
-                            drawFaceCueIcon(
+                            drawAnimatedFaceCueIcon(
                                 rightAccentPainter,
-                                Offset(right.x + faceR * 0.05f, accentY),
-                                accentSide,
-                                1f,
+                                Offset(cx + faceR * 0.42f, cheekY),
+                                cheekSide,
                                 rightAccentTint,
+                                lifePhase,
+                                phaseOffset = 2.0f,
                             )
                         }
                     }
@@ -704,12 +713,13 @@ fun FusionAssistantFace(
                         mood == AssistantMood.Excited
                     val mouthCenter = Offset(cx, h * 0.66f)
                     if (mouthIcon != null && mouthCueTint != null) {
-                        drawFaceCueIcon(
+                        drawAnimatedFaceCueIcon(
                             mouthCuePainter,
                             mouthCenter,
-                            side * 0.42f * 0.48f,
-                            1f,
+                            side * 0.42f * 0.42f,
                             mouthCueTint,
+                            lifePhase,
+                            phaseOffset = 1.4f,
                         )
                     } else if (mouthVisible.value > 0.2f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
                         drawFusionMouth(

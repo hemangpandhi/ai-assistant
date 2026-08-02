@@ -6,9 +6,9 @@ import androidx.compose.material.icons.outlined.Air
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.Map
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MusicNote
-import androidx.compose.material.icons.outlined.Navigation
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.Thermostat
@@ -23,12 +23,15 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.assistant.ui.assistant.api.AssistantFaceCueIcon
 import com.assistant.ui.assistant.api.FaceCueCategory
 import kotlin.math.max
+import kotlin.math.sin
 
 /** Compose Material vector for [AssistantFaceCueIcon] — morphable / tintable. */
 fun AssistantFaceCueIcon.imageVector(): ImageVector = when (this) {
@@ -46,7 +49,7 @@ fun AssistantFaceCueIcon.imageVector(): ImageVector = when (this) {
     AssistantFaceCueIcon.Podcast -> Icons.Outlined.GraphicEq
     AssistantFaceCueIcon.Mic -> Icons.Outlined.Mic
     AssistantFaceCueIcon.Search -> Icons.Outlined.Search
-    AssistantFaceCueIcon.Navigate -> Icons.Outlined.Navigation
+    AssistantFaceCueIcon.Navigate -> Icons.Outlined.Map
     AssistantFaceCueIcon.Sparkle -> Icons.Outlined.AutoAwesome
     AssistantFaceCueIcon.Star -> Icons.Outlined.StarBorder
     AssistantFaceCueIcon.Wave -> Icons.Outlined.WavingHand
@@ -95,6 +98,35 @@ internal fun DrawScope.drawFaceCueIcon(
                 alpha = alpha.coerceIn(0f, 1f),
                 colorFilter = ColorFilter.tint(tint),
             )
+        }
+    }
+}
+
+/**
+ * Live cue glyph: gentle bob, pulse, and sway so icons feel active — never static stickers.
+ *
+ * @param life radians phase from the face idle clock
+ * @param phaseOffset per-slot phase so L/R/mouth don't move in lockstep
+ */
+internal fun DrawScope.drawAnimatedFaceCueIcon(
+    painter: Painter,
+    center: Offset,
+    side: Float,
+    tint: Color,
+    life: Float,
+    phaseOffset: Float = 0f,
+) {
+    val bob = sin(life * 1.55f + phaseOffset).toFloat() * side * 0.10f
+    val sway = sin(life * 1.05f + phaseOffset * 0.8f).toFloat() * side * 0.05f
+    val pulse = 1f + 0.10f * sin(life * 2.2f + phaseOffset * 0.6f).toFloat()
+    val alpha = (
+        0.78f + 0.22f * (0.5f + 0.5f * sin(life * 1.8f + phaseOffset).toFloat())
+        ).coerceIn(0.55f, 1f)
+    val degrees = sin(life * 0.95f + phaseOffset).toFloat() * 9f
+    val pivoted = Offset(center.x + sway, center.y + bob)
+    rotate(degrees = degrees, pivot = pivoted) {
+        scale(scale = pulse, pivot = pivoted) {
+            drawFaceCueIcon(painter, pivoted, side, alpha, tint)
         }
     }
 }

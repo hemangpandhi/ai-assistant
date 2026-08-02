@@ -7,11 +7,12 @@ import android.util.Log
 import com.assistant.ui.assistant.api.AssistantFaceCueIcon
 import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.api.FaceCueParser
+import com.assistant.ui.assistant.api.ToolFaceCues
 import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
 
 /**
- * ADB preview for in-face Material cues (eyes / mouth / L-R accents).
+ * ADB preview for in-face Material cues (eyes / mouth / L-R cheek accents).
  *
  * ```
  * # Per-slot (omit a slot to leave it geometric / none)
@@ -128,15 +129,8 @@ class AssistantFaceCueReceiver : BroadcastReceiver() {
             rightEye = AssistantFaceCueIcon.Rain,
             mouth = AssistantFaceCueIcon.Storm,
         )
-        "music" -> AssistantFaceCues(
-            mouth = AssistantFaceCueIcon.Music,
-            leftAccent = AssistantFaceCueIcon.Sparkle,
-            rightAccent = AssistantFaceCueIcon.Sparkle,
-        )
-        "search" -> AssistantFaceCues(
-            leftEye = AssistantFaceCueIcon.Search,
-            rightEye = AssistantFaceCueIcon.Search,
-        )
+        "music" -> ToolFaceCues.music()
+        "search" -> ToolFaceCues.search()
         "climate", "hvac", "ac" -> AssistantFaceCues(
             mouth = AssistantFaceCueIcon.Thermostat,
             leftAccent = AssistantFaceCueIcon.Ac,
@@ -146,11 +140,7 @@ class AssistantFaceCueReceiver : BroadcastReceiver() {
             leftAccent = AssistantFaceCueIcon.Sparkle,
             rightAccent = AssistantFaceCueIcon.Star,
         )
-        "nav", "navigate" -> AssistantFaceCues(
-            leftEye = AssistantFaceCueIcon.Navigate,
-            rightEye = AssistantFaceCueIcon.Navigate,
-            mouth = AssistantFaceCueIcon.Search,
-        )
+        "nav", "navigate" -> ToolFaceCues.navigate()
         else -> {
             Log.w(TAG, "Unknown preset '$preset' — weather|rain|music|search|climate|sparkle|nav|clear")
             null

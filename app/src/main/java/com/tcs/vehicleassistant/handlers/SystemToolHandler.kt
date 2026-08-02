@@ -6,6 +6,8 @@ import android.content.Intent
 import android.net.Uri
 import android.app.SearchManager
 import android.util.Log
+import com.assistant.api.face.PendingToolFaceCues
+import com.assistant.api.face.WeatherFaceCueMapper
 import com.tcs.vehicleassistant.LocationManager
 import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.VehicleManager
@@ -92,8 +94,14 @@ class SystemToolHandler(
                     }
                 }
                 return when (val weather = WeatherApiClient.fetchCurrentDetailed(point)) {
-                    is WeatherApiClient.LookupResult.Ok ->
-                        ToolExecutionResult(true, WeatherApiClient.formatSpoken(weather.value))
+                    is WeatherApiClient.LookupResult.Ok -> {
+                        val value = weather.value
+                        // DirectTool skips the LLM — hand face cues to the UI backend.
+                        val iconId = WeatherFaceCueMapper.iconIdForWmo(value.weatherCode)
+                            ?: WeatherFaceCueMapper.iconIdForCondition(value.condition)
+                        PendingToolFaceCues.offer(iconId)
+                        ToolExecutionResult(true, WeatherApiClient.formatSpoken(value))
+                    }
                     is WeatherApiClient.LookupResult.NotFound ->
                         ToolExecutionResult(
                             false,
@@ -144,6 +152,7 @@ class SystemToolHandler(
                 ToolExecutionResult(true, "To install the child seat, refer to your vehicle's LATCH system anchors located in the rear seats.")
             }
             "suggestUmbrellaIfRainy" -> {
+                PendingToolFaceCues.offer("rain")
                 ToolExecutionResult(true, "There is rain expected at your destination. I suggest taking an umbrella.")
             }
             "getNewsHighlights" -> {
