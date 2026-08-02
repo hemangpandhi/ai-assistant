@@ -9,9 +9,11 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -19,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -114,8 +118,9 @@ internal fun liveInputRevealDurationMs(tokenCount: Int, speaking: Boolean): Int 
  * Live-input transcript: continuous word reveal.
  *
  * Only **revealed** words are laid out (invisible tokens are omitted) so the
- * visible phrase stays centered. Use [speaking] for speech-paced word-by-word
- * reveal when the assistant talks.
+ * visible phrase stays centered while it fits. When the line overflows, the
+ * band auto-scrolls to keep the latest words in view (no ellipsis truncation).
+ * Use [speaking] for speech-paced word-by-word reveal when the assistant talks.
  */
 @Composable
 fun LiveInputText(
@@ -132,6 +137,7 @@ fun LiveInputText(
     val tokens = remember(text) { liveInputTokens(text) }
     var committedText by remember { mutableStateOf("") }
     val reveal = remember { Animatable(0f) }
+    val scrollState = rememberScrollState()
 
     LaunchedEffect(text, speaking, live) {
         val nextTokens = liveInputTokens(text)
@@ -221,14 +227,33 @@ fun LiveInputText(
         }
     }
 
-    Text(
-        text = annotated,
-        fontSize = fontSize,
-        fontWeight = fontWeight,
-        textAlign = textAlign,
-        maxLines = maxLines,
-        softWrap = maxLines > 1,
-        overflow = TextOverflow.Ellipsis,
-        modifier = modifier.fillMaxWidth(),
-    )
+    // Keep the newest revealed words pinned in view as the line grows past the band.
+    LaunchedEffect(annotated, progress, scrollState.maxValue) {
+        if (scrollState.maxValue > 0) {
+            scrollState.scrollTo(scrollState.maxValue)
+        }
+    }
+
+    val singleLine = maxLines == 1
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clipToBounds(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = annotated,
+            fontSize = fontSize,
+            fontWeight = fontWeight,
+            textAlign = textAlign,
+            maxLines = maxLines,
+            softWrap = !singleLine,
+            overflow = if (singleLine) TextOverflow.Clip else TextOverflow.Ellipsis,
+            modifier = if (singleLine) {
+                Modifier.horizontalScroll(scrollState, enabled = false)
+            } else {
+                Modifier.fillMaxWidth()
+            },
+        )
+    }
 }

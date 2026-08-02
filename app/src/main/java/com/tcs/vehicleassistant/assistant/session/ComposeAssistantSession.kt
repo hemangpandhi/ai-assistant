@@ -63,6 +63,7 @@ import com.tcs.vehicleassistant.assistant.VehicleCabinContextStore
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
+import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.hardware.IAudioManager
 import com.tcs.vehicleassistant.service.VehicleAgentService
 import kotlinx.coroutines.CoroutineScope
@@ -265,9 +266,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         observerScope.launch {
             // Let SpeechRecognizer.destroy() finish before Vosk grabs AudioRecord.
             delay(450)
-            val restartIntent = Intent(context, WakeWordService::class.java)
-            restartIntent.action = "ACTION_RESTART_LISTENING"
-            context.startService(restartIntent)
+            resumeWakeWordListening()
         }
 
         unloadJob?.cancel()
@@ -793,12 +792,11 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             if (viewModel != null) startObservingViewModel()
         }
 
-        val stopListeningIntent = Intent(context, WakeWordService::class.java)
-        stopListeningIntent.action = "ACTION_STOP_LISTENING"
-        context.startService(stopListeningIntent)
+        // Pause (not stop): keep the :wakeword process + Vosk model warm for the next turn.
+        pauseWakeWordListening()
 
         if (usingComposeUi) {
-            // Stop wake-word AudioRecord fully, then open agent STT.
+            // Wake-word mic released; open agent STT after summon.
             val origin = ImmersiveSummonOrigin.fromBundleToken(
                 args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
             )
@@ -1084,10 +1082,31 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             context.unbindService(serviceConnection)
             isBound = false
         }
-        val restartIntent = Intent(context, WakeWordService::class.java)
-        restartIntent.action = "ACTION_RESTART_LISTENING"
-        context.startService(restartIntent)
+        resumeWakeWordListening()
         super.onDestroy()
+    }
+
+    /** Releases the wake-word mic for session STT without tearing down the Vosk model. */
+    private fun pauseWakeWordListening() {
+        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
+    }
+
+    /**
+     * Re-arms wake-word listening after the session ends.
+     *
+     * UiUx VIS always starts [WakeWordService] on ready (unlike master's toggle-gated path),
+     * so we always RESTART here to match that always-on hotword policy.
+     */
+    private fun resumeWakeWordListening() {
+        sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)
+    }
+
+    private fun sendWakeWordCommand(action: String) {
+        try {
+            context.startService(Intent(context, WakeWordService::class.java).setAction(action))
+        } catch (e: Exception) {
+            AssistantDebugLog.e("Session", "Failed to send '$action' to WakeWordService: ${e.message}")
+        }
     }
 }
 

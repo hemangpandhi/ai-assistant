@@ -7,9 +7,11 @@ import android.content.IntentFilter
 import android.os.Bundle
 import android.service.voice.VoiceInteractionService
 import android.service.voice.VoiceInteractionSession
+import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
 import com.tcs.vehicleassistant.LocalLLMActivity
 import com.tcs.vehicleassistant.VehicleManager
 import com.tcs.vehicleassistant.WakeWordService
+import com.tcs.vehicleassistant.core.AssistantConfig
 
 /**
  * Primary UI [VoiceInteractionService] — keeps refactor
@@ -28,7 +30,13 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
             android.util.Log.d("WakeWord", "UiUx triggerSession called. instance is $instance")
             val live = instance
             if (live != null) {
-                live.showSession(Bundle(), VoiceInteractionSession.SHOW_WITH_ASSIST)
+                val args = Bundle().apply {
+                    putString(
+                        ImmersiveSummonOrigin.BUNDLE_KEY,
+                        ImmersiveSummonOrigin.TOKEN_HOTWORD,
+                    )
+                }
+                live.showSession(args, VoiceInteractionSession.SHOW_WITH_ASSIST)
             } else if (context != null) {
                 android.util.Log.w("WakeWord", "UiUx VoiceInteractionService unbound! Launching fallback Activity.")
                 val intent = Intent(context, LocalLLMActivity::class.java)
@@ -41,7 +49,7 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == "com.tcs.vehicleassistant.WAKE_WORD_DETECTED") {
+            if (intent.action == AssistantConfig.WakeWordAction.DETECTED_BROADCAST) {
                 triggerSession(context)
             }
         }
@@ -51,7 +59,7 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
         super.onCreate()
         instance = this
         AssistantUiProfile.install(this)
-        val filter = IntentFilter("com.tcs.vehicleassistant.WAKE_WORD_DETECTED")
+        val filter = IntentFilter(AssistantConfig.WakeWordAction.DETECTED_BROADCAST)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {
