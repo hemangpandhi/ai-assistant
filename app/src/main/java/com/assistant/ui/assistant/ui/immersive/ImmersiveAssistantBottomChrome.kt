@@ -37,12 +37,6 @@ import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
- * Pull the face toward the transcript. The face canvas keeps chin / glow clearance
- * below the drawn shell, which otherwise reads as a large gap above the text.
- */
-private val FaceTowardTranscriptNudge = AssistantOverlayTokens.FaceTowardTranscriptNudge
-
-/**
  * Shared bottom chrome for the immersive assistant stage:
  * local [FaceStageDock] glass plate + face (optional floating context glyph) +
  * [ImmersiveTranscript].
@@ -138,12 +132,16 @@ fun ImmersiveAssistantBottomChrome(
                 ),
         ) {
             if (showFace && faceKind != AssistantFaceKind.None) {
+                // Close canvas chin dead space without covering the transcript.
+                val faceNudge = (faceSize * AssistantOverlayTokens.FaceTowardTranscriptNudgeFraction)
+                    .coerceAtLeast(0.dp)
                 Box(
                     contentAlignment = Alignment.TopCenter,
                     modifier = Modifier
                         .padding(top = if (showGlyph) glyphSize * 0.72f else 0.dp)
+                        .padding(bottom = AssistantOverlayTokens.FaceTranscriptGap)
                         .offset {
-                            IntOffset(0, FaceTowardTranscriptNudge.roundToPx())
+                            IntOffset(0, faceNudge.roundToPx())
                         }
                         .graphicsLayer {
                             val s = faceScale
