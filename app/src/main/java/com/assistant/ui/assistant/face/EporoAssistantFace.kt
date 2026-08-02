@@ -405,13 +405,28 @@ internal fun AssistantMood.toEporoPose(): EporoPose = when (this) {
         ringPulse = 1f,
         lookY = 0.02f,
     )
-    AssistantMood.Happy, AssistantMood.Excited -> EporoPose(
+    AssistantMood.Happy,
+    AssistantMood.Excited,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Jubilation,
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Gratitude,
+    AssistantMood.Proud,
+    AssistantMood.Triumph,
+    AssistantMood.Impressed,
+    -> EporoPose(
         eyeOpen = 1.08f,
         eyeGap = 1.04f,
         ringPulse = 0.95f,
         tilt = -2f,
     )
-    AssistantMood.Sad -> EporoPose(
+    AssistantMood.Sad,
+    AssistantMood.Doubt,
+    AssistantMood.Concerned,
+    -> EporoPose(
         eyeOpen = 0.8f,
         lookY = 0.14f,
         ringPulse = 0.45f,
@@ -422,10 +437,26 @@ internal fun AssistantMood.toEporoPose(): EporoPose = when (this) {
         lookX = 0.28f,
         ringPulse = 0.4f,
     )
-    AssistantMood.Drowsy, AssistantMood.Tired -> EporoPose(
+    AssistantMood.Drowsy,
+    AssistantMood.Tired,
+    AssistantMood.Sleeping,
+    -> EporoPose(
         eyeOpen = 0.45f,
         lookY = 0.08f,
         ringPulse = 0.35f,
         tilt = 4f,
     )
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    AssistantMood.Astonishment,
+    -> AssistantMood.Listening.toEporoPose()
+    AssistantMood.Concentration,
+    AssistantMood.Dreamy,
+    -> AssistantMood.Thinking.toEporoPose()
+    AssistantMood.Contentment,
+    AssistantMood.Relaxed,
+    AssistantMood.Acceptance,
+    AssistantMood.Complicity,
+    AssistantMood.Shy,
+    -> AssistantMood.Idle.toEporoPose()
 }

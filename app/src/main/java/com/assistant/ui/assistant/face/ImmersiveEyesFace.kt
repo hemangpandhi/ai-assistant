@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
@@ -101,6 +102,10 @@ private val PersonaBase = ImmersiveEyePose(
     blinkSpeed = 0.9f,
 )
 
+/**
+ * Capsule eye glyphs stay on the soft-capsule path (eyeStyle clamped in draw).
+ * Nomi-Mate sheet states add hands/props via [NomiMateDecor]; eye style is unchanged.
+ */
 internal fun AssistantMood.toImmersiveEyePose(): ImmersiveEyePose = when (this) {
     AssistantMood.Idle -> PersonaBase
     AssistantMood.Listening -> PersonaBase.copy(
@@ -210,6 +215,59 @@ internal fun AssistantMood.toImmersiveEyePose(): ImmersiveEyePose = when (this) 
         faceGlow = 0.3f,
         tilt = 2.5f,
         blinkSpeed = 0.38f,
+    )
+    // Sheet states: reuse closest capsule pose (no eye-style morph).
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    -> AssistantMood.Listening.toImmersiveEyePose()
+    AssistantMood.Astonishment,
+    AssistantMood.Impressed,
+    -> AssistantMood.Listening.toImmersiveEyePose().copy(blush = 0.25f, faceGlow = 0.8f)
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Gratitude,
+    -> AssistantMood.Happy.toImmersiveEyePose()
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
+    -> AssistantMood.Excited.toImmersiveEyePose()
+    AssistantMood.Contentment,
+    AssistantMood.Relaxed,
+    AssistantMood.Acceptance,
+    AssistantMood.Complicity,
+    AssistantMood.Proud,
+    -> PersonaBase.copy(mouthCurve = 0.45f, mouthVisible = 0.4f, blush = 0.2f)
+    AssistantMood.Shy -> PersonaBase.copy(
+        lookY = 0.16f,
+        lookX = 0.18f,
+        mouthVisible = 0.2f,
+        blush = 0.7f,
+        faceGlow = 0.5f,
+        tilt = 4f,
+    )
+    AssistantMood.Concentration -> AssistantMood.Thinking.toImmersiveEyePose()
+    AssistantMood.Dreamy -> PersonaBase.copy(
+        lookY = -0.22f,
+        mouthVisible = 0.1f,
+        faceGlow = 0.5f,
+        tilt = -2f,
+    )
+    AssistantMood.Sleeping -> AssistantMood.Drowsy.toImmersiveEyePose().copy(blinkSpeed = 0.25f)
+    AssistantMood.Doubt -> PersonaBase.copy(
+        lookX = 0.2f,
+        mouthCurve = -0.1f,
+        mouthVisible = 0.35f,
+        faceGlow = 0.48f,
+        tilt = 5f,
+    )
+    AssistantMood.Concerned -> PersonaBase.copy(
+        lookY = -0.12f,
+        mouthCurve = -0.35f,
+        mouthVisible = 0.55f,
+        faceGlow = 0.5f,
+        tilt = 2f,
     )
 }
 
@@ -418,14 +476,18 @@ fun ImmersiveEyesFace(
         val speed = target.blinkSpeed.coerceIn(0.25f, 1.6f)
         while (isActive) {
             val base = when (mood) {
-                AssistantMood.Drowsy, AssistantMood.Tired -> Random.nextLong(900, 1800)
+                AssistantMood.Drowsy, AssistantMood.Tired, AssistantMood.Sleeping ->
+                    Random.nextLong(900, 1800)
                 AssistantMood.Bored -> Random.nextLong(2800, 4800)
-                AssistantMood.Excited, AssistantMood.Listening -> Random.nextLong(1800, 3200)
+                AssistantMood.Excited, AssistantMood.Jubilation, AssistantMood.Listening,
+                AssistantMood.Surprise, AssistantMood.Astonishment,
+                -> Random.nextLong(1800, 3200)
                 else -> Random.nextLong(2200, 4000)
             }
             delay((base / speed).toLong().coerceAtLeast(400L))
             if (eyeStyle.value > 0.7f) continue
             val closeTo = when (mood) {
+                AssistantMood.Sleeping -> 0.04f
                 AssistantMood.Drowsy -> 0.06f
                 AssistantMood.Tired -> 0.08f
                 else -> 0.12f
@@ -433,7 +495,10 @@ fun ImmersiveEyesFace(
             blink.animateTo(closeTo, tween((90 / speed).toInt().coerceAtLeast(40)))
             delay((50 / speed).toLong().coerceAtLeast(20L))
             blink.animateTo(1f, tween((140 / speed).toInt().coerceAtLeast(60)))
-            if (mood == AssistantMood.Tired || mood == AssistantMood.Drowsy) {
+            if (mood == AssistantMood.Tired ||
+                mood == AssistantMood.Drowsy ||
+                mood == AssistantMood.Sleeping
+            ) {
                 delay(120)
                 blink.animateTo(closeTo * 1.4f, tween(80))
                 delay(40)
@@ -622,7 +687,8 @@ fun ImmersiveEyesFace(
 
                 val speaking = mouthAmplitude != null ||
                     mood == AssistantMood.Speaking ||
-                    mood == AssistantMood.Excited
+                    mood == AssistantMood.Excited ||
+                    mood == AssistantMood.Jubilation
                 val mouthCenter = Offset(cx, cy + faceR * 0.38f)
                 if (mouthIcon != null && mouthTintCue != null) {
                     drawFaceCueIcon(mouthPainter, mouthCenter, faceR * 0.48f, 1f, mouthTintCue)
@@ -636,6 +702,20 @@ fun ImmersiveEyesFace(
                         color = glyph,
                         speaking = speaking,
                         life = life,
+                    )
+                }
+
+                // Nomi-Mate decor stays inside the face shell (never outside the frame).
+                val shellClip = expressiveFaceShellPath(shellMorph, shellBounds)
+                clipPath(shellClip) {
+                    drawNomiMateDecor(
+                        mood = mood,
+                        cx = cx,
+                        cy = cy,
+                        faceR = faceR,
+                        color = glyph,
+                        life = life,
+                        skipParticles = leftAccentIcon != null || rightAccentIcon != null,
                     )
                 }
             }
@@ -823,12 +903,21 @@ fun ImmersiveGlowEyesFace(
     )
 }
 
-/** Excited / Happy / Searching / Thinking → purple glow rings; other moods → pale eyes. */
+/** Excited / Happy family / Searching / Thinking → purple glow rings; else pale eyes. */
 fun AssistantMood.usesImmersivePurpleGlow(): Boolean = when (this) {
     AssistantMood.Excited,
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
     AssistantMood.Happy,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Impressed,
     AssistantMood.Searching,
     AssistantMood.Thinking,
+    AssistantMood.Concentration,
     -> true
     else -> false
 }

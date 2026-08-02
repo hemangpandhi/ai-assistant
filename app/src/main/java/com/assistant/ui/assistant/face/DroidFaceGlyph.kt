@@ -56,16 +56,47 @@ enum class DroidFaceGlyph {
 }
 
 internal fun AssistantMood.toDroidFaceGlyph(): DroidFaceGlyph = when (this) {
-    AssistantMood.Idle -> DroidFaceGlyph.Neutral
-    AssistantMood.Listening -> DroidFaceGlyph.Happy
+    AssistantMood.Idle,
+    AssistantMood.Contentment,
+    AssistantMood.Relaxed,
+    AssistantMood.Acceptance,
+    AssistantMood.Complicity,
+    -> DroidFaceGlyph.Neutral
+    AssistantMood.Listening,
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    -> DroidFaceGlyph.Happy
     AssistantMood.Speaking -> DroidFaceGlyph.Laughing
-    AssistantMood.Thinking -> DroidFaceGlyph.Help
-    AssistantMood.Happy -> DroidFaceGlyph.SquintSmile
-    AssistantMood.Sad -> DroidFaceGlyph.Sad
-    AssistantMood.Excited -> DroidFaceGlyph.StarEyes
+    AssistantMood.Thinking,
+    AssistantMood.Concentration,
+    AssistantMood.Dreamy,
+    -> DroidFaceGlyph.Help
+    AssistantMood.Happy,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Gratitude,
+    AssistantMood.Proud,
+    AssistantMood.Shy,
+    -> DroidFaceGlyph.SquintSmile
+    AssistantMood.Sad,
+    AssistantMood.Doubt,
+    AssistantMood.Concerned,
+    -> DroidFaceGlyph.Sad
+    AssistantMood.Excited,
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Astonishment,
+    AssistantMood.Impressed,
+    -> DroidFaceGlyph.StarEyes
     AssistantMood.Bored -> DroidFaceGlyph.Cool
-    AssistantMood.Drowsy -> DroidFaceGlyph.Sleeping
+    AssistantMood.Drowsy,
+    AssistantMood.Sleeping,
+    -> DroidFaceGlyph.Sleeping
     AssistantMood.Tired -> DroidFaceGlyph.Dizzy
-    AssistantMood.Reading -> DroidFaceGlyph.Search
-    AssistantMood.Searching -> DroidFaceGlyph.Search
+    AssistantMood.Reading,
+    AssistantMood.Searching,
+    -> DroidFaceGlyph.Search
 }

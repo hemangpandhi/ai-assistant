@@ -33,7 +33,9 @@ internal fun DrawScope.drawMoodProp(
     if (visibility < 0.02f) return
     val bob = sin(life).toFloat() * shell * 0.018f
     when (mood) {
-        AssistantMood.Thinking -> drawThoughtCloud(
+        AssistantMood.Thinking,
+        AssistantMood.Concentration,
+        -> drawThoughtCloud(
             anchor = Offset(center.x + shell * 0.42f, center.y - shell * 0.48f + bob),
             cloudSize = shell * 0.38f * (0.85f + 0.15f * visibility),
             life = life,
@@ -78,16 +80,22 @@ internal fun DrawScope.drawMoodProp(
             alpha = visibility,
             life = life,
         )
-        AssistantMood.Excited -> drawSparkles(
+        AssistantMood.Excited,
+        AssistantMood.Jubilation,
+        AssistantMood.Joyous,
+        AssistantMood.Amused,
+        AssistantMood.Triumph,
+        AssistantMood.Attraction,
+        AssistantMood.Admiration,
+        AssistantMood.Desire,
+        AssistantMood.Impressed,
+        -> drawSparkles(
             anchor = center,
             shell = shell,
             alpha = visibility,
             life = life,
         )
-        AssistantMood.Bored,
-        AssistantMood.Drowsy,
-        AssistantMood.Tired,
-        AssistantMood.Idle -> Unit
+        else -> Unit
     }
 }
 

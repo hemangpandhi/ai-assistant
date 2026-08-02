@@ -89,6 +89,7 @@ import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 import com.assistant.ui.assistant.face.AssistantFaceConfig
 import com.assistant.ui.assistant.face.AssistantFaceCuePreview
+import com.assistant.ui.assistant.face.AssistantMoodPreview
 import com.assistant.ui.assistant.face.AssistantFaceKind
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.AssistantPresentation
@@ -169,7 +170,10 @@ fun ImmersiveAssistantOverlay(
     val visible = stage.visible
     val session = stage.session
     val presentation = stage.presentation
-    val mood = stage.mood
+    val stageMood = stage.mood
+    val previewMood by AssistantMoodPreview.mood.collectAsStateWithLifecycle()
+    // ADB mood preview wins over session mood when set (Nomi-Mate expression sheet).
+    val mood = previewMood ?: stageMood
     val transcript = stage.transcript
     val speaker = stage.speaker
     val gazeX = stage.gazeX

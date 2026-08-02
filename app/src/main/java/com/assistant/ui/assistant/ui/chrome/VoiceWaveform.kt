@@ -41,18 +41,48 @@ internal data class WavePose(
 )
 
 internal fun AssistantMood.toWavePose(): WavePose = when (this) {
-    AssistantMood.Listening -> WavePose(amplitude = 0.95f, speed = 0.85f, thickness = 1f, bloom = 0.9f)
+    AssistantMood.Listening,
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    AssistantMood.Astonishment,
+    -> WavePose(amplitude = 0.95f, speed = 0.85f, thickness = 1f, bloom = 0.9f)
     AssistantMood.Speaking -> WavePose(amplitude = 1f, speed = 1.1f, thickness = 1.05f, bloom = 0.85f)
-    AssistantMood.Thinking -> WavePose(amplitude = 0.55f, speed = 0.45f, thickness = 0.8f, bloom = 0.6f)
+    AssistantMood.Thinking,
+    AssistantMood.Concentration,
+    AssistantMood.Dreamy,
+    -> WavePose(amplitude = 0.55f, speed = 0.45f, thickness = 0.8f, bloom = 0.6f)
     AssistantMood.Searching -> WavePose(amplitude = 0.8f, speed = 1f, thickness = 0.9f, bloom = 0.75f)
-    AssistantMood.Happy -> WavePose(amplitude = 0.7f, speed = 0.75f, thickness = 0.85f, bloom = 0.7f)
-    AssistantMood.Sad -> WavePose(amplitude = 0.28f, speed = 0.35f, thickness = 0.55f, bloom = 0.3f)
-    AssistantMood.Excited -> WavePose(amplitude = 1.1f, speed = 1.25f, thickness = 1.1f, bloom = 1f)
+    AssistantMood.Happy,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Gratitude,
+    AssistantMood.Proud,
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Impressed,
+    -> WavePose(amplitude = 0.7f, speed = 0.75f, thickness = 0.85f, bloom = 0.7f)
+    AssistantMood.Sad,
+    AssistantMood.Doubt,
+    AssistantMood.Concerned,
+    -> WavePose(amplitude = 0.28f, speed = 0.35f, thickness = 0.55f, bloom = 0.3f)
+    AssistantMood.Excited,
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
+    -> WavePose(amplitude = 1.1f, speed = 1.25f, thickness = 1.1f, bloom = 1f)
     AssistantMood.Bored -> WavePose(amplitude = 0.22f, speed = 0.28f, thickness = 0.5f, bloom = 0.22f)
-    AssistantMood.Drowsy -> WavePose(amplitude = 0.18f, speed = 0.22f, thickness = 0.45f, bloom = 0.18f)
+    AssistantMood.Drowsy,
+    AssistantMood.Sleeping,
+    -> WavePose(amplitude = 0.18f, speed = 0.22f, thickness = 0.45f, bloom = 0.18f)
     AssistantMood.Tired -> WavePose(amplitude = 0.2f, speed = 0.25f, thickness = 0.48f, bloom = 0.2f)
     AssistantMood.Reading -> WavePose(amplitude = 0.4f, speed = 0.5f, thickness = 0.65f, bloom = 0.45f)
-    AssistantMood.Idle -> WavePose(amplitude = 0.32f, speed = 0.4f, thickness = 0.6f, bloom = 0.35f)
+    AssistantMood.Idle,
+    AssistantMood.Contentment,
+    AssistantMood.Relaxed,
+    AssistantMood.Acceptance,
+    AssistantMood.Complicity,
+    AssistantMood.Shy,
+    -> WavePose(amplitude = 0.32f, speed = 0.4f, thickness = 0.6f, bloom = 0.35f)
 }
 
 private val WaveSpring = spring<Float>(

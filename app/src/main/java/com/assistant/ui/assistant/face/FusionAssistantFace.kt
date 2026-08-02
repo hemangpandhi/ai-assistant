@@ -226,6 +226,35 @@ internal fun AssistantMood.toFusionEyePose(): FusionEyePose = when (this) {
         tilt = 1.8f,
         blinkSpeed = 0.5f,
     )
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    AssistantMood.Astonishment,
+    AssistantMood.Impressed,
+    -> AssistantMood.Listening.toFusionEyePose()
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Gratitude,
+    AssistantMood.Proud,
+    -> AssistantMood.Happy.toFusionEyePose()
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
+    -> AssistantMood.Excited.toFusionEyePose()
+    AssistantMood.Contentment,
+    AssistantMood.Relaxed,
+    AssistantMood.Acceptance,
+    AssistantMood.Complicity,
+    AssistantMood.Shy,
+    -> AssistantMood.Idle.toFusionEyePose()
+    AssistantMood.Concentration,
+    AssistantMood.Dreamy,
+    -> AssistantMood.Thinking.toFusionEyePose()
+    AssistantMood.Sleeping -> AssistantMood.Drowsy.toFusionEyePose()
+    AssistantMood.Doubt,
+    AssistantMood.Concerned,
+    -> AssistantMood.Sad.toFusionEyePose()
 }
 
 /**

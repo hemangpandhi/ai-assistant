@@ -2015,7 +2015,15 @@
       },
       {
         "user": "I am not feeling good",
-        "assistant": "I'm sorry you're not feeling well. Would you like me to play some music?"
+        "assistant": "<mood>concerned</mood> I'm sorry you're not feeling well. Would you like me to play some music?"
+      },
+      {
+        "user": "thanks that worked perfectly",
+        "assistant": "<mood>gratitude</mood> Glad it helped!"
+      },
+      {
+        "user": "I'm so excited for this trip",
+        "assistant": "<mood>excited</mood> Same here — this is going to be great!"
       }
     ],
     "context_policies": {

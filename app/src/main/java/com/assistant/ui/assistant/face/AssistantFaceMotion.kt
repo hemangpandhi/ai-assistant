@@ -160,4 +160,6 @@ internal fun AssistantMood.isGazeScanMood(): Boolean =
         this == AssistantMood.Bored
 
 internal fun AssistantMood.isSpeechMouthMood(): Boolean =
-    this == AssistantMood.Speaking || this == AssistantMood.Excited
+    this == AssistantMood.Speaking ||
+        this == AssistantMood.Excited ||
+        this == AssistantMood.Jubilation

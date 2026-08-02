@@ -43,18 +43,41 @@ internal fun AssistantMood.toShellKind(): ExpressiveShellKind = when (this) {
     AssistantMood.Bored,
     AssistantMood.Drowsy,
     AssistantMood.Tired,
+    AssistantMood.Sleeping,
     AssistantMood.Sad,
+    AssistantMood.Relaxed,
+    AssistantMood.Contentment,
+    AssistantMood.Acceptance,
+    AssistantMood.Doubt,
     -> ExpressiveShellKind.Arch
 
     AssistantMood.Listening,
     AssistantMood.Thinking,
+    AssistantMood.Concentration,
     AssistantMood.Reading,
     AssistantMood.Searching,
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    AssistantMood.Astonishment,
+    AssistantMood.Dreamy,
+    AssistantMood.Concerned,
+    AssistantMood.Impressed,
     -> ExpressiveShellKind.SemiCircle
 
     AssistantMood.Speaking,
     AssistantMood.Happy,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
     AssistantMood.Excited,
+    AssistantMood.Jubilation,
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Gratitude,
+    AssistantMood.Proud,
+    AssistantMood.Triumph,
+    AssistantMood.Shy,
+    AssistantMood.Complicity,
     -> ExpressiveShellKind.Oval
 }
 
@@ -143,17 +166,14 @@ internal fun DrawScope.drawExpressiveFaceShell(
     }
 }
 
+/** Unit morph fitted into [bounds] — for fill/stroke and in-shell clipping. */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
-private inline fun DrawScope.drawExpressiveFaceShellPath(
+internal fun expressiveFaceShellPath(
     morphState: ExpressiveShellMorphState,
     bounds: Rect,
-    draw: DrawScope.(Path) -> Unit,
-) {
-    if (bounds.width <= 0f || bounds.height <= 0f) return
-    // Map the unit morph into draw-space so Brush gradients (pixel coords) sample
-    // correctly. Scaling the DrawScope instead would leave brushes in the wrong space
-    // and collapse glossy fills to a flat black.
-    val path = Path().apply {
+): Path {
+    if (bounds.width <= 0f || bounds.height <= 0f) return Path()
+    return Path().apply {
         addPath(morphState.morph.toPath(morphState.progress))
         transform(
             Matrix().apply {
@@ -164,7 +184,18 @@ private inline fun DrawScope.drawExpressiveFaceShellPath(
             },
         )
     }
-    draw(path)
+}
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private inline fun DrawScope.drawExpressiveFaceShellPath(
+    morphState: ExpressiveShellMorphState,
+    bounds: Rect,
+    draw: DrawScope.(Path) -> Unit,
+) {
+    // Map the unit morph into draw-space so Brush gradients (pixel coords) sample
+    // correctly. Scaling the DrawScope instead would leave brushes in the wrong space
+    // and collapse glossy fills to a flat black.
+    draw(expressiveFaceShellPath(morphState, bounds))
 }
 
 /**

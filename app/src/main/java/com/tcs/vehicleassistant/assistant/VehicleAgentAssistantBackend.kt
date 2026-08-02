@@ -12,6 +12,8 @@ import com.assistant.ui.assistant.api.AssistantSpeaker
 import com.assistant.ui.assistant.api.AssistantSpeechInput
 import com.assistant.ui.assistant.api.AssistantStartReason
 import com.assistant.ui.assistant.api.FaceCueParser
+import com.assistant.ui.assistant.api.FaceMoodResolver
+import com.assistant.ui.assistant.api.MoodTagParser
 import com.tcs.vehicleassistant.controller.AssistantUiState
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
@@ -66,6 +68,11 @@ class VehicleAgentAssistantBackend(
      */
     private var listenWindowStartedAtMs = 0L
 
+    /** Harness turn-taking mood (Listening / Thinking / Speaking / …). */
+    private var pipelineMood: AssistantMoodId = AssistantMoodId.Idle
+    /** Optional LLM `<mood>` affective tint from conversation context. */
+    private var affectiveMood: AssistantMoodId? = null
+
     fun bindContext(context: Context) {
         appContext = context.applicationContext
     }
@@ -114,7 +121,7 @@ class VehicleAgentAssistantBackend(
                         // Continue turns use StartListening (wellness offer / question).
                         AssistantDebugLog.d(TAG, "event FinishSession → SessionComplete")
                         stopSession()
-                        emitMood(AssistantMoodId.Idle)
+                        emitPipelineMood(AssistantMoodId.Idle)
                         _events.emit(AssistantSessionEvent.SessionComplete)
                     }
                     null -> when (event) {
@@ -129,7 +136,7 @@ class VehicleAgentAssistantBackend(
                                         speaker = AssistantSpeaker.User,
                                     ),
                                 )
-                                emitMood(AssistantMoodId.Listening)
+                                emitPipelineMood(AssistantMoodId.Listening)
                             }
                         }
                         else -> Unit
@@ -164,7 +171,7 @@ class VehicleAgentAssistantBackend(
         AssistantDebugLog.d(TAG, "startSession reason=$reason")
         viewModel?.resetUiState()
         scope.launch {
-            emitMood(AssistantMoodId.Listening)
+            emitPipelineMood(AssistantMoodId.Listening)
             // No status captions ("Listening…") — stage stays blank until STT partials.
             _events.emit(AssistantSessionEvent.Gaze(x = -0.42f, y = 0.05f))
         }
@@ -197,7 +204,7 @@ class VehicleAgentAssistantBackend(
                         speaker = AssistantSpeaker.User,
                     ),
                 )
-                emitMood(AssistantMoodId.Listening)
+                emitPipelineMood(AssistantMoodId.Listening)
             }
             is AssistantSpeechInput.Final -> {
                 if (input.text.isBlank()) return
@@ -326,7 +333,7 @@ class VehicleAgentAssistantBackend(
                 "startMic($reason) blocked — Whisper STT missing under " +
                     AssistantConfig.Audio.STT_SIDELOAD_DIR,
             )
-            emitMood(AssistantMoodId.Sad)
+            emitPipelineMood(AssistantMoodId.Sad)
             _events.emit(AssistantSessionEvent.Error(STT_MODELS_MISSING_MSG))
             return true
         }
@@ -357,7 +364,7 @@ class VehicleAgentAssistantBackend(
             micArmed = false
             AssistantDebugLog.e(TAG, "startMic($reason) failed: ${t.message}")
             scope.launch {
-                emitMood(AssistantMoodId.Sad)
+                emitPipelineMood(AssistantMoodId.Sad)
                 _events.emit(AssistantSessionEvent.Error("Microphone unavailable."))
             }
             false
@@ -367,7 +374,7 @@ class VehicleAgentAssistantBackend(
     private suspend fun mapUiState(state: AssistantUiState) {
         when (state) {
             is AssistantUiState.Idle -> {
-                emitMood(AssistantMoodId.Idle)
+                emitPipelineMood(AssistantMoodId.Idle)
                 _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                 _events.emit(AssistantSessionEvent.FaceCuesChanged(null))
             }
@@ -380,7 +387,9 @@ class VehicleAgentAssistantBackend(
                     TAG,
                     "ui Listening partial='${state.partialText.take(48)}'",
                 )
-                emitMood(AssistantMoodId.Listening)
+                // Fresh turn — drop prior LLM face tint until the next reply.
+                affectiveMood = null
+                emitPipelineMood(AssistantMoodId.Listening)
                 // Live captions only — never clobber with "Listening…".
                 // Blank ready-for-speech keeps the prior transcript (or empty stage).
                 if (state.partialText.isNotBlank()) {
@@ -397,7 +406,7 @@ class VehicleAgentAssistantBackend(
             is AssistantUiState.Thinking -> {
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Thinking")
-                emitMood(AssistantMoodId.Thinking)
+                emitPipelineMood(AssistantMoodId.Thinking)
                 // Keep the user's last utterance visible — no "Thinking…" placeholder.
                 val query = state.userQuery?.trim().orEmpty()
                 if (query.isNotBlank()) {
@@ -412,13 +421,13 @@ class VehicleAgentAssistantBackend(
             is AssistantUiState.Streaming -> {
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Streaming ${state.displayText.take(40)}")
-                emitMood(AssistantMoodId.Speaking)
+                emitPipelineMood(AssistantMoodId.Speaking)
                 emitAssistantText(state.displayText, mouthAmplitude = 0.35f)
             }
             is AssistantUiState.Speaking -> {
                 micArmed = false
                 AssistantDebugLog.d(TAG, "ui Speaking ${state.finalMessage.take(40)}")
-                emitMood(AssistantMoodId.Speaking)
+                emitPipelineMood(AssistantMoodId.Speaking)
                 emitAssistantText(state.finalMessage, mouthAmplitude = 0.55f)
             }
             is AssistantUiState.Error -> {
@@ -446,7 +455,7 @@ class VehicleAgentAssistantBackend(
                             else -> friendlySttErrorMessage(raw)
                         }
                         AssistantDebugLog.e(TAG, "ui Error hold: $display (raw=$raw)")
-                        emitMood(AssistantMoodId.Sad)
+                        emitPipelineMood(AssistantMoodId.Sad)
                         _events.emit(AssistantSessionEvent.Error(display))
                         _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                     }
@@ -459,7 +468,7 @@ class VehicleAgentAssistantBackend(
                             "STT quiet re-arm (${elapsed}ms into listen window, " +
                                 "remaining≈${remaining}ms) after: $raw",
                         )
-                        emitMood(AssistantMoodId.Listening)
+                        emitPipelineMood(AssistantMoodId.Listening)
                         _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                         scheduleStartMic(
                             reason = "stt-listen-window",
@@ -474,7 +483,7 @@ class VehicleAgentAssistantBackend(
                             TAG,
                             "STT retry #$clientErrorRetries after: $raw",
                         )
-                        emitMood(AssistantMoodId.Listening)
+                        emitPipelineMood(AssistantMoodId.Listening)
                         _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                         scheduleStartMic(
                             reason = "stt-retry",
@@ -489,7 +498,7 @@ class VehicleAgentAssistantBackend(
                             else -> friendlySttErrorMessage(raw)
                         }
                         AssistantDebugLog.e(TAG, "ui Error: $display (raw=$raw)")
-                        emitMood(AssistantMoodId.Sad)
+                        emitPipelineMood(AssistantMoodId.Sad)
                         _events.emit(AssistantSessionEvent.Error(display))
                         _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                         // Master ViewModel leaves Error open for XML mic retry; immersive
@@ -538,29 +547,42 @@ class VehicleAgentAssistantBackend(
             // Clear before stopSession() so it does not cancel this coroutine mid-emit.
             sttDismissJob = null
             stopSession()
-            emitMood(AssistantMoodId.Idle)
+            emitPipelineMood(AssistantMoodId.Idle)
             _events.emit(AssistantSessionEvent.SessionComplete)
         }
     }
 
-    private suspend fun emitMood(mood: AssistantMoodId) {
-        _events.emit(AssistantSessionEvent.MoodChanged(mood))
+    private suspend fun emitPipelineMood(mood: AssistantMoodId) {
+        pipelineMood = mood
+        publishResolvedMood()
+    }
+
+    private suspend fun publishResolvedMood() {
+        val resolved = FaceMoodResolver.resolve(pipelineMood, affectiveMood)
+        _events.emit(AssistantSessionEvent.MoodChanged(resolved))
     }
 
     /**
-     * Strip optional LLM `<face …/>` tags from assistant text, apply cues, and
-     * show the cleaned transcript (tags are never spoken / shown).
+     * Strip optional LLM `<mood>…</mood>` and `<face …/>` tags from assistant text,
+     * apply affective mood + cues from conversation context, and show cleaned transcript
+     * (tags are never spoken / shown).
      */
     private suspend fun emitAssistantText(raw: String, mouthAmplitude: Float) {
-        val parsed = FaceCueParser.parse(raw)
-        if (parsed.found) {
+        val moodParsed = MoodTagParser.parse(raw)
+        if (moodParsed.found) {
+            affectiveMood = moodParsed.mood?.takeIf { FaceMoodResolver.isAffective(it) }
+            publishResolvedMood()
+        }
+
+        val faceParsed = FaceCueParser.parse(moodParsed.cleanedText)
+        if (faceParsed.found) {
             _events.emit(
                 AssistantSessionEvent.FaceCuesChanged(
-                    parsed.cues?.takeUnless { it.isEmpty },
+                    faceParsed.cues?.takeUnless { it.isEmpty },
                 ),
             )
         }
-        val text = parsed.cleanedText.ifBlank { raw }
+        val text = faceParsed.cleanedText.ifBlank { moodParsed.cleanedText }.ifBlank { raw }
         _events.emit(
             AssistantSessionEvent.Transcript(
                 text = text,

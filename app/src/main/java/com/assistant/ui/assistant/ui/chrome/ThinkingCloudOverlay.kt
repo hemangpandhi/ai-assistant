@@ -100,7 +100,7 @@ fun FaceWithThinkingCloud(
     Box(modifier = modifier, contentAlignment = Alignment.Center) {
         content()
         ThinkingCloudOverlay(
-            visible = mood == AssistantMood.Thinking,
+            visible = mood == AssistantMood.Thinking || mood == AssistantMood.Concentration,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .offset(x = 6.dp, y = (-4).dp)

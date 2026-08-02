@@ -21,14 +21,14 @@ object FaceMoodResolver {
     }
 
     fun isAffective(mood: AssistantMoodId): Boolean = when (mood) {
-        AssistantMoodId.Happy,
-        AssistantMoodId.Sad,
-        AssistantMoodId.Excited,
-        AssistantMoodId.Bored,
-        AssistantMoodId.Drowsy,
-        AssistantMoodId.Tired,
-        -> true
-        else -> false
+        AssistantMoodId.Idle,
+        AssistantMoodId.Listening,
+        AssistantMoodId.Thinking,
+        AssistantMoodId.Speaking,
+        AssistantMoodId.Searching,
+        AssistantMoodId.Reading,
+        -> false
+        else -> true
     }
 
     /**

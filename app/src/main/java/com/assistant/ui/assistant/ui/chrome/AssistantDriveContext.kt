@@ -29,8 +29,13 @@ internal fun fatigueMoodForText(text: String): AssistantMood? {
 internal fun isAnswerMood(mood: AssistantMood): Boolean = when (mood) {
     AssistantMood.Speaking,
     AssistantMood.Happy,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
     AssistantMood.Sad,
     AssistantMood.Excited,
+    AssistantMood.Jubilation,
+    AssistantMood.Gratitude,
+    AssistantMood.Triumph,
     -> true
     else -> false
 }

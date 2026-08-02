@@ -258,6 +258,16 @@
         </receiver>
 
         <receiver
+            android:name="com.assistant.ui.assistant.face.AssistantMoodReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_MOOD" />
+                <action android:name="com.assistant.ui.action.CLEAR_ASSISTANT_MOOD" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_MOOD" />
+            </intent-filter>
+        </receiver>
+
+        <receiver
             android:name="com.assistant.ui.assistant.ui.immersive.AssistantPlacementReceiver"
             android:exported="true">
             <intent-filter>

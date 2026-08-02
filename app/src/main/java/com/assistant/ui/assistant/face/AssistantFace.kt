@@ -183,6 +183,34 @@ internal fun AssistantMood.toFacePose(): FacePose = when (this) {
         borderGlow = 1f,
         tilt = 2f,
     )
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    AssistantMood.Astonishment,
+    AssistantMood.Impressed,
+    -> AssistantMood.Listening.toFacePose()
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Gratitude,
+    AssistantMood.Proud,
+    -> AssistantMood.Happy.toFacePose()
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
+    -> AssistantMood.Excited.toFacePose()
+    AssistantMood.Contentment,
+    AssistantMood.Relaxed,
+    AssistantMood.Acceptance,
+    AssistantMood.Complicity,
+    -> AssistantMood.Idle.toFacePose()
+    AssistantMood.Shy -> AssistantMood.Happy.toFacePose().copy(blush = 0.7f, lookY = 0.15f)
+    AssistantMood.Concentration -> AssistantMood.Thinking.toFacePose()
+    AssistantMood.Dreamy -> AssistantMood.Thinking.toFacePose().copy(lookY = -0.2f)
+    AssistantMood.Sleeping -> AssistantMood.Drowsy.toFacePose()
+    AssistantMood.Doubt,
+    AssistantMood.Concerned,
+    -> AssistantMood.Sad.toFacePose().copy(mouthCurve = -0.35f)
 }
 
 private val PoseSpring = spring<Float>(

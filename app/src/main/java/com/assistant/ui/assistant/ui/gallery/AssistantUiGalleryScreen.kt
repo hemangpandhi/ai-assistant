@@ -183,13 +183,28 @@ private fun moodPrompt(mood: AssistantMood): String = when (mood) {
     AssistantMood.Idle -> "Ready when you are"
     AssistantMood.Listening -> "Listening…"
     AssistantMood.Speaking -> "Here's what I found"
-    AssistantMood.Thinking -> "Thinking…"
-    AssistantMood.Happy -> "Glad I could help"
-    AssistantMood.Sad -> "Sorry about that"
-    AssistantMood.Excited -> "Great news!"
+    AssistantMood.Thinking,
+    AssistantMood.Concentration,
+    -> "Thinking…"
+    AssistantMood.Happy,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Gratitude,
+    -> "Glad I could help"
+    AssistantMood.Sad,
+    AssistantMood.Doubt,
+    AssistantMood.Concerned,
+    -> "Sorry about that"
+    AssistantMood.Excited,
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
+    -> "Great news!"
     AssistantMood.Bored -> "Anything else?"
-    AssistantMood.Drowsy -> "Getting quiet…"
+    AssistantMood.Drowsy,
+    AssistantMood.Sleeping,
+    -> "Getting quiet…"
     AssistantMood.Tired -> "Still here for you"
     AssistantMood.Reading -> "Scanning…"
     AssistantMood.Searching -> "Looking that up"
+    else -> mood.caption
 }

@@ -39,18 +39,48 @@ internal data class PresencePose(
 )
 
 internal fun AssistantMood.toPresencePose(): PresencePose = when (this) {
-    AssistantMood.Listening -> PresencePose(energy = 0.7f, spread = 0.62f, sparkle = 0.25f)
+    AssistantMood.Listening,
+    AssistantMood.Interest,
+    AssistantMood.Surprise,
+    AssistantMood.Astonishment,
+    -> PresencePose(energy = 0.7f, spread = 0.62f, sparkle = 0.25f)
     AssistantMood.Speaking -> PresencePose(energy = 0.65f, spread = 0.58f, sparkle = 0.18f)
-    AssistantMood.Thinking -> PresencePose(energy = 0.45f, spread = 0.48f, sparkle = 0.4f)
+    AssistantMood.Thinking,
+    AssistantMood.Concentration,
+    AssistantMood.Dreamy,
+    -> PresencePose(energy = 0.45f, spread = 0.48f, sparkle = 0.4f)
     AssistantMood.Searching -> PresencePose(energy = 0.6f, spread = 0.55f, sparkle = 0.45f)
-    AssistantMood.Happy -> PresencePose(energy = 0.55f, spread = 0.6f, sparkle = 0.35f)
-    AssistantMood.Sad -> PresencePose(energy = 0.25f, spread = 0.4f, sparkle = 0.08f)
-    AssistantMood.Excited -> PresencePose(energy = 0.9f, spread = 0.72f, sparkle = 0.55f)
+    AssistantMood.Happy,
+    AssistantMood.Amused,
+    AssistantMood.Joyous,
+    AssistantMood.Gratitude,
+    AssistantMood.Proud,
+    AssistantMood.Attraction,
+    AssistantMood.Admiration,
+    AssistantMood.Desire,
+    AssistantMood.Impressed,
+    -> PresencePose(energy = 0.55f, spread = 0.6f, sparkle = 0.35f)
+    AssistantMood.Sad,
+    AssistantMood.Doubt,
+    AssistantMood.Concerned,
+    -> PresencePose(energy = 0.25f, spread = 0.4f, sparkle = 0.08f)
+    AssistantMood.Excited,
+    AssistantMood.Jubilation,
+    AssistantMood.Triumph,
+    -> PresencePose(energy = 0.9f, spread = 0.72f, sparkle = 0.55f)
     AssistantMood.Bored -> PresencePose(energy = 0.2f, spread = 0.38f, sparkle = 0.05f)
-    AssistantMood.Drowsy -> PresencePose(energy = 0.18f, spread = 0.36f, sparkle = 0.04f)
+    AssistantMood.Drowsy,
+    AssistantMood.Sleeping,
+    -> PresencePose(energy = 0.18f, spread = 0.36f, sparkle = 0.04f)
     AssistantMood.Tired -> PresencePose(energy = 0.16f, spread = 0.34f, sparkle = 0.03f)
     AssistantMood.Reading -> PresencePose(energy = 0.4f, spread = 0.48f, sparkle = 0.15f)
-    AssistantMood.Idle -> PresencePose(energy = 0.32f, spread = 0.46f, sparkle = 0.1f)
+    AssistantMood.Idle,
+    AssistantMood.Contentment,
+    AssistantMood.Relaxed,
+    AssistantMood.Acceptance,
+    AssistantMood.Complicity,
+    AssistantMood.Shy,
+    -> PresencePose(energy = 0.32f, spread = 0.46f, sparkle = 0.1f)
 }
 
 private val PresenceSpring = spring<Float>(
