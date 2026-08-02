@@ -203,6 +203,13 @@ class CockpitVisionService : Service() {
                         val targetTemp = faceProfileManager.getTargetTemp(recognizedUserName)
                         aaosUserSwitchManager.switchUser(targetUserId, recognizedUserName)
                         VehicleManager.applySavedCabinPreferences(recognizedUserName, targetTemp)
+
+                        // Trigger the Voice Assistant greeting
+                        val serviceIntent = Intent(this@CockpitVisionService, com.tcs.vehicleassistant.service.VehicleAgentService::class.java).apply {
+                            action = "com.tcs.vehicleassistant.ACTION_GREET_USER"
+                            putExtra("USER_NAME", recognizedUserName)
+                        }
+                        startService(serviceIntent)
                     }
                 }
             } else if (currentFaces.isNotEmpty()) {

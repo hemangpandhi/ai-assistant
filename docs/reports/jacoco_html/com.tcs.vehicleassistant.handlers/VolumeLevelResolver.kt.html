@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>VolumeLevelResolver.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">VolumeLevelResolver.kt</span></div><h1>VolumeLevelResolver.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+/**
+ * Pure volume arithmetic for [MediaToolHandler.setVolumeLevel].
+ * Keeps relative &quot;up&quot;/&quot;down&quot; as stream-index steps (not absolute 5%).
+ */
+object VolumeLevelResolver {
+
+<span class="fc" id="L9">    data class Plan(</span>
+<span class="fc" id="L10">        val targetIndex: Int,</span>
+<span class="fc" id="L11">        val previousIndex: Int,</span>
+<span class="fc" id="L12">        val maxIndex: Int,</span>
+<span class="fc" id="L13">        val relative: Boolean,</span>
+<span class="fc" id="L14">        val increasing: Boolean?,</span>
+    ) {
+<span class="nc" id="L16">        val previousPct: Int get() = toPercentage(previousIndex, maxIndex)</span>
+<span class="fc" id="L17">        val targetPct: Int get() = toPercentage(targetIndex, maxIndex)</span>
+    }
+
+    /** ~5% of max stream index, minimum one hardware step. */
+    fun relativeStep(maxIndex: Int): Int {
+<span class="fc" id="L22">        val max = maxIndex.coerceAtLeast(0)</span>
+<span class="fc bfc" id="L23" title="All 2 branches covered.">        if (max &lt;= 0) return 0</span>
+<span class="fc" id="L24">        return maxOf(1, Math.round(max * 0.05f))</span>
+    }
+
+    fun toPercentage(index: Int, maxIndex: Int): Int {
+<span class="fc" id="L28">        val max = maxIndex.coerceAtLeast(1)</span>
+<span class="fc" id="L29">        val clamped = index.coerceIn(0, max)</span>
+<span class="fc" id="L30">        return Math.round((clamped.toFloat() / max) * 100)</span>
+    }
+
+    /**
+     * @param arg raw tool argument (e.g. &quot;up&quot;, &quot;down&quot;, &quot;50%&quot;, &quot;+10%&quot;, &quot;MAX&quot;, &quot;3&quot;)
+     * @param toolCall full call string; used only as a decrease hint when arg is empty/ambiguous
+     */
+<span class="fc" id="L37">    fun plan(arg: String, currentIndex: Int, maxIndex: Int, toolCall: String = &quot;&quot;): Plan {</span>
+<span class="fc" id="L38">        val maxVol = maxIndex.coerceAtLeast(0)</span>
+<span class="fc" id="L39">        val curVol = currentIndex.coerceIn(0, maxVol)</span>
+<span class="fc" id="L40">        val argStr = arg.trim()</span>
+
+<span class="fc bfc" id="L42" title="All 6 branches covered.">        if (argStr.isBlank() || argStr.equals(&quot;UP&quot;, ignoreCase = true) || argStr.equals(&quot;DOWN&quot;, ignoreCase = true)) {</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">            val isDecrease = argStr.equals(&quot;DOWN&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L44" title="1 of 2 branches missed.">                toolCall.contains(&quot;decrease&quot;, ignoreCase = true)</span>
+<span class="fc" id="L45">            val step = relativeStep(maxVol)</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">            val target = if (isDecrease) {</span>
+<span class="fc" id="L47">                (curVol - step).coerceAtLeast(0)</span>
+            } else {
+<span class="fc" id="L49">                (curVol + step).coerceAtMost(maxVol)</span>
+            }
+<span class="fc bfc" id="L51" title="All 2 branches covered.">            return Plan(target, curVol, maxVol, relative = true, increasing = !isDecrease)</span>
+        }
+
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (argStr.equals(&quot;MAX&quot;, ignoreCase = true)) {</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">            return Plan(maxVol, curVol, maxVol, relative = false, increasing = maxVol &gt; curVol)</span>
+        }
+
+<span class="fc bfc" id="L58" title="All 4 branches covered.">        if (argStr.startsWith(&quot;+&quot;) || argStr.startsWith(&quot;-&quot;)) {</span>
+<span class="fc" id="L59">            val hasPercentSign = argStr.contains(&quot;%&quot;)</span>
+<span class="pc bpc" id="L60" title="1 of 2 branches missed.">            val parsedNum = argStr.replace(&quot;%&quot;, &quot;&quot;).toIntOrNull() ?: 0</span>
+<span class="pc bpc" id="L61" title="1 of 4 branches missed.">            val delta = if (hasPercentSign || Math.abs(parsedNum) &gt; maxVol) {</span>
+<span class="fc" id="L62">                Math.round((parsedNum / 100f) * maxVol)</span>
+            } else {
+<span class="fc" id="L64">                parsedNum</span>
+            }
+<span class="fc" id="L66">            val target = (curVol + delta).coerceIn(0, maxVol)</span>
+<span class="fc" id="L67">            return Plan(</span>
+<span class="fc" id="L68">                target,</span>
+<span class="fc" id="L69">                curVol,</span>
+<span class="fc" id="L70">                maxVol,</span>
+<span class="fc" id="L71">                relative = true,</span>
+<span class="fc" id="L72">                increasing = when {</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">                    delta &gt; 0 -&gt; true</span>
+<span class="fc bfc" id="L74" title="All 2 branches covered.">                    delta &lt; 0 -&gt; false</span>
+<span class="fc" id="L75">                    else -&gt; null</span>
+                },
+            )
+        }
+
+<span class="fc" id="L80">        val hasPercentSign = argStr.contains(&quot;%&quot;)</span>
+<span class="fc" id="L81">        val parsedNum = argStr.replace(&quot;%&quot;, &quot;&quot;).replace(&quot;+&quot;, &quot;&quot;).toIntOrNull()</span>
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (parsedNum != null) {</span>
+<span class="pc bpc" id="L83" title="1 of 4 branches missed.">            val target = if (hasPercentSign || parsedNum &gt; maxVol) {</span>
+<span class="fc" id="L84">                Math.round((parsedNum / 100f) * maxVol)</span>
+            } else {
+<span class="fc" id="L86">                parsedNum</span>
+<span class="fc" id="L87">            }.coerceIn(0, maxVol)</span>
+<span class="fc" id="L88">            return Plan(</span>
+<span class="fc" id="L89">                target,</span>
+<span class="fc" id="L90">                curVol,</span>
+<span class="fc" id="L91">                maxVol,</span>
+<span class="fc" id="L92">                relative = false,</span>
+<span class="fc" id="L93">                increasing = when {</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">                    target &gt; curVol -&gt; true</span>
+<span class="pc bpc" id="L95" title="1 of 2 branches missed.">                    target &lt; curVol -&gt; false</span>
+<span class="fc" id="L96">                    else -&gt; null</span>
+                },
+            )
+        }
+
+        // Unknown token: treat as a single relative step (increase unless toolCall says decrease).
+<span class="fc" id="L102">        val isDecrease = toolCall.contains(&quot;decrease&quot;, ignoreCase = true)</span>
+<span class="fc" id="L103">        val step = relativeStep(maxVol)</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        val target = if (isDecrease) {</span>
+<span class="fc" id="L105">            (curVol - step).coerceAtLeast(0)</span>
+        } else {
+<span class="fc" id="L107">            (curVol + step).coerceAtMost(maxVol)</span>
+        }
+<span class="fc bfc" id="L109" title="All 2 branches covered.">        return Plan(target, curVol, maxVol, relative = true, increasing = !isDecrease)</span>
+    }
+
+    /**
+     * Spoken feedback after AudioManager apply + readback.
+     * Prefer the actual applied index so we never claim a level we did not reach.
+     */
+    fun feedback(plan: Plan, appliedIndex: Int): String {
+<span class="fc" id="L117">        val applied = appliedIndex.coerceIn(0, plan.maxIndex.coerceAtLeast(0))</span>
+<span class="fc" id="L118">        val pct = toPercentage(applied, plan.maxIndex)</span>
+<span class="fc bfc" id="L119" title="All 2 branches covered.">        val changed = applied != plan.previousIndex</span>
+
+<span class="fc bfc" id="L121" title="All 2 branches covered.">        if (!changed) {</span>
+<span class="fc" id="L122">            return when {</span>
+<span class="fc bfc" id="L123" title="All 4 branches covered.">                plan.increasing == true &amp;&amp; applied &gt;= plan.maxIndex -&gt;</span>
+<span class="fc" id="L124">                    &quot;Volume is already at maximum ($pct%).&quot;</span>
+<span class="pc bpc" id="L125" title="1 of 4 branches missed.">                plan.increasing == false &amp;&amp; applied &lt;= 0 -&gt;</span>
+<span class="fc" id="L126">                    &quot;Volume is already at minimum ($pct%).&quot;</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">                plan.targetIndex != plan.previousIndex -&gt;</span>
+<span class="fc" id="L128">                    &quot;I couldn't change the volume; it's still at $pct%.&quot;</span>
+<span class="fc" id="L129">                else -&gt; &quot;Volume is already at $pct%.&quot;</span>
+            }
+        }
+
+<span class="fc" id="L133">        return when {</span>
+<span class="fc bfc" id="L134" title="All 4 branches covered.">            plan.relative &amp;&amp; plan.increasing == true -&gt;</span>
+<span class="fc" id="L135">                &quot;I've increased the volume to $pct%.&quot;</span>
+<span class="pc bpc" id="L136" title="1 of 4 branches missed.">            plan.relative &amp;&amp; plan.increasing == false -&gt;</span>
+<span class="fc" id="L137">                &quot;I've decreased the volume to $pct%.&quot;</span>
+<span class="fc" id="L138">            else -&gt; &quot;I've set the volume to $pct%.&quot;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

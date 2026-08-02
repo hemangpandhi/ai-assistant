@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StubRecognitionService.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.speech</a> &gt; <span class="el_source">StubRecognitionService.kt</span></div><h1>StubRecognitionService.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.speech
+
+import android.content.Intent
+import android.speech.RecognitionService
+import android.speech.SpeechRecognizer
+import android.util.Log
+
+/**
+ * Minimal [RecognitionService] required by [android.service.voice.VoiceInteractionService]
+ * XML (`android:recognitionService`). Cabin STT/TTS uses Sherpa-ONNX via
+ * [com.tcs.vehicleassistant.hardware.AndroidAudioManager]; this stub only satisfies the
+ * platform contract and fails cleanly for external [android.speech.SpeechRecognizer] clients.
+ */
+<span class="nc" id="L14">class StubRecognitionService : RecognitionService() {</span>
+
+    override fun onStartListening(recognizerIntent: Intent?, listener: Callback?) {
+<span class="nc" id="L17">        Log.i(TAG, &quot;onStartListening: stub — cabin STT uses Sherpa via AndroidAudioManager&quot;)</span>
+<span class="nc" id="L18">        reportUnsupported(listener)</span>
+<span class="nc" id="L19">    }</span>
+
+    override fun onCancel(listener: Callback?) {
+<span class="nc" id="L22">        Log.i(TAG, &quot;onCancel&quot;)</span>
+        // No active recognition session to tear down.
+<span class="nc" id="L24">    }</span>
+
+    override fun onStopListening(listener: Callback?) {
+<span class="nc" id="L27">        Log.i(TAG, &quot;onStopListening&quot;)</span>
+<span class="nc" id="L28">        reportUnsupported(listener)</span>
+<span class="nc" id="L29">    }</span>
+
+    private fun reportUnsupported(listener: Callback?) {
+<span class="nc bnc" id="L32" title="All 2 branches missed.">        if (listener == null) return</span>
+<span class="nc" id="L33">        try {</span>
+<span class="nc" id="L34">            listener.error(SpeechRecognizer.ERROR_CLIENT)</span>
+<span class="nc" id="L35">        } catch (e: Exception) {</span>
+<span class="nc" id="L36">            Log.w(TAG, &quot;Failed to deliver error to RecognitionService.Callback&quot;, e)</span>
+        }
+<span class="nc" id="L38">    }</span>
+
+    companion object {
+        private const val TAG = &quot;StubRecognitionService&quot;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

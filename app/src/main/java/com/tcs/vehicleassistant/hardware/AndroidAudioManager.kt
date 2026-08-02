@@ -22,6 +22,44 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         const val TAG = "AndroidAudioManager"
     }
 
+    private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var audioFocusRequest: android.media.AudioFocusRequest? = null
+
+    private fun requestFocusAndMaxVolume() {
+        try {
+            // Attempt to maximize Assistant volume (STREAM_ASSISTANT = 11 on Automotive)
+            val maxVol = audioManager.getStreamMaxVolume(11)
+            audioManager.setStreamVolume(11, maxVol, 0)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to set assistant volume", e)
+        }
+        
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            if (audioFocusRequest == null) {
+                val attributes = android.media.AudioAttributes.Builder()
+                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+                audioFocusRequest = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+                    .setAudioAttributes(attributes)
+                    .setAcceptsDelayedFocusGain(true)
+                    .setOnAudioFocusChangeListener { }
+                    .build()
+            }
+            audioFocusRequest?.let {
+                audioManager.requestAudioFocus(it)
+            }
+        }
+    }
+
+    private fun abandonFocus() {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            audioFocusRequest?.let {
+                audioManager.abandonAudioFocusRequest(it)
+            }
+        }
+    }
+
     private var offlineTts: OfflineTts? = null
     @Volatile private var ttsSpeakerId: Int = 0
     @Volatile private var ttsSpeed: Float = 1.0f
@@ -283,6 +321,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     override fun startListening() {
         if (isListening) return
+        requestFocusAndMaxVolume()
         // Ensure any prior capture loop fully released AudioRecord before we open a new one.
         listeningJob?.cancel()
         listeningJob = null
@@ -570,6 +609,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     override fun stopListening() {
         if (!isListening) return
         isListening = false
+        abandonFocus()
         listeningJob?.cancel()
         listeningJob = null
         CoroutineScope(Dispatchers.Main).launch {
@@ -633,6 +673,7 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
 
     override fun speak(text: String, utteranceId: String) {
         ttsChannel.trySend {
+            requestFocusAndMaxVolume()
             try {
                 val cleanText = text.replace("*", "").replace("#", "").replace("_", "")
                 val sentences = cleanText.split(Regex("(?<=[.!?])\\s+")).filter { it.isNotBlank() }
@@ -693,10 +734,12 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
                 if (isActive) {
                     withContext(Dispatchers.Main) { onTtsDone?.invoke(utteranceId) }
                 }
+                abandonFocus()
             } catch (e: Exception) {
                 if (isActive) {
                     withContext(Dispatchers.Main) { onTtsError?.invoke(utteranceId) }
                 }
+                abandonFocus()
             }
         }
     }

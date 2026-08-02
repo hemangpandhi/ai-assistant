@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>CabinVolumeController.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">CabinVolumeController.kt</span></div><h1>CabinVolumeController.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import android.car.Car
+import android.car.media.CarAudioManager
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioManager
+import android.util.Log
+
+/**
+ * AAOS-aware media volume read/write.
+ *
+ * On Automotive, [AudioManager.setStreamVolume] for [AudioManager.STREAM_MUSIC] is often a
+ * silent no-op; zone/group volume via [CarAudioManager] is the supported path.
+ */
+object CabinVolumeController {
+
+    private const val TAG = &quot;CabinVolumeController&quot;
+
+<span class="nc" id="L20">    data class Levels(val current: Int, val max: Int, val source: String)</span>
+
+    fun read(context: Context): Levels {
+<span class="nc bnc" id="L23" title="All 2 branches missed.">        tryCar(context)?.let { return it.first }</span>
+<span class="nc" id="L24">        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager</span>
+<span class="nc" id="L25">        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(0)</span>
+<span class="nc" id="L26">        val cur = am.getStreamVolume(AudioManager.STREAM_MUSIC).coerceIn(0, max)</span>
+<span class="nc" id="L27">        return Levels(cur, max, &quot;STREAM_MUSIC&quot;)</span>
+    }
+
+    /**
+     * Sets media volume to [targetIndex] (clamped). Returns the readback level after apply.
+     */
+    fun write(context: Context, targetIndex: Int): Levels {
+<span class="nc" id="L34">        val before = read(context)</span>
+<span class="nc" id="L35">        val target = targetIndex.coerceIn(0, before.max.coerceAtLeast(0))</span>
+<span class="nc bnc" id="L36" title="All 2 branches missed.">        if (target == before.current) return before</span>
+
+<span class="nc" id="L38">        val carApplied = tryWriteCar(context, target)</span>
+<span class="nc bnc" id="L39" title="All 4 branches missed.">        if (carApplied != null &amp;&amp; carApplied.current != before.current) {</span>
+<span class="nc" id="L40">            Log.i(TAG, &quot;CarAudio applied ${before.current}-&gt;${carApplied.current} (max=${carApplied.max})&quot;)</span>
+<span class="nc" id="L41">            return carApplied</span>
+        }
+
+<span class="nc" id="L44">        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager</span>
+<span class="nc" id="L45">        val flags = AudioManager.FLAG_SHOW_UI or AudioManager.FLAG_PLAY_SOUND</span>
+<span class="nc" id="L46">        try {</span>
+<span class="nc" id="L47">            am.setStreamVolume(AudioManager.STREAM_MUSIC, target, flags)</span>
+<span class="nc" id="L48">        } catch (e: Exception) {</span>
+<span class="nc" id="L49">            Log.w(TAG, &quot;setStreamVolume failed&quot;, e)</span>
+        }
+<span class="nc" id="L51">        var after = am.getStreamVolume(AudioManager.STREAM_MUSIC)</span>
+<span class="nc bnc" id="L52" title="All 2 branches missed.">        if (after == before.current) {</span>
+            // Last resort: step ADJUST_RAISE/LOWER (some images honor this when absolute set fails).
+<span class="nc bnc" id="L54" title="All 2 branches missed.">            val direction = if (target &gt; before.current) {</span>
+<span class="nc" id="L55">                AudioManager.ADJUST_RAISE</span>
+            } else {
+<span class="nc" id="L57">                AudioManager.ADJUST_LOWER</span>
+            }
+<span class="nc" id="L59">            val steps = kotlin.math.abs(target - before.current).coerceAtMost(before.max.coerceAtLeast(1))</span>
+<span class="nc bnc" id="L60" title="All 2 branches missed.">            repeat(steps) {</span>
+<span class="nc" id="L61">                try {</span>
+<span class="nc" id="L62">                    am.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, flags)</span>
+<span class="nc" id="L63">                } catch (e: Exception) {</span>
+<span class="nc" id="L64">                    Log.w(TAG, &quot;adjustStreamVolume failed&quot;, e)</span>
+<span class="nc" id="L65">                    return@repeat</span>
+                }
+<span class="nc" id="L67">            }</span>
+<span class="nc" id="L68">            after = am.getStreamVolume(AudioManager.STREAM_MUSIC)</span>
+        }
+<span class="nc" id="L70">        val max = am.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(0)</span>
+<span class="nc" id="L71">        val result = Levels(after.coerceIn(0, max), max, &quot;STREAM_MUSIC&quot;)</span>
+<span class="nc" id="L72">        Log.i(TAG, &quot;AudioManager applied ${before.current}-&gt;${result.current} (wanted=$target)&quot;)</span>
+<span class="nc" id="L73">        return result</span>
+    }
+
+    private fun tryCar(context: Context): Pair&lt;Levels, CarAudioManager&gt;? {
+<span class="nc" id="L77">        return try {</span>
+<span class="nc bnc" id="L78" title="All 2 branches missed.">            val car = Car.createCar(context) ?: return null</span>
+<span class="nc bnc" id="L79" title="All 4 branches missed.">            val cam = car.getCarManager(Car.AUDIO_SERVICE) as? CarAudioManager ?: return null</span>
+<span class="nc" id="L80">            val zoneId = primaryZoneId(cam)</span>
+<span class="nc bnc" id="L81" title="All 2 branches missed.">            val groupId = mediaGroupId(cam, zoneId) ?: return null</span>
+<span class="nc" id="L82">            val maxMethod = cam.javaClass.getMethod(&quot;getGroupMaxVolume&quot;, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)</span>
+<span class="nc" id="L83">            val max = (maxMethod.invoke(cam, zoneId, groupId) as Int).coerceAtLeast(0)</span>
+<span class="nc" id="L84">            val curMethod = cam.javaClass.getMethod(&quot;getGroupVolume&quot;, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)</span>
+<span class="nc" id="L85">            val cur = (curMethod.invoke(cam, zoneId, groupId) as Int).coerceIn(0, max)</span>
+<span class="nc" id="L86">            Pair(Levels(cur, max, &quot;CarAudio zone=$zoneId group=$groupId&quot;), cam)</span>
+<span class="nc" id="L87">        } catch (e: Exception) {</span>
+<span class="nc" id="L88">            Log.w(TAG, &quot;CarAudio read unavailable&quot;, e)</span>
+<span class="nc" id="L89">            null</span>
+        }
+    }
+
+    private fun tryWriteCar(context: Context, target: Int): Levels? {
+<span class="nc" id="L94">        return try {</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">            val car = Car.createCar(context) ?: return null</span>
+<span class="nc bnc" id="L96" title="All 4 branches missed.">            val cam = car.getCarManager(Car.AUDIO_SERVICE) as? CarAudioManager ?: return null</span>
+<span class="nc" id="L97">            val zoneId = primaryZoneId(cam)</span>
+<span class="nc bnc" id="L98" title="All 2 branches missed.">            val groupId = mediaGroupId(cam, zoneId) ?: return null</span>
+<span class="nc" id="L99">            val maxMethod = cam.javaClass.getMethod(&quot;getGroupMaxVolume&quot;, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)</span>
+<span class="nc" id="L100">            val max = (maxMethod.invoke(cam, zoneId, groupId) as Int).coerceAtLeast(0)</span>
+<span class="nc" id="L101">            val clamped = target.coerceIn(0, max)</span>
+<span class="nc" id="L102">            val setMethod = cam.javaClass.getMethod(&quot;setGroupVolume&quot;, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)</span>
+<span class="nc" id="L103">            setMethod.invoke(cam, zoneId, groupId, clamped, 0)</span>
+<span class="nc" id="L104">            val curMethod = cam.javaClass.getMethod(&quot;getGroupVolume&quot;, Int::class.javaPrimitiveType, Int::class.javaPrimitiveType)</span>
+<span class="nc" id="L105">            val applied = (curMethod.invoke(cam, zoneId, groupId) as Int).coerceIn(0, max)</span>
+<span class="nc" id="L106">            Levels(applied, max, &quot;CarAudio zone=$zoneId group=$groupId&quot;)</span>
+<span class="nc" id="L107">        } catch (e: SecurityException) {</span>
+<span class="nc" id="L108">            Log.w(TAG, &quot;CarAudio write denied — need CAR_CONTROL_AUDIO_VOLUME?&quot;, e)</span>
+<span class="nc" id="L109">            null</span>
+<span class="nc" id="L110">        } catch (e: Exception) {</span>
+<span class="nc" id="L111">            Log.w(TAG, &quot;CarAudio write failed&quot;, e)</span>
+<span class="nc" id="L112">            null</span>
+        }
+    }
+
+    private fun primaryZoneId(cam: CarAudioManager): Int {
+<span class="nc" id="L117">        return try {</span>
+            // API 30+ constant; fall back to 0.
+<span class="nc" id="L119">            cam.javaClass.getField(&quot;PRIMARY_AUDIO_ZONE&quot;).getInt(null)</span>
+<span class="nc" id="L120">        } catch (_: Throwable) {</span>
+<span class="nc" id="L121">            0</span>
+        }
+    }
+
+    private fun mediaGroupId(cam: CarAudioManager, zoneId: Int): Int? {
+<span class="nc" id="L126">        return try {</span>
+<span class="nc" id="L127">            val usage = AudioAttributes.USAGE_MEDIA</span>
+            // Prefer zone-aware API when present.
+<span class="nc" id="L129">            try {</span>
+<span class="nc" id="L130">                val method = cam.javaClass.getMethod(</span>
+<span class="nc" id="L131">                    &quot;getVolumeGroupIdForUsage&quot;,</span>
+<span class="nc" id="L132">                    Int::class.javaPrimitiveType,</span>
+<span class="nc" id="L133">                    Int::class.javaPrimitiveType,</span>
+                )
+<span class="nc bnc" id="L135" title="All 4 branches missed.">                (method.invoke(cam, zoneId, usage) as Int).takeIf { it &gt;= 0 }</span>
+<span class="nc" id="L136">            } catch (_: NoSuchMethodException) {</span>
+<span class="nc" id="L137">                val fallbackMethod = cam.javaClass.getMethod(&quot;getVolumeGroupIdForUsage&quot;, Int::class.javaPrimitiveType)</span>
+<span class="nc bnc" id="L138" title="All 4 branches missed.">                (fallbackMethod.invoke(cam, usage) as Int).takeIf { it &gt;= 0 }</span>
+            }
+<span class="nc" id="L140">        } catch (e: Exception) {</span>
+<span class="nc" id="L141">            Log.w(TAG, &quot;media group id lookup failed&quot;, e)</span>
+            // Common default: group 0 is media on many AAOS images.
+<span class="nc" id="L143">            0</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

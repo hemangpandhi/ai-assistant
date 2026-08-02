@@ -98,7 +98,9 @@ class AssistantViewModel(
 
     // ── Public API ──────────────────────────────────────────────────────────
 
-    fun isProcessing(): Boolean = orchestrator.isProcessing()
+    private var isDirectSpeaking = false
+
+    fun isProcessing(): Boolean = orchestrator.isProcessing() || isDirectSpeaking
 
     val lastTtsUpdateTime: Long
         get() = orchestrator.lastTtsUpdateTime
@@ -135,6 +137,17 @@ class AssistantViewModel(
             android.speech.SpeechRecognizer.ERROR_SERVER -> "Error from server"
             android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
             else -> "Unknown recognition error"
+        }
+    }
+
+    fun speakAndDismiss(text: String) {
+        scope.launch {
+            isDirectSpeaking = true
+            _uiState.value = AssistantUiState.Speaking(text)
+            audioManager.speak(text, "direct_speech")
+            delay(5000) // Give it time to speak, or rely on a TTS callback if available. For now delay is safe.
+            isDirectSpeaking = false
+            _events.tryEmit(ViewModelEvent.FinishSession)
         }
     }
 }

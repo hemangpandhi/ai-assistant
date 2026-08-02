@@ -5,8 +5,10 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
@@ -14,10 +16,12 @@ import android.media.MediaRecorder
 import android.media.audiofx.NoiseSuppressor
 import android.os.Build
 import android.os.IBinder
+import android.os.UserManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.assistant.WakeWordPhrasePolicy
 import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.service.VehicleAgentService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -122,12 +126,36 @@ class WakeWordService : Service() {
     private var recognizerGrammarKey: String? = null
     private var customAudioRecord: AudioRecord? = null
 
+    private val unlockReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == Intent.ACTION_USER_PRESENT || intent.action == "com.tcs.vehicleassistant.FACE_UNLOCKED") {
+                Log.d(TAG, "Unlock broadcast received in WakeWordService: ${intent.action}")
+                var userName = intent.getStringExtra("USER_NAME")
+                if (userName.isNullOrEmpty()) {
+                    userName = try {
+                        val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
+                        userManager.userName ?: "User"
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to get user name from UserManager", e)
+                        "User"
+                    }
+                }
+                val serviceIntent = Intent(context, VehicleAgentService::class.java).apply {
+                    action = "com.tcs.vehicleassistant.ACTION_GREET_USER"
+                    putExtra("USER_NAME", userName)
+                }
+                context.startForegroundService(serviceIntent)
+            }
+        }
+    }
+
     @Volatile
     private var isRecording = false
 
     private var listeningJob: Job? = null
     private var restartJob: Job? = null
     private var noiseSuppressor: NoiseSuppressor? = null
+    private var echoCanceler: android.media.audiofx.AcousticEchoCanceler? = null
 
     /** Elapsed realtime after which a match is allowed again. */
     @Volatile
@@ -139,6 +167,12 @@ class WakeWordService : Service() {
     override fun onCreate() {
         super.onCreate()
         updateWakeWord()
+        
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_USER_PRESENT)
+            addAction("com.tcs.vehicleassistant.FACE_UNLOCKED")
+        }
+        registerReceiver(unlockReceiver, filter, Context.RECEIVER_EXPORTED)
     }
 
     private fun updateWakeWord() {
@@ -344,6 +378,9 @@ class WakeWordService : Service() {
             if (NoiseSuppressor.isAvailable()) {
                 noiseSuppressor = NoiseSuppressor.create(record.audioSessionId)?.apply { enabled = true }
             }
+            if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
+                echoCanceler = android.media.audiofx.AcousticEchoCanceler.create(record.audioSessionId)?.apply { enabled = true }
+            }
 
             record.startRecording()
             val buffer = ShortArray(bufferSize)
@@ -405,6 +442,13 @@ class WakeWordService : Service() {
         noiseSuppressor = null
 
         try {
+            echoCanceler?.release()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to release echo canceler", e)
+        }
+        echoCanceler = null
+
+        try {
             if (record?.state == AudioRecord.STATE_INITIALIZED) record.stop()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to stop AudioRecord", e)
@@ -434,6 +478,11 @@ class WakeWordService : Service() {
     }
 
     override fun onDestroy() {
+        try {
+            unregisterReceiver(unlockReceiver)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error unregistering receiver", e)
+        }
         isRecording = false
         stopCustomListening()
         try {

@@ -641,7 +641,7 @@
       "property_id": 356517131,
       "data_type": "INT",
       "area_id": 0,
-      "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
+      "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater and temperature increase, execute BOTH <TOOL>setSeatHeater(2)</TOOL> and <TOOL>increaseTemperature()</TOOL>.",
       "success_message": "Seat heater's on \u2014 hope that warms you up!",
       "keywords": [
         "seat heater",
@@ -1897,7 +1897,7 @@
         "turn up the heat"
       ],
       "offline_capable": true,
-      "success_message": "That sounds uncomfortable \u2014 would you like me to turn on the seat heater?",
+      "success_message": "That sounds uncomfortable \u2014 would you like me to turn on the seat heater and increase the cabin temperature?",
       "requires_vehicle_state": false,
       "direct_executable": true
     },

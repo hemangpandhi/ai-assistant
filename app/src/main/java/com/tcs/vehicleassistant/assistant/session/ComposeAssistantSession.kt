@@ -751,6 +751,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     }
 
     override fun onShow(args: Bundle?, showFlags: Int) {
+        AssistantDebugLog.d("Session", "onShow args: $args, showFlags: $showFlags")
         // Assist / system-bar icon while already open → toggle closed (with Compose exit anim).
         if (sessionUiVisible) {
             AssistantDebugLog.d("Session", "onShow while visible — toggle dismiss")
@@ -798,6 +799,15 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         // Pause (not stop): keep the :wakeword process + Vosk model warm for the next turn.
         pauseWakeWordListening()
 
+        val initialQuery = args?.getString("INITIAL_QUERY")
+        val directSpeech = args?.getString("DIRECT_SPEECH")
+        if (initialQuery != null) {
+            observerScope.launch {
+                delay(200) // Small delay to allow Compose UI to appear and bind
+                viewModel?.handleQuery(initialQuery)
+            }
+        }
+
         if (usingComposeUi) {
             // Wake-word mic released; open agent STT after summon.
             val origin = ImmersiveSummonOrigin.fromBundleToken(
@@ -808,7 +818,9 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 val backend = AssistantRuntime.backend as? VehicleAgentAssistantBackend
                 backend?.bindContext(context)
                 notifyImmersiveAssistantSummon(origin)
-                backend?.requestListen()
+                if (initialQuery == null && directSpeech == null) {
+                    backend?.requestListen()
+                }
             }
             overlayView.postDelayed(
                 { notifyImmersiveAssistantSummon(origin) },
@@ -857,7 +869,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 btnSend?.isEnabled = true
                 btnMic?.isEnabled = true
                 armIdleTimer("model-ready")
-                if (showFlags and SHOW_WITH_ASSIST != 0) {
+                if (initialQuery == null && (showFlags and SHOW_WITH_ASSIST) != 0) {
                     delay(500) // Wait for WakeWordService to release the mic
                     btnMic?.performClick()
                 }
@@ -871,9 +883,9 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             btnMic?.isEnabled = true
             armIdleTimer("xml-ready")
 
-            if (showFlags and SHOW_WITH_ASSIST != 0) {
-                CoroutineScope(Dispatchers.Main).launch {
-                    delay(500)
+            if (initialQuery == null && (showFlags and SHOW_WITH_ASSIST) != 0) {
+                observerScope.launch {
+                    delay(500) // Wait for WakeWordService to release the mic
                     btnMic?.performClick()
                 }
             }

@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>WeatherApiClient.kt</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">app</a> &gt; <a href="index.source.html" class="el_package">com.tcs.vehicleassistant.handlers</a> &gt; <span class="el_source">WeatherApiClient.kt</span></div><h1>WeatherApiClient.kt</h1><pre class="source lang-java linenums">package com.tcs.vehicleassistant.handlers
+
+import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import org.json.JSONArray
+import org.json.JSONObject
+import java.net.URLEncoder
+import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
+
+/**
+ * Live weather via Open-Meteo (no API key). Returns spoken facts only — never invents values.
+ * All network work runs on [Dispatchers.IO] (DirectTool otherwise executes on Main).
+ */
+object WeatherApiClient {
+
+    private const val TAG = &quot;WeatherApiClient&quot;
+
+<span class="fc" id="L22">    private val httpClient: OkHttpClient by lazy {</span>
+<span class="fc" id="L23">        OkHttpClient.Builder()</span>
+<span class="fc" id="L24">            .connectTimeout(15, TimeUnit.SECONDS)</span>
+<span class="fc" id="L25">            .readTimeout(15, TimeUnit.SECONDS)</span>
+<span class="fc" id="L26">            .callTimeout(20, TimeUnit.SECONDS)</span>
+<span class="fc" id="L27">            .followRedirects(true)</span>
+<span class="fc" id="L28">            .build()</span>
+    }
+
+<span class="fc" id="L31">    data class GeoPoint(val latitude: Double, val longitude: Double, val label: String)</span>
+
+<span class="fc" id="L33">    data class CurrentWeather(</span>
+<span class="fc" id="L34">        val locationLabel: String,</span>
+<span class="fc" id="L35">        val tempF: Int,</span>
+<span class="fc" id="L36">        val humidityPct: Int?,</span>
+<span class="fc" id="L37">        val windMph: Int?,</span>
+<span class="fc" id="L38">        val condition: String,</span>
+<span class="pc" id="L39">        val weatherCode: Int,</span>
+    )
+
+    /** Distinguishes empty geocode hits from transport/HTTP failures for spoken feedback. */
+    sealed class LookupResult&lt;out T&gt; {
+<span class="fc" id="L44">        data class Ok&lt;T&gt;(val value: T) : LookupResult&lt;T&gt;()</span>
+<span class="pc" id="L45">        data class NotFound(val query: String) : LookupResult&lt;Nothing&gt;()</span>
+<span class="nc" id="L46">        data class NetworkError(val stage: String, val detail: String?) : LookupResult&lt;Nothing&gt;()</span>
+    }
+
+<span class="fc" id="L49">    suspend fun resolveLocation(</span>
+        cityOrHere: String,
+        fallbackLat: Double?,
+        fallbackLon: Double?,
+        fallbackLabel: String,
+<span class="fc" id="L54">    ): GeoPoint? = when (val r = resolveLocationDetailed(cityOrHere, fallbackLat, fallbackLon, fallbackLabel)) {</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">        is LookupResult.Ok -&gt; r.value</span>
+<span class="nc" id="L56">        else -&gt; null</span>
+<span class="fc" id="L57">    }</span>
+
+    suspend fun resolveLocationDetailed(
+        cityOrHere: String,
+        fallbackLat: Double?,
+        fallbackLon: Double?,
+        fallbackLabel: String,
+    ): LookupResult&lt;GeoPoint&gt; {
+<span class="fc" id="L65">        val cleaned = cityOrHere.trim().removeSurrounding(&quot;\&quot;&quot;)</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">        if (cleaned.isBlank() ||</span>
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">            cleaned.equals(&quot;CITY&quot;, ignoreCase = true) ||</span>
+<span class="pc bpc" id="L68" title="1 of 2 branches missed.">            cleaned.equals(&quot;here&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L69" title="All 2 branches missed.">            cleaned.equals(&quot;current&quot;, ignoreCase = true) ||</span>
+<span class="nc bnc" id="L70" title="All 2 branches missed.">            cleaned.equals(&quot;your area&quot;, ignoreCase = true)</span>
+        ) {
+<span class="pc bpc" id="L72" title="2 of 4 branches missed.">            if (fallbackLat != null &amp;&amp; fallbackLon != null &amp;&amp;</span>
+<span class="pc bpc" id="L73" title="2 of 4 branches missed.">                !fallbackLat.isNaN() &amp;&amp; !fallbackLon.isNaN()</span>
+            ) {
+<span class="fc" id="L75">                return LookupResult.Ok(</span>
+<span class="pc bpc" id="L76" title="1 of 2 branches missed.">                    GeoPoint(fallbackLat, fallbackLon, fallbackLabel.ifBlank { &quot;your area&quot; }),</span>
+                )
+            }
+<span class="nc bnc" id="L79" title="All 10 branches missed.">            val label = fallbackLabel.takeIf { it.isNotBlank() &amp;&amp; !it.equals(&quot;your area&quot;, true) }</span>
+<span class="nc bnc" id="L80" title="All 2 branches missed.">                ?: return LookupResult.NotFound(cleaned.ifBlank { &quot;here&quot; })</span>
+<span class="nc" id="L81">            return geocodeDetailed(label)</span>
+        }
+<span class="nc" id="L83">        return geocodeDetailed(cleaned)</span>
+    }
+
+<span class="fc" id="L86">    suspend fun geocode(city: String): GeoPoint? = when (val r = geocodeDetailed(city)) {</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        is LookupResult.Ok -&gt; r.value</span>
+<span class="nc" id="L88">        else -&gt; null</span>
+<span class="fc" id="L89">    }</span>
+
+<span class="pc bpc" id="L91" title="1 of 2 branches missed.">    suspend fun geocodeDetailed(city: String): LookupResult&lt;GeoPoint&gt; = withContext(Dispatchers.IO) {</span>
+<span class="fc" id="L92">        val q = city.trim()</span>
+<span class="pc bpc" id="L93" title="1 of 2 branches missed.">        if (q.isBlank()) return@withContext LookupResult.NotFound(q)</span>
+
+<span class="fc" id="L95">        when (val openMeteo = geocodeOpenMeteo(q)) {</span>
+<span class="fc bfc" id="L96" title="All 2 branches covered.">            is LookupResult.Ok -&gt; return@withContext openMeteo</span>
+<span class="pc bpc" id="L97" title="1 of 2 branches missed.">            is LookupResult.NotFound -&gt; {</span>
+<span class="fc" id="L98">                Log.i(TAG, &quot;Open-Meteo geocode empty for '$q'; trying Nominatim admin fallback&quot;)</span>
+<span class="fc" id="L99">                return@withContext geocodeNominatim(q)</span>
+            }
+<span class="nc" id="L101">            is LookupResult.NetworkError -&gt; {</span>
+                // Still try Nominatim once; if that also fails, prefer the first network error detail.
+<span class="nc" id="L103">                Log.w(TAG, &quot;Open-Meteo geocode network error for '$q': ${openMeteo.detail}&quot;)</span>
+<span class="nc" id="L104">                return@withContext when (val nominatim = geocodeNominatim(q)) {</span>
+<span class="nc bnc" id="L105" title="All 2 branches missed.">                    is LookupResult.Ok -&gt; nominatim</span>
+<span class="nc bnc" id="L106" title="All 2 branches missed.">                    is LookupResult.NotFound -&gt; openMeteo</span>
+<span class="nc" id="L107">                    is LookupResult.NetworkError -&gt; openMeteo</span>
+                }
+            }
+        }
+<span class="fc" id="L111">    }</span>
+
+    /**
+     * Ranks Open-Meteo hits so state/admin queries (e.g. Gujarat) prefer ADM* or
+     * admin1-name matches over obscure foreign localities that share the same name.
+     */
+    fun pickBestGeocodeResult(query: String, results: JSONArray): GeoPoint? {
+<span class="pc bpc" id="L118" title="1 of 2 branches missed.">        if (results.length() == 0) return null</span>
+<span class="fc" id="L119">        val q = query.trim()</span>
+<span class="fc" id="L120">        var bestIdx = 0</span>
+<span class="fc" id="L121">        var bestScore = Int.MIN_VALUE</span>
+<span class="fc bfc" id="L122" title="All 2 branches covered.">        for (i in 0 until results.length()) {</span>
+<span class="fc" id="L123">            val obj = results.getJSONObject(i)</span>
+<span class="fc" id="L124">            val score = scoreGeocodeResult(q, obj)</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">            if (score &gt; bestScore) {</span>
+<span class="fc" id="L126">                bestScore = score</span>
+<span class="fc" id="L127">                bestIdx = i</span>
+            }
+        }
+<span class="fc" id="L130">        return geoPointFromOpenMeteo(results.getJSONObject(bestIdx), q)</span>
+    }
+
+    fun scoreGeocodeResult(query: String, obj: JSONObject): Int {
+<span class="fc" id="L134">        val q = query.trim().lowercase()</span>
+<span class="fc" id="L135">        val name = obj.optString(&quot;name&quot;).lowercase()</span>
+<span class="fc" id="L136">        val admin1 = obj.optString(&quot;admin1&quot;).lowercase()</span>
+<span class="fc" id="L137">        val feature = obj.optString(&quot;feature_code&quot;)</span>
+<span class="fc" id="L138">        val country = obj.optString(&quot;country_code&quot;)</span>
+<span class="fc" id="L139">        val population = obj.optInt(&quot;population&quot;, 0)</span>
+<span class="fc" id="L140">        var score = 0</span>
+<span class="fc" id="L141">        val nameExact = name == q</span>
+<span class="fc" id="L142">        val admin1Exact = admin1 == q</span>
+<span class="fc" id="L143">        when {</span>
+<span class="pc bpc" id="L144" title="1 of 4 branches missed.">            nameExact &amp;&amp; feature.startsWith(&quot;ADM1&quot;) -&gt; score += 1000</span>
+<span class="pc bpc" id="L145" title="1 of 4 branches missed.">            nameExact &amp;&amp; feature.startsWith(&quot;ADM2&quot;) -&gt; score += 900</span>
+<span class="pc bpc" id="L146" title="1 of 4 branches missed.">            nameExact &amp;&amp; feature.startsWith(&quot;ADM&quot;) -&gt; score += 850</span>
+<span class="fc bfc" id="L147" title="All 4 branches covered.">            admin1Exact &amp;&amp; !nameExact -&gt; score += 800 // city inside requested state</span>
+<span class="fc bfc" id="L148" title="All 4 branches covered.">            nameExact &amp;&amp; feature in setOf(&quot;PPLC&quot;, &quot;PPLA&quot;, &quot;PPLA2&quot;, &quot;PPLS&quot;) -&gt; score += 700</span>
+<span class="fc bfc" id="L149" title="All 4 branches covered.">            nameExact &amp;&amp; feature == &quot;PPL&quot; -&gt; score += 500</span>
+<span class="pc bpc" id="L150" title="1 of 4 branches missed.">            nameExact &amp;&amp; feature == &quot;PPLL&quot; -&gt; score += 150 // tiny locality — demote</span>
+<span class="pc bpc" id="L151" title="1 of 2 branches missed.">            nameExact -&gt; score += 400</span>
+<span class="pc bpc" id="L152" title="1 of 4 branches missed.">            name.contains(q) || q.contains(name) -&gt; score += 100</span>
+        }
+        // Mild preference for India/US when the query looks like a well-known state name
+        // and we matched via admin1 (state container) rather than a foreign namesake.
+<span class="fc bfc" id="L156" title="All 4 branches covered.">        if (admin1Exact &amp;&amp; country == &quot;IN&quot;) score += 40</span>
+<span class="pc bpc" id="L157" title="1 of 4 branches missed.">        if (admin1Exact &amp;&amp; country == &quot;US&quot;) score += 20</span>
+<span class="fc bfc" id="L158" title="All 2 branches covered.">        if (population &gt; 0) score += population.coerceAtMost(5_000_000) / 100_000</span>
+<span class="fc" id="L159">        return score</span>
+    }
+
+    private fun geoPointFromOpenMeteo(first: JSONObject, query: String): GeoPoint? {
+<span class="pc bpc" id="L163" title="2 of 4 branches missed.">        if (!first.has(&quot;latitude&quot;) || !first.has(&quot;longitude&quot;)) return null</span>
+<span class="pc bpc" id="L164" title="1 of 2 branches missed.">        val name = first.optString(&quot;name&quot;).ifBlank { query }</span>
+<span class="pc bpc" id="L165" title="2 of 4 branches missed.">        val admin = first.optString(&quot;admin1&quot;).takeIf { it.isNotBlank() }</span>
+<span class="pc bpc" id="L166" title="2 of 4 branches missed.">        val country = first.optString(&quot;country_code&quot;).takeIf { it.isNotBlank() }</span>
+<span class="fc" id="L167">        val feature = first.optString(&quot;feature_code&quot;)</span>
+<span class="fc" id="L168">        val label = when {</span>
+            // Prefer speaking the state the user asked for when we matched via admin1.
+<span class="pc bpc" id="L170" title="1 of 4 branches missed.">            admin != null &amp;&amp; admin.equals(query.trim(), ignoreCase = true) &amp;&amp;</span>
+<span class="pc bpc" id="L171" title="1 of 2 branches missed.">                !name.equals(query.trim(), ignoreCase = true) -&gt;</span>
+<span class="fc" id="L172">                listOfNotNull(admin, country).joinToString(&quot;, &quot;)</span>
+<span class="pc bpc" id="L173" title="1 of 2 branches missed.">            feature.startsWith(&quot;ADM&quot;) -&gt;</span>
+<span class="nc" id="L174">                listOfNotNull(name, country).joinToString(&quot;, &quot;)</span>
+            else -&gt;
+<span class="fc" id="L176">                listOfNotNull(name, admin, country).joinToString(&quot;, &quot;)</span>
+        }
+<span class="fc" id="L178">        return GeoPoint(</span>
+<span class="fc" id="L179">            latitude = first.getDouble(&quot;latitude&quot;),</span>
+<span class="fc" id="L180">            longitude = first.getDouble(&quot;longitude&quot;),</span>
+<span class="fc" id="L181">            label = label,</span>
+        )
+    }
+
+    private fun geocodeOpenMeteo(q: String): LookupResult&lt;GeoPoint&gt; {
+<span class="fc" id="L186">        return try {</span>
+<span class="fc" id="L187">            val encoded = URLEncoder.encode(q, &quot;UTF-8&quot;)</span>
+<span class="fc" id="L188">            val url =</span>
+<span class="fc" id="L189">                &quot;https://geocoding-api.open-meteo.com/v1/search?name=$encoded&quot; +</span>
+                    &quot;&amp;count=10&amp;language=en&amp;format=json&quot;
+<span class="fc" id="L191">            val http = httpGetDetailed(url, &quot;geocode&quot;)</span>
+<span class="fc" id="L192">            val body = when (http) {</span>
+<span class="pc bpc" id="L193" title="1 of 2 branches missed.">                is LookupResult.Ok -&gt; http.value</span>
+<span class="nc bnc" id="L194" title="All 2 branches missed.">                is LookupResult.NotFound -&gt; return LookupResult.NotFound(q)</span>
+<span class="nc" id="L195">                is LookupResult.NetworkError -&gt; return http</span>
+            }
+<span class="fc" id="L197">            val results = JSONObject(body).optJSONArray(&quot;results&quot;)</span>
+<span class="pc bpc" id="L198" title="1 of 4 branches missed.">            if (results == null || results.length() == 0) {</span>
+<span class="fc" id="L199">                Log.i(TAG, &quot;Open-Meteo returned 0 results for '$q'&quot;)</span>
+<span class="fc" id="L200">                return LookupResult.NotFound(q)</span>
+            }
+<span class="pc bpc" id="L202" title="1 of 2 branches missed.">            val point = pickBestGeocodeResult(q, results)</span>
+<span class="nc" id="L203">                ?: return LookupResult.NotFound(q)</span>
+<span class="fc" id="L204">            Log.i(TAG, &quot;Open-Meteo geocode '$q' -&gt; ${point.label} (${point.latitude},${point.longitude})&quot;)</span>
+<span class="fc" id="L205">            LookupResult.Ok(point)</span>
+<span class="nc" id="L206">        } catch (e: Exception) {</span>
+<span class="nc" id="L207">            Log.w(TAG, &quot;Geocode Open-Meteo failed for $q&quot;, e)</span>
+<span class="pc" id="L208">            LookupResult.NetworkError(&quot;geocode&quot;, e.message)</span>
+        }
+    }
+
+    private fun geocodeNominatim(q: String): LookupResult&lt;GeoPoint&gt; {
+<span class="fc" id="L213">        return try {</span>
+<span class="fc" id="L214">            val encoded = URLEncoder.encode(q, &quot;UTF-8&quot;)</span>
+<span class="fc" id="L215">            val url =</span>
+<span class="fc" id="L216">                &quot;https://nominatim.openstreetmap.org/search?q=$encoded&quot; +</span>
+                    &quot;&amp;format=json&amp;limit=3&amp;addressdetails=1&quot;
+<span class="fc" id="L218">            val http = httpGetDetailed(url, &quot;geocode-nominatim&quot;)</span>
+<span class="fc" id="L219">            val body = when (http) {</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">                is LookupResult.Ok -&gt; http.value</span>
+<span class="nc bnc" id="L221" title="All 2 branches missed.">                is LookupResult.NotFound -&gt; return LookupResult.NotFound(q)</span>
+<span class="nc" id="L222">                is LookupResult.NetworkError -&gt; return http</span>
+            }
+<span class="fc" id="L224">            val arr = JSONArray(body)</span>
+<span class="pc bpc" id="L225" title="1 of 2 branches missed.">            if (arr.length() == 0) {</span>
+<span class="nc" id="L226">                Log.i(TAG, &quot;Nominatim returned 0 results for '$q'&quot;)</span>
+<span class="nc" id="L227">                return LookupResult.NotFound(q)</span>
+            }
+            // Prefer administrative/state boundaries.
+<span class="fc" id="L230">            var chosen: JSONObject? = null</span>
+<span class="pc bpc" id="L231" title="1 of 2 branches missed.">            for (i in 0 until arr.length()) {</span>
+<span class="fc" id="L232">                val obj = arr.getJSONObject(i)</span>
+<span class="fc" id="L233">                val type = obj.optString(&quot;type&quot;)</span>
+<span class="fc" id="L234">                val cls = obj.optString(&quot;class&quot;)</span>
+<span class="pc bpc" id="L235" title="5 of 6 branches missed.">                if (cls == &quot;boundary&quot; || type == &quot;administrative&quot; || type == &quot;state&quot;) {</span>
+<span class="fc" id="L236">                    chosen = obj</span>
+<span class="fc" id="L237">                    break</span>
+                }
+            }
+<span class="pc bpc" id="L240" title="1 of 2 branches missed.">            if (chosen == null) chosen = arr.getJSONObject(0)</span>
+<span class="fc" id="L241">            val lat = chosen.getString(&quot;lat&quot;).toDoubleOrNull()</span>
+<span class="fc" id="L242">            val lon = chosen.getString(&quot;lon&quot;).toDoubleOrNull()</span>
+<span class="pc bpc" id="L243" title="2 of 4 branches missed.">            if (lat == null || lon == null) return LookupResult.NotFound(q)</span>
+<span class="fc" id="L244">            val display = chosen.optString(&quot;display_name&quot;)</span>
+<span class="fc" id="L245">            val shortLabel = display.split(',').take(2).joinToString(&quot;,&quot;).trim()</span>
+<span class="pc bpc" id="L246" title="1 of 2 branches missed.">                .ifBlank { q }</span>
+<span class="fc" id="L247">            val point = GeoPoint(lat, lon, shortLabel)</span>
+<span class="fc" id="L248">            Log.i(TAG, &quot;Nominatim geocode '$q' -&gt; ${point.label} (${point.latitude},${point.longitude})&quot;)</span>
+<span class="fc" id="L249">            LookupResult.Ok(point)</span>
+<span class="nc" id="L250">        } catch (e: Exception) {</span>
+<span class="nc" id="L251">            Log.w(TAG, &quot;Geocode Nominatim failed for $q&quot;, e)</span>
+<span class="pc" id="L252">            LookupResult.NetworkError(&quot;geocode-nominatim&quot;, e.message)</span>
+        }
+    }
+
+<span class="fc" id="L256">    suspend fun fetchCurrent(point: GeoPoint): CurrentWeather? =</span>
+<span class="fc" id="L257">        when (val r = fetchCurrentDetailed(point)) {</span>
+<span class="pc bpc" id="L258" title="1 of 2 branches missed.">            is LookupResult.Ok -&gt; r.value</span>
+<span class="nc" id="L259">            else -&gt; null</span>
+<span class="fc" id="L260">        }</span>
+
+    suspend fun fetchCurrentDetailed(point: GeoPoint): LookupResult&lt;CurrentWeather&gt; =
+<span class="pc bpc" id="L263" title="1 of 2 branches missed.">        withContext(Dispatchers.IO) {</span>
+<span class="fc" id="L264">            try {</span>
+<span class="fc" id="L265">                val url =</span>
+                    &quot;https://api.open-meteo.com/v1/forecast?&quot; +
+<span class="fc" id="L267">                        &quot;latitude=${point.latitude}&amp;longitude=${point.longitude}&quot; +</span>
+                        &quot;&amp;current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&quot; +
+                        &quot;&amp;temperature_unit=fahrenheit&amp;wind_speed_unit=mph&amp;timezone=auto&quot;
+<span class="fc" id="L270">                val http = httpGetDetailed(url, &quot;forecast&quot;)</span>
+<span class="fc" id="L271">                val body = when (http) {</span>
+<span class="pc bpc" id="L272" title="1 of 2 branches missed.">                    is LookupResult.Ok -&gt; http.value</span>
+<span class="nc bnc" id="L273" title="All 2 branches missed.">                    is LookupResult.NotFound -&gt;</span>
+<span class="nc" id="L274">                        return@withContext LookupResult.NetworkError(&quot;forecast&quot;, &quot;empty body&quot;)</span>
+<span class="nc" id="L275">                    is LookupResult.NetworkError -&gt; return@withContext http</span>
+                }
+<span class="pc bpc" id="L277" title="1 of 2 branches missed.">                val parsed = parseCurrent(body, point.label)</span>
+<span class="nc" id="L278">                    ?: return@withContext LookupResult.NetworkError(&quot;forecast&quot;, &quot;parse failed&quot;)</span>
+<span class="fc" id="L279">                LookupResult.Ok(parsed)</span>
+<span class="nc" id="L280">            } catch (e: Exception) {</span>
+<span class="nc" id="L281">                Log.w(TAG, &quot;Weather fetch failed for ${point.label}&quot;, e)</span>
+<span class="pc" id="L282">                LookupResult.NetworkError(&quot;forecast&quot;, e.message)</span>
+<span class="fc" id="L283">            }</span>
+<span class="fc" id="L284">        }</span>
+
+    fun parseCurrent(jsonBody: String, locationLabel: String): CurrentWeather? {
+<span class="fc" id="L287">        return try {</span>
+<span class="fc" id="L288">            val root = JSONObject(jsonBody)</span>
+<span class="fc bfc" id="L289" title="All 2 branches covered.">            val current = root.optJSONObject(&quot;current&quot;) ?: return null</span>
+<span class="pc bpc" id="L290" title="2 of 4 branches missed.">            if (!current.has(&quot;temperature_2m&quot;) || !current.has(&quot;weather_code&quot;)) return null</span>
+<span class="fc" id="L291">            val temp = current.getDouble(&quot;temperature_2m&quot;).roundToInt()</span>
+<span class="fc" id="L292">            val code = current.getInt(&quot;weather_code&quot;)</span>
+<span class="pc bpc" id="L293" title="1 of 2 branches missed.">            val humidity = if (current.has(&quot;relative_humidity_2m&quot;)) {</span>
+<span class="fc" id="L294">                current.getInt(&quot;relative_humidity_2m&quot;)</span>
+            } else {
+<span class="nc" id="L296">                null</span>
+            }
+<span class="pc bpc" id="L298" title="1 of 2 branches missed.">            val wind = if (current.has(&quot;wind_speed_10m&quot;)) {</span>
+<span class="fc" id="L299">                current.getDouble(&quot;wind_speed_10m&quot;).roundToInt()</span>
+            } else {
+<span class="nc" id="L301">                null</span>
+            }
+<span class="fc" id="L303">            CurrentWeather(</span>
+<span class="fc" id="L304">                locationLabel = locationLabel,</span>
+<span class="fc" id="L305">                tempF = temp,</span>
+<span class="fc" id="L306">                humidityPct = humidity,</span>
+<span class="fc" id="L307">                windMph = wind,</span>
+<span class="fc" id="L308">                condition = wmoCondition(code),</span>
+<span class="fc" id="L309">                weatherCode = code,</span>
+            )
+<span class="fc" id="L311">        } catch (e: Exception) {</span>
+<span class="fc" id="L312">            Log.w(TAG, &quot;Weather parse failed&quot;, e)</span>
+<span class="fc" id="L313">            null</span>
+        }
+    }
+
+    fun formatSpoken(weather: CurrentWeather): String {
+<span class="pc bpc" id="L318" title="1 of 2 branches missed.">        val where = weather.locationLabel.ifBlank { &quot;your area&quot; }</span>
+<span class="fc" id="L319">        val parts = mutableListOf(</span>
+<span class="fc" id="L320">            &quot;The current weather in $where is ${weather.condition}, about ${weather.tempF} degrees Fahrenheit&quot;,</span>
+        )
+<span class="pc bpc" id="L322" title="1 of 2 branches missed.">        weather.humidityPct?.let { parts += &quot;humidity $it percent&quot; }</span>
+<span class="pc bpc" id="L323" title="1 of 2 branches missed.">        weather.windMph?.let { parts += &quot;wind around $it miles per hour&quot; }</span>
+<span class="fc" id="L324">        return parts.joinToString(&quot;, &quot;) + &quot;.&quot;</span>
+    }
+
+    /** WMO Weather interpretation codes (Open-Meteo). */
+<span class="fc bfc" id="L328" title="All 16 branches covered.">    fun wmoCondition(code: Int): String = when (code) {</span>
+<span class="fc" id="L329">        0 -&gt; &quot;clear&quot;</span>
+<span class="fc" id="L330">        1 -&gt; &quot;mainly clear&quot;</span>
+<span class="fc" id="L331">        2 -&gt; &quot;partly cloudy&quot;</span>
+<span class="fc" id="L332">        3 -&gt; &quot;overcast&quot;</span>
+<span class="fc" id="L333">        45, 48 -&gt; &quot;foggy&quot;</span>
+<span class="fc" id="L334">        51, 53, 55 -&gt; &quot;drizzle&quot;</span>
+<span class="fc" id="L335">        56, 57 -&gt; &quot;freezing drizzle&quot;</span>
+<span class="fc" id="L336">        61, 63, 65 -&gt; &quot;rain&quot;</span>
+<span class="fc" id="L337">        66, 67 -&gt; &quot;freezing rain&quot;</span>
+<span class="fc" id="L338">        71, 73, 75 -&gt; &quot;snow&quot;</span>
+<span class="fc" id="L339">        77 -&gt; &quot;snow grains&quot;</span>
+<span class="fc" id="L340">        80, 81, 82 -&gt; &quot;rain showers&quot;</span>
+<span class="fc" id="L341">        85, 86 -&gt; &quot;snow showers&quot;</span>
+<span class="fc" id="L342">        95 -&gt; &quot;thunderstorms&quot;</span>
+<span class="fc" id="L343">        96, 99 -&gt; &quot;thunderstorms with hail&quot;</span>
+<span class="fc" id="L344">        else -&gt; &quot;mixed conditions&quot;</span>
+<span class="fc" id="L345">    }</span>
+
+    private fun httpGetDetailed(url: String, stage: String): LookupResult&lt;String&gt; {
+<span class="fc" id="L348">        return try {</span>
+<span class="fc" id="L349">            val request = Request.Builder()</span>
+<span class="fc" id="L350">                .url(url)</span>
+<span class="fc" id="L351">                .header(&quot;Accept&quot;, &quot;application/json&quot;)</span>
+<span class="fc" id="L352">                .header(&quot;User-Agent&quot;, &quot;VehicleAssistant/1.0 (Android; weather; contact: vehicle-assistant)&quot;)</span>
+<span class="fc" id="L353">                .get()</span>
+<span class="fc" id="L354">                .build()</span>
+<span class="pc" id="L355">            httpClient.newCall(request).execute().use { response -&gt;</span>
+<span class="fc" id="L356">                val code = response.code</span>
+<span class="pc bpc" id="L357" title="1 of 2 branches missed.">                val body = response.body?.string()</span>
+<span class="pc bpc" id="L358" title="1 of 2 branches missed.">                if (!response.isSuccessful) {</span>
+<span class="nc bnc" id="L359" title="All 2 branches missed.">                    Log.w(TAG, &quot;HTTP $code at $stage for $url body=${body?.take(200)}&quot;)</span>
+<span class="nc" id="L360">                    return LookupResult.NetworkError(stage, &quot;HTTP $code&quot;)</span>
+                }
+<span class="pc bpc" id="L362" title="3 of 6 branches missed.">                if (body.isNullOrBlank()) {</span>
+<span class="nc" id="L363">                    Log.w(TAG, &quot;HTTP $code empty body at $stage for $url&quot;)</span>
+<span class="nc" id="L364">                    return LookupResult.NetworkError(stage, &quot;empty body&quot;)</span>
+                }
+<span class="fc" id="L366">                LookupResult.Ok(body)</span>
+            }
+<span class="nc" id="L368">        } catch (e: Exception) {</span>
+<span class="nc" id="L369">            Log.w(TAG, &quot;HTTP failure at $stage for $url&quot;, e)</span>
+<span class="pc" id="L370">            LookupResult.NetworkError(stage, e.message)</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

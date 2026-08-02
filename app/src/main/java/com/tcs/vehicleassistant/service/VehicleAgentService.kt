@@ -12,6 +12,10 @@ import com.tcs.vehicleassistant.R
 import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.hardware.AndroidAudioManager
 import android.content.ComponentCallbacks2
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.IntentFilter
+import android.os.UserManager
 
 class VehicleAgentService : Service(), ComponentCallbacks2 {
 
@@ -39,12 +43,21 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
                 // Ignore silent failure in background
             }
         )
+
     }
 
+
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        android.util.Log.d(TAG, "onStartCommand called with action: ${intent?.action}")
         if (intent?.action == ACTION_RELOAD_TTS && ::audioManager.isInitialized) {
             audioManager.reloadTtsFromPrefs()
             android.util.Log.i(TAG, "Reloaded cabin TTS from prefs")
+        } else if (intent?.action == "com.tcs.vehicleassistant.ACTION_GREET_USER" && ::viewModel.isInitialized) {
+            val userName = intent.getStringExtra("USER_NAME") ?: "User"
+            val text = "Welcome $userName, I am adjusting your vehicle controls based on your preference."
+            viewModel.speakAndDismiss(text)
+            com.tcs.vehicleassistant.assistant.UiUxAssistantVoiceInteractionService.triggerSessionWithQuery(null, this, directSpeech = text)
         }
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)

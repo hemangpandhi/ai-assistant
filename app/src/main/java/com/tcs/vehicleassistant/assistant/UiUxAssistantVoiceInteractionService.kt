@@ -27,7 +27,11 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
             private set
 
         fun triggerSession(context: Context? = null) {
-            android.util.Log.d("WakeWord", "UiUx triggerSession called. instance is $instance")
+            triggerSessionWithQuery(null, context)
+        }
+
+        fun triggerSessionWithQuery(initialQuery: String?, context: Context? = null, directSpeech: String? = null) {
+            android.util.Log.d("WakeWord", "UiUx triggerSessionWithQuery called. instance is $instance")
             val live = instance
             if (live != null) {
                 val args = Bundle().apply {
@@ -35,13 +39,22 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
                         ImmersiveSummonOrigin.BUNDLE_KEY,
                         ImmersiveSummonOrigin.TOKEN_HOTWORD,
                     )
+                    if (initialQuery != null) {
+                        putString("INITIAL_QUERY", initialQuery)
+                    }
+                    if (directSpeech != null) {
+                        putString("DIRECT_SPEECH", directSpeech)
+                    }
                 }
                 live.showSession(args, VoiceInteractionSession.SHOW_WITH_ASSIST)
             } else if (context != null) {
                 android.util.Log.w("WakeWord", "UiUx VoiceInteractionService unbound! Launching fallback Activity.")
                 val intent = Intent(context, LocalLLMActivity::class.java)
                 intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                intent.putExtra("auto_trigger_mic", true)
+                intent.putExtra("auto_trigger_mic", initialQuery == null)
+                if (initialQuery != null) {
+                    intent.putExtra("INITIAL_QUERY", initialQuery)
+                }
                 context.startActivity(intent)
             }
         }
