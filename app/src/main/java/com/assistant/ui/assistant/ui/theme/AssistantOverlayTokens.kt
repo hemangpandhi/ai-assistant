@@ -31,8 +31,10 @@ internal object AssistantOverlayTokens {
     val BottomChromeDockPadding = 4.dp
     // FaceStageDock Column bottom pad — keeps transcript near the map base.
     val DockContentPaddingBottom = 8.dp
-    // Pull face toward transcript; canvas chin/glow otherwise reads as a large gap.
-    val FaceTowardTranscriptNudge = 76.dp
+    // Fraction of faceSize pulled toward the transcript (closes canvas chin dead space).
+    // ~0.13 matches shell bottom; FaceTranscriptGap keeps a slim clear band.
+    const val FaceTowardTranscriptNudgeFraction = 0.13f
+    val FaceTranscriptGap = 6.dp
     // ~26% of stage height (~20% smaller than prior 32%).
     val FaceStageHeightFraction = 0.256f
     val FaceSizeMin = 70.dp
