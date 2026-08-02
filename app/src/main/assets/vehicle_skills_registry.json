@@ -196,7 +196,7 @@
         "drop the temperature"
       ],
       "offline_capable": true,
-      "success_message": "Cooling it down — you should feel better soon.",
+      "success_message": "Cooling it down \u2014 you should feel better soon.",
       "error_message": "The vehicle hardware did not confirm the change.",
       "requires_vehicle_state": true,
       "aliases": [
@@ -274,7 +274,7 @@
         "vents to floor"
       ],
       "offline_capable": true,
-      "success_message": "Adjusting the airflow — you should feel it soon.",
+      "success_message": "Adjusting the airflow \u2014 you should feel it soon.",
       "requires_vehicle_state": false,
       "direct_executable": true
     },
@@ -285,7 +285,7 @@
       "data_type": "BOOLEAN",
       "area_id": 0,
       "value_to_write": "true",
-      "success_message": "AC is on — you should feel that soon.",
+      "success_message": "AC is on \u2014 you should feel that soon.",
       "keywords": [
         "turn on ac",
         "turn on the ac",
@@ -480,7 +480,7 @@
       "data_type": "BOOLEAN",
       "area_id": 1,
       "value_to_write": "true",
-      "success_message": "Defroster's on — your view should clear up.",
+      "success_message": "Defroster's on \u2014 your view should clear up.",
       "keywords": [
         "turn on front defroster",
         "front defroster",
@@ -642,7 +642,7 @@
       "data_type": "INT",
       "area_id": 0,
       "instruction": "If the user mentions their back hurts or they are cold and want warmth, use LEVEL 2. When user confirms 'yes' after being offered the seat heater, execute immediately with LEVEL 2.",
-      "success_message": "Seat heater's on — hope that warms you up!",
+      "success_message": "Seat heater's on \u2014 hope that warms you up!",
       "keywords": [
         "seat heater",
         "seat heat",
@@ -783,7 +783,7 @@
       "prompt_string": "<TOOL>defogWindshield()</TOOL>",
       "handler_key": "defogWindshield",
       "handler_type": "CUSTOM_KOTLIN",
-      "success_message": "Clearing your windshield — safety first.",
+      "success_message": "Clearing your windshield \u2014 safety first.",
       "keywords": [
         "defog windshield",
         "fogged windshield",
@@ -1284,7 +1284,7 @@
       ],
       "offline_capable": false,
       "requires_agentic_loop": false,
-      "success_message": "Great choice — putting that on for you!",
+      "success_message": "Great choice \u2014 putting that on for you!",
       "requires_vehicle_state": false,
       "instruction": "Plays music. Output <TOOL>playMusic(SONG)</TOOL> replacing SONG with the artist or track name only (e.g. playMusic(arijit singh) for 'play arijit singh music'). If no song/artist is specified, output <TOOL>playMusic(music)</TOOL>. Always name the requested music in your spoken reply.",
       "aliases": [
@@ -1715,6 +1715,85 @@
       "requires_vehicle_state": false
     },
     {
+      "name": "openClimateScreen",
+      "description": "Opens the IVI climate / HVAC glanceable panel.",
+      "prompt_string": "<TOOL>openClimateScreen()</TOOL>",
+      "handler_key": "openClimateScreen",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "open climate screen",
+        "open the climate screen",
+        "show climate screen",
+        "show the climate screen",
+        "launch climate screen",
+        "open climate panel",
+        "show climate panel",
+        "open climate controls",
+        "show climate controls",
+        "open hvac screen",
+        "show hvac screen",
+        "open climate",
+        "show climate",
+        "climate screen",
+        "climate panel"
+      ],
+      "aliases": [
+        "openClimate",
+        "showClimate",
+        "openHvacScreen"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false,
+      "direct_executable": true,
+      "success_message": "Opening the climate screen.",
+      "error_message": "I could not open the climate screen."
+    },
+    {
+      "name": "openVehicleScreen",
+      "description": "Opens the IVI vehicle info glanceable panel (charge level, charging status, range).",
+      "prompt_string": "<TOOL>openVehicleScreen()</TOOL>",
+      "handler_key": "openVehicleScreen",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "open vehicle screen",
+        "open the vehicle screen",
+        "show vehicle screen",
+        "show the vehicle screen",
+        "launch vehicle screen",
+        "open vehicle panel",
+        "show vehicle panel",
+        "open vehicle info",
+        "show vehicle info",
+        "vehicle info",
+        "vehicle screen",
+        "vehicle panel",
+        "charging level",
+        "charge level",
+        "battery level",
+        "battery percentage",
+        "how much battery",
+        "battery status",
+        "is it charging",
+        "is the car charging",
+        "is the vehicle charging",
+        "are we charging",
+        "charging status",
+        "charge status",
+        "am i charging",
+        "state of charge"
+      ],
+      "aliases": [
+        "openVehicle",
+        "showVehicle",
+        "openVehicleInfo"
+      ],
+      "offline_capable": true,
+      "requires_vehicle_state": false,
+      "direct_executable": true,
+      "success_message": "Opening the vehicle info screen.",
+      "error_message": "I could not open the vehicle info screen."
+    },
+    {
       "name": "setAllWindowsPosition",
       "description": "Executes the setAllWindowsPosition routine.",
       "prompt_string": "<TOOL>setAllWindowsPosition()</TOOL>",
@@ -1818,7 +1897,7 @@
         "turn up the heat"
       ],
       "offline_capable": true,
-      "success_message": "That sounds uncomfortable — would you like me to turn on the seat heater?",
+      "success_message": "That sounds uncomfortable \u2014 would you like me to turn on the seat heater?",
       "requires_vehicle_state": false,
       "direct_executable": true
     },
@@ -1893,7 +1972,7 @@
         "anxious",
         "feelings"
       ],
-      "instruction": "Respond with empathy for the driver's feelings. Acknowledge how they feel and offer optional help such as music or climate — do not call tools until they accept."
+      "instruction": "Respond with empathy for the driver's feelings. Acknowledge how they feel and offer optional help such as music or climate \u2014 do not call tools until they accept."
     }
   ],
   "config": {
@@ -2052,7 +2131,7 @@
             ]
           },
           "action": "confirm",
-          "message": "You're going about {speed_mph} mph — open the windows anyway?"
+          "message": "You're going about {speed_mph} mph \u2014 open the windows anyway?"
         },
         {
           "id": "set_windows_open_while_moving",
@@ -2078,7 +2157,7 @@
             ]
           },
           "action": "confirm",
-          "message": "You're going about {speed_mph} mph — open the windows anyway?"
+          "message": "You're going about {speed_mph} mph \u2014 open the windows anyway?"
         },
         {
           "id": "windows_already_open",

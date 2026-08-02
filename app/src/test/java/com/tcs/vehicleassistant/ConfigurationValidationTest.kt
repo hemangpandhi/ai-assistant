@@ -12,9 +12,14 @@ class ConfigurationValidationTest {
 
     @Before
     fun setUp() {
-        val file = File("src/main/assets/vehicle_skills_registry.json")
-        assertTrue("Registry file must exist at ${file.absolutePath}", file.exists())
-        jsonObject = JSONObject(file.readText())
+        val candidates = listOf(
+            File("src/main/assets/vehicle_skills_registry.json"),
+            File("../app/src/main/assets/vehicle_skills_registry.json"),
+            File("app/src/main/assets/vehicle_skills_registry.json"),
+        )
+        val file = candidates.firstOrNull { it.exists() }
+        assertNotNull("Registry file must exist in app assets", file)
+        jsonObject = JSONObject(requireNotNull(file).readText())
     }
 
     @Test

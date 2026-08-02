@@ -1,0 +1,18 @@
+---
+description: Immersive assistant speaking transcript layout and reveal
+globs: app/src/main/java/com/assistant/ui/**/*.{kt,kts}
+alwaysApply: false
+---
+
+# Immersive speaking transcript
+
+When the assistant speaks, transcript text must:
+
+- Always render on **exactly one line** (`maxLines = 1`)
+- Reveal **word by word** as speech progresses (TTS spoken length / speech-paced reveal)
+- Stay **centered**
+- Stay within **60% of screen width** (`fillMaxWidth(0.6f)` on `ImmersiveTranscript`)
+- Only lay out **revealed** words in `LiveInputText` — do not keep invisible tokens in layout (that pushes visible text far left)
+- Remain visible (snap transcript alpha on for User and Assistant speakers)
+
+Prefer changes in `com/assistant/ui` / `.../assistant/`, never allowlisted master agent `.kt`.

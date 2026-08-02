@@ -85,6 +85,15 @@ class WakeWordMatchingTest {
     }
 
     @Test
+    fun `hey name also accepts bare name`() {
+        assertTrue(WakeWordService.matchesWakeWord("hey iris", "hey iris"))
+        assertTrue(WakeWordService.matchesWakeWord("iris", "hey iris"))
+        assertTrue(WakeWordService.matchesWakeWord("okay iris open the map", "hey iris"))
+        // Bare "assistant" stays rejected — too many cabin false wakes.
+        assertFalse(WakeWordService.matchesWakeWord("assistant", "hey assistant"))
+    }
+
+    @Test
     fun `extractTranscript reads a final result`() {
         assertEquals("hey assistant", WakeWordService.extractTranscript("""{"text" : "hey assistant"}"""))
     }
