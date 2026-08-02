@@ -20,8 +20,8 @@ internal object AssistantOverlayTokens {
     val CardBottomHeightMin = 220.dp
     val CardBottomHeightMax = 360.dp
     val CardBottomFillWidth = 0.92f
-    val CardSideFaceSize = 140.dp
-    val CardBottomFaceSize = 120.dp
+    val CardSideFaceSize = 112.dp
+    val CardBottomFaceSize = 96.dp
     val CardCorner = 28.dp
 
     // Bottom fullscreen chrome
@@ -33,10 +33,10 @@ internal object AssistantOverlayTokens {
     val DockContentPaddingBottom = 8.dp
     // Pull face toward transcript; canvas chin/glow otherwise reads as a large gap.
     val FaceTowardTranscriptNudge = 76.dp
-    // ~32% of stage height (~15% smaller than prior 37.5%).
-    val FaceStageHeightFraction = 0.32f
-    val FaceSizeMin = 88.dp
-    val FaceSizeMax = 480.dp
+    // ~26% of stage height (~20% smaller than prior 32%).
+    val FaceStageHeightFraction = 0.256f
+    val FaceSizeMin = 70.dp
+    val FaceSizeMax = 384.dp
     val GlyphSizeFraction = 0.38f
     val GlyphSizeMin = 40.dp
     val GlyphSizeMax = 96.dp
@@ -61,14 +61,16 @@ internal object AssistantOverlayTokens {
     const val FaceStartScale = 0.88f
     const val FaceHiddenScale = 0.94f
 
-    // Border glow
+    // Border glow — keep the rim atmospheric, not a bright frame.
     const val BorderSweepMs = 18_000
     const val BorderBreathIdleHalfMs = 2_600
     const val BorderBreathSpeechHalfMs = 1_500
     const val BorderBreathIdlePeak = 1.65f
     const val BorderBreathSpeechPeak = 1.85f
-    val BorderThickness = 52.dp
+    val BorderThickness = 40.dp
     const val SpeechEnergyKick = 0.22f
+    /** Extra opacity scale on the outer rim only (dock / bottom bar unchanged). */
+    const val BorderRimAlpha = 0.55f
 
     // Linear bottom veil (transparent → blackish); stops are fractions of height from top.
     const val BackdropFadeStart = 0.55f

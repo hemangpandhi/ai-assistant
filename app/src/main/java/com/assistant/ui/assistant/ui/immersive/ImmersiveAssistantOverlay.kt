@@ -797,16 +797,16 @@ fun ImmersiveBorderGlow(
     val colorStops = remember {
         floatArrayOf(0.00f, 0.14f, 0.28f, 0.42f, 0.57f, 0.71f, 0.86f, 1.00f)
     }
-    // Edge opacity also breathes: stronger rim on inhale, softer on exhale.
-    val edgeHi = (0xA0 + (0x4C * inhale).toInt()).coerceIn(0, 0xFF)
-    val edgeMid = (0x66 + (0x40 * inhale).toInt()).coerceIn(0, 0xFF)
-    val edgeLo = (0x2A + (0x28 * inhale).toInt()).coerceIn(0, 0xFF)
+    // Edge opacity also breathes — kept soft so the rim never reads as a hard frame.
+    val edgeHi = (0x52 + (0x28 * inhale).toInt()).coerceIn(0, 0xFF)
+    val edgeMid = (0x30 + (0x1C * inhale).toInt()).coerceIn(0, 0xFF)
+    val edgeLo = (0x14 + (0x12 * inhale).toInt()).coerceIn(0, 0xFF)
     val fadeAlphas = intArrayOf(
         (edgeHi shl 24) or 0x00FFFFFF,
         (edgeMid shl 24) or 0x00FFFFFF,
         (edgeLo shl 24) or 0x00FFFFFF,
-        0x18FFFFFF,
-        0x06FFFFFF,
+        0x0CFFFFFF,
+        0x03FFFFFF,
         0x00FFFFFF,
     )
     val fadeStops = remember {
@@ -817,11 +817,14 @@ fun ImmersiveBorderGlow(
         modifier = modifier
             .fillMaxSize()
             .windowInsetsPadding(windowInsets)
-            .graphicsLayer { alpha = (progress * breathFade).coerceIn(0f, 1f) },
+            .graphicsLayer {
+                alpha = (progress * breathFade * AssistantOverlayTokens.BorderRimAlpha)
+                    .coerceIn(0f, 1f)
+            },
     ) {
         val w = size.width
         val h = size.height
-        // Explicit bloom — rest ~52dp, idle inhale ~86dp, speech inhale ~96dp.
+        // Explicit bloom — rest ~40dp, idle inhale ~66dp, speech inhale ~74dp.
         val thickness = AssistantOverlayTokens.BorderThickness.toPx() * breath
         val cx = w * 0.5f
         val cy = h * 0.5f
