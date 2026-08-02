@@ -60,6 +60,11 @@ class VehicleAgentAssistantBackend(
     private var clientErrorRetries = 0
     /** Latched once we know Whisper sideloads are absent — skip fruitless STT retries. */
     private var sherpaModelsMissing = false
+    /**
+     * Wall-clock start of the current listen window (session open or continue-turn).
+     * Used so early empty / no-match STT does not say "I didn't catch that" before ~5s.
+     */
+    private var listenWindowStartedAtMs = 0L
 
     fun bindContext(context: Context) {
         appContext = context.applicationContext
@@ -101,6 +106,7 @@ class VehicleAgentAssistantBackend(
                 when (sessionTurnPolicyFor(event)) {
                     SessionTurnPolicy.Continue -> {
                         AssistantDebugLog.d(TAG, "event StartListening")
+                        markListenWindowStart()
                         scheduleStartMic(reason = "orchestrator", delayMs = 350L, force = true)
                     }
                     SessionTurnPolicy.Complete -> {
@@ -151,6 +157,7 @@ class VehicleAgentAssistantBackend(
         micArmed = false
         clientErrorRetries = 0
         sherpaModelsMissing = false
+        markListenWindowStart()
         sttDismissJob?.cancel()
         sttDismissJob = null
         AssistantDebugLog.clear()
@@ -221,8 +228,10 @@ class VehicleAgentAssistantBackend(
                 )
                 _events.emit(AssistantSessionEvent.MouthAmplitude((0.15f + n * 0.55f).coerceIn(0f, 1f)))
             }
-            AssistantSpeechInput.Hotword ->
+            AssistantSpeechInput.Hotword -> {
+                markListenWindowStart()
                 scheduleStartMic(reason = "hotword-input", delayMs = MIC_OPEN_DELAY_MS, force = true)
+            }
         }
     }
 
@@ -237,7 +246,18 @@ class VehicleAgentAssistantBackend(
             return
         }
         AssistantDebugLog.d(TAG, "requestListen")
+        markListenWindowStart()
         scheduleStartMic(reason = "session-request", delayMs = MIC_OPEN_DELAY_MS, force = true)
+    }
+
+    private fun markListenWindowStart() {
+        listenWindowStartedAtMs = System.currentTimeMillis()
+    }
+
+    private fun listenElapsedMs(): Long {
+        val started = listenWindowStartedAtMs
+        if (started <= 0L) return Long.MAX_VALUE
+        return (System.currentTimeMillis() - started).coerceAtLeast(0L)
     }
 
     private fun scheduleStartMic(
@@ -412,23 +432,41 @@ class VehicleAgentAssistantBackend(
                 if (missingModels) {
                     sherpaModelsMissing = true
                 }
-                val display = when {
-                    missingModels -> STT_MODELS_MISSING_MSG
-                    else -> friendlySttErrorMessage(raw)
-                }
-                AssistantDebugLog.e(TAG, "ui Error: $display (raw=$raw)")
-                emitMood(AssistantMoodId.Sad)
-                _events.emit(AssistantSessionEvent.Error(display))
-                _events.emit(AssistantSessionEvent.MouthAmplitude(null))
-
-                when (
-                    sttErrorPolicyFor(
-                        raw,
-                        missingModels = missingModels,
-                        retryCount = clientErrorRetries,
-                    )
-                ) {
-                    SttErrorPolicy.Hold -> Unit
+                val elapsed = listenElapsedMs()
+                val policy = sttErrorPolicyFor(
+                    raw,
+                    missingModels = missingModels,
+                    retryCount = clientErrorRetries,
+                    listenElapsedMs = elapsed,
+                )
+                when (policy) {
+                    SttErrorPolicy.Hold -> {
+                        val display = when {
+                            missingModels -> STT_MODELS_MISSING_MSG
+                            else -> friendlySttErrorMessage(raw)
+                        }
+                        AssistantDebugLog.e(TAG, "ui Error hold: $display (raw=$raw)")
+                        emitMood(AssistantMoodId.Sad)
+                        _events.emit(AssistantSessionEvent.Error(display))
+                        _events.emit(AssistantSessionEvent.MouthAmplitude(null))
+                    }
+                    SttErrorPolicy.RetryQuiet -> {
+                        if (!_sessionActive.value) return
+                        val remaining =
+                            AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS - elapsed
+                        AssistantDebugLog.d(
+                            TAG,
+                            "STT quiet re-arm (${elapsed}ms into listen window, " +
+                                "remaining≈${remaining}ms) after: $raw",
+                        )
+                        emitMood(AssistantMoodId.Listening)
+                        _events.emit(AssistantSessionEvent.MouthAmplitude(null))
+                        scheduleStartMic(
+                            reason = "stt-listen-window",
+                            delayMs = 120L,
+                            force = true,
+                        )
+                    }
                     SttErrorPolicy.Retry -> {
                         if (!_sessionActive.value) return
                         clientErrorRetries += 1
@@ -436,6 +474,8 @@ class VehicleAgentAssistantBackend(
                             TAG,
                             "STT retry #$clientErrorRetries after: $raw",
                         )
+                        emitMood(AssistantMoodId.Listening)
+                        _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                         scheduleStartMic(
                             reason = "stt-retry",
                             delayMs = 350L,
@@ -444,6 +484,14 @@ class VehicleAgentAssistantBackend(
                         )
                     }
                     SttErrorPolicy.Complete -> {
+                        val display = when {
+                            missingModels -> STT_MODELS_MISSING_MSG
+                            else -> friendlySttErrorMessage(raw)
+                        }
+                        AssistantDebugLog.e(TAG, "ui Error: $display (raw=$raw)")
+                        emitMood(AssistantMoodId.Sad)
+                        _events.emit(AssistantSessionEvent.Error(display))
+                        _events.emit(AssistantSessionEvent.MouthAmplitude(null))
                         // Master ViewModel leaves Error open for XML mic retry; immersive
                         // has no affordance — dismiss shortly so the session does not stick.
                         scheduleSttErrorDismiss(raw)

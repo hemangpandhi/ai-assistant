@@ -517,6 +517,10 @@ fun ImmersiveAssistantOverlay(
                                     speechEnergy = speechEnergy,
                                     glowBreath = glowBreath,
                                 )
+                                ImmersiveBottomEdgeGlow(
+                                    revealProgress = glowReveal,
+                                    glowBreath = glowBreath,
+                                )
                             }
                         }
 
@@ -670,11 +674,11 @@ private fun ImmersiveAssistantDebugStrip(
 }
 
 /**
- * Soft ambient bloom under the immersive chrome. Keeps the upper stage and
- * side gutters clear for maps / launcher; the readable contrast lives in the
- * local [FaceStageDock], not a full-screen scrim (cert-safe).
+ * Gemini-style linear blackish veil under the immersive chrome. Full-width
+ * top→bottom fade from transparent (above face height) to blackish at the
+ * base — not radial. Keeps the upper stage clear for maps / launcher.
  *
- * @param rich when false, draws only a light radial veil (no brand glow) for a
+ * @param rich when false, draws only the dark linear veil (no cool bloom) for a
  * cheap first frame (target &lt; 100ms TTFF).
  */
 @Composable
@@ -682,40 +686,32 @@ fun ImmersiveBackdrop(
     modifier: Modifier = Modifier,
     rich: Boolean = true,
 ) {
+    val fadeStart = AssistantOverlayTokens.BackdropFadeStart
+    val mid = AssistantOverlayTokens.BackdropMid
+    val bottomAlpha = AssistantOverlayTokens.BackdropBottomAlpha
     Canvas(modifier = modifier.fillMaxSize()) {
-        val w = size.width
-        val h = size.height
-        // Anchored under the bottom face dock — soft, not opaque.
-        val center = Offset(w * 0.5f, h * AssistantOverlayTokens.BackdropCenterY)
-        val radius = minOf(
-            w * AssistantOverlayTokens.BackdropRadiusWidth,
-            h * AssistantOverlayTokens.BackdropRadiusHeight,
-        )
-
         drawRect(
-            brush = Brush.radialGradient(
+            brush = Brush.verticalGradient(
                 colorStops = arrayOf(
-                    0.0f to Color(0x6605060A),
-                    0.35f to Color(0x33081014),
-                    0.65f to Color(0x14081014),
-                    1.0f to Color.Transparent,
+                    0.00f to Color.Transparent,
+                    fadeStart to Color.Transparent,
+                    mid to Color(0xFF05060A).copy(alpha = 0.38f),
+                    0.90f to Color(0xFF05060A).copy(alpha = bottomAlpha * 0.82f),
+                    1.00f to Color(0xFF05060A).copy(alpha = bottomAlpha),
                 ),
-                center = center,
-                radius = radius,
             ),
         )
 
         if (rich) {
+            val bloom = AssistantOverlayTokens.BackdropRichBloomAlpha
             drawRect(
-                brush = Brush.radialGradient(
+                brush = Brush.verticalGradient(
                     colorStops = arrayOf(
-                        0.0f to Color.Transparent,
-                        0.30f to AssistantTokens.PanelGlowSoft.copy(alpha = 0.13f),
-                        0.62f to AssistantTokens.PanelGlowSoft.copy(alpha = 0.08f),
-                        1.0f to Color.Transparent,
+                        0.00f to Color.Transparent,
+                        fadeStart to Color.Transparent,
+                        mid to AssistantTokens.PanelGlowSoft.copy(alpha = bloom * 0.35f),
+                        1.00f to AssistantTokens.PanelGlowSoft.copy(alpha = bloom),
                     ),
-                    center = center,
-                    radius = radius * AssistantOverlayTokens.BackdropGlowRadiusMul,
                 ),
             )
         }
@@ -865,6 +861,69 @@ fun ImmersiveBorderGlow(
         drawEdge(0f, 0f, thickness, h, 0f, 0f, thickness, 0f)
         // Right — fades leftward (inward).
         drawEdge(w - thickness, 0f, w, h, w, 0f, w - thickness, 0f)
+    }
+}
+
+/**
+ * Sharp Gemini-style spectrum bar along the bottom edge. Vertical width and
+ * brightness breathe with [glowBreath] (same shared inhale as [ImmersiveBorderGlow]).
+ */
+@Composable
+fun ImmersiveBottomEdgeGlow(
+    modifier: Modifier = Modifier,
+    revealProgress: Float = 1f,
+    glowBreath: ImmersiveGlowBreath = ImmersiveGlowBreath(1f, 0f, 0.62f),
+    windowInsets: WindowInsets = WindowInsets.systemBars,
+) {
+    val progress = revealProgress.coerceIn(0f, 1f)
+    val breath = glowBreath.scale
+    val inhale = glowBreath.inhale
+    val alpha = (progress * glowBreath.fade).coerceIn(0f, 1f)
+    // Brighten slightly on inhale so the bar feels alive with the rim.
+    val coreBoost = 0.85f + inhale * 0.15f
+
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(windowInsets)
+            .graphicsLayer { this.alpha = alpha },
+    ) {
+        val w = size.width
+        val h = size.height
+        val coreH = AssistantOverlayTokens.BottomEdgeCoreDp.toPx() * breath
+        val bloomH = AssistantOverlayTokens.BottomEdgeBloomDp.toPx() * breath
+        val spectrum = listOf(
+            Color(0xFF4285F4), // blue
+            Color(0xFF9B72CB), // violet
+            Color(0xFFD96570), // rose
+            Color(0xFFF4B400), // amber
+            Color(0xFF34A853), // green
+            Color(0xFF4285F4), // loop
+        )
+
+        // Soft upward bloom — sharp near the edge, dissolves into the stage.
+        drawRect(
+            brush = Brush.verticalGradient(
+                colorStops = arrayOf(
+                    0.00f to Color.Transparent,
+                    0.45f to spectrum[1].copy(alpha = 0.18f * coreBoost),
+                    0.75f to spectrum[0].copy(alpha = 0.42f * coreBoost),
+                    1.00f to spectrum[0].copy(alpha = 0.70f * coreBoost),
+                ),
+                startY = h - bloomH,
+                endY = h,
+            ),
+            topLeft = Offset(0f, h - bloomH),
+            size = Size(w, bloomH),
+        )
+
+        // Crisp core line.
+        drawRect(
+            brush = Brush.horizontalGradient(colors = spectrum),
+            topLeft = Offset(0f, h - coreH),
+            size = Size(w, coreH),
+            alpha = coreBoost,
+        )
     }
 }
 

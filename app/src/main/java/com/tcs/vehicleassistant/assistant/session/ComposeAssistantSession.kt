@@ -559,13 +559,16 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             is AssistantUiState.Streaming,
             is AssistantUiState.Speaking,
             -> pauseIdleTimer()
+            // STT empty/timeout can bounce Error → Listening while quietly re-arming
+            // inside the ~5s listen window. Do not reset the countdown on that churn,
+            // or the session outlasts the "5s max" no-speech budget.
+            is AssistantUiState.Error -> Unit
             is AssistantUiState.Idle,
             is AssistantUiState.Listening,
-            is AssistantUiState.Error,
             -> {
                 if (isModelWarmingUp()) {
                     pauseIdleTimer()
-                } else {
+                } else if (idleJob?.isActive != true) {
                     armIdleTimer("ui:${state::class.simpleName}")
                 }
             }

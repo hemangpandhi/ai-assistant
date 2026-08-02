@@ -12,7 +12,7 @@ class ImmersiveFirstFrameContractTest {
 
     @Test
     fun liteBackdropSkipsGlowBloom() {
-        // rich=false → dark radial only; rich=true adds brand glow bloom.
+        // rich=false → dark linear veil only; rich=true adds cool bloom in-band.
         // Neither path uses Offscreen / DstIn compositing.
         assertFalse(shouldUseOffscreenBackdrop(rich = false))
         assertFalse(shouldUseOffscreenBackdrop(rich = true))

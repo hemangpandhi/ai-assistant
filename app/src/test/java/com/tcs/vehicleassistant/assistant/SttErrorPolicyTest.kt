@@ -1,42 +1,86 @@
 package com.tcs.vehicleassistant.assistant
 
+import com.tcs.vehicleassistant.core.AssistantConfig
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SttErrorPolicyTest {
 
     @Test
-    fun noMatch_completesSession() {
+    fun noMatch_withinListenWindow_retriesQuietly() {
+        assertEquals(
+            SttErrorPolicy.RetryQuiet,
+            sttErrorPolicyFor(
+                "No recognition result matched",
+                missingModels = false,
+                retryCount = 0,
+                listenElapsedMs = 1_200L,
+            ),
+        )
+    }
+
+    @Test
+    fun noSpeech_withinListenWindow_retriesQuietly() {
+        assertEquals(
+            SttErrorPolicy.RetryQuiet,
+            sttErrorPolicyFor(
+                "No speech input",
+                missingModels = false,
+                retryCount = 0,
+                listenElapsedMs = 500L,
+            ),
+        )
+    }
+
+    @Test
+    fun emptyResult_withinListenWindow_retriesQuietly() {
+        assertEquals(
+            SttErrorPolicy.RetryQuiet,
+            sttErrorPolicyFor(
+                "I didn't hear anything.",
+                missingModels = false,
+                retryCount = 0,
+                listenElapsedMs = 2_000L,
+            ),
+        )
+    }
+
+    @Test
+    fun noMatch_afterListenWindow_completesSession() {
         assertEquals(
             SttErrorPolicy.Complete,
             sttErrorPolicyFor(
                 "No recognition result matched",
                 missingModels = false,
                 retryCount = 0,
+                listenElapsedMs = AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS,
             ),
         )
     }
 
     @Test
-    fun noSpeech_completesSession() {
+    fun noSpeech_afterListenWindow_completesSession() {
         assertEquals(
             SttErrorPolicy.Complete,
             sttErrorPolicyFor(
                 "No speech input",
                 missingModels = false,
                 retryCount = 0,
+                listenElapsedMs = AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS + 1,
             ),
         )
     }
 
     @Test
-    fun emptyResult_completesSession() {
+    fun emptyResult_afterListenWindow_completesSession() {
         assertEquals(
             SttErrorPolicy.Complete,
             sttErrorPolicyFor(
                 "I didn't hear anything.",
                 missingModels = false,
                 retryCount = 0,
+                listenElapsedMs = Long.MAX_VALUE,
             ),
         )
     }
@@ -49,6 +93,7 @@ class SttErrorPolicyTest {
                 "Client side error",
                 missingModels = false,
                 retryCount = 0,
+                listenElapsedMs = 100L,
             ),
         )
         assertEquals(
@@ -57,6 +102,7 @@ class SttErrorPolicyTest {
                 "Client side error",
                 missingModels = false,
                 retryCount = 2,
+                listenElapsedMs = 100L,
             ),
         )
     }
@@ -79,5 +125,11 @@ class SttErrorPolicyTest {
             "I didn't catch that.",
             friendlySttErrorMessage("No recognition result matched"),
         )
+    }
+
+    @Test
+    fun listenWindow_matchesConfigNoSpeechTimeout() {
+        assertTrue(AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS in 1_000L..5_000L)
+        assertEquals(5_000L, AssistantConfig.Audio.NO_SPEECH_TIMEOUT_MS)
     }
 }

@@ -28,7 +28,9 @@ internal object AssistantOverlayTokens {
     val BottomChromePaddingStart = 32.dp
     val BottomChromePaddingTop = 16.dp
     val BottomChromePaddingEnd = 32.dp
-    val BottomChromeDockPadding = 12.dp
+    val BottomChromeDockPadding = 4.dp
+    // FaceStageDock Column bottom pad — keeps transcript near the map base.
+    val DockContentPaddingBottom = 8.dp
     // Pull face toward transcript; canvas chin/glow otherwise reads as a large gap.
     val FaceTowardTranscriptNudge = 76.dp
     // ~32% of stage height (~15% smaller than prior 37.5%).
@@ -68,9 +70,14 @@ internal object AssistantOverlayTokens {
     val BorderThickness = 52.dp
     const val SpeechEnergyKick = 0.22f
 
-    // Backdrop bloom
-    const val BackdropCenterY = 0.84f
-    const val BackdropRadiusWidth = 0.48f
-    const val BackdropRadiusHeight = 0.52f
-    const val BackdropGlowRadiusMul = 1.18f
+    // Linear bottom veil (transparent → blackish); stops are fractions of height from top.
+    const val BackdropFadeStart = 0.55f
+    const val BackdropMid = 0.78f
+    const val BackdropBottomAlpha = 0.94f
+    const val BackdropRichBloomAlpha = 0.10f
+
+    // Sharp Gemini bottom-edge bar (scaled by ImmersiveGlowBreath.scale).
+    val BottomEdgeCoreDp = 2.5.dp
+    val BottomEdgeBloomDp = 14.dp
 }
+

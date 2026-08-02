@@ -19,6 +19,8 @@ class MasterOwnedTreeContractTest {
         // Design IVI glanceable panels (ClimatePanelActivity / VehiclePanelActivity).
         "app/src/main/java/com/tcs/vehicleassistant/handlers/SystemToolHandler.kt",
         "app/src/main/java/com/tcs/vehicleassistant/handlers/ToolHandlerRegistry.kt",
+        // Bare-name wake alias (hey iris → also iris) via WakeWordPhrasePolicy.
+        "app/src/main/java/com/tcs/vehicleassistant/WakeWordService.kt",
     )
 
     @Test

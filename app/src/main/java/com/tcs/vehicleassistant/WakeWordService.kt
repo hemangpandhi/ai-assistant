@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import com.tcs.vehicleassistant.assistant.WakeWordPhrasePolicy
 import com.tcs.vehicleassistant.core.AssistantConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -93,40 +94,16 @@ class WakeWordService : Service() {
         }
 
         /**
-         * True when [transcript] contains the configured wake word as a fresh phrase.
+         * True when [transcript] matches the configured wake word (or its bare-name alias).
          *
-         * Matching strips Vosk `[unk]` tokens first. A bare `contains` on the raw decoder string
-         * rematched after RESTART when the recognizer was not reset — e.g.
-         * `"hey [unk] hey nissan"` normalizes to `"hey hey nissan"`, which still contains
-         * `"hey nissan"` once. Reject when the wake phrase's leading token repeats more often
-         * than it appears in the configured phrase itself.
+         * `hey iris` also accepts `iris` — see [WakeWordPhrasePolicy].
          */
-        fun matchesWakeWord(transcript: String, configuredWakeWord: String): Boolean {
-            val configured = configuredWakeWord.lowercase().trim()
-            if (configured.isEmpty()) return false
-            val text = normalizeTranscript(transcript)
-            if (text.isEmpty()) return false
-            if (!text.contains(configured)) return false
-
-            val lead = configured.substringBefore(' ')
-            if (lead.isNotEmpty()) {
-                val leadRegex = Regex("""\b${Regex.escape(lead)}\b""")
-                val inConfigured = leadRegex.findAll(configured).count()
-                val inText = leadRegex.findAll(text).count()
-                if (inText > inConfigured) return false
-            }
-
-            val first = text.indexOf(configured)
-            val second = text.indexOf(configured, first + configured.length)
-            return second < 0
-        }
+        fun matchesWakeWord(transcript: String, configuredWakeWord: String): Boolean =
+            WakeWordPhrasePolicy.matches(transcript, configuredWakeWord)
 
         /** Lowercases, drops `[unk]`, and collapses whitespace. */
         fun normalizeTranscript(transcript: String): String =
-            transcript.lowercase()
-                .replace(AssistantConfig.WakeWord.UNKNOWN_TOKEN, " ")
-                .replace(Regex("\\s+"), " ")
-                .trim()
+            WakeWordPhrasePolicy.normalizeTranscript(transcript)
 
         /** Extracts the transcript from a Vosk `{"text": ...}` or `{"partial": ...}` result. */
         fun extractTranscript(voskJson: String): String =
@@ -141,6 +118,8 @@ class WakeWordService : Service() {
     private var model: Model? = null
     private var wakeWord = AssistantConfig.WakeWord.DEFAULT_WAKE_WORD
     private var customRecognizer: Recognizer? = null
+    /** Grammar key used to build [customRecognizer]; rebuilt when the wake phrase set changes. */
+    private var recognizerGrammarKey: String? = null
     private var customAudioRecord: AudioRecord? = null
 
     @Volatile
@@ -298,14 +277,24 @@ class WakeWordService : Service() {
             return
         }
 
+        val configuredWord = wakeWord.lowercase().trim()
+            .ifEmpty { AssistantConfig.WakeWord.DEFAULT_WAKE_WORD }
+        val phrases = WakeWordPhrasePolicy.grammarPhrases(configuredWord)
+        val grammarKey = phrases.sorted().joinToString("|")
+        if (customRecognizer != null && recognizerGrammarKey != grammarKey) {
+            try {
+                customRecognizer?.close()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to close recognizer for grammar rebuild", e)
+            }
+            customRecognizer = null
+            recognizerGrammarKey = null
+        }
+
         if (customRecognizer == null) {
             try {
-                // Constraining the grammar to the wake word plus [unk] is what keeps false
-                // triggers down; a free-form recognizer fired on unrelated speech.
-                val configuredWord = wakeWord.lowercase().trim()
-                    .ifEmpty { AssistantConfig.WakeWord.DEFAULT_WAKE_WORD }
-                val grammarJson = setOf(configuredWord, AssistantConfig.WakeWord.UNKNOWN_TOKEN)
-                    .joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
+                // Constrained grammar: configured phrase, optional bare name, and [unk].
+                val grammarJson = phrases.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
 
                 Log.d(TAG, "Vosk recognizer grammar: $grammarJson")
                 customRecognizer = Recognizer(
@@ -313,6 +302,7 @@ class WakeWordService : Service() {
                     AssistantConfig.Audio.SAMPLE_RATE_HZ.toFloat(),
                     grammarJson
                 )
+                recognizerGrammarKey = grammarKey
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to init recognizer: ${e.message}", e)
                 return
@@ -452,6 +442,7 @@ class WakeWordService : Service() {
             Log.w(TAG, "Failed to close recognizer", e)
         }
         customRecognizer = null
+        recognizerGrammarKey = null
         model = null
         releaseModel()
         serviceScope.cancel()

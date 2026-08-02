@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
 
 /** Soft panel blue from [ImmersiveBorderGlow] spectrum — not OEM purple. */
 private val BorderPanelBlue = Color(0xFF8AB4F8)
@@ -58,7 +59,8 @@ fun FaceStageDock(
                 val cx = size.width * 0.5f
                 val cy = size.height
                 val radius = size.width * 0.5f
-                val peak = (0.26f * breathMul).coerceIn(0.16f, 0.36f)
+                // Softer peak so the dock plate doesn't fight the linear black veil.
+                val peak = (0.16f * breathMul).coerceIn(0.10f, 0.22f)
 
                 drawCircle(
                     brush = Brush.radialGradient(
@@ -82,7 +84,12 @@ fun FaceStageDock(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 48.dp, top = 36.dp, end = 48.dp, bottom = 24.dp),
+                .padding(
+                    start = 48.dp,
+                    top = 36.dp,
+                    end = 48.dp,
+                    bottom = AssistantOverlayTokens.DockContentPaddingBottom,
+                ),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Bottom,
             content = content,
