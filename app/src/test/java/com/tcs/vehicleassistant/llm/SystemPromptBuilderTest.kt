@@ -26,6 +26,13 @@ class SystemPromptBuilderTest {
     }
 
     @Test
+    fun `capability reminder forbids music after accidents`() {
+        val text = SystemPromptBuilder.capabilityReminder().lowercase()
+        assertTrue(text.contains("accident") || text.contains("emergency"))
+        assertTrue(text.contains("never suggest music") || text.contains("never suggest"))
+    }
+
+    @Test
     fun `capability reminder requires tool tags for clear cabin commands`() {
         val text = SystemPromptBuilder.capabilityReminder()
         assertTrue(text.contains("<TOOL>"))

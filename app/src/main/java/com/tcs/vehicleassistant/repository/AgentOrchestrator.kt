@@ -341,6 +341,11 @@ class AgentOrchestrator(
             return
         }
 
+        // Crisis / emergency: fixed safety script — never wellness music offers.
+        if (pendingConfirmationTool == null && tryHandleCrisisSupport(trimmedQuery)) {
+            return
+        }
+
         // Emotional / open-ended wellness: speak an offer immediately (no fake "Done", no LLM wait).
         if (pendingConfirmationTool == null && tryHandleWellnessOffer(trimmedQuery)) {
             return
@@ -542,10 +547,46 @@ class AgentOrchestrator(
 
 
     /**
+     * Accident / injury / emergency utterances get a fixed safety script.
+     * Never queues music or other entertainment offers.
+     */
+    private fun tryHandleCrisisSupport(query: String): Boolean {
+        val decision = com.tcs.vehicleassistant.core.ConversationSafetyPolicy.evaluate(query)
+        if (!decision.isCrisis) return false
+
+        beginTurn()
+        _state.value = OrchestratorState.Thinking(query)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        LatencyLogger.log(
+            "CrisisSupport",
+            "Matched ${decision.severity} utterance — entertainment offers suppressed",
+        )
+
+        scope.launch {
+            MemoryManager.captureLongTermFacts(context, query)
+            MemoryManager.addTurn(currentSpeakerName, query)
+            // Explicitly clear any stale soft offer so "yes" cannot play music after a crisis turn.
+            pendingOfferedTool = null
+            finishGuardedTurn(
+                message = decision.spokenResponse,
+                pathLabel = "CrisisSupport",
+                toolCall = "crisis_support",
+                policyId = "conversation_safety_${decision.severity.name.lowercase()}",
+                asQuestion = true,
+            )
+        }
+        return true
+    }
+
+    /**
      * Lightweight wellness intent: emotional / "not feeling good" phrases get empathy + an offer
      * (music) without waiting on the LLM or claiming a fake action ACK.
+     * Crisis utterances are handled by [tryHandleCrisisSupport] and must not reach here.
      */
     private fun tryHandleWellnessOffer(query: String): Boolean {
+        if (com.tcs.vehicleassistant.core.ConversationSafetyPolicy.isCrisis(query)) {
+            return false
+        }
         if (!com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(query)) {
             return false
         }
@@ -850,13 +891,15 @@ class AgentOrchestrator(
             } else {
                 // Empathy hint on the *first* emotional turn, not only after an empty EOS —
                 // core-tool-free prompts still need an explicit chat-only steer for Gemma-E2B.
-                val chatHint = if (
+                val chatHint = when {
+                    com.tcs.vehicleassistant.core.ConversationSafetyPolicy.isCrisis(interceptedQuery) ->
+                        com.tcs.vehicleassistant.core.ConversationSafetyPolicy.CRISIS_CHAT_HINT
                     emptyChatRetry > 0 ||
-                    com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(interceptedQuery)
-                ) {
-                    "[System: Reply with warm empathy only — no tools this turn. Acknowledge the feeling and offer optional help such as music.]\n"
-                } else {
-                    ""
+                        com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(interceptedQuery) ->
+                        "[System: Reply with warm empathy only — no tools this turn. Acknowledge the feeling. " +
+                            "For mild stress or low mood you may softly offer music or climate; " +
+                            "never offer entertainment after accidents, injury, or emergencies.]\n"
+                    else -> ""
                 }
                 val formattedQuery = if (LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true) {
                     "User: $interceptedQuery"
@@ -1359,6 +1402,10 @@ class AgentOrchestrator(
          * Clear emotional sentences get a soft invite only as absolute last resort after retry.
          */
         internal fun resolveEmptyModelFallback(userQuery: String): String {
+            val crisis = com.tcs.vehicleassistant.core.ConversationSafetyPolicy.evaluate(userQuery)
+            if (crisis.isCrisis) {
+                return crisis.spokenResponse
+            }
             if (com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(userQuery)) {
                 return WELLNESS_OFFER
             }

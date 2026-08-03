@@ -45,6 +45,8 @@ object ConversationalIntent {
         val q = query.trim()
         if (q.isEmpty() || q.startsWith("[")) return false
         if (CLIMATE_FEELING.containsMatchIn(q)) return false
+        // Crisis / emergency is not casual wellness — ConversationSafetyPolicy owns that path.
+        if (ConversationSafetyPolicy.isCrisis(q)) return false
         return EMOTIONAL_WELLNESS.containsMatchIn(q)
     }
 

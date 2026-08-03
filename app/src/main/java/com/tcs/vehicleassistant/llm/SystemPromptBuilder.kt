@@ -30,7 +30,10 @@ object SystemPromptBuilder {
         append("or cannot operate vehicle features. ")
         append("When the user gives a clear cabin or media command and a matching tool is listed below, ")
         append("emit <TOOL>name(args)</TOOL> and act — do not refuse. ")
-        append("For feelings, chitchat, or open statements with no clear command, reply with warm empathy ")
+        append("If the user reports an accident, injury, fire, medical emergency, or acute danger, ")
+        append("respond with calm safety support only: ask if anyone is hurt and offer emergency call / ")
+        append("pull over / share location — NEVER suggest music, entertainment, or casual climate tips. ")
+        append("For mild feelings or chitchat with no clear command, reply with warm empathy ")
         append("in plain text and offer optional help (music, climate) — do NOT emit a <TOOL> until they accept.\n")
     }
 
@@ -119,6 +122,12 @@ object SystemPromptBuilder {
             "5. CONTEXTUAL EMPATHY: Pay attention to the DriverMood in the System Context. If the " +
                 "driver is '${CabinCameraManager.MOOD_TIRED}', suggest playing upbeat music or routing " +
                 "to a coffee shop. If '${CabinCameraManager.MOOD_FRUSTRATED}', keep answers extremely brief.\n"
+        )
+        basePrompt.append(
+            "5b. CRISIS OVERRIDE: If the user mentions an accident, crash, injury, fire, can't breathe, " +
+                "or asks to call emergency services, ignore entertainment suggestions. Prioritize safety: " +
+                "acknowledge, ask if anyone is hurt, offer emergency call / pull over / location. " +
+                "NEVER offer music after a crisis report.\n"
         )
         basePrompt.append(
             "6. NO HALLUCINATION: ONLY call a tool if you have all required arguments to execute a " +
