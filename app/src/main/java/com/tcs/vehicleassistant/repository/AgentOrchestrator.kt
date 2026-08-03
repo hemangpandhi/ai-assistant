@@ -7,12 +7,15 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.assistant.agent.ConfirmationCoordinator
+import com.tcs.vehicleassistant.assistant.agent.PromptAssembler
+import com.tcs.vehicleassistant.assistant.agent.StreamTextPolicy
+import com.tcs.vehicleassistant.assistant.agent.ToolLoopPlanner
 import com.tcs.vehicleassistant.assistant.agent.TurnRouter
+import com.tcs.vehicleassistant.assistant.agent.TurnStateMachine
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.hardware.CabinSnapshotReader
 import com.tcs.vehicleassistant.core.VisionState
-import com.tcs.vehicleassistant.core.ConfirmationPolicy
 import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.llm.ILLMProvider
@@ -59,26 +62,21 @@ class AgentOrchestrator(
     // MVI Architecture: Run heavy orchestrator logic on background thread.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    @Volatile
-    private var isQueryProcessed = true
     private var timeoutJob: Job? = null
     /**
      * Pending ContextGuard confirm vs soft conversational offer (e.g. wellness music).
      * Owned by [ConfirmationCoordinator] so "yes" cannot hit the wrong path.
      */
     private val confirmationCoordinator = ConfirmationCoordinator()
+    private val turnState = TurnStateMachine()
 
     private val pendingIntentsToLaunch = java.util.Collections.synchronizedList(mutableListOf<Intent>())
 
     /**
-     * Monotonically increasing turn id. LiteRT streams on its own thread and keeps delivering
-     * tokens after a turn is abandoned (timeout, hallucination cut-off, re-triggered session), so
-     * every callback checks its captured id against this before touching any state.
+     * Monotonically increasing turn id lives on [TurnStateMachine]. LiteRT streams on its own
+     * thread and keeps delivering tokens after a turn is abandoned, so every callback checks
+     * [TurnStateMachine.isCurrentTurn] before touching state.
      */
-    private val turnCounter = java.util.concurrent.atomic.AtomicLong(0)
-
-    @Volatile
-    private var activeTurnId = 0L
 
     @Volatile var ttsSpokenLength = 0
         private set
@@ -159,7 +157,7 @@ class AgentOrchestrator(
         )
     }
 
-    fun isProcessing(): Boolean = !isQueryProcessed
+    fun isProcessing(): Boolean = turnState.isProcessing()
 
     fun triggerProactiveEvent(prompt: String) {
         handleQuery(prompt)
@@ -382,15 +380,13 @@ class AgentOrchestrator(
      * inference are dropped rather than overwriting the new turn's UI and TTS state.
      */
     private fun beginTurn(): Long {
-        val turnId = turnCounter.incrementAndGet()
-        activeTurnId = turnId
+        val turnId = turnState.beginTurn()
         ttsSpokenLength = 0
         lastTtsUpdateTime = 0L
-        isQueryProcessed = false
         return turnId
     }
 
-    private fun isCurrentTurn(turnId: Long): Boolean = activeTurnId == turnId
+    private fun isCurrentTurn(turnId: Long): Boolean = turnState.isCurrentTurn(turnId)
 
     fun resetState() {
         _state.value = OrchestratorState.Idle
@@ -629,7 +625,7 @@ class AgentOrchestrator(
         LLMManager.lastAiResponse = finalMsg
         _state.value = OrchestratorState.Speaking(finalMsg)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-        isQueryProcessed = true
+        turnState.markProcessed()
 
         val elapsed = LatencyLogger.getTotalTime()
         val budget = AssistantConfig.Session.END_TO_END_BUDGET_MS
@@ -659,7 +655,7 @@ class AgentOrchestrator(
         LLMManager.lastAiResponse = message
         _state.value = OrchestratorState.Speaking(message)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-        isQueryProcessed = true
+        turnState.markProcessed()
         LatencyLogger.log(
             pathLabel,
             "ContextGuard policy=$policyId tool=$toolCall msg=$message",
@@ -721,7 +717,7 @@ class AgentOrchestrator(
                 AssistantConfig.Llm.INFERENCE_TIMEOUT_MS
             }
             delay(timeoutDuration)
-            if (!isQueryProcessed && isCurrentTurn(turnId)) {
+            if (!turnState.isQueryProcessed && isCurrentTurn(turnId)) {
                 _state.value = OrchestratorState.Error("Timeout - Restarting Model...")
                 _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
                 // Drain the hung stream before tearing the engine down; force-close mid-generation
@@ -733,12 +729,12 @@ class AgentOrchestrator(
                     override fun onSuccess() {
                         _state.value = OrchestratorState.Idle
                         _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                        isQueryProcessed = true
+                        turnState.markProcessed()
                     }
                     override fun onError(e: Exception) {
                         _state.value = OrchestratorState.Error("Error restarting.")
                         _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                        isQueryProcessed = true
+                        turnState.markProcessed()
                     }
                 })
             }
@@ -829,18 +825,7 @@ class AgentOrchestrator(
                 val toolsJsonArr = relevantToolsList.map { "\"${it.handlerKey}\"" }.joinToString(",", "[", "]")
                 """{"user_input":"${interceptedQuery.replace("\"", "\\\"")}","available_tools":$toolsJsonArr,"vehicle_context":{},"dialog_state":{}}"""
             } else {
-                // Empathy hint on the *first* emotional turn, not only after an empty EOS —
-                // core-tool-free prompts still need an explicit chat-only steer for Gemma-E2B.
-                val chatHint = when {
-                    com.tcs.vehicleassistant.core.ConversationSafetyPolicy.isCrisis(interceptedQuery) ->
-                        com.tcs.vehicleassistant.core.ConversationSafetyPolicy.CRISIS_CHAT_HINT
-                    emptyChatRetry > 0 ||
-                        com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(interceptedQuery) ->
-                        "[System: Reply with warm empathy only — no tools this turn. Acknowledge the feeling. " +
-                            "For mild stress or low mood you may softly offer music or climate; " +
-                            "never offer entertainment after accidents, injury, or emergencies.]\n"
-                    else -> ""
-                }
+                val chatHint = PromptAssembler.chatHint(interceptedQuery, emptyChatRetry)
                 val formattedQuery = if (LLMManager.currentModelPath?.contains("handoff", ignoreCase = true) == true) {
                     "User: $interceptedQuery"
                 } else {
@@ -853,38 +838,19 @@ class AgentOrchestrator(
                 // cannot play music.
                 val toolsForTurn = toolSchemaGenerator.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
                 LLMManager.lastInjectedTools = toolsForTurn
-                val toolsBlock = if (toolsForTurn.isNotBlank()) {
-                    "=== AVAILABLE TOOLS ===\n$toolsForTurn\n"
-                } else {
-                    ""
-                }
-
-                if (LLMManager.isFirstMessage) {
-                    LLMManager.isFirstMessage = false
-                    buildString {
-                        append("<start_of_turn>system\n")
-                        append(sysPrompt)
-                        append("\n<end_of_turn>\n<start_of_turn>user\n")
-                        if (historyBlock.isNotBlank()) append(historyBlock)
-                        if (stateInject.isNotBlank()) append('\n').append(stateInject)
-                        if (chatHint.isNotBlank()) append('\n').append(chatHint)
-                        append('\n').append(formattedQuery)
-                        append("\n<end_of_turn>\n<start_of_turn>model\n")
-                    }.trim()
-                } else {
-                    // Re-inject tools. LiteRT KV cache already contains the conversation history.
-                    // DO NOT re-inject historyBlock, as it will duplicate the history and crash the context window.
-                    buildString {
-                        append("<start_of_turn>user\n")
-                        append(LLMManager.capabilityReminder())
-                        append('\n')
-                        append(toolsBlock)
-                        if (stateInject.isNotBlank()) append(stateInject)
-                        if (chatHint.isNotBlank()) append(chatHint)
-                        append(formattedQuery)
-                        append("\n<end_of_turn>\n<start_of_turn>model\n")
-                    }.trim()
-                }
+                val toolsBlock = PromptAssembler.toolsBlock(toolsForTurn)
+                val first = LLMManager.isFirstMessage
+                if (first) LLMManager.isFirstMessage = false
+                PromptAssembler.buildGemmaTurn(
+                    isFirstMessage = first,
+                    sysPrompt = sysPrompt,
+                    capabilityReminder = LLMManager.capabilityReminder(),
+                    toolsBlock = toolsBlock,
+                    historyBlock = historyBlock,
+                    stateInject = stateInject,
+                    chatHint = chatHint,
+                    formattedQuery = formattedQuery,
+                )
             }
         }
 
@@ -900,56 +866,36 @@ class AgentOrchestrator(
         val onToken: (String) -> Unit = { chunkText ->
             // Invoked on LiteRT's native streaming thread. Bail out for abandoned turns so a
             // stale inference cannot overwrite the UI or queue TTS for a question already gone.
-            if (!stream.isHallucinating && isCurrentTurn(turnId) && !isQueryProcessed) {
+            if (!stream.isHallucinating && isCurrentTurn(turnId) && !turnState.isQueryProcessed) {
                 if (firstTokenTime.compareAndSet(-1L, System.currentTimeMillis())) {
                     LatencyLogger.log("Orchestrator", "TTFT: ${firstTokenTime.get() - startTime}ms")
                 }
 
                 var currentText = stream.append(chunkText)
-
-                var stripped = true
-                while (stripped) {
-                    stripped = false
-                    for (prefix in ROLE_PREFIXES) {
-                        if (currentText.trimStart().startsWith(prefix, ignoreCase = true)) {
-                            currentText = currentText.trimStart().substring(prefix.length).trimStart()
-                            stripped = true
-                        }
-                    }
-                }
-
-                // Strip trailing, inline, or mangled chat-template tokens. Tool tags are preserved
-                // here because onDone still needs them to extract tool calls.
-                currentText = currentText
-                    .replace(SPECIAL_TOKEN_REGEX, "")
-                    .replace(ROLE_TOKEN_REGEX, "")
+                currentText = StreamTextPolicy.scrubStreamChunk(currentText)
                 stream.replace(currentText)
 
-                val userIdx = currentText.indexOf("\nUser:")
-                if (userIdx != -1) {
+                val (cutText, hallucinated) = StreamTextPolicy.cutHallucinatedUserEcho(currentText)
+                if (hallucinated) {
                     stream.markHallucinating()
-                    currentText = currentText.substring(0, userIdx)
-                    stream.replace(currentText)
-                } else if (currentText.trim().endsWith("User:")) {
-                    stream.markHallucinating()
-                    currentText = currentText.substringBeforeLast("User:")
+                    currentText = cutText
                     stream.replace(currentText)
                 }
 
                 if (currentText.length > AssistantConfig.Streaming.REPETITION_SCAN_MIN_LENGTH) {
-                    if (isRunawayGeneration(currentText)) {
+                    if (StreamTextPolicy.isRunawayGeneration(currentText)) {
                         stream.markHallucinating()
                     }
                 }
 
-                val displayMsg = normalizeForDisplay(ToolCallParser.stripToolTags(currentText))
+                val displayMsg = StreamTextPolicy.normalizeForDisplay(ToolCallParser.stripToolTags(currentText))
 
                 if (displayMsg.isNotEmpty()) {
                     _state.value = OrchestratorState.Streaming(displayMsg)
                 }
 
                 var remainingText = displayMsg.substring(Math.min(stream.spokenLength, displayMsg.length))
-                var match = SENTENCE_REGEX.find(remainingText)
+                var match = StreamTextPolicy.SENTENCE_REGEX.find(remainingText)
                 while (match != null) {
                     val sentence = match.value
                     val sentenceStartOffset = stream.consumeSentence(sentence.length)
@@ -957,7 +903,7 @@ class AgentOrchestrator(
 
                     val nextStart = Math.min(stream.spokenLength, displayMsg.length)
                     remainingText = displayMsg.substring(nextStart)
-                    match = SENTENCE_REGEX.find(remainingText)
+                    match = StreamTextPolicy.SENTENCE_REGEX.find(remainingText)
                 }
             }
         }
@@ -977,9 +923,8 @@ class AgentOrchestrator(
 
                     MemoryManager.addTurn("Assistant", tempFinalMsg.trim())
 
-                    var finalMsg = normalizeForDisplay(ToolCallParser.stripToolTags(tempFinalMsg))
-                    finalMsg = com.tcs.vehicleassistant.core.ConversationSafetyPolicy
-                        .sanitizeAssistantReply(query, finalMsg)
+                    var finalMsg = StreamTextPolicy.normalizeForDisplay(ToolCallParser.stripToolTags(tempFinalMsg))
+                    finalMsg = StreamTextPolicy.sanitizeFinalReply(query, finalMsg)
                     android.util.Log.i(
                         TAG,
                         "Model done. raw='${tempFinalMsg.take(160)}' display='${finalMsg.take(160)}' query='${query.take(80)}'",
@@ -1030,42 +975,42 @@ class AgentOrchestrator(
                     val actuallyExecutedTools = linkedSetOf<String>()
                     
                     // Combine native tool calls with any text-parsed tool calls (for Cloud fallback)
-                    val parsedTools = nativeToolCalls + ToolCallParser.extractToolCalls(tempFinalMsg)
-                    for (parsed in parsedTools) {
-                        val toolCall = "${parsed.toolName}(${parsed.args})"
-                        if (executedTools.add(toolCall)) {
-                            if (
-                                com.tcs.vehicleassistant.core.ConversationSafetyPolicy
-                                    .forbidsEntertainmentOffer(query) &&
-                                com.tcs.vehicleassistant.core.ConversationSafetyPolicy
-                                    .isEntertainmentTool(toolCall)
-                            ) {
-                                android.util.Log.w(TAG, "Crisis turn blocked entertainment tool: $toolCall")
-                                toolFeedbacks.add(
-                                    com.tcs.vehicleassistant.core.ConversationSafetyPolicy
-                                        .evaluate(query).spokenResponse,
-                                )
-                                continue
-                            }
-                            if (!toolSchemaGenerator.isToolAllowedForCurrentPrompt(parsed.toolName)) {
-                                android.util.Log.w(TAG, "LLM tool rejected by allow-list: $toolCall")
-                                toolFeedbacks.add(
-                                    com.tcs.vehicleassistant.core.LlmToolAllowList.rejectionMessage(parsed.toolName),
-                                )
-                                continue
-                            }
+                    val parsedTools = (nativeToolCalls + ToolCallParser.extractToolCalls(tempFinalMsg)).map {
+                        ToolLoopPlanner.ParsedTool(it.toolName, it.args)
+                    }
+                    val planned = ToolLoopPlanner.plan(
+                        tools = parsedTools,
+                        userQuery = query,
+                        alreadyExecuted = executedTools,
+                        isAllowed = { name -> toolSchemaGenerator.isToolAllowedForCurrentPrompt(name) },
+                        confirmationAsk = { toolCall, toolName ->
                             val toolDef = toolRegistry.getToolDefinition(toolCall)
                             if (toolDef?.requiresConfirmation == true) {
-                                // Stash only — never narrate as "I ran X" and never write yet.
-                                confirmationCoordinator.setConfirmation(toolCall)
-                                val ask = com.tcs.vehicleassistant.core.LlmToolTurnPolicy.confirmationAskMessage(
-                                    parsed.toolName,
-                                    toolDef.confirmationMessage,
-                                )
-                                confirmationAsks.add(ask)
-                                toolFeedbacks.add(ask)
-                                android.util.Log.i(TAG, "LLM tool requires confirmation; stashed $toolCall")
+                                ToolLoopPlanner.confirmationAskMessage(toolName, toolDef.confirmationMessage)
                             } else {
+                                null
+                            }
+                        },
+                    )
+                    for (action in planned) {
+                        executedTools.add(action.toolCall)
+                        when (action) {
+                            is ToolLoopPlanner.PlannedToolAction.RejectCrisisEntertainment -> {
+                                android.util.Log.w(TAG, "Crisis turn blocked entertainment tool: ${action.toolCall}")
+                                toolFeedbacks.add(action.spokenFeedback)
+                            }
+                            is ToolLoopPlanner.PlannedToolAction.RejectAllowList -> {
+                                android.util.Log.w(TAG, "LLM tool rejected by allow-list: ${action.toolCall}")
+                                toolFeedbacks.add(action.message)
+                            }
+                            is ToolLoopPlanner.PlannedToolAction.RequireConfirmation -> {
+                                confirmationCoordinator.setConfirmation(action.toolCall)
+                                confirmationAsks.add(action.askMessage)
+                                toolFeedbacks.add(action.askMessage)
+                                android.util.Log.i(TAG, "LLM tool requires confirmation; stashed ${action.toolCall}")
+                            }
+                            is ToolLoopPlanner.PlannedToolAction.ScheduleExecute -> {
+                                val toolCall = action.toolCall
                                 val job = scope.async(Dispatchers.IO) {
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
                                         when (val decision = evaluateContextGuard(toolCall)) {
@@ -1247,7 +1192,7 @@ class AgentOrchestrator(
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     }
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                    isQueryProcessed = true
+                    turnState.markProcessed()
                     currentPendingTools.removeAll(pendingTools.toSet())
                 }
             }
@@ -1284,14 +1229,14 @@ class AgentOrchestrator(
                             android.util.Log.e(TAG, "Recovery re-initialization failed", e)
                             _state.value = OrchestratorState.Error("Hardware Recovery Failed.")
                             _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                            isQueryProcessed = true
+                            turnState.markProcessed()
                         }
                     } else {
                         if (throwable.message?.contains("Cancellation") != true) {
                             android.util.Log.e(TAG, "Inference failed after retry", throwable)
                             _state.value = OrchestratorState.Error("Model Inference Failed: ${throwable.message}")
                             _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                            isQueryProcessed = true
+                            turnState.markProcessed()
                         }
                     }
                 }
@@ -1336,121 +1281,24 @@ class AgentOrchestrator(
         private const val TAG = "AgentOrchestrator"
 
         private const val TAKING_ACTION_PLACEHOLDER = "Taking action..."
-        private const val EMPTY_CATCH_FALLBACK = "I didn't catch that. Could you say that again?"
-        private const val EMPTY_TOOL_FALLBACK = "I couldn't run a tool for that. Want to try again?"
-        /** Empathy + open offer for mild wellness — not used for crisis (see ConversationSafetyPolicy). */
-        internal const val WELLNESS_OFFER =
-            "I'm sorry you're not feeling well. Would quiet help, or would you like me to play some music?"
-        /** Last resort only after a chat-oriented LLM retry still returned empty — never "didn't catch that". */
-        private const val EMPTY_CHAT_LAST_RESORT =
-            "I'm here with you. Would you like me to play some music or adjust the cabin?"
 
-        private val USER_QUESTION_PREFIX = Regex(
-            "(?i)^(what|why|how|when|where|who|which|can you|could you|would you|will you|" +
-                "do you|did you|is |are |am i|should |tell me|explain)\\b",
-        )
+        /** Empathy + open offer for mild wellness — owned by [StreamTextPolicy]. */
+        internal const val WELLNESS_OFFER = StreamTextPolicy.WELLNESS_OFFER
 
-        private val ACTION_REQUEST_HINT = Regex(
-            "(?i)\\b(" +
-                "play|stop|pause|resume|skip|next|previous|mute|unmute|volume|" +
-                "turn on|turn off|increase|decrease|set|open|close|lock|unlock|" +
-                "navigate|navigation|directions|call|text|message|warm|cool|" +
-                "heater|defrost|ac|a\\.?c\\.?|fan|music|song|track" +
-                ")\\b",
-        )
+        /** Delegates to [StreamTextPolicy] so tests keep calling AgentOrchestrator.*. */
+        internal fun resolveEmptyModelFallback(userQuery: String): String =
+            StreamTextPolicy.resolveEmptyModelFallback(userQuery)
 
-        /**
-         * Spoken fallback when the model produced no usable text and no tool ran.
-         * Never claims "Done". "Didn't catch that" is reserved for clear questions the model
-         * failed on — not for mic/TTS-echo fragments (those return blank = silent ignore).
-         * Clear emotional sentences get a soft invite only as absolute last resort after retry.
-         */
-        internal fun resolveEmptyModelFallback(userQuery: String): String {
-            val crisis = com.tcs.vehicleassistant.core.ConversationSafetyPolicy.evaluate(userQuery)
-            if (crisis.isCrisis) {
-                return crisis.spokenResponse
-            }
-            if (com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(userQuery)) {
-                return WELLNESS_OFFER
-            }
-            // Bare multi-turn "yes"/"ok" with no pending offer / FollowUp match — clarify, don't dismiss.
-            if (ConfirmationPolicy.isAffirmative(userQuery)) {
-                return "Got it — would you like me to play some music, or something else?"
-            }
-            if (ConfirmationPolicy.isDecline(userQuery)) {
-                return "Okay — what would you like me to do instead?"
-            }
-            if (com.tcs.vehicleassistant.core.ConversationalIntent.isOpenChat(userQuery)) {
-                return EMPTY_CHAT_LAST_RESORT
-            }
-            if (looksLikeActionRequest(userQuery)) return EMPTY_TOOL_FALLBACK
-            if (com.tcs.vehicleassistant.core.ConversationalIntent.isLikelyAsrGarbage(userQuery)) {
-                return EMPTY_CATCH_FALLBACK
-            }
-            if (looksLikeUserQuestion(userQuery)) return EMPTY_CATCH_FALLBACK
-            // Mid-phrase ASR echo — stay silent rather than a fake "Done" or "didn't catch that".
-            return ""
-        }
+        internal fun looksLikeUserQuestion(userQuery: String): Boolean =
+            StreamTextPolicy.looksLikeUserQuestion(userQuery)
 
-        /** True when the user's utterance is a question / request for information, not a cabin action. */
-        internal fun looksLikeUserQuestion(userQuery: String): Boolean {
-            val q = userQuery.trim()
-            if (q.isEmpty() || q.startsWith("[")) return false
-            if (q.endsWith("?")) return true
-            return USER_QUESTION_PREFIX.containsMatchIn(q)
-        }
+        internal fun looksLikeActionRequest(userQuery: String): Boolean =
+            StreamTextPolicy.looksLikeActionRequest(userQuery)
 
-        /** Rough cabin/media command shape — used only to pick an honest empty-model fallback. */
-        internal fun looksLikeActionRequest(userQuery: String): Boolean {
-            val q = userQuery.trim()
-            if (q.isEmpty() || q.startsWith("[")) return false
-            return ACTION_REQUEST_HINT.containsMatchIn(q)
-        }
+        internal fun normalizeForDisplay(text: String): String =
+            StreamTextPolicy.normalizeForDisplay(text)
 
-        /**
-         * Chat-template role markers the model sometimes echoes back. Stripping them keeps the
-         * spoken response free of transcript scaffolding.
-         */
-        private val ROLE_PREFIXES = listOf(
-            "Assistant:", "Response:", "User:", "Assistant :", "Response :", "User :",
-            "System:", "System :", "<start_of_turn>", "<end_of_turn>", "model\n", "user\n",
-            "model", "user"
-        )
-
-        private val SPECIAL_TOKEN_REGEX =
-            Regex("(?i)<start_of_turn>|<end_of_turn>|start_of_turn|end_of_turn|start of turn|end of turn")
-        private val ROLE_TOKEN_REGEX = Regex("(?i)\\bmodel\\b\\n?|\\buser\\b\\n?")
-
-        /** Splits streamed text into speakable sentences at terminal punctuation or newlines. */
-        private val SENTENCE_REGEX =
-            "^(.*?)([.!?]{2,}(?:\\s+|$)|\\n|(?<=[a-zA-Z\\)\\]\\\"])[.,!?](?:\\s+|$))".toRegex()
-
-        private val LEADING_I_REGEX = Regex("^i\\s+")
-        private val BARE_I_REGEX = Regex("^i\\b")
-        private val DOUBLED_I_REGEX = Regex("\\biI\\b")
-        private val I_CAN_I_REGEX = Regex("\\bi can I\\b", RegexOption.IGNORE_CASE)
-
-        /**
-         * Repairs the lowercase-`i` and doubled-pronoun artifacts this model emits mid-stream, so
-         * both the on-screen text and the TTS input read as natural English.
-         */
-        internal fun normalizeForDisplay(text: String): String = text
-            .replace(DOUBLED_I_REGEX, "I")
-            .replace(I_CAN_I_REGEX, "I can")
-            .replace(LEADING_I_REGEX, "")
-            .replace(BARE_I_REGEX, "I")
-            .trim()
-
-        /**
-         * True when generation has degenerated into a repetition loop or blown past the length
-         * ceiling, both of which mean the stream should be cut off rather than spoken.
-         */
-        internal fun isRunawayGeneration(text: String): Boolean {
-            if (text.length > AssistantConfig.Streaming.RUNAWAY_LENGTH) return true
-            if (text.length <= AssistantConfig.Streaming.REPETITION_SCAN_MIN_LENGTH) return false
-            val window = AssistantConfig.Streaming.REPETITION_WINDOW
-            val lastWords = text.trim().split(Regex("\\s+")).takeLast(window)
-            return lastWords.size == window && lastWords.distinct().size == 1
-        }
+        internal fun isRunawayGeneration(text: String): Boolean =
+            StreamTextPolicy.isRunawayGeneration(text)
     }
 }
