@@ -6,6 +6,7 @@ import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
+import com.tcs.vehicleassistant.assistant.agent.TurnRouter
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.hardware.CabinSnapshotReader
@@ -171,211 +172,224 @@ class AgentOrchestrator(
     }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
-        var rawTrimmed = query.trim()
-        val userSeat = VisionState.recognizedUser?.takeIf { it.isNotBlank() } ?: "unknown"
-        
-        // Extract speaker tag: [Seat: Name]
-        val seatTagRegex = Regex("^\\[Seat:\\s*(.*?)\\]\\s*(.*)")
-        val matchResult = seatTagRegex.matchEntire(rawTrimmed)
-        if (matchResult != null) {
-            currentSpeakerName = matchResult.groupValues[1]
-            rawTrimmed = matchResult.groupValues[2]
-        }
-        // ASR often stutters cabin commands; collapse before DirectTool *and* LLM so allow-list
-        // retrieval and tool execution see the intended short phrase.
-        val normalizedFull = DirectToolResolver.normalize(rawTrimmed)
-        val collapsed = DirectToolResolver.collapseAsrRepeats(rawTrimmed)
-        val trimmedQuery = if (
-            collapsed.isNotBlank() &&
-            collapsed.split(' ').size < normalizedFull.split(' ').size
-        ) {
-            android.util.Log.i(TAG, "Collapsed ASR repeat: '$rawTrimmed' → '$collapsed'")
-            collapsed
-        } else {
-            rawTrimmed
-        }
-        val lowerQuery = trimmedQuery.lowercase().replace(Regex("[^a-z ]"), "").trim()
-        
-        // Ghost Voice Filter: ignore silence hallucinations from Whisper.
-        // Affirmatives ("yes"/"ok") must stay available for FollowUpRouter and ContextGuard confirms.
-        val ignoredHallucinations = setOf(
-            "you", "thank you", "bye", "am", "i", "what", "blank audio", "thanks for watching", "a"
+        val normalized = TurnRouter.normalize(
+            rawQuery = query,
+            defaultSpeaker = currentSpeakerName,
         )
+        if (normalized.speakerName != null) {
+            currentSpeakerName = normalized.speakerName
+        }
+        val trimmedQuery = normalized.query
+        if (normalized.collapsedFromAsrRepeat) {
+            android.util.Log.i(TAG, "Collapsed ASR repeat: '$query' → '$trimmedQuery'")
+        }
 
-        // ContextGuard / OEM confirmation: honor yes/decline without waiting on LiteRT.
+        // Keep mutable pending state aligned with TurnRouter's "OTHER supersedes" rules.
         if (pendingConfirmationTool != null && !trimmedQuery.startsWith("[")) {
-            when (ConfirmationPolicy.classify(trimmedQuery)) {
-                ConfirmationPolicy.Reply.DECLINE -> {
-                    pendingConfirmationTool = null
-                    pendingOfferedTool = null
-                    LatencyLogger.reset()
-                    beginTurn()
-                    scope.launch {
-                        finishGuardedTurn(
-                            message = "Okay, I won't change that.",
-                            pathLabel = "ContextGuardConfirm",
-                            toolCall = "cancelled",
-                            policyId = "user_declined",
-                            asQuestion = false,
-                        )
-                    }
-                    return
-                }
-                ConfirmationPolicy.Reply.AFFIRM -> {
-                    val toolToExecute = pendingConfirmationTool!!
-                    pendingConfirmationTool = null
-                    pendingOfferedTool = null
-                    LatencyLogger.reset()
-                    LatencyLogger.log("Orchestrator", "Query received")
-                    beginTurn()
-                    _state.value = OrchestratorState.Thinking(trimmedQuery)
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-                    scope.launch {
-                        // skipGuard: user already confirmed; re-evaluating Confirm would loop forever.
-                        // Hard Block is still re-checked inside completeDirectToolTurn.
-                        completeDirectToolTurn(
-                            query = trimmedQuery,
-                            toolCall = toolToExecute,
-                            preferredSpoken = null,
-                            pathLabel = "ContextGuardConfirm",
-                            skipGuard = true,
-                        )
-                    }
-                    return
-                }
-                ConfirmationPolicy.Reply.OTHER -> {
-                    // Drop stale confirm so a new cabin command can DirectTool / LLM normally.
-                    pendingConfirmationTool = null
-                    LatencyLogger.log(
-                        "Orchestrator",
-                        "Pending ContextGuard confirm superseded by: $trimmedQuery",
-                    )
-                }
+            if (ConfirmationPolicy.classify(trimmedQuery) == ConfirmationPolicy.Reply.OTHER) {
+                pendingConfirmationTool = null
+                LatencyLogger.log(
+                    "Orchestrator",
+                    "Pending ContextGuard confirm superseded by: $trimmedQuery",
+                )
             }
         }
-
-        // Soft offer follow-up (wellness / empathy music): "yes" must run the offered tool,
-        // not FinishSession or a bare-LLM "I didn't catch that".
         if (pendingOfferedTool != null && pendingConfirmationTool == null && !trimmedQuery.startsWith("[")) {
-            when (ConfirmationPolicy.classify(trimmedQuery)) {
-                ConfirmationPolicy.Reply.DECLINE -> {
-                    val declined = pendingOfferedTool
-                    pendingOfferedTool = null
-                    LatencyLogger.reset()
-                    beginTurn()
-                    scope.launch {
-                        finishGuardedTurn(
-                            message = "Okay — I won't do that. I'm here if you need anything else.",
-                            pathLabel = "OfferDecline",
-                            toolCall = declined ?: "declined",
-                            policyId = "user_declined_offer",
-                            asQuestion = false,
-                        )
-                    }
-                    return
-                }
-                ConfirmationPolicy.Reply.AFFIRM -> {
-                    val toolToExecute = pendingOfferedTool!!
-                    pendingOfferedTool = null
-                    LatencyLogger.reset()
-                    LatencyLogger.log("Orchestrator", "Offer affirmed → $toolToExecute")
-                    beginTurn()
-                    _state.value = OrchestratorState.Thinking(trimmedQuery)
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-                    scope.launch {
-                        completeDirectToolTurn(
-                            query = trimmedQuery,
-                            toolCall = toolToExecute,
-                            preferredSpoken = when {
-                                toolToExecute.startsWith("playMusic") ->
-                                    "Sure — playing something calming for you."
-                                else -> null
-                            },
-                            pathLabel = "OfferConfirm",
-                            skipGuard = false,
-                        )
-                    }
-                    return
-                }
-                ConfirmationPolicy.Reply.OTHER -> {
-                    pendingOfferedTool = null
-                    LatencyLogger.log(
-                        "Orchestrator",
-                        "Pending soft offer superseded by: $trimmedQuery",
+            if (ConfirmationPolicy.classify(trimmedQuery) == ConfirmationPolicy.Reply.OTHER) {
+                pendingOfferedTool = null
+                LatencyLogger.log(
+                    "Orchestrator",
+                    "Pending soft offer superseded by: $trimmedQuery",
+                )
+            }
+        }
+
+        val directHit = resolveDirectHitOrNull(trimmedQuery)?.let {
+            TurnRouter.DirectHit(
+                toolCall = it.toolCall,
+                spokenResponse = it.spokenResponse,
+                matchedKeyword = it.matchedKeyword,
+                reason = it.reason,
+            )
+        }
+        val followUpTool = if (pendingConfirmationTool == null) {
+            FollowUpRouter.resolveDirectTool(trimmedQuery, LLMManager.lastAiResponse)
+        } else {
+            null
+        }
+
+        val decision = TurnRouter.resolve(
+            TurnRouter.Input(
+                query = trimmedQuery,
+                retryCount = retryCount,
+                pendingConfirmationTool = pendingConfirmationTool,
+                pendingOfferedTool = pendingOfferedTool,
+                isAffirmativeKeepAlive = MemoryManager.isAffirmative(trimmedQuery),
+                directHit = directHit,
+                followUpToolCall = followUpTool,
+                modelReady = LLMManager.isReady(),
+                cloudModelActive = LocalLLMActivity.isCloudModelActive,
+            ),
+        )
+        executeTurnDecision(decision)
+    }
+
+    private fun executeTurnDecision(decision: TurnRouter.Decision) {
+        when (decision) {
+            is TurnRouter.Decision.ContextGuardDecline -> {
+                pendingConfirmationTool = null
+                pendingOfferedTool = null
+                LatencyLogger.reset()
+                beginTurn()
+                scope.launch {
+                    finishGuardedTurn(
+                        message = decision.message,
+                        pathLabel = "ContextGuardConfirm",
+                        toolCall = "cancelled",
+                        policyId = "user_declined",
+                        asQuestion = false,
                     )
                 }
             }
-        }
-        
-        // Let it pass if it's an internal system event (starts with '[')
-        if (!trimmedQuery.startsWith("[")) {
-            if (MemoryManager.isAffirmative(trimmedQuery)) {
-                // keep — FollowUpRouter / LLM must see multi-turn "yes"
-            } else if (trimmedQuery.isBlank() || lowerQuery.length < 3 || ignoredHallucinations.contains(lowerQuery)) {
-                if (trimmedQuery.isBlank() || lowerQuery.length < 3) {
-                    scope.launch {
-                        finishGuardedTurn(
-                            message = "How are you? What's on your mind? How can I help you?",
-                            pathLabel = "Greeting",
-                            toolCall = "",
-                            policyId = "greeting",
-                            asQuestion = true
-                        )
+            is TurnRouter.Decision.ContextGuardAffirm -> {
+                pendingConfirmationTool = null
+                pendingOfferedTool = null
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                beginTurn()
+                _state.value = OrchestratorState.Thinking(decision.query)
+                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                scope.launch {
+                    completeDirectToolTurn(
+                        query = decision.query,
+                        toolCall = decision.toolCall,
+                        preferredSpoken = null,
+                        pathLabel = "ContextGuardConfirm",
+                        skipGuard = true,
+                    )
+                }
+            }
+            is TurnRouter.Decision.OfferDecline -> {
+                pendingOfferedTool = null
+                LatencyLogger.reset()
+                beginTurn()
+                scope.launch {
+                    finishGuardedTurn(
+                        message = decision.message,
+                        pathLabel = "OfferDecline",
+                        toolCall = decision.declinedToolCall ?: "declined",
+                        policyId = "user_declined_offer",
+                        asQuestion = false,
+                    )
+                }
+            }
+            is TurnRouter.Decision.OfferAffirm -> {
+                pendingOfferedTool = null
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Offer affirmed → ${decision.toolCall}")
+                beginTurn()
+                _state.value = OrchestratorState.Thinking(decision.query)
+                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                scope.launch {
+                    completeDirectToolTurn(
+                        query = decision.query,
+                        toolCall = decision.toolCall,
+                        preferredSpoken = decision.preferredSpoken,
+                        pathLabel = "OfferConfirm",
+                        skipGuard = false,
+                    )
+                }
+            }
+            is TurnRouter.Decision.Greeting -> {
+                scope.launch {
+                    finishGuardedTurn(
+                        message = decision.message,
+                        pathLabel = "Greeting",
+                        toolCall = "",
+                        policyId = "greeting",
+                        asQuestion = true,
+                    )
+                }
+            }
+            is TurnRouter.Decision.DismissSession -> {
+                _events.tryEmit(OrchestratorEvent.FinishSession)
+                resetState()
+            }
+            is TurnRouter.Decision.CrisisSupport -> {
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                dispatchCrisisSupport(decision)
+            }
+            is TurnRouter.Decision.WellnessOffer -> {
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                dispatchWellnessOffer(decision.query)
+            }
+            is TurnRouter.Decision.DirectTool -> {
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                beginTurn()
+                _state.value = OrchestratorState.Thinking(decision.query)
+                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                LatencyLogger.log(
+                    "DirectTool",
+                    "Matched ${decision.toolCall} via '${decision.matchedKeyword}' (${decision.reason})",
+                )
+                scope.launch {
+                    completeDirectToolTurn(
+                        query = decision.query,
+                        toolCall = decision.toolCall,
+                        preferredSpoken = decision.preferredSpoken,
+                        pathLabel = "DirectTool",
+                    )
+                }
+            }
+            is TurnRouter.Decision.FollowUp -> {
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                dispatchFollowUp(decision.query, decision.toolCall)
+            }
+            is TurnRouter.Decision.EnsureModelThenRetry -> {
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                _state.value = OrchestratorState.Thinking(decision.query)
+                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                scope.launch {
+                    try {
+                        val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
+                            .inject(org.koin.core.qualifier.named("edge"))
+                        edgeProvider.initialize(context, force = false)
+                        handleQuery(decision.query, decision.retryCount)
+                    } catch (e: Exception) {
+                        _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
+                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                     }
-                } else {
-                    _events.tryEmit(OrchestratorEvent.FinishSession)
-                    resetState()
-                }
-                return
-            }
-        }
-
-        // Registry-driven direct path (sub-1s): never wait on LiteRT init or prefill.
-        LatencyLogger.reset()
-        LatencyLogger.log("Orchestrator", "Query received")
-        if (pendingConfirmationTool == null && tryHandleDirectRegistryHit(trimmedQuery)) {
-            return
-        }
-
-        if (pendingConfirmationTool == null && tryHandleDirectFollowUp(trimmedQuery)) {
-            return
-        }
-
-        // Crisis / emergency: fixed safety script — never wellness music offers.
-        if (pendingConfirmationTool == null && tryHandleCrisisSupport(trimmedQuery)) {
-            return
-        }
-
-        // Emotional / open-ended wellness: speak an offer immediately (no fake "Done", no LLM wait).
-        if (pendingConfirmationTool == null && tryHandleWellnessOffer(trimmedQuery)) {
-            return
-        }
-
-        if (!LocalLLMActivity.isCloudModelActive && !LLMManager.isReady()) {
-            _state.value = OrchestratorState.Thinking(trimmedQuery)
-            _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-            scope.launch {
-                try {
-                    val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
-                        .inject(org.koin.core.qualifier.named("edge"))
-                    edgeProvider.initialize(context, force = false)
-                    handleQuery(trimmedQuery, retryCount)
-                } catch (e: Exception) {
-                    _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
                 }
             }
-            return
+            is TurnRouter.Decision.RunLlm -> {
+                LatencyLogger.reset()
+                LatencyLogger.log("Orchestrator", "Query received")
+                val turnId = beginTurn()
+                _state.value = OrchestratorState.Thinking(decision.query)
+                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                scope.launch {
+                    processQuery(decision.query, decision.retryCount, turnId = turnId)
+                }
+            }
         }
+    }
 
-        val turnId = beginTurn()
-
-        _state.value = OrchestratorState.Thinking(trimmedQuery)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-
-        scope.launch {
-            processQuery(trimmedQuery, retryCount, turnId = turnId)
+    private fun resolveDirectHitOrNull(query: String): com.tcs.vehicleassistant.core.DirectToolResolver.Hit? {
+        val toolRegistry = try {
+            org.koin.java.KoinJavaComponent.getKoin()
+                .get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>()
+        } catch (e: Exception) {
+            return null
         }
+        if (!toolRegistry.isInitialized) {
+            toolRegistry.initialize(context.applicationContext)
+        }
+        return toolRegistry.resolveDirectHit(query)
     }
 
     /**
@@ -472,40 +486,48 @@ class AgentOrchestrator(
         EmergencyAlarmManager.stop()
     }
 
-    private fun tryHandleDirectRegistryHit(query: String): Boolean {
-        val toolRegistry = try {
-            org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>()
-        } catch (e: Exception) {
-            return false
+    private fun dispatchCrisisSupport(decision: TurnRouter.Decision.CrisisSupport) {
+        beginTurn()
+        _state.value = OrchestratorState.Thinking(decision.query)
+        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        LatencyLogger.log(
+            "CrisisSupport",
+            "Matched ${decision.severityName} utterance — entertainment offers suppressed",
+        )
+        scope.launch {
+            MemoryManager.captureLongTermFacts(context, decision.query)
+            MemoryManager.addTurn(currentSpeakerName, decision.query)
+            pendingOfferedTool = null
+            finishGuardedTurn(
+                message = decision.spokenResponse,
+                pathLabel = "CrisisSupport",
+                toolCall = "crisis_support",
+                policyId = "conversation_safety_${decision.severityName.lowercase()}",
+                asQuestion = true,
+            )
         }
-        if (!toolRegistry.isInitialized) {
-            toolRegistry.initialize(context.applicationContext)
-        }
-        val hit = toolRegistry.resolveDirectHit(query) ?: return false
+    }
 
+    private fun dispatchWellnessOffer(query: String) {
         beginTurn()
         _state.value = OrchestratorState.Thinking(query)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-        LatencyLogger.log(
-            "DirectTool",
-            "Matched ${hit.toolCall} via '${hit.matchedKeyword}' (${hit.reason})",
-        )
-
+        LatencyLogger.log("WellnessOffer", "Matched emotional/open-ended wellness utterance")
         scope.launch {
-            completeDirectToolTurn(
-                query = query,
-                toolCall = hit.toolCall,
-                preferredSpoken = hit.spokenResponse,
-                pathLabel = "DirectTool",
+            MemoryManager.captureLongTermFacts(context, query)
+            MemoryManager.addTurn(currentSpeakerName, query)
+            pendingOfferedTool = "playMusic(relaxing)"
+            finishGuardedTurn(
+                message = WELLNESS_OFFER,
+                pathLabel = "WellnessOffer",
+                toolCall = "wellness_offer",
+                policyId = null,
+                asQuestion = true,
             )
         }
-        return true
     }
 
-    private fun tryHandleDirectFollowUp(query: String): Boolean {
-        if (pendingConfirmationTool != null) return false
-        val toolCall = FollowUpRouter.resolveDirectTool(query, LLMManager.lastAiResponse) ?: return false
-
+    private fun dispatchFollowUp(query: String, toolCall: String) {
         pendingOfferedTool = null
         beginTurn()
         _state.value = OrchestratorState.Thinking(query)
@@ -542,73 +564,6 @@ class AgentOrchestrator(
                 pathLabel = "FollowUp",
             )
         }
-        return true
-    }
-
-
-    /**
-     * Accident / injury / emergency utterances get a fixed safety script.
-     * Never queues music or other entertainment offers.
-     */
-    private fun tryHandleCrisisSupport(query: String): Boolean {
-        val decision = com.tcs.vehicleassistant.core.ConversationSafetyPolicy.evaluate(query)
-        if (!decision.isCrisis) return false
-
-        beginTurn()
-        _state.value = OrchestratorState.Thinking(query)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-        LatencyLogger.log(
-            "CrisisSupport",
-            "Matched ${decision.severity} utterance — entertainment offers suppressed",
-        )
-
-        scope.launch {
-            MemoryManager.captureLongTermFacts(context, query)
-            MemoryManager.addTurn(currentSpeakerName, query)
-            // Explicitly clear any stale soft offer so "yes" cannot play music after a crisis turn.
-            pendingOfferedTool = null
-            finishGuardedTurn(
-                message = decision.spokenResponse,
-                pathLabel = "CrisisSupport",
-                toolCall = "crisis_support",
-                policyId = "conversation_safety_${decision.severity.name.lowercase()}",
-                asQuestion = true,
-            )
-        }
-        return true
-    }
-
-    /**
-     * Lightweight wellness intent: emotional / "not feeling good" phrases get empathy + an offer
-     * (music) without waiting on the LLM or claiming a fake action ACK.
-     * Crisis utterances are handled by [tryHandleCrisisSupport] and must not reach here.
-     */
-    private fun tryHandleWellnessOffer(query: String): Boolean {
-        if (com.tcs.vehicleassistant.core.ConversationSafetyPolicy.isCrisis(query)) {
-            return false
-        }
-        if (!com.tcs.vehicleassistant.core.ConversationalIntent.isEmotionalOrWellness(query)) {
-            return false
-        }
-
-        beginTurn()
-        _state.value = OrchestratorState.Thinking(query)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
-        LatencyLogger.log("WellnessOffer", "Matched emotional/open-ended wellness utterance")
-
-        scope.launch {
-            MemoryManager.captureLongTermFacts(context, query)
-            MemoryManager.addTurn(currentSpeakerName, query)
-            pendingOfferedTool = "playMusic(relaxing)"
-            finishGuardedTurn(
-                message = WELLNESS_OFFER,
-                pathLabel = "WellnessOffer",
-                toolCall = "wellness_offer",
-                policyId = null,
-                asQuestion = true,
-            )
-        }
-        return true
     }
 
     /**
