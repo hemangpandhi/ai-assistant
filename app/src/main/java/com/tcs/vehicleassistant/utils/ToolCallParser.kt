@@ -1,10 +1,6 @@
 package com.tcs.vehicleassistant.utils
 
-data class ParsedToolCall(
-    val fullTag: String,
-    val toolName: String,
-    val args: String
-)
+
 
 object ToolCallParser {
 
@@ -43,10 +39,10 @@ object ToolCallParser {
                 val fullTag = match.value
                 val toolName = match.groups[1]?.value?.trim() ?: continue
                 val args = match.groups[2]?.value?.trim() ?: ""
-                val toolManager = try {
-                    org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+                val toolRegistry = try {
+                    org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>()
                 } catch (_: Exception) { null }
-                if (toolManager?.getToolDefinition(toolName) != null) {
+                if (toolRegistry?.getToolDefinition(toolName) != null) {
                     calls.add(ParsedToolCall(fullTag, toolName, args))
                 }
             }

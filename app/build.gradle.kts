@@ -137,6 +137,11 @@ jacoco {
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2025.12.01")
     implementation(composeBom)
+    implementation(project(":core"))
+    implementation(project(":domain:llm"))
+    implementation(project(":domain:tools"))
+    implementation(project(":data:hardware"))
+    implementation(project(":ui"))
     androidTestImplementation(composeBom)
     implementation("androidx.activity:activity-compose")
     implementation("androidx.compose.ui:ui")

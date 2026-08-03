@@ -470,7 +470,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 noteUserActivity()
                 audioManager?.stopSpeaking()
                 resetDisplayState()
-                viewModel?.handleQuery(query)
+                viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ProcessQuery(query))
                 etInput?.setText("")
             }
         }
@@ -675,7 +675,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private fun startObservingViewModel() {
         if (viewModel == null || usingComposeUi) return
 
-        viewModel?.resetUiState()
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
 
         observerScope.launch {
             viewModel?.uiState?.collect { state ->
@@ -804,7 +804,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         if (initialQuery != null) {
             observerScope.launch {
                 delay(200) // Small delay to allow Compose UI to appear and bind
-                viewModel?.handleQuery(initialQuery)
+                viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ProcessQuery(initialQuery))
             }
         }
 

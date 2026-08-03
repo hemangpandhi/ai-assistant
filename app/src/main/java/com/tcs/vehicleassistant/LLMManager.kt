@@ -355,12 +355,16 @@ object LLMManager {
             )
         )
         
-        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+        val toolSchemaGenerator = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator>()
+        val schemas = toolSchemaGenerator.getOpenApiSchemas(userQuery)
+        val providers = schemas.map { schema ->
+            com.google.ai.edge.litertlm.tool(DynamicOpenApiTool(schema.second))
+        }
         
         return ConversationConfig(
             systemInstruction = systemInstruction,
             samplerConfig = sampler,
-            tools = toolManager.getOpenApiTools(userQuery)
+            tools = providers
         )
     }
 
@@ -447,7 +451,7 @@ object LLMManager {
         // refused music/vehicle control. Always append the live tool block so capabilities stay real.
         if (!customPrompt.isNullOrEmpty()) {
             val tools = org.koin.java.KoinJavaComponent.getKoin()
-                .get<com.tcs.vehicleassistant.ToolManager>()
+                .get<com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator>()
                 .getLlmToolsPrompt(query, lastAiResponse)
             lastInjectedTools = tools
             return buildString {
@@ -470,7 +474,7 @@ object LLMManager {
      * LiteRT keeps the first-turn system prompt only in the KV cache; small edge models dilute it
      * within a few turns and revert to pretrained refusals ("I'm a text-based AI", "I can't control
      * playback"). This reminder is short enough to afford every turn and pairs with a fresh tool
-     * list from [ToolManager.getLlmToolsPrompt].
+     * list from [com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator.getLlmToolsPrompt].
      */
     fun capabilityReminder(): String = buildString {
         append("CORE IDENTITY: You are the vehicle's active co-pilot app with real media and cabin controls. ")
@@ -515,8 +519,8 @@ object LLMManager {
         basePrompt.append("5. CONTEXTUAL EMPATHY: Pay attention to the DriverMood in the System Context. If the driver is '${CabinCameraManager.MOOD_TIRED}', suggest playing upbeat music or routing to a coffee shop. If '${CabinCameraManager.MOOD_FRUSTRATED}', keep answers extremely brief.\n")
         basePrompt.append("6. NO HALLUCINATION: ONLY call a tool if you have all required arguments to execute a command immediately.\n\n")
 
-        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
-        val fewShots = toolManager.getLlmFewShotsPrompt()
+        val toolSchemaGenerator = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator>()
+        val fewShots = toolSchemaGenerator.getLlmFewShotsPrompt()
         if (fewShots.isNotBlank()) {
             basePrompt.append(fewShots)
         }
@@ -527,7 +531,7 @@ object LLMManager {
         
         // --- AVAILABLE TOOLS ---
         basePrompt.append("=== TOOL GUIDANCE ===\n")
-        val toolsString = toolManager.getLlmToolsPrompt(query, lastAiResponse)
+        val toolsString = toolSchemaGenerator.getLlmToolsPrompt(query, lastAiResponse)
         lastInjectedTools = toolsString
         basePrompt.append("$toolsString\n\n")
         
@@ -618,6 +622,13 @@ object LLMManager {
                 Log.i(TAG, "LLM model unloaded from memory to save resources.")
             }
             return true
+        }
+    }
+
+    private class DynamicOpenApiTool(private val jsonString: String) : com.google.ai.edge.litertlm.OpenApiTool {
+        override fun getToolDescriptionJsonString(): String = jsonString
+        override fun execute(args: String): String {
+            return "{}"
         }
     }
 }

@@ -9,13 +9,12 @@ import android.util.Log
 import com.assistant.api.face.PendingToolFaceCues
 import com.assistant.api.face.WeatherFaceCueMapper
 import com.tcs.vehicleassistant.LocationManager
-import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.VehicleManager
 import com.tcs.vehicleassistant.core.AssistantConfig
 
 class SystemToolHandler(
     override val handlerKey: String,
-    private val toolDefinition: ToolManager.ToolDefinition? = null,
+    private val toolDefinition: com.tcs.vehicleassistant.domain.tools.ToolDefinition? = null,
 ) : ToolHandler {
 
     private companion object {

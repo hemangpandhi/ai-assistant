@@ -14,3 +14,9 @@ dependencyResolutionManagement {
 }
 rootProject.name = "AOSP_GeminiNano_Sample"
 include(":app")
+
+include(":core")
+include(":domain:llm")
+include(":domain:tools")
+include(":data:hardware")
+include(":ui")

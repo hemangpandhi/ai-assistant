@@ -1369,7 +1369,7 @@ class LocalLLMActivity : AppCompatActivity() {
             
             // Diagnostics queries the hardware which can take a moment, so run off the Main thread
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                val report = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().runSystemDiagnostics(this@LocalLLMActivity)
+                val report = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>().runSystemDiagnostics(this@LocalLLMActivity)
                 
                 kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                     chatAdapter.addMessage(ChatMessage(report, isUser = false, isStreaming = false))
@@ -1399,11 +1399,11 @@ class LocalLLMActivity : AppCompatActivity() {
 
         // Registry direct-executable commands do not need LiteRT; only fall back to the
         // "Load Model" gate when the query would actually require the edge LLM.
-        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<ToolManager>()
-        if (!toolManager.isInitialized) {
-            toolManager.initialize(applicationContext)
+        val toolRegistry = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>()
+        if (!toolRegistry.isInitialized) {
+            toolRegistry.initialize(applicationContext)
         }
-        val canSkipLlm = toolManager.resolveDirectHit(prompt) != null
+        val canSkipLlm = toolRegistry.resolveDirectHit(prompt) != null
 
         if (!isCloudModelActive && !LLMManager.isReady() && !canSkipLlm) {
             val modelName = currentModel.name
@@ -1637,7 +1637,7 @@ class LocalLLMActivity : AppCompatActivity() {
     private val diagnosticReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                val report = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().runSystemDiagnostics(this@LocalLLMActivity)
+                val report = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>().runSystemDiagnostics(this@LocalLLMActivity)
                 android.util.Log.i("AutomatedTest", "\n\n=================== DIAGNOSTIC DUMP ===================\n$report\n========================================================\n\n")
             }
         }

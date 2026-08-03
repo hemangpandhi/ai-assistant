@@ -106,7 +106,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         isOverlayShowing = false
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
-        viewModel?.resetState()
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
 
         resumeWakeWordListening()
 
@@ -248,7 +248,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             if (query.isNotBlank()) {
                 audioManager?.stopSpeaking()
                 resetDisplayState()
-                viewModel?.handleQuery(query)
+                viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ProcessQuery(query))
                 etInput.setText("")
             }
         }
@@ -289,7 +289,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private fun startObservingViewModel() {
         if (viewModel == null) return
         
-        viewModel?.resetUiState()
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
 
         // Observe UI state changes
         observerScope.launch {
@@ -385,7 +385,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         android.util.Log.d("AssistantSession", "Tearing down complete session")
         audioManager?.stopListening()
         audioManager?.stopSpeaking()
-        viewModel?.resetState()
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
         // hide() → onHide() resumes wake-word listening; do not RESTART twice here.
         hide()
     }

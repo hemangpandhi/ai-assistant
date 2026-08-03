@@ -1,6 +1,5 @@
 package com.tcs.vehicleassistant.handlers
 
-import com.tcs.vehicleassistant.ToolManager
 
 object ToolHandlerRegistry {
     val hvacHandlers = setOf("setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature", "setDriverTemperature", "setPassengerTemperature", "increasePassengerTemperature", "decreasePassengerTemperature", "increaseDriverTemperature", "decreaseDriverTemperature", "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager", "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster", "turnOnAC", "turnOffAC", "turnOnAutoClimate", "turnOffAutoClimate", "turnOnHvacPower", "turnOffHvacPower", "handleFeelingCold", "enableFreshAirIntake", "protectFromPollutedAir", "defogWindshield", "movePassengerSeatForward", "turnOnRecirculation", "turnOffRecirculation")
@@ -13,7 +12,7 @@ object ToolHandlerRegistry {
     val safetyHandlers = setOf("handleDrowsyDriving", "handleDriverFatigue", "alertDriverDistraction", "checkVehicleSecured", "checkTripReadiness", "improveRoadVisibility")
     val evHandlers = setOf("suggestOptimizedChargingRate", "optimizeEnergyForRange", "explainLowRange")
 
-    fun getHandler(handlerKey: String, toolDefinition: ToolManager.ToolDefinition): ToolHandler? {
+    fun getHandler(handlerKey: String, toolDefinition: com.tcs.vehicleassistant.domain.tools.ToolDefinition): ToolHandler? {
 
         return when {
             hvacHandlers.contains(handlerKey) -> HVACToolHandler(handlerKey, toolDefinition)
@@ -38,7 +37,7 @@ object ToolHandlerRegistry {
      * Returns CUSTOM_KOTLIN handler keys from [tools] that have no registered implementation.
      * Call after loading the registry so a missing `when` branch fails at init, not on first use.
      */
-    fun missingHandlers(tools: Map<String, ToolManager.ToolDefinition>): List<String> =
+    fun missingHandlers(tools: Map<String, com.tcs.vehicleassistant.domain.tools.ToolDefinition>): List<String> =
         tools.values
             .filter { it.handlerType == "CUSTOM_KOTLIN" }
             .mapNotNull { it.handlerKey }

@@ -21,7 +21,13 @@ class InAppOrchestratorBridge(
 ) {
     var enableTts: Boolean = false
 
-    private val orchestrator = AgentOrchestrator(context.applicationContext, audioManager)
+    private val orchestrator = AgentOrchestrator(
+        context.applicationContext,
+        audioManager,
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>()
+    )
 
     var onStreaming: ((String) -> Unit)? = null
     var onSpeaking: ((String) -> Unit)? = null

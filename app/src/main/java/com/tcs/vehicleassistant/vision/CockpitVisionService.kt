@@ -10,6 +10,8 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.view.WindowManager
+import com.tcs.vehicleassistant.core.VisionState
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -79,7 +81,7 @@ class CockpitVisionService : Service() {
 
         gestureProcessor = GestureProcessor(this) { feedback ->
             latestGestureFeedback = feedback
-            com.tcs.vehicleassistant.hardware.CabinCameraManager.currentMood = feedback.mood
+            VisionState.driverEmotion = feedback.mood
             onStatsUpdateCallback?.invoke(latestHealthState, feedback, identitySimilarity, activeFaces)
         }
 

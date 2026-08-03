@@ -11,17 +11,6 @@ There is no backend/server to run; the "product" is an installable APK. See
 `README.md` and `docs/ARCHITECTURE.md` for product/architecture details and
 `app/build.gradle.kts` for the module config.
 
-### Hard rule: do not modify `origin/master`-owned classes
-
-This branch is based on `origin/master`. Master-owned Kotlin lives under
-**`app/src/main/java/com/tcs/vehicleassistant/`** (byte-identical to
-`origin/master` for the allowlist). UI/UX / TTFR work goes in
-**`.../assistant/`**, **`com/assistant/ui/`**, and **`com/assistant/api/`**:
-
-- **Do not edit** allowlisted master-owned `.kt` files unless **extremely required**.
-- Prefer new types in the UX packages above, and manifest / Koin wiring in `:app`.
-- After any accidental touch, restore from `origin/master` into the same app path.
-- Enforced by `MasterOwnedTreeContractTest` (allowlist of `app/src/main/java/...` paths).
 
 ### Toolchain (non-obvious)
 - **Use JDK 17, not the VM default JDK 21.** AGP 8.7.3 / Gradle 8.9 require Java 17;

@@ -2,12 +2,11 @@ package com.tcs.vehicleassistant.handlers
 
 import android.content.Context
 import android.content.Intent
-import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.VehicleManager
 
 class WindowToolHandler(
     override val handlerKey: String,
-    private val toolDefinition: ToolManager.ToolDefinition? = null,
+    private val toolDefinition: com.tcs.vehicleassistant.domain.tools.ToolDefinition? = null,
 ) : ToolHandler {
     override suspend fun execute(
         context: Context,

@@ -171,7 +171,7 @@ class VehicleAgentAssistantBackend(
         sttDismissJob = null
         AssistantDebugLog.clear()
         AssistantDebugLog.d(TAG, "startSession reason=$reason")
-        viewModel?.resetUiState()
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
         scope.launch {
             emitPipelineMood(AssistantMoodId.Listening)
             // No status captions ("Listening…") — stage stays blank until STT partials.
@@ -221,7 +221,7 @@ class VehicleAgentAssistantBackend(
                 }
                 val vm = viewModel
                 if (vm != null) {
-                    vm.handleQuery(input.text)
+                    vm.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ProcessQuery(input.text))
                 } else {
                     AssistantDebugLog.w(TAG, "Final queued — VM unbound: ${input.text}")
                     pendingFinalQuery = input.text
@@ -302,7 +302,7 @@ class VehicleAgentAssistantBackend(
         val q = pendingFinalQuery ?: return
         val vm = viewModel ?: return
         pendingFinalQuery = null
-        vm.handleQuery(q)
+        vm.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ProcessQuery(q))
     }
 
     /** @return true if startListening was issued (or already armed). */

@@ -72,7 +72,7 @@ class CloudLLMProviderTest {
             prompt = "System Prompt",
             userQuery = "Hello",
             onToken = { receivedToken = it },
-            onDone = { doneResponse = it },
+            onDone = { text, _ -> doneResponse = text },
             onError = {}
         )
         
@@ -100,7 +100,7 @@ class CloudLLMProviderTest {
             prompt = "System Prompt",
             userQuery = "Hello",
             onToken = {},
-            onDone = {},
+            onDone = { text, _ -> },
             onError = { errorThrown = true }
         )
         

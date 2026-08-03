@@ -28,7 +28,13 @@ class AssistantViewModel(
     private val context: Context,
     private val audioManager: IAudioManager
 ) {
-    private val orchestrator = AgentOrchestrator(context, audioManager)
+    private val orchestrator = AgentOrchestrator(
+        context,
+        audioManager,
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>()
+    )
 
     // ── Public observable state ──────────────────────────────────────────────
     private val _uiState = MutableStateFlow<AssistantUiState>(AssistantUiState.Idle)
@@ -52,7 +58,7 @@ class AssistantViewModel(
             onResult = { spokenText ->
                 audioManager.stopSpeaking()
                 _events.tryEmit(ViewModelEvent.SetInputText(spokenText))
-                handleQuery(spokenText)
+                processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ProcessQuery(spokenText))
             },
             onEmptyResult = {
                 _uiState.value = AssistantUiState.Error("I didn't hear anything.")
@@ -96,7 +102,7 @@ class AssistantViewModel(
         }
     }
 
-    // ── Public API ──────────────────────────────────────────────────────────
+    // ── Public API (MVI) ────────────────────────────────────────────────────
 
     private var isDirectSpeaking = false
 
@@ -108,16 +114,28 @@ class AssistantViewModel(
     val ttsSpokenLength: Int
         get() = orchestrator.ttsSpokenLength
 
-    fun handleQuery(query: String, retryCount: Int = 0) {
-        orchestrator.handleQuery(query, retryCount)
-    }
-
-    fun resetUiState() {
-        orchestrator.resetState()
-    }
-
-    fun resetState() {
-        orchestrator.resetState()
+    fun processIntent(intent: AssistantIntent) {
+        when (intent) {
+            is AssistantIntent.ProcessQuery -> {
+                orchestrator.handleQuery(intent.query)
+            }
+            is AssistantIntent.ProcessProactiveEvent -> {
+                orchestrator.triggerProactiveEvent(intent.prompt)
+            }
+            is AssistantIntent.StartListening -> {
+                audioManager.startListening()
+            }
+            is AssistantIntent.StopListening -> {
+                audioManager.stopListening()
+            }
+            is AssistantIntent.Cancel -> {
+                orchestrator.resetState()
+                _events.tryEmit(ViewModelEvent.FinishSession)
+            }
+            is AssistantIntent.ConfirmTool -> {
+                orchestrator.handleConfirmation(intent.accepted)
+            }
+        }
     }
 
     fun destroy() {

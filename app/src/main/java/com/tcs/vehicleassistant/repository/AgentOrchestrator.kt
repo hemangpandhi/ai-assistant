@@ -8,7 +8,8 @@ import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.core.AssistantConfig
-import com.tcs.vehicleassistant.core.CabinSnapshotReader
+import com.tcs.vehicleassistant.hardware.CabinSnapshotReader
+import com.tcs.vehicleassistant.core.VisionState
 import com.tcs.vehicleassistant.core.ConfirmationPolicy
 import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.core.DirectToolResolver
@@ -42,7 +43,10 @@ sealed class OrchestratorEvent {
 
 class AgentOrchestrator(
     private val context: Context,
-    private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager
+    private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager,
+    private val toolRegistry: com.tcs.vehicleassistant.domain.tools.ToolRegistry,
+    private val toolSchemaGenerator: com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator,
+    private val toolExecutor: com.tcs.vehicleassistant.domain.tools.IToolExecutor
 ) {
     private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
     val state: StateFlow<OrchestratorState> = _state.asStateFlow()
@@ -50,7 +54,8 @@ class AgentOrchestrator(
     private val _events = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<OrchestratorEvent> = _events.asSharedFlow()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    // MVI Architecture: Run heavy orchestrator logic on background thread.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
     @Volatile
     private var isQueryProcessed = true
@@ -158,11 +163,16 @@ class AgentOrchestrator(
         handleQuery(prompt)
     }
 
-    private var currentSpeakerName = com.tcs.vehicleassistant.vision.VisionState.recognizedUser.takeIf { it != "Guest" } ?: "User"
+    private var currentSpeakerName = VisionState.recognizedUser.takeIf { it != "Guest" } ?: "User"
+
+    fun handleConfirmation(accepted: Boolean) {
+        val query = if (accepted) "yes" else "no"
+        handleQuery(query)
+    }
 
     fun handleQuery(query: String, retryCount: Int = 0) {
         var rawTrimmed = query.trim()
-        currentSpeakerName = com.tcs.vehicleassistant.vision.VisionState.recognizedUser.takeIf { it != "Guest" } ?: "User"
+        val userSeat = VisionState.recognizedUser?.takeIf { it.isNotBlank() } ?: "unknown"
         
         // Extract speaker tag: [Seat: Name]
         val seatTagRegex = Regex("^\\[Seat:\\s*(.*?)\\]\\s*(.*)")
@@ -458,15 +468,15 @@ class AgentOrchestrator(
     }
 
     private fun tryHandleDirectRegistryHit(query: String): Boolean {
-        val toolManager = try {
-            org.koin.java.KoinJavaComponent.getKoin().get<ToolManager>()
+        val toolRegistry = try {
+            org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>()
         } catch (e: Exception) {
             return false
         }
-        if (!toolManager.isInitialized) {
-            toolManager.initialize(context.applicationContext)
+        if (!toolRegistry.isInitialized) {
+            toolRegistry.initialize(context.applicationContext)
         }
-        val hit = toolManager.resolveDirectHit(query) ?: return false
+        val hit = toolRegistry.resolveDirectHit(query) ?: return false
 
         beginTurn()
         _state.value = OrchestratorState.Thinking(query)
@@ -771,8 +781,7 @@ class AgentOrchestrator(
             }
         }
 
-        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
-        val maxHistoryChars = toolManager.slidingWindowMaxChars
+        val maxHistoryChars = toolRegistry.slidingWindowMaxChars
         val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)
         val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
         val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
@@ -780,7 +789,7 @@ class AgentOrchestrator(
         // Recycle native conversation BEFORE building the prompt so a post-reset turn gets the
         // full system prompt (isFirstMessage=true) instead of a compact later-turn stub.
         if (!LocalLLMActivity.isCloudModelActive) {
-            val needsReset = toolManager.needsToolUpdate(interceptedQuery, priorHistory) || com.tcs.vehicleassistant.core.ConversationResetPolicy.shouldResetBeforePrompt(
+            val needsReset = toolSchemaGenerator.needsToolUpdate(interceptedQuery, priorHistory) || com.tcs.vehicleassistant.core.ConversationResetPolicy.shouldResetBeforePrompt(
                 LLMManager.nativeTurnsSinceReset,
                 AssistantConfig.Llm.CONVERSATION_RESET_TURNS,
             )
@@ -818,7 +827,7 @@ class AgentOrchestrator(
                 "[Internal Vehicle Telemetry (Do NOT speak or repeat to user): $dynamicState]"
             } else ""
 
-            val visionContext = com.tcs.vehicleassistant.vision.VisionState.getVisionContextString()
+            val visionContext = VisionState.getVisionContextString()
             val visionStateInject = "[Vision Context (Do NOT speak or repeat to user): $visionContext]\n"
 
             val stateInject = (if (vehicleState.isNotEmpty() && vehicleState != LLMManager.lastVehicleState) {
@@ -835,7 +844,7 @@ class AgentOrchestrator(
             }
 
             if (isLlama) {
-                val relevantToolsList = toolManager.getRelevantTools(interceptedQuery, LLMManager.lastAiResponse)
+                val relevantToolsList = toolSchemaGenerator.getRelevantTools(interceptedQuery, LLMManager.lastAiResponse)
                 val toolsJsonArr = relevantToolsList.map { "\"${it.handlerKey}\"" }.joinToString(",", "[", "]")
                 """{"user_input":"${interceptedQuery.replace("\"", "\\\"")}","available_tools":$toolsJsonArr,"vehicle_context":{},"dialog_state":{}}"""
             } else {
@@ -859,7 +868,7 @@ class AgentOrchestrator(
                 // system prompt; on later turns LiteRT only sees the bare user text unless we
                 // re-inject them — which is when the model starts saying it is a text-only AI that
                 // cannot play music.
-                val toolsForTurn = toolManager.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+                val toolsForTurn = toolSchemaGenerator.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
                 LLMManager.lastInjectedTools = toolsForTurn
                 val toolsBlock = if (toolsForTurn.isNotBlank()) {
                     "=== AVAILABLE TOOLS ===\n$toolsForTurn\n"
@@ -1031,15 +1040,14 @@ class AgentOrchestrator(
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
                         if (executedTools.add(toolCall)) {
-                            val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
-                            if (!toolManager.isToolAllowedForCurrentPrompt(parsed.toolName)) {
+                            if (!toolSchemaGenerator.isToolAllowedForCurrentPrompt(parsed.toolName)) {
                                 android.util.Log.w(TAG, "LLM tool rejected by allow-list: $toolCall")
                                 toolFeedbacks.add(
                                     com.tcs.vehicleassistant.core.LlmToolAllowList.rejectionMessage(parsed.toolName),
                                 )
                                 continue
                             }
-                            val toolDef = toolManager.getToolDefinition(toolCall)
+                            val toolDef = toolRegistry.getToolDefinition(toolCall)
                             if (toolDef?.requiresConfirmation == true) {
                                 // Stash only — never narrate as "I ran X" and never write yet.
                                 pendingConfirmationTool = toolCall
@@ -1109,7 +1117,7 @@ class AgentOrchestrator(
                             it.contains("recommend", ignoreCase = true)
                         }
                         val isTerminalTool = executedTools.isNotEmpty() && !isQueryTool
-                        val requiresAgenticLoop = executedTools.any { org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>().getToolDefinition(it)?.requiresAgenticLoop == true }
+                        val requiresAgenticLoop = executedTools.any { toolRegistry.getToolDefinition(it)?.requiresAgenticLoop == true }
                         val shouldRunAgenticLoop = isAgenticLoopEnabled &&
                             loopCount < AssistantConfig.Llm.MAX_AGENTIC_LOOPS &&
                             (hasError || isQueryTool || requiresAgenticLoop || (!hasConversationalText && !isTerminalTool))
@@ -1309,8 +1317,7 @@ class AgentOrchestrator(
         toolCall: String,
         enforcePromptAllowList: Boolean = false,
     ): String? {
-        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
-        return toolManager.executeToolCall(
+        return toolExecutor.executeToolCall(
             context.applicationContext,
             toolCall,
             enforcePromptAllowList = enforcePromptAllowList,
