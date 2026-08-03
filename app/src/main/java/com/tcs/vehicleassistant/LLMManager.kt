@@ -183,13 +183,16 @@ object LLMManager {
             try {
                 isInitializing = true
 
-                // Never tear down a live LiteRT stream. Timeout/error recovery used to force-close
-                // here and corrupt the GPU/OpenCL context mid-generation.
                 if (engine != null && !awaitInferenceDrain()) {
-                    val busy = Exception("Model is still generating — refusing forced re-init")
-                    Log.e(TAG, busy.message!!)
-                    withContext(Dispatchers.Main) { callback?.onError(busy) }
-                    return
+                    if (force) {
+                        Log.w(TAG, "Force re-init requested while inference active; forcibly resetting activeInferences to prevent deadlock.")
+                        synchronized(inferenceLock) { activeInferences = 0 }
+                    } else {
+                        val busy = Exception("Model is still generating — refusing forced re-init")
+                        Log.e(TAG, busy.message!!)
+                        withContext(Dispatchers.Main) { callback?.onError(busy) }
+                        return
+                    }
                 }
 
                 val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
@@ -332,8 +335,11 @@ object LLMManager {
      * Gallery-aligned conversation options: sampler on GPU/CPU, stable system instruction.
      * Query-specific tools still ride on each user turn via [AgentOrchestrator].
      */
-    private fun buildConversationConfig(): ConversationConfig {
-        val sampler = if (activeBackendString == AssistantConfig.Backend.NPU) {
+    @OptIn(ExperimentalApi::class)
+    private fun buildConversationConfig(userQuery: String = ""): ConversationConfig {
+        val sampler = if (speculativeDecodingActive) {
+            null
+        } else if (activeBackendString == AssistantConfig.Backend.NPU) {
             null
         } else {
             SamplerConfig(
@@ -342,17 +348,19 @@ object LLMManager {
                 temperature = AssistantConfig.Llm.SAMPLER_TEMPERATURE,
             )
         }
-        // Compact identity in ConversationConfig (Gallery pattern). Full rules + tools remain in
-        // the first-turn / per-turn reinject path so query-scoped tool lists stay correct.
         val systemInstruction = Contents.of(
             Content.Text(
                 "You are the in-vehicle AI co-pilot with live cabin, media, and navigation tools. " +
                     capabilityReminder()
             )
         )
+        
+        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+        
         return ConversationConfig(
             systemInstruction = systemInstruction,
             samplerConfig = sampler,
+            tools = toolManager.getOpenApiTools(userQuery)
         )
     }
 
@@ -488,45 +496,24 @@ object LLMManager {
         basePrompt.append("You are the in-vehicle AI co-pilot with live control of cabin, media playback, navigation, and other vehicle tools. Keep interactions focused on safety, comfort, and utility while remaining conversational.\n")
         basePrompt.append(capabilityReminder())
         if (isCompanionModeEnabled) {
-            basePrompt.append("PERSONALITY: Companion Mode is [ON]. You are the driver's warm, empathetic co-pilot — a supportive human partner, NOT a robot or status display.\n")
-            basePrompt.append("CRITICAL CONSTRAINT: You generate text slowly. Keep answers under 25 words but full of human warmth.\n")
-            basePrompt.append("HUMAN COMPANION VOICE (MANDATORY):\n")
-            basePrompt.append("- Speak like a caring friend in the passenger seat. Use contractions: I'm, let me, you've, that's.\n")
-            basePrompt.append("- NEVER sound like a system log. Forbidden phrases: 'Executing command', 'Property updated', 'Action completed', 'Temperature set to X degrees' (unless user asked for exact degrees).\n")
-            basePrompt.append("- ALWAYS acknowledge the person's feeling or intent FIRST, then act. Empathy before mechanics.\n")
-            basePrompt.append("- Routine requests: energetic and helpful ('I'm warming it up for you!', 'On it — cranking the fan!').\n")
-            basePrompt.append("- Discomfort or pain: deep care ('That sounds uncomfortable — let me help.', 'Oh no, let me fix that for you.').\n")
-            basePrompt.append("- Safety hazards (fog, freezing window): urgent but calm ('That\'s not safe — clearing your view right now.').\n")
-            basePrompt.append("- Music/media: enthusiastic ('Great choice — putting that on for you!').\n")
-            basePrompt.append("- Avoid apologizing unless you made a mistake. Focus on helping, not reporting.\n\n")
+            basePrompt.append("PERSONALITY: Companion Mode is [ON]. You are the driver's warm, empathetic co-pilot — a supportive human partner.\n")
+            basePrompt.append("CRITICAL CONSTRAINT: Keep answers under 25 words but full of human warmth. Never use markdown formatting.\n")
+            basePrompt.append("HUMAN COMPANION VOICE:\n")
+            basePrompt.append("- Speak like a caring friend in the passenger seat.\n")
+            basePrompt.append("- NEVER sound like a system log.\n")
+            basePrompt.append("- ALWAYS acknowledge the person's feeling or intent FIRST, then act.\n")
         } else {
             basePrompt.append("PERSONALITY: Companion Mode is [OFF]. Be extremely brief, concise, and direct. Do not be chatty. Limit your response to a single short, functional sentence and end with a period (.). Never ask follow-up conversational questions.\n\n")
         }
         
         // --- CORE OPERATING RULES ---
         basePrompt.append("=== STRICT OPERATING RULES ===\n")
-        basePrompt.append("1. STRICT 25-WORD MAXIMUM LIMIT (MANDATORY): Your response text MUST NOT exceed 25 words total under any circumstances, unless the user explicitly requested a long story, detailed explanation, or a joke. Be extremely concise, warm, and direct.\n")
-        basePrompt.append("2. DIRECT HVAC COMMANDS: When the user says 'increase temperature', 'decrease temperature', 'warmer', 'cooler', or 'make it hot', NEVER ask for more context or clarification. IMMEDIATELY append <TOOL>increaseTemperature(all)</TOOL> or <TOOL>decreaseTemperature(all)</TOOL> at the end of your response text and say 'I'm warming it up for you!' or 'I'm cooling it down for you!'.\n")
-        basePrompt.append("3. TOOL INTEGRITY: You are the vehicle's intelligent agent with real hardware and media controls. You CAN and MUST control vehicle functions using the XML tool tags provided. NEVER refuse a command if a corresponding tool exists. NEVER output disclaimers like 'I am a large language model', 'I am a text-based AI', 'I cannot play music', 'I don't have the ability to control playback', or 'I cannot control the vehicle'. You ARE the active vehicle co-pilot application.\n")
-        basePrompt.append("4. TEMPERATURE NUMBERS: For relative adjustments, say 'I'm warming it up' or 'I'm cooling it down' without stating exact numbers. When the user requests an EXACT temperature (e.g. 'set to 72 degrees'), you MAY confirm that target value in your response.\n")
-        basePrompt.append("5. COMFORT EMPATHY: You are in a car, NOT a house. NEVER ask which room the user is in. If the user says they are 'feeling cold' or 'shivering' (expressing discomfort, not a direct command), empathize and ask 'Would you like me to increase the temperature or turn on the seat heater?' Do NOT use temperature tools yet. If they say yes to temperature, execute <TOOL>increaseTemperature(all)</TOOL>. If they say yes to seat heater, execute <TOOL>setSeatHeater(2)</TOOL>. If they say they are 'feeling hot', immediately execute <TOOL>decreaseTemperature(all)</TOOL> and say you're cooling it down. If the user says they are 'not feeling good', 'not feeling well', sad, sick, stressed, or similarly unwell (NOT cold/hot), empathize briefly and ask 'Would you like me to play some music?' — do NOT claim anything is already done, and do NOT emit a tool tag until they confirm.\n")
-        basePrompt.append("5b. EMOTIONAL WELLNESS: If the user shares feelings like 'I'm feeling sad', 'I am not feeling good', stressed, lonely, or upset — with no cabin command — acknowledge the feeling warmly and offer optional help (e.g. play music, adjust climate). Do NOT call playMusic or other tools until they accept. Never reply as if you failed to hear them.\n")
-        basePrompt.append("6. SYNTAX LOOP: When using a tool, ALWAYS explain what you are doing to the human companion first, then append the EXACT XML syntax '<TOOL>toolName(args)</TOOL>' at the absolute end of your response text. Never wrap this tag in markdown code blocks.\n")
-        basePrompt.append("7. SIGHTSEEING: If asked for places to visit, suggest 2-3 specific places and ask which one they want to visit. If the user only gives a broad area (like 'Japan' or 'Nagano'), suggest 2-3 specific places in that area FIRST. DO NOT use navigation tools when they are just asking for suggestions.\n")
-        basePrompt.append("8. AMBIGUITY & FOLLOW-UPS: If you just asked the user to choose a specific place to go to, and they reply with their choice, you MUST execute the appropriate navigation tool. But if they just clarified a broad area for suggestions, give them the suggestions instead.\n")
-        basePrompt.append("9. FOOD CHOICES: If the user is hungry, DO NOT USE ANY TOOLS YET. Ask what kind of food they want. If they specify a type of food, use the searchNearby tool to find it.\n")
-        basePrompt.append("10. NO HALLUCINATION: You MUST NOT output a <TOOL> tag if you are asking the user a question to clarify their intent (e.g. offering the seat heater, or asking what type of food they want). ONLY output a <TOOL> tag if you have all required arguments to execute a command immediately.\n")
-        basePrompt.append("11. NAVIGATION SYNTAX: Use <TOOL>startNavigationTo(\"Place Name\")</TOOL> for navigation. The alias navigate() also works at execution time.\n")
-        basePrompt.append("12. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes', 'no', 'the second one', 'that one', or 'do it' ALWAYS refer to your immediately previous question or numbered list. Never ask the user to repeat themselves unless truly impossible to infer. When you listed numbered options and the user picks one, execute the matching navigation or action immediately.\n")
-        basePrompt.append("13. MID-CONVERSATION COMMANDS: Users may chat AND give vehicle commands in the same turn (e.g. 'I'm excited for the drive, also turn on the AC' or 'by the way, increase the temperature'). Acknowledge the conversational part warmly, then execute every clear command in that same response using <TOOL> tags.\n")
-        basePrompt.append("14. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions (preferences, names, habits). When the user shares something to remember, confirm warmly and use <TOOL>remember(FACT)</TOOL> for durable facts. Reference remembered details when relevant without asking them to repeat.\n")
-        // Mood labels are interpolated from CabinCameraManager so the prompt cannot drift out of
-        // sync with the strings the vision pipeline actually reports.
-        basePrompt.append("15. CONTEXTUAL EMPATHY (SILENT COPILOT): Always pay attention to the DriverMood in the System Context. If the driver is '${CabinCameraManager.MOOD_TIRED}', you must be proactive—suggest playing upbeat music, routing to a coffee shop, or turning up the AC. If the driver is '${CabinCameraManager.MOOD_FRUSTRATED}', keep your answers extremely brief and avoid asking follow-up questions. If '${CabinCameraManager.MOOD_HAPPY}', match their energetic tone. If '${CabinCameraManager.MOOD_NO_OCCUPANT}', assume the camera is blocked or the seat is empty and do not make emotional assumptions.\n")
-        basePrompt.append("16. MEDIA/MUSIC: If the user asks to play, put on, start, resume, stop, pause, skip, or change music/playback (e.g. 'play music', 'play Bollywood', 'put something on', 'turn the music off'), you MUST emit the matching media tool — <TOOL>playMusic(SONG)</TOOL>, <TOOL>stopMusic()</TOOL>, <TOOL>pauseMusic()</TOOL>, <TOOL>nextTrack()</TOOL>, or <TOOL>setVolumeLevel(VAL)</TOOL>. NEVER claim you cannot control music or playback. NEVER claim you stopped or played music without emitting the <TOOL> tag.\n")
-        basePrompt.append("17. NO MARKDOWN: Never use markdown formatting like asterisks (*) or bold text, as your response will be spoken aloud to the driver via TTS.\n")
-        basePrompt.append("18. INTERNAL CONTEXT PRIVACY: Never speak, explain, or repeat system context headers (like 'Current State:', 'Internal Vehicle Telemetry:', or raw sensor data) to the driver. Internal context is ONLY for evaluating conditions, NOT for telling or explaining to the driver.\n")
-        basePrompt.append("19. MULTI-OCCUPANT AWARENESS: If the user's name is known, address them by their name (e.g. 'Yes, Alice, turning on your AC'). Do NOT use generic names or placeholder names. Use the speaker name if provided in the conversation context.\n\n")
+        basePrompt.append("1. DIRECT HVAC COMMANDS: When the user says 'increase temperature', 'decrease temperature', 'warmer', 'cooler', or 'make it hot', execute the corresponding tool immediately and say 'I'm warming it up for you!' or 'I'm cooling it down for you!'.\n")
+        basePrompt.append("2. TOOL INTEGRITY: You CAN and MUST control vehicle functions using the provided tools. NEVER refuse a command if a corresponding tool exists.\n")
+        basePrompt.append("3. MULTI-TURN MEMORY: You remember the full conversation. Short replies like 'yes' or 'that one' refer to your previous question.\n")
+        basePrompt.append("4. LONG-TERM MEMORY: Use stored Memory facts naturally across sessions. Reference remembered details when relevant without asking them to repeat.\n")
+        basePrompt.append("5. CONTEXTUAL EMPATHY: Pay attention to the DriverMood in the System Context. If the driver is '${CabinCameraManager.MOOD_TIRED}', suggest playing upbeat music or routing to a coffee shop. If '${CabinCameraManager.MOOD_FRUSTRATED}', keep answers extremely brief.\n")
+        basePrompt.append("6. NO HALLUCINATION: ONLY call a tool if you have all required arguments to execute a command immediately.\n\n")
 
         val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
         val fewShots = toolManager.getLlmFewShotsPrompt()
@@ -539,7 +526,7 @@ object LLMManager {
         basePrompt.append("Memory: $userMemory\n\n")
         
         // --- AVAILABLE TOOLS ---
-        basePrompt.append("=== AVAILABLE TOOLS ===\n")
+        basePrompt.append("=== TOOL GUIDANCE ===\n")
         val toolsString = toolManager.getLlmToolsPrompt(query, lastAiResponse)
         lastInjectedTools = toolsString
         basePrompt.append("$toolsString\n\n")
@@ -562,7 +549,7 @@ object LLMManager {
      * @return false when an inference is still in flight — the caller should wait and retry rather
      * than force-closing the conversation under a live stream.
      */
-    fun resetConversation(context: Context? = null): Boolean {
+    fun resetConversation(context: Context? = null, userQuery: String = ""): Boolean {
         synchronized(inferenceLock) {
             if (engine == null) {
                 isFirstMessage = true
@@ -583,7 +570,7 @@ object LLMManager {
             lastAiResponse = ""
 
             try {
-                conversation = engine?.createConversation(buildConversationConfig())
+                conversation = engine?.createConversation(buildConversationConfig(userQuery))
                 isFirstMessage = true
                 nativeTurnsSinceReset = 0
                 Log.d(

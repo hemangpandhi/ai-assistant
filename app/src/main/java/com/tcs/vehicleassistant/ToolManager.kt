@@ -481,17 +481,104 @@ class ToolManager {
             inst.keywords.isEmpty() || inst.keywords.any { kw -> haystack.contains(kw) }
         }
         if (matchedInstructions.isNotEmpty()) {
-            sb.append("\nTool guidance:\n")
+            sb.append("\n--- Rules & Context ---\n")
             for (inst in matchedInstructions) {
-                sb.append("- ${inst.instruction}\n")
+                sb.append(inst.instruction).append("\n")
             }
         }
-        return sb.toString().trimEnd()
+        
+        return sb.toString().trim()
     }
 
     /**
-     * True when [toolName] (or its registry alias) was offered in the latest LLM tools prompt.
-     * DirectTool / confirmation follow-ups bypass this check in the orchestrator.
+     * Checks if the currently injected tools (lastPromptedToolKeys) contain all the tools
+     * required for the current query.
+     */
+    fun needsToolUpdate(userQuery: String, conversationalContext: String): Boolean {
+        val relevantTools = getRelevantTools(userQuery, conversationalContext).take(maxPromptTools)
+        val requiredNames = relevantTools.mapNotNull { tool ->
+            Regex("(?i)<TOOL>([a-zA-Z0-9_]+)\\(").find(tool.promptString)?.groupValues?.get(1) ?: tool.handlerKey
+        }.toSet()
+        return !lastPromptedToolKeys.containsAll(requiredNames)
+    }
+
+    /**
+     * Converts active tools to a list of LiteRT ToolProviders using OpenAPI JSON schemas.
+     */
+    fun getOpenApiTools(userQuery: String = "", conversationalContext: String = ""): List<com.google.ai.edge.litertlm.ToolProvider> {
+        val relevantTools = if (userQuery.isNotBlank() || conversationalContext.isNotBlank()) {
+            getRelevantTools(userQuery, conversationalContext).take(maxPromptTools)
+        } else {
+            activeTools.values.take(maxPromptTools).toList()
+        }
+        val providers = mutableListOf<com.google.ai.edge.litertlm.ToolProvider>()
+        
+        val toolNames = mutableListOf<String>()
+        for (tool in relevantTools) {
+            val match = Regex("(?i)<TOOL>([a-zA-Z0-9_]+)\\(").find(tool.promptString)
+            val name = match?.groupValues?.get(1) ?: tool.handlerKey ?: continue
+            val json = buildOpenApiJson(name, tool)
+            providers.add(com.google.ai.edge.litertlm.tool(DynamicOpenApiTool(json)))
+            toolNames.add(name)
+        }
+        lastPromptedToolKeys = toolNames.toSet()
+        return providers
+    }
+
+    private fun buildOpenApiJson(name: String, def: ToolDefinition): String {
+        // Extract parameter name from promptString like <TOOL>setTemperature(VAL)</TOOL>
+        val paramMatch = Regex("\\((.*?)\\)").find(def.promptString)
+        val paramName = (paramMatch?.groupValues?.get(1)?.trim() ?: "").replace("\"", "")
+
+        val builder = StringBuilder()
+        builder.append("{\n")
+        builder.append("  \"name\": \"$name\",\n")
+        
+        val safeDesc = (def.description ?: def.instruction ?: "Executes $name tool").replace("\"", "\\\"").replace("\n", " ")
+        builder.append("  \"description\": \"$safeDesc\"")
+        
+        if (paramName.isNotEmpty() && paramName != "..." && !paramName.contains("|")) {
+            val params = paramName.split(",").map { it.trim() }
+            builder.append(",\n")
+            builder.append("  \"parameters\": {\n")
+            builder.append("    \"type\": \"object\",\n")
+            builder.append("    \"properties\": {\n")
+            for ((index, p) in params.withIndex()) {
+                builder.append("      \"$p\": { \"type\": \"string\" }")
+                if (index < params.size - 1) builder.append(",\n") else builder.append("\n")
+            }
+            builder.append("    },\n")
+            val requiredArray = params.joinToString(", ") { "\"$it\"" }
+            builder.append("    \"required\": [$requiredArray]\n")
+            builder.append("  }\n")
+        } else if (paramName.contains("|")) {
+             // Handle enums like <TOOL>increaseTemperature(all|driver|passenger)</TOOL>
+             val enums = paramName.split("|").joinToString(", ") { "\"$it\"" }
+             builder.append(",\n")
+             builder.append("  \"parameters\": {\n")
+             builder.append("    \"type\": \"object\",\n")
+             builder.append("    \"properties\": {\n")
+             builder.append("      \"zone\": { \"type\": \"string\", \"enum\": [$enums] }\n")
+             builder.append("    },\n")
+             builder.append("    \"required\": [\"zone\"]\n")
+             builder.append("  }\n")
+        } else {
+            builder.append("\n")
+        }
+        builder.append("}\n")
+        return builder.toString()
+    }
+
+    private class DynamicOpenApiTool(private val jsonString: String) : com.google.ai.edge.litertlm.OpenApiTool {
+        override fun getToolDescriptionJsonString(): String = jsonString
+        override fun execute(args: String): String {
+            return "{}"
+        }
+    }
+
+    /**
+     * Checks if a tool should be allowed to execute based on whether the LLM was given it
+     * in the current turn's tool-list. Prevents "hallucinating" unavailable tools.
      */
     fun isToolAllowedForCurrentPrompt(toolName: String): Boolean {
         val def = getToolDefinition(toolName)

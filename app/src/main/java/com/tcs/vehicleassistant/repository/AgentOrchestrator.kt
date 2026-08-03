@@ -158,11 +158,11 @@ class AgentOrchestrator(
         handleQuery(prompt)
     }
 
-    private var currentSpeakerName = "User"
+    private var currentSpeakerName = com.tcs.vehicleassistant.vision.VisionState.recognizedUser.takeIf { it != "Guest" } ?: "User"
 
     fun handleQuery(query: String, retryCount: Int = 0) {
         var rawTrimmed = query.trim()
-        currentSpeakerName = "User"
+        currentSpeakerName = com.tcs.vehicleassistant.vision.VisionState.recognizedUser.takeIf { it != "Guest" } ?: "User"
         
         // Extract speaker tag: [Seat: Name]
         val seatTagRegex = Regex("^\\[Seat:\\s*(.*?)\\]\\s*(.*)")
@@ -734,12 +734,9 @@ class AgentOrchestrator(
                 _state.value = OrchestratorState.Error("Timeout - Restarting Model...")
                 _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
                 // Drain the hung stream before tearing the engine down; force-close mid-generation
-                // corrupts the OpenCL/GPU context.
+                // corrupts the OpenCL/GPU context, but we must recover if permanently hung.
                 if (!LLMManager.awaitInferenceDrain()) {
-                    _state.value = OrchestratorState.Error("Model still busy after timeout.")
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                    isQueryProcessed = true
-                    return@launch
+                    android.util.Log.e(TAG, "Model still busy after timeout. Forcing restart.")
                 }
                 LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
@@ -774,16 +771,22 @@ class AgentOrchestrator(
             }
         }
 
+        val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
+        val maxHistoryChars = toolManager.slidingWindowMaxChars
+        val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)
+        val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
+        val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
+
         // Recycle native conversation BEFORE building the prompt so a post-reset turn gets the
         // full system prompt (isFirstMessage=true) instead of a compact later-turn stub.
         if (!LocalLLMActivity.isCloudModelActive) {
-            val needsReset = com.tcs.vehicleassistant.core.ConversationResetPolicy.shouldResetBeforePrompt(
+            val needsReset = toolManager.needsToolUpdate(interceptedQuery, priorHistory) || com.tcs.vehicleassistant.core.ConversationResetPolicy.shouldResetBeforePrompt(
                 LLMManager.nativeTurnsSinceReset,
                 AssistantConfig.Llm.CONVERSATION_RESET_TURNS,
             )
             if (needsReset) {
                 withContext(Dispatchers.IO) {
-                    if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context)) {
+                    if (LLMManager.awaitInferenceDrain() && LLMManager.resetConversation(context, interceptedQuery)) {
                         android.util.Log.i(TAG, "Native conversation reset before prompt; string memory retained.")
                     } else {
                         android.util.Log.w(TAG, "Deferred conversation reset; inference still active")
@@ -793,12 +796,6 @@ class AgentOrchestrator(
         }
 
         val finalPrompt: String = withContext(Dispatchers.IO) {
-            val toolManager = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ToolManager>()
-            val maxHistoryChars = toolManager.slidingWindowMaxChars
-            val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)
-            val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
-            val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
-
             // Empty-chat retries already recorded the user turn; avoid duplicating it in memory.
             if (emptyChatRetry == 0) {
                 if (isAgenticObservation) {
@@ -973,7 +970,7 @@ class AgentOrchestrator(
             }
         }
 
-        val onDone: (String) -> Unit = {
+        val onDone: (String, List<com.tcs.vehicleassistant.utils.ParsedToolCall>) -> Unit = { _, nativeToolCalls ->
             if (!stream.isDoneCalled && isCurrentTurn(turnId)) {
                 stream.isDoneCalled = true
 
@@ -1028,7 +1025,9 @@ class AgentOrchestrator(
                     val pendingTools = mutableListOf<Deferred<String?>>()
                     val confirmationAsks = mutableListOf<String>()
                     val actuallyExecutedTools = linkedSetOf<String>()
-                    val parsedTools = ToolCallParser.extractToolCalls(tempFinalMsg)
+                    
+                    // Combine native tool calls with any text-parsed tool calls (for Cloud fallback)
+                    val parsedTools = nativeToolCalls + ToolCallParser.extractToolCalls(tempFinalMsg)
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
                         if (executedTools.add(toolCall)) {
@@ -1148,7 +1147,7 @@ class AgentOrchestrator(
                             if (!LocalLLMActivity.isCloudModelActive) {
                                 withContext(Dispatchers.IO) {
                                     if (LLMManager.awaitInferenceDrain() &&
-                                        LLMManager.resetConversation(context)
+                                        LLMManager.resetConversation(context, query)
                                     ) {
                                         android.util.Log.i(TAG, "Reset conversation after empty model reply")
                                     }
@@ -1248,10 +1247,7 @@ class AgentOrchestrator(
                         _state.value = OrchestratorState.Error("Initializing model...")
                         try {
                             if (!LLMManager.awaitInferenceDrain()) {
-                                _state.value = OrchestratorState.Error("Model still busy — try again.")
-                                _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
-                                isQueryProcessed = true
-                                return@launch
+                                android.util.Log.e(TAG, "Model still busy during error recovery. Forcing restart.")
                             }
                             if (LocalLLMActivity.isCloudModelActive) {
                                 val cloudProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("cloud"))

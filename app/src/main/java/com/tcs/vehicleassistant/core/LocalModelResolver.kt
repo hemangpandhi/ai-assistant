@@ -23,9 +23,6 @@ object LocalModelResolver {
             it.name.equals(defaultFilename, ignoreCase = true) && isReadableModel(it)
         }?.let { return it }
 
-        candidates.firstOrNull {
-            it.name.contains("gemma", ignoreCase = true) && isReadableModel(it)
-        }?.let { return it }
 
         candidates.firstOrNull { isReadableModel(it) }?.let { return it }
 

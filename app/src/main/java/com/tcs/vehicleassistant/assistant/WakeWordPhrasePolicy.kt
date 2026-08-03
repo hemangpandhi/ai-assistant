@@ -11,6 +11,7 @@ import com.tcs.vehicleassistant.core.AssistantConfig
 object WakeWordPhrasePolicy {
 
     private val NAME_PREFIXES = setOf("hey", "hi", "ok", "okay")
+    private val ALTERNATE_WAKE_WORDS = setOf("hey car", "hello car", "ok car", "hi car")
 
     /**
      * Common assistant nouns that must not bare-match (too many false wakes in cabin speech).
@@ -48,15 +49,20 @@ object WakeWordPhrasePolicy {
             .ifEmpty { AssistantConfig.WakeWord.DEFAULT_WAKE_WORD }
         val phrases = linkedSetOf(configured, AssistantConfig.WakeWord.UNKNOWN_TOKEN)
         shortAlias(configured)?.let { phrases.add(it) }
+        phrases.addAll(ALTERNATE_WAKE_WORDS)
         return phrases
     }
 
     fun matches(transcript: String, configuredWakeWord: String): Boolean {
         val configured = configuredWakeWord.lowercase().trim()
-        if (configured.isEmpty()) return false
-        if (matchesPhrase(transcript, configured)) return true
-        val alias = shortAlias(configured) ?: return false
-        return matchesPhrase(transcript, alias)
+        if (configured.isNotEmpty() && matchesPhrase(transcript, configured)) return true
+        val alias = shortAlias(configured)
+        if (alias != null && matchesPhrase(transcript, alias)) return true
+        
+        for (alt in ALTERNATE_WAKE_WORDS) {
+            if (matchesPhrase(transcript, alt)) return true
+        }
+        return false
     }
 
     /**

@@ -7,10 +7,19 @@ import android.os.UserManager
 import com.tcs.vehicleassistant.service.VehicleAgentService
 
 class UserUnlockReceiver : BroadcastReceiver() {
+    companion object {
+        private var lastGreetTime = 0L
+    }
+
     override fun onReceive(context: Context, intent: Intent) {
+        val now = System.currentTimeMillis()
+        if (now - lastGreetTime < 5000) return
+
         if (intent.action == "com.tcs.vehicleassistant.FACE_UNLOCKED" || 
             intent.action == "com.android.car.biometrics.ACTION_FACE_MATCHED" ||
             intent.action == Intent.ACTION_USER_PRESENT) {
+            
+            lastGreetTime = now
             var userName = intent.getStringExtra("USER_NAME")
             if (userName.isNullOrEmpty()) {
                 userName = try {

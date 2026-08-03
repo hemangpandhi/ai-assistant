@@ -20,7 +20,7 @@ class CloudLLMProvider : ILLMProvider {
         prompt: String,
         userQuery: String,
         onToken: (String) -> Unit,
-        onDone: (String) -> Unit,
+        onDone: (String, List<com.tcs.vehicleassistant.utils.ParsedToolCall>) -> Unit,
         onError: (Exception) -> Unit
     ) {
         // Use the orchestrator-assembled [prompt] as the API system instruction. Recomputing
@@ -37,7 +37,7 @@ class CloudLLMProvider : ILLMProvider {
                 onToken(chunkText)
             }
             override fun onDone() {
-                onDone(responseBuilder.toString())
+                onDone(responseBuilder.toString(), emptyList())
             }
             override fun onError(throwable: Throwable) {
                 onError(Exception(throwable))

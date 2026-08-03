@@ -43,7 +43,7 @@ class EdgeLLMProvider : ILLMProvider {
         prompt: String,
         userQuery: String,
         onToken: (String) -> Unit,
-        onDone: (String) -> Unit,
+        onDone: (String, List<com.tcs.vehicleassistant.utils.ParsedToolCall>) -> Unit,
         onError: (Exception) -> Unit
     ) {
         if (!LLMManager.isReady()) {
@@ -72,6 +72,7 @@ class EdgeLLMProvider : ILLMProvider {
         val streamStart = System.currentTimeMillis()
         var firstTokenAt = -1L
         var tokenChunks = 0
+        val nativeToolCalls = mutableListOf<com.tcs.vehicleassistant.utils.ParsedToolCall>()
 
         // LiteRT's sendMessageAsync returns immediately and streams on its own thread. Awaiting
         // completion here keeps the inference inside the caller's coroutine, so cancellation and
@@ -85,6 +86,19 @@ class EdgeLLMProvider : ILLMProvider {
                     override fun onMessage(message: com.google.ai.edge.litertlm.Message) {
                         val textContent = message.contents?.contents?.firstOrNull() as? Content.Text
                         val text = textContent?.text ?: ""
+                        
+                        if (message.toolCalls.isNotEmpty()) {
+                            message.toolCalls.forEach { call ->
+                                val argsList = call.arguments.values.map { it.toString() }
+                                val argsStr = argsList.joinToString(",")
+                                val toolTag = "<TOOL>${call.name}($argsStr)</TOOL>"
+                                nativeToolCalls.add(com.tcs.vehicleassistant.utils.ParsedToolCall(toolTag, call.name, argsStr))
+                                try {
+                                    onToken("\n$toolTag")
+                                } catch (e: Exception) {}
+                            }
+                        }
+
                         if (text.isEmpty()) return
 
                         tokenChunks++
@@ -108,7 +122,7 @@ class EdgeLLMProvider : ILLMProvider {
                             LatencyLogger.log("EdgeLLM", "Chunks: $tokenChunks, throughput: ${"%.1f".format(tps)}/s")
                         }
                         try {
-                            onDone(responseBuilder.toString())
+                            onDone(responseBuilder.toString(), nativeToolCalls)
                         } finally {
                             completion.complete(Unit)
                         }
@@ -124,7 +138,9 @@ class EdgeLLMProvider : ILLMProvider {
                 },
                 emptyMap()
             )
-            completion.await()
+            kotlinx.coroutines.withTimeout(60_000L) {
+                completion.await()
+            }
         } catch (e: Exception) {
             onError(e)
         } finally {

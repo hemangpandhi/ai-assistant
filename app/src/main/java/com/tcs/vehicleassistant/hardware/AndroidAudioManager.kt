@@ -23,8 +23,6 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
     }
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-    private var audioFocusRequest: android.media.AudioFocusRequest? = null
-
     private fun requestFocusAndMaxVolume() {
         try {
             // Attempt to maximize Assistant volume (STREAM_ASSISTANT = 11 on Automotive)
@@ -33,31 +31,10 @@ class AndroidAudioManager(private val context: Context) : IAudioManager {
         } catch (e: Exception) {
             Log.w(TAG, "Failed to set assistant volume", e)
         }
-        
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            if (audioFocusRequest == null) {
-                val attributes = android.media.AudioAttributes.Builder()
-                    .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
-                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-                audioFocusRequest = android.media.AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                    .setAudioAttributes(attributes)
-                    .setAcceptsDelayedFocusGain(true)
-                    .setOnAudioFocusChangeListener { }
-                    .build()
-            }
-            audioFocusRequest?.let {
-                audioManager.requestAudioFocus(it)
-            }
-        }
     }
 
     private fun abandonFocus() {
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            audioFocusRequest?.let {
-                audioManager.abandonAudioFocusRequest(it)
-            }
-        }
+        // No longer managing focus here to avoid conflicting with AssistantSessionAudioFocus.
     }
 
     private var offlineTts: OfflineTts? = null

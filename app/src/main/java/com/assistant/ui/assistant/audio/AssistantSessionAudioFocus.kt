@@ -32,7 +32,6 @@ class AssistantSessionAudioFocus(
         if (holding) {
             requestInternal(reclaim = true)
         }
-        // Stay muted until abandon — avoids a post-reclaim blip before TTS starts.
     }
 
     private val focusListener = AudioManager.OnAudioFocusChangeListener { change ->
@@ -47,8 +46,6 @@ class AssistantSessionAudioFocus(
                     "exclusive focus lost ($change) — reclaiming so media stays paused",
                 )
                 mainHandler.removeCallbacks(reclaimRunnable)
-                // Silence immediately; delay only so playFromSearch can bind the new track.
-                muteMusicForBind()
                 mainHandler.postDelayed(reclaimRunnable, RECLAIM_DELAY_MS)
             }
         }
@@ -57,14 +54,12 @@ class AssistantSessionAudioFocus(
     fun request() {
         holding = true
         mainHandler.removeCallbacks(reclaimRunnable)
-        unmuteMusicAfterBind()
         requestInternal(reclaim = false)
     }
 
     fun abandon() {
         holding = false
         mainHandler.removeCallbacks(reclaimRunnable)
-        unmuteMusicAfterBind()
         try {
             val audioManager =
                 context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -80,62 +75,7 @@ class AssistantSessionAudioFocus(
         }
     }
 
-    private fun muteMusicForBind() {
-        if (musicMutedForBind) return
-        try {
-            val audioManager =
-                context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                audioManager.isStreamMute(AudioManager.STREAM_MUSIC)
-            ) {
-                // Already muted by the user/system — do not take ownership.
-                return
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_MUTE,
-                    0,
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                audioManager.setStreamMute(AudioManager.STREAM_MUSIC, true)
-            }
-            musicMutedForBind = true
-            AssistantDebugLog.d("Session", "music muted for playFromSearch bind window")
-        } catch (throwable: Throwable) {
-            AssistantDebugLog.w(
-                "Session",
-                "music mute for bind failed: ${throwable.message}",
-            )
-        }
-    }
-
-    private fun unmuteMusicAfterBind() {
-        if (!musicMutedForBind) return
-        try {
-            val audioManager =
-                context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                audioManager.adjustStreamVolume(
-                    AudioManager.STREAM_MUSIC,
-                    AudioManager.ADJUST_UNMUTE,
-                    0,
-                )
-            } else {
-                @Suppress("DEPRECATION")
-                audioManager.setStreamMute(AudioManager.STREAM_MUSIC, false)
-            }
-            AssistantDebugLog.d("Session", "music unmuted after exclusive reclaim")
-        } catch (throwable: Throwable) {
-            AssistantDebugLog.w(
-                "Session",
-                "music unmute after bind failed: ${throwable.message}",
-            )
-        } finally {
-            musicMutedForBind = false
-        }
-    }
+    // muteMusicForBind and unmuteMusicAfterBind have been removed to prevent system volume bugs.
 
     private fun requestInternal(reclaim: Boolean) {
         try {

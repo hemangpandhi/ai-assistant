@@ -860,10 +860,24 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 }
                 // Wait until LLMManager is fully ready and not prewarming.
                 withContext(Dispatchers.IO) {
+                    val waitStart = System.currentTimeMillis()
                     while (!LLMManager.isReady() || LLMManager.isInitializing) {
+                        if (System.currentTimeMillis() - waitStart > 30_000L) {
+                            break // Prevent infinite UI hang
+                        }
                         delay(500)
                     }
                 }
+                
+                if (!LLMManager.isReady()) {
+                    statusText?.text = "Initialization failed. Please try again."
+                    btnOpenApp?.visibility = View.VISIBLE
+                    inputControls?.visibility = View.VISIBLE
+                    btnSend?.isEnabled = false
+                    btnMic?.isEnabled = false
+                    return@launch
+                }
+                
                 statusText?.text = "Hi, how can I help you?"
                 inputControls?.visibility = View.VISIBLE
                 btnSend?.isEnabled = true

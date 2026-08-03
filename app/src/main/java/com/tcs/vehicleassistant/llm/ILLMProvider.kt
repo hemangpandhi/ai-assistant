@@ -9,7 +9,7 @@ interface ILLMProvider {
         prompt: String, 
         userQuery: String, 
         onToken: (String) -> Unit, 
-        onDone: (String) -> Unit, 
+        onDone: (String, List<com.tcs.vehicleassistant.utils.ParsedToolCall>) -> Unit, 
         onError: (Exception) -> Unit
     )
     fun unload()
