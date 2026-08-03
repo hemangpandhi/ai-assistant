@@ -415,4 +415,5 @@ Ideal is not maximal modularity. It is:
 - a **small module set** with **one-way dependencies**
 - a **Capture → Understand → Act → Speak** pipeline that **UI only observes**
 - **hardware and LLM behind ports**
+- each module **hardenable in isolation** via stable contracts + owned tests
 - all shipping as **one privileged APK**
