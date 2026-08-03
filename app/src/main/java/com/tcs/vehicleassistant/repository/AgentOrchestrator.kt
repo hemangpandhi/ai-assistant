@@ -6,6 +6,7 @@ import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
+import com.tcs.vehicleassistant.assistant.agent.ConfirmationCoordinator
 import com.tcs.vehicleassistant.assistant.agent.TurnRouter
 import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.core.AssistantConfig
@@ -61,12 +62,12 @@ class AgentOrchestrator(
     @Volatile
     private var isQueryProcessed = true
     private var timeoutJob: Job? = null
-    private var pendingConfirmationTool: String? = null
     /**
-     * Soft conversational offer (e.g. wellness "want music?") — not a ContextGuard safety confirm.
-     * Bare "yes"/"no" must resolve this instead of dismissing the overlay or treating "yes" as ASR junk.
+     * Pending ContextGuard confirm vs soft conversational offer (e.g. wellness music).
+     * Owned by [ConfirmationCoordinator] so "yes" cannot hit the wrong path.
      */
-    private var pendingOfferedTool: String? = null
+    private val confirmationCoordinator = ConfirmationCoordinator()
+
     private val pendingIntentsToLaunch = java.util.Collections.synchronizedList(mutableListOf<Intent>())
 
     /**
@@ -185,25 +186,11 @@ class AgentOrchestrator(
         }
 
         // Keep mutable pending state aligned with TurnRouter's "OTHER supersedes" rules.
-        if (pendingConfirmationTool != null && !trimmedQuery.startsWith("[")) {
-            if (ConfirmationPolicy.classify(trimmedQuery) == ConfirmationPolicy.Reply.OTHER) {
-                pendingConfirmationTool = null
-                LatencyLogger.log(
-                    "Orchestrator",
-                    "Pending ContextGuard confirm superseded by: $trimmedQuery",
-                )
-            }
-        }
-        if (pendingOfferedTool != null && pendingConfirmationTool == null && !trimmedQuery.startsWith("[")) {
-            if (ConfirmationPolicy.classify(trimmedQuery) == ConfirmationPolicy.Reply.OTHER) {
-                pendingOfferedTool = null
-                LatencyLogger.log(
-                    "Orchestrator",
-                    "Pending soft offer superseded by: $trimmedQuery",
-                )
-            }
+        for (label in confirmationCoordinator.applySupersedeIfNeeded(trimmedQuery)) {
+            LatencyLogger.log("Orchestrator", "Pending $label superseded by: $trimmedQuery")
         }
 
+        val pendingSnap = confirmationCoordinator.snapshot()
         val directHit = resolveDirectHitOrNull(trimmedQuery)?.let {
             TurnRouter.DirectHit(
                 toolCall = it.toolCall,
@@ -212,7 +199,7 @@ class AgentOrchestrator(
                 reason = it.reason,
             )
         }
-        val followUpTool = if (pendingConfirmationTool == null) {
+        val followUpTool = if (pendingSnap.pendingConfirmationTool == null) {
             FollowUpRouter.resolveDirectTool(trimmedQuery, LLMManager.lastAiResponse)
         } else {
             null
@@ -222,8 +209,8 @@ class AgentOrchestrator(
             TurnRouter.Input(
                 query = trimmedQuery,
                 retryCount = retryCount,
-                pendingConfirmationTool = pendingConfirmationTool,
-                pendingOfferedTool = pendingOfferedTool,
+                pendingConfirmationTool = pendingSnap.pendingConfirmationTool,
+                pendingOfferedTool = pendingSnap.pendingOfferedTool,
                 isAffirmativeKeepAlive = MemoryManager.isAffirmative(trimmedQuery),
                 directHit = directHit,
                 followUpToolCall = followUpTool,
@@ -237,8 +224,7 @@ class AgentOrchestrator(
     private fun executeTurnDecision(decision: TurnRouter.Decision) {
         when (decision) {
             is TurnRouter.Decision.ContextGuardDecline -> {
-                pendingConfirmationTool = null
-                pendingOfferedTool = null
+                confirmationCoordinator.clearAll()
                 LatencyLogger.reset()
                 beginTurn()
                 scope.launch {
@@ -252,8 +238,7 @@ class AgentOrchestrator(
                 }
             }
             is TurnRouter.Decision.ContextGuardAffirm -> {
-                pendingConfirmationTool = null
-                pendingOfferedTool = null
+                confirmationCoordinator.clearAll()
                 LatencyLogger.reset()
                 LatencyLogger.log("Orchestrator", "Query received")
                 beginTurn()
@@ -270,7 +255,7 @@ class AgentOrchestrator(
                 }
             }
             is TurnRouter.Decision.OfferDecline -> {
-                pendingOfferedTool = null
+                confirmationCoordinator.clearOffer()
                 LatencyLogger.reset()
                 beginTurn()
                 scope.launch {
@@ -284,7 +269,7 @@ class AgentOrchestrator(
                 }
             }
             is TurnRouter.Decision.OfferAffirm -> {
-                pendingOfferedTool = null
+                confirmationCoordinator.clearOffer()
                 LatencyLogger.reset()
                 LatencyLogger.log("Orchestrator", "Offer affirmed → ${decision.toolCall}")
                 beginTurn()
@@ -428,7 +413,7 @@ class AgentOrchestrator(
                     pendingIntentsToLaunch.clear()
                     delay(50)
                     // Soft offer still waiting for yes/no — keep overlay up and listen.
-                    if (pendingOfferedTool != null) {
+                    if (confirmationCoordinator.pendingOfferedTool != null) {
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     } else {
                         _events.tryEmit(OrchestratorEvent.FinishSession)
@@ -436,7 +421,7 @@ class AgentOrchestrator(
                 }
                 "STATEMENT_FINAL" -> {
                     delay(50)
-                    if (pendingOfferedTool != null) {
+                    if (confirmationCoordinator.pendingOfferedTool != null) {
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     } else {
                         _events.tryEmit(OrchestratorEvent.FinishSession)
@@ -462,7 +447,7 @@ class AgentOrchestrator(
                     }
                     pendingIntentsToLaunch.clear()
                     delay(3000) // Artificial delay to allow user to read text since TTS failed
-                    if (pendingOfferedTool != null) {
+                    if (confirmationCoordinator.pendingOfferedTool != null) {
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     } else {
                         _events.tryEmit(OrchestratorEvent.FinishSession)
@@ -470,7 +455,7 @@ class AgentOrchestrator(
                 }
                 "STATEMENT_FINAL" -> {
                     delay(4000) // Artificial delay to allow user to read text since TTS failed
-                    if (pendingOfferedTool != null) {
+                    if (confirmationCoordinator.pendingOfferedTool != null) {
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     } else {
                         _events.tryEmit(OrchestratorEvent.FinishSession)
@@ -497,7 +482,7 @@ class AgentOrchestrator(
         scope.launch {
             MemoryManager.captureLongTermFacts(context, decision.query)
             MemoryManager.addTurn(currentSpeakerName, decision.query)
-            pendingOfferedTool = null
+            confirmationCoordinator.clearOffer()
             finishGuardedTurn(
                 message = decision.spokenResponse,
                 pathLabel = "CrisisSupport",
@@ -516,7 +501,7 @@ class AgentOrchestrator(
         scope.launch {
             MemoryManager.captureLongTermFacts(context, query)
             MemoryManager.addTurn(currentSpeakerName, query)
-            pendingOfferedTool = "playMusic(relaxing)"
+            confirmationCoordinator.setSoftOffer("playMusic(relaxing)")
             finishGuardedTurn(
                 message = WELLNESS_OFFER,
                 pathLabel = "WellnessOffer",
@@ -528,7 +513,7 @@ class AgentOrchestrator(
     }
 
     private fun dispatchFollowUp(query: String, toolCall: String) {
-        pendingOfferedTool = null
+        confirmationCoordinator.clearOffer()
         beginTurn()
         _state.value = OrchestratorState.Thinking(query)
         _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
@@ -588,7 +573,7 @@ class AgentOrchestrator(
                 if (skipGuard) {
                     // Already confirmed — fall through to execute.
                 } else {
-                    pendingConfirmationTool = decision.originalToolCall
+                    confirmationCoordinator.setConfirmation(decision.originalToolCall)
                     finishGuardedTurn(
                         message = decision.message,
                         pathLabel = pathLabel,
@@ -761,18 +746,18 @@ class AgentOrchestrator(
 
         var interceptedQuery = query
 
-        if (pendingConfirmationTool != null) {
+        if (confirmationCoordinator.pendingConfirmationTool != null) {
             if (MemoryManager.isDecline(query)) {
-                pendingConfirmationTool = null
+                confirmationCoordinator.clearConfirmation()
                 interceptedQuery = "System: Action aborted by user. User originally said: $query"
             } else if (MemoryManager.isAffirmative(query)) {
                 // Already confirmed — execute without re-entering ContextGuard.
-                val toolToExecute = pendingConfirmationTool!!
-                pendingConfirmationTool = null
+                val toolToExecute = confirmationCoordinator.pendingConfirmationTool!!
+                confirmationCoordinator.clearConfirmation()
                 val feedback = executeToolCall(toolToExecute)
                 interceptedQuery = "System: Executed $toolToExecute. Result: $feedback. User originally said 'yes'."
             } else {
-                pendingConfirmationTool = null
+                confirmationCoordinator.clearConfirmation()
                 interceptedQuery = "System: Action aborted by user. User originally said: $query"
             }
         }
@@ -1014,12 +999,12 @@ class AgentOrchestrator(
                         FollowUpRouter.offeredMusic(finalMsg) &&
                         !com.tcs.vehicleassistant.core.ConversationSafetyPolicy.forbidsEntertainmentOffer(query)
                     ) {
-                        pendingOfferedTool = "playMusic(relaxing)"
+                        confirmationCoordinator.setSoftOffer("playMusic(relaxing)")
                         android.util.Log.i(TAG, "Stashed soft music offer for follow-up affirm")
                     } else if (
                         com.tcs.vehicleassistant.core.ConversationSafetyPolicy.forbidsEntertainmentOffer(query)
                     ) {
-                        pendingOfferedTool = null
+                        confirmationCoordinator.clearOffer()
                     }
                     
                     // Don't emit empty finalMsg to avoid clearing the UI
@@ -1072,7 +1057,7 @@ class AgentOrchestrator(
                             val toolDef = toolRegistry.getToolDefinition(toolCall)
                             if (toolDef?.requiresConfirmation == true) {
                                 // Stash only — never narrate as "I ran X" and never write yet.
-                                pendingConfirmationTool = toolCall
+                                confirmationCoordinator.setConfirmation(toolCall)
                                 val ask = com.tcs.vehicleassistant.core.LlmToolTurnPolicy.confirmationAskMessage(
                                     parsed.toolName,
                                     toolDef.confirmationMessage,
@@ -1085,7 +1070,7 @@ class AgentOrchestrator(
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
                                         when (val decision = evaluateContextGuard(toolCall)) {
                                             is ContextGuard.Decision.Confirm -> {
-                                                pendingConfirmationTool = decision.originalToolCall
+                                                confirmationCoordinator.setConfirmation(decision.originalToolCall)
                                                 confirmationAsks.add(decision.message)
                                                 decision.message
                                             }
@@ -1113,8 +1098,8 @@ class AgentOrchestrator(
                         val feedbacks = awaitAll(*pendingTools.toTypedArray()).filterNotNull()
                         toolFeedbacks.addAll(feedbacks)
                         // Tool already ran — don't keep a soft offer pending for a later "yes".
-                        if (pendingConfirmationTool == null) {
-                            pendingOfferedTool = null
+                        if (confirmationCoordinator.pendingConfirmationTool == null) {
+                            confirmationCoordinator.clearOffer()
                         }
                     }
 
@@ -1201,7 +1186,7 @@ class AgentOrchestrator(
                         }
                         val emptyFallback = resolveEmptyModelFallback(query).also { fallback ->
                             if (fallback == WELLNESS_OFFER || FollowUpRouter.offeredMusic(fallback)) {
-                                pendingOfferedTool = "playMusic(relaxing)"
+                                confirmationCoordinator.setSoftOffer("playMusic(relaxing)")
                                 android.util.Log.i(TAG, "Stashed soft music offer from empty fallback")
                             }
                         }
@@ -1217,7 +1202,7 @@ class AgentOrchestrator(
                         }
                     } else if (
                         com.tcs.vehicleassistant.core.LlmToolTurnPolicy.shouldSpeakToolFeedback(
-                            pendingConfirmation = pendingConfirmationTool != null,
+                            pendingConfirmation = confirmationCoordinator.pendingConfirmationTool != null,
                             confirmationAsks = confirmationAsks,
                             toolFeedbacks = toolFeedbacks,
                         )
@@ -1245,7 +1230,7 @@ class AgentOrchestrator(
 
                     val spokenIsQuestion = finalDisplayMsg.isNotBlank() && (
                         isQuestion ||
-                        pendingConfirmationTool != null ||
+                        confirmationCoordinator.pendingConfirmationTool != null ||
                         confirmationAsks.isNotEmpty() ||
                         com.tcs.vehicleassistant.core.LlmToolTurnPolicy.looksLikeQuestion(finalDisplayMsg) ||
                         finalDisplayMsg.contains("could you say", ignoreCase = true) ||
@@ -1258,7 +1243,7 @@ class AgentOrchestrator(
 
                     // Only now is the turn finished — re-enable input for the next utterance.
                     // Pending confirmation must re-open the mic even if the model already spoke prose.
-                    if (spokenIsQuestion && (finalMsg.isBlank() || pendingConfirmationTool != null)) {
+                    if (spokenIsQuestion && (finalMsg.isBlank() || confirmationCoordinator.pendingConfirmationTool != null)) {
                         _events.tryEmit(OrchestratorEvent.StartListening)
                     }
                     _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
