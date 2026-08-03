@@ -17,6 +17,7 @@ Related: [decoupling_roadmap.md](decoupling_roadmap.md),
 | Single APK | Always — priv-app / VIS / VHAL ship together |
 | Multi-module Gradle | Yes — finish ownership, don’t over-split |
 | Independently deployable services | No |
+| **Harden / improve one module without breaking others** | **Yes — primary reason for the split** (contracts + tests, not separate APKs) |
 | Practical ceiling | ~8–10 modules; **sweet spot 6–8** |
 | Stop when | Modules own real code + one-way deps; further cuts are folder theater |
 
@@ -93,6 +94,74 @@ UI / features  →  domain ports  →  data adapters
 - `:app` is the only place that knows the full graph
 
 Enforce with Gradle project deps (and optionally dependency-analysis / custom checks).
+
+---
+
+## Independent hardening (blast-radius isolation)
+
+The multi-module split exists so each layer can be **hardened and improved on its
+own**. Fixing STT, LiteRT, tools, or the face UI must not require rewriting (or
+unknowingly regressing) the others.
+
+This is **not** separate deployability. It is **contract stability + test
+ownership** inside one APK.
+
+### Design rules
+
+| Rule | Why |
+|------|-----|
+| Depend on **ports**, not concrete classes across modules | Swap / harden LiteRT or Sherpa without touching orchestrator call sites |
+| Keep port APIs **small and versioned carefully** | A noisy interface change ripples every consumer |
+| No “reach-through” imports (UI → `VehicleManager`, agent → Compose types) | Hidden coupling makes one fix break another layer |
+| Put policy in `:domain` / `:core`; put I/O in `:data` | Safety / confirmation changes don’t require audio or VHAL edits |
+| `:app` only **wires** implementations | Composition root absorbs churn; features don’t |
+| Prefer additive port methods over breaking signature changes | Callers keep compiling while one impl hardens |
+
+### What “fix one module” should look like
+
+| Change | Allowed without touching others | Must stay stable |
+|--------|----------------------------------|------------------|
+| Sherpa / VAD tuning, mic focus | `:data:hardware` (+ its unit tests) | `AudioPort` listen/speak/focus API |
+| LiteRT load, GPU fallback, prompt trim | `:data:llm` / LLM collaborators | `ILLMProvider` stream/cancel/ready |
+| Tool schema, BM25, confirmation copy | `:domain:tools` | `IToolExecutor` / `ToolCatalog` results shape |
+| HVAC / VHAL write retries, area maps | `:data:hardware` + handler package | Executor result / error contract |
+| Face mood, overlay motion, MVI reduce | `:ui` | `AssistantBackend` / session event contracts |
+| Orchestrator turn policy, barge-in | `:feature:agent` / `:app` agent package | Ports it consumes; events it emits |
+| Skills JSON few-shots / policies | assets + registry loader tests | Tool ids + arg schemas consumers expect |
+
+If a “local” fix forces edits in three unrelated modules, the boundary is wrong —
+extract or narrow the port before continuing.
+
+### Test ownership (each module proves itself)
+
+| Module / layer | Owns tests for | Contract tests against |
+|----------------|----------------|------------------------|
+| `:data:hardware` | Audio, VHAL adapters, snapshot mapping | Fake `AudioPort` / gateway used by agent tests |
+| `:data:llm` / LLM impl | Engine host, gate, locator | Fake `ILLMProvider` in orchestrator tests |
+| `:domain:tools` | Registry, schema, allow-lists, confirmation policy | Frozen tool-id fixtures |
+| `:feature:agent` | Turn pipeline, direct-tool path, confirm flow | Fakes for LLM, audio, tools, VHAL |
+| `:ui` | MVI reduce, face/cue mapping | Fake `AssistantBackend` event streams |
+| `:app` | Wiring / smoke; few integration tests | End-to-end golden paths only |
+
+**Rule:** a module’s unit tests must pass with **fakes** for every outbound port.
+No test in `:ui` may need LiteRT or Car APIs. No test in `:domain:tools` may need
+Compose.
+
+### Compatibility checklist before merging a layer fix
+
+1. Public port / event types used by other modules did not change — or changes are additive and documented.
+2. Owning module’s unit tests are green.
+3. Downstream contract tests (fakes exercising the old API) still pass.
+4. No new reverse dependency (`:domain` → `:ui`, `:core` → `:data`, etc.).
+5. Skills / tool ids remain stable unless a coordinated registry + handler change.
+
+### Anti-patterns that couple layers
+
+- Shared mutable singletons across modules without a port
+- Orchestrator calling Concrete `LLMManager` / `VehicleManager` methods beyond the port
+- UI parsing raw LLM token streams or tool JSON
+- Handlers importing Compose or face cue types
+- “Just this once” Gradle `api(project(:…))` that leaks internals
 
 ---
 
