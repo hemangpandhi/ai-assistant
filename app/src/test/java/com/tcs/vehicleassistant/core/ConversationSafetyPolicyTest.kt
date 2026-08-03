@@ -71,14 +71,35 @@ class ConversationSafetyPolicyTest {
         assertTrue(spoken.contains("music", ignoreCase = true))
     }
 
+    @Test
+    fun `sanitize replaces music reply after accident`() {
+        val cleaned = ConversationSafetyPolicy.sanitizeAssistantReply(
+            userQuery = "my car got into an accident",
+            modelReply = "I'm sorry. Would you like me to play some music?",
+        )
+        assertFalse(ConversationSafetyPolicy.containsEntertainmentOffer(cleaned))
+        assertTrue(cleaned.contains("emergency", ignoreCase = true) || cleaned.contains("okay", ignoreCase = true))
+    }
+
+    @Test
+    fun `sanitize leaves mild wellness music intact`() {
+        val reply = "I'm sorry you're not feeling well. Would you like me to play some music?"
+        val cleaned = ConversationSafetyPolicy.sanitizeAssistantReply(
+            userQuery = "I am not feeling good",
+            modelReply = reply,
+        )
+        assertEquals(reply, cleaned)
+    }
+
+    @Test
+    fun `entertainment tools are detected`() {
+        assertTrue(ConversationSafetyPolicy.isEntertainmentTool("playMusic(relaxing)"))
+        assertFalse(ConversationSafetyPolicy.isEntertainmentTool("increaseTemperature()"))
+    }
+
     companion object {
-        fun containsEntertainmentOffer(text: String): Boolean {
-            val lower = text.lowercase()
-            return lower.contains("music") ||
-                lower.contains("playlist") ||
-                lower.contains("song") ||
-                lower.contains("play something")
-        }
+        fun containsEntertainmentOffer(text: String): Boolean =
+            ConversationSafetyPolicy.containsEntertainmentOffer(text)
     }
 }
 

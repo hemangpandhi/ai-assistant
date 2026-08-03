@@ -3,12 +3,14 @@ package com.tcs.vehicleassistant.core
 /**
  * Deterministic conversation safety gate for distress / emergency utterances.
  *
- * Wellness / companion prompts elsewhere in the stack default to "offer music".
- * That is wrong for accidents, medical emergencies, and similar crises. This policy
- * short-circuits those turns with fixed scripts and forbids entertainment offers.
+ * ## Why this exists (design)
+ * Edge companions historically steered *all* open/emotional turns toward "offer music"
+ * so small models stay actionable and don't refuse cabin tools. That heuristic is fine
+ * for "I'm bored / sad" and wrong for accidents and medical emergencies. Relying on the
+ * LLM alone cannot make that distinction reliably — so safety is enforced in policy:
+ * 1) classify before the model, 2) sanitize after the model, 3) lock a regression matrix.
  *
- * This does **not** cover every possible phrasing in the world — it covers an explicit
- * regression matrix. Expand [EMERGENCY] / [DISTRESS] when new failures are found.
+ * Expand [EMERGENCY] / [DISTRESS] / [REGRESSION_PHRASES] whenever a demo finds a gap.
  */
 object ConversationSafetyPolicy {
 
@@ -35,7 +37,8 @@ object ConversationSafetyPolicy {
      */
     private val EMERGENCY = Regex(
         """(?i)\b(""" +
-            """accident|colli(?:ded|sion)|crash(?:ed|ing)?|hit (?:another |a |the )?(?:car|vehicle|truck|bus)|""" +
+            """accident|colli(?:ded|sion)|crash(?:ed|ing)?|wreck(?:ed)?|airbags? (?:went|deployed)|""" +
+            """hit (?:another |a |the )?(?:car|vehicle|truck|bus)|""" +
             """rear[- ]?ended|t[- ]?boned|rolled (?:the )?(?:car|vehicle)|totaled|""" +
             """(?:car|vehicle|we|i) (?:got |was |were )?(?:into |in )?(?:an? )?accident|""" +
             """(?:someone|passenger|driver|i|we) (?:got |is |are |was |were )?(?:hurt|injured|bleeding|unconscious)|""" +
@@ -54,6 +57,15 @@ object ConversationSafetyPolicy {
             """i am (?:scared|terrified|panicking|in (?:danger|trouble))|""" +
             """we'?re in (?:danger|trouble)|pull over(?: now)?|""" +
             """someone (?:is )?(?:attacking|following) (?:me|us)""" +
+            """)\b""",
+    )
+
+    private val ENTERTAINMENT_OFFER = Regex(
+        """(?i)\b(""" +
+            """music|playlist|song|track|tune|radio|""" +
+            """play (?:some |something )?(?:relaxing |calming |upbeat )?music|""" +
+            """would you like(?: me to)? play|want (?:me to play|some music)|""" +
+            """lighten the mood|fun trivia""" +
             """)\b""",
     )
 
@@ -95,6 +107,32 @@ object ConversationSafetyPolicy {
     /** True when entertainment / wellness music offers are forbidden for this utterance. */
     fun forbidsEntertainmentOffer(query: String): Boolean = isCrisis(query)
 
+    fun containsEntertainmentOffer(text: String): Boolean =
+        text.isNotBlank() && ENTERTAINMENT_OFFER.containsMatchIn(text)
+
+    /**
+     * Defense in depth: if the user turn is crisis and the model still offered entertainment,
+     * replace with the fixed safety script. Safe no-op when there is no crisis.
+     */
+    fun sanitizeAssistantReply(userQuery: String, modelReply: String): String {
+        val decision = evaluate(userQuery)
+        if (!decision.isCrisis) return modelReply
+        if (modelReply.isBlank()) return decision.spokenResponse
+        return if (containsEntertainmentOffer(modelReply)) decision.spokenResponse else modelReply
+    }
+
+    /** Entertainment tools that must not run on a crisis user turn. */
+    fun isEntertainmentTool(toolCall: String): Boolean {
+        val name = toolCall.substringBefore('(').trim().lowercase()
+        return name in setOf(
+            "playmusic",
+            "playmusicbyartist",
+            "resumeplayback",
+            "skiptrack",
+            "previoustrack",
+        ) || name.contains("music")
+    }
+
     /**
      * Phrases that must never produce a music / entertainment offer in spoken output.
      * Used by regression tests and as documentation of the locked matrix.
@@ -104,6 +142,8 @@ object ConversationSafetyPolicy {
         "we were in an accident",
         "I crashed the car",
         "we just crashed",
+        "the airbags deployed",
+        "we were rear-ended",
         "someone is hurt",
         "I'm bleeding",
         "I can't breathe",

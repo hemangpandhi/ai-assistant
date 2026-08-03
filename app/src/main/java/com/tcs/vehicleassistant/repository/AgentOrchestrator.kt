@@ -1038,6 +1038,8 @@ class AgentOrchestrator(
                     MemoryManager.addTurn("Assistant", tempFinalMsg.trim())
 
                     var finalMsg = normalizeForDisplay(ToolCallParser.stripToolTags(tempFinalMsg))
+                    finalMsg = com.tcs.vehicleassistant.core.ConversationSafetyPolicy
+                        .sanitizeAssistantReply(query, finalMsg)
                     android.util.Log.i(
                         TAG,
                         "Model done. raw='${tempFinalMsg.take(160)}' display='${finalMsg.take(160)}' query='${query.take(80)}'",
@@ -1051,9 +1053,18 @@ class AgentOrchestrator(
 
                     LLMManager.lastAiResponse = finalMsg
                     // Soft music offer with no tool tags yet — stash for bare "yes".
-                    if (isQuestion && FollowUpRouter.offeredMusic(finalMsg)) {
+                    // Never stash entertainment after a crisis user turn.
+                    if (
+                        isQuestion &&
+                        FollowUpRouter.offeredMusic(finalMsg) &&
+                        !com.tcs.vehicleassistant.core.ConversationSafetyPolicy.forbidsEntertainmentOffer(query)
+                    ) {
                         pendingOfferedTool = "playMusic(relaxing)"
                         android.util.Log.i(TAG, "Stashed soft music offer for follow-up affirm")
+                    } else if (
+                        com.tcs.vehicleassistant.core.ConversationSafetyPolicy.forbidsEntertainmentOffer(query)
+                    ) {
+                        pendingOfferedTool = null
                     }
                     
                     // Don't emit empty finalMsg to avoid clearing the UI
@@ -1083,6 +1094,19 @@ class AgentOrchestrator(
                     for (parsed in parsedTools) {
                         val toolCall = "${parsed.toolName}(${parsed.args})"
                         if (executedTools.add(toolCall)) {
+                            if (
+                                com.tcs.vehicleassistant.core.ConversationSafetyPolicy
+                                    .forbidsEntertainmentOffer(query) &&
+                                com.tcs.vehicleassistant.core.ConversationSafetyPolicy
+                                    .isEntertainmentTool(toolCall)
+                            ) {
+                                android.util.Log.w(TAG, "Crisis turn blocked entertainment tool: $toolCall")
+                                toolFeedbacks.add(
+                                    com.tcs.vehicleassistant.core.ConversationSafetyPolicy
+                                        .evaluate(query).spokenResponse,
+                                )
+                                continue
+                            }
                             if (!toolSchemaGenerator.isToolAllowedForCurrentPrompt(parsed.toolName)) {
                                 android.util.Log.w(TAG, "LLM tool rejected by allow-list: $toolCall")
                                 toolFeedbacks.add(
@@ -1374,9 +1398,9 @@ class AgentOrchestrator(
         private const val TAKING_ACTION_PLACEHOLDER = "Taking action..."
         private const val EMPTY_CATCH_FALLBACK = "I didn't catch that. Could you say that again?"
         private const val EMPTY_TOOL_FALLBACK = "I couldn't run a tool for that. Want to try again?"
-        /** Empathy + offer for emotional / "not feeling good" — never a fake "Done" ACK. */
+        /** Empathy + open offer for mild wellness — not used for crisis (see ConversationSafetyPolicy). */
         internal const val WELLNESS_OFFER =
-            "I'm sorry you're not feeling well. Would you like me to play some music?"
+            "I'm sorry you're not feeling well. Would quiet help, or would you like me to play some music?"
         /** Last resort only after a chat-oriented LLM retry still returned empty — never "didn't catch that". */
         private const val EMPTY_CHAT_LAST_RESORT =
             "I'm here with you. Would you like me to play some music or adjust the cabin?"
