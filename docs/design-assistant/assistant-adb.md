@@ -119,6 +119,8 @@ Extra key alias: `--es mode …` (same as `placement`).
 
 Preview overrides LLM cues while set. Clear to return to LLM / geometry.
 
+Full mood + cue walkthrough: [assistant-emotions-adb.md](./assistant-emotions-adb.md).
+
 ```bash
 # Per-slot
 adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
