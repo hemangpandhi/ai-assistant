@@ -5,6 +5,7 @@ This document captures the UI/UX architecture decisions and operational instruct
 Related:
 
 - [assistant-adb.md](./assistant-adb.md) — command cheat sheet
+- [assistant-emotions-adb.md](./assistant-emotions-adb.md) — ADB test guide for moods + face cues
 - [assistant-standalone.md](./assistant-standalone.md) — module boundary notes
 
 ---
@@ -203,7 +204,7 @@ Host-package action alias: `com.tcs.vehicleassistant.action.SET_ASSISTANT_PLACEM
 
 ## ADB — Face cues (in-face Material icons)
 
-ADB preview overrides LLM-driven cues until cleared. See [assistant-adb.md](./assistant-adb.md) for the full icon list and presets.
+ADB preview overrides LLM-driven cues until cleared. See [assistant-emotions-adb.md](./assistant-emotions-adb.md) for mood + cue walkthroughs, and [assistant-adb.md](./assistant-adb.md) for the short cheat sheet.
 
 ```bash
 adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
