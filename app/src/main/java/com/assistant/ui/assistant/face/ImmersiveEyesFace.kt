@@ -56,6 +56,7 @@ import com.assistant.ui.assistant.ui.theme.AssistantTokens
 import com.assistant.ui.assistant.ui.theme.auraAlphaForContrast
 import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
 import com.assistant.ui.assistant.ui.theme.immersiveMatchedShellBounds
+import com.assistant.ui.assistant.ui.theme.immersiveTrapezoidShellBounds
 import com.assistant.ui.assistant.ui.theme.ImmersiveShellWidthFactor
 
 /** Deep black face fill (NOMI-like) — base for [drawGlossyBlackFaceShell]. */
@@ -284,6 +285,7 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  * @param eyeGlow when non-null, capsule eyes use this EPORO-style purple glow ring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
  * @param faceCues optional LLM anatomy icons; null slots keep geometric eyes/mouth
+ * @param shellKind fixed outer silhouette (no mood morph); default SemiCircle
  */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -298,6 +300,7 @@ fun ImmersiveEyesFace(
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color? = null,
     faceCues: AssistantFaceCues? = null,
+    shellKind: ExpressiveShellKind = ExpressiveShellKind.SemiCircle,
 ) {
     val cues = faceCues?.takeUnless { it.isEmpty }
     val leftEyeIcon = cues?.leftEye
@@ -328,15 +331,23 @@ fun ImmersiveEyesFace(
     val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val target = mood.toImmersiveEyePose()
     val enableIdleMotion = LocalAssistantIdleMotion.current
-    // Fixed SemiCircle shell — glossy layered black face fill.
-    val shellMorph = remember {
+    // Fixed shell — glossy layered black face fill (no mood morphing).
+    val shellMorph = remember(shellKind) {
+        val poly = shellKind.toRoundedPolygon()
         ExpressiveShellMorphState(
-            morph = Morph(
-                start = ExpressiveShellKind.SemiCircle.toRoundedPolygon(),
-                end = ExpressiveShellKind.SemiCircle.toRoundedPolygon(),
-            ),
+            morph = Morph(start = poly, end = poly),
             progress = 1f,
         )
+    }
+    val shellBoundsOf: (Float, Float, Float) -> Rect = remember(shellKind) {
+        when (shellKind) {
+            ExpressiveShellKind.Trapezoid -> { w, h, breath ->
+                immersiveTrapezoidShellBounds(w, h, breath)
+            }
+            else -> { w, h, breath ->
+                immersiveMatchedShellBounds(w, h, breath)
+            }
+        }
     }
     val eyeOpen = remember { Animatable(target.eyeOpen) }
     val eyeWidth = remember { Animatable(target.eyeWidth) }
@@ -599,10 +610,10 @@ fun ImmersiveEyesFace(
         )
 
         translate(left = swayX, top = bobY) {
-            // SemiCircle: narrower base diameter, same height (chin clearance unchanged).
-            val shellBounds = immersiveMatchedShellBounds(size.width, size.height, breath = breath)
+            // Shell footprint: matched SemiCircle band, or wider 45° trapezoid base.
+            val shellBounds = shellBoundsOf(size.width, size.height, breath)
 
-            // Glossy black SemiCircle — layered depth (not flat matte).
+            // Glossy black face plate — layered depth (not flat matte).
             drawGlossyBlackFaceShell(
                 morphState = shellMorph,
                 bounds = shellBounds,

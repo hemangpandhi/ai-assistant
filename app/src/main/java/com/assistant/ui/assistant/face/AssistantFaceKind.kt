@@ -31,6 +31,14 @@ enum class AssistantFaceKind(
         adbKey = "hybrid",
         label = "Immersive hybrid",
     ),
+    /**
+     * Immersive hybrid eyes/glow on a fixed isosceles trapezoid plate
+     * (wider base, 45° legs, light rounding). Main-overlay default.
+     */
+    ImmersiveTrapezoid(
+        adbKey = "trapezoid",
+        label = "Immersive trapezoid",
+    ),
     Eporo(
         adbKey = "eporo",
         label = "EPORO",
@@ -58,7 +66,7 @@ enum class AssistantFaceKind(
     ;
 
     companion object {
-        val Default: AssistantFaceKind = ImmersiveEyes
+        val Default: AssistantFaceKind = ImmersiveTrapezoid
 
         /** Accepts canonical keys plus common aliases (`off`, `immersive`, `classic`, …). */
         fun parse(raw: String?): AssistantFaceKind? {
@@ -71,6 +79,7 @@ enum class AssistantFaceKind(
                 "immersive", "immersive_eyes", "eye", "orb" -> ImmersiveEyes
                 "immersive_glow", "glow_eyes", "aura", "ring", "purple_eyes" -> ImmersiveGlow
                 "immersive_hybrid", "glow_hybrid", "hybrid_eyes", "eyes_hybrid" -> ImmersiveHybrid
+                "immersive_trapezoid", "trap", "trapezium", "isosceles", "wedge" -> ImmersiveTrapezoid
                 "eporp", "robot" -> Eporo
                 "express", "eporo_immersive", "eporo_eyes" -> Fusion
                 "fusion_glow", "glow_fusion", "fusion_capsule", "capsule_fusion" -> FusionGlow

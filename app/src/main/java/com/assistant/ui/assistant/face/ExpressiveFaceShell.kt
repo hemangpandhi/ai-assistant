@@ -21,9 +21,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.assistant.ui.assistant.face.AssistantMood
+import com.assistant.ui.assistant.ui.theme.ImmersiveShellHeightFactor
+import com.assistant.ui.assistant.ui.theme.ImmersiveShellWidthFactor
+import com.assistant.ui.assistant.ui.theme.ImmersiveTrapezoidTopWidthFactor
 
 /**
  * Small Material 3 expressive silhouette set for the assistant outer frame.
@@ -35,6 +39,11 @@ enum class ExpressiveShellKind {
     Oval,
     /** Material 3 gem — used for the pale outer rim plate behind the face shell. */
     Gem,
+    /**
+     * Fixed isosceles trapezoid (wider base, 45° base angles after shell bounds mapping).
+     * Not used in mood morphing — main-overlay [ImmersiveTrapezoidEyesFace] only.
+     */
+    Trapezoid,
 }
 
 /** Mood → one of three face-like expressive shapes. */
@@ -87,6 +96,37 @@ internal fun ExpressiveShellKind.toRoundedPolygon(): RoundedPolygon = when (this
     ExpressiveShellKind.SemiCircle -> MaterialShapes.SemiCircle
     ExpressiveShellKind.Oval -> MaterialShapes.Oval
     ExpressiveShellKind.Gem -> MaterialShapes.Gem
+    ExpressiveShellKind.Trapezoid -> isoscelesTrapezoidShellPolygon()
+}
+
+/**
+ * Unit-normalized isosceles trapezoid: wider base at bottom, light corner rounding.
+ *
+ * Top inset is chosen so that after non-uniform scale into
+ * [immersiveTrapezoidShellBounds] the base angles are 45°.
+ */
+internal fun isoscelesTrapezoidShellPolygon(
+    roundingRadius: Float = 0.05f,
+): RoundedPolygon {
+    // matched width/height = 2*WFactor / (1.4*HFactor); top = factor * matched width
+    // base = top + 2*height → unit topInset a = height/base.
+    val matchedAspect =
+        (2f * ImmersiveShellWidthFactor) / (1.4f * ImmersiveShellHeightFactor)
+    val boundsAspect = ImmersiveTrapezoidTopWidthFactor * matchedAspect + 2f
+    val topInset = (1f / boundsAspect).coerceIn(0.05f, 0.45f)
+    val topY = 0.04f
+    val bottomY = 0.98f
+    val bottomPad = 0.01f
+    val vertices = floatArrayOf(
+        bottomPad, bottomY,
+        1f - bottomPad, bottomY,
+        1f - topInset, topY,
+        topInset, topY,
+    )
+    return RoundedPolygon(
+        vertices = vertices,
+        rounding = CornerRounding(radius = roundingRadius),
+    )
 }
 
 /**

@@ -13,6 +13,7 @@ class AssistantFaceKindTest {
         assertEquals(AssistantFaceKind.ImmersiveEyes, AssistantFaceKind.parse("eyes"))
         assertEquals(AssistantFaceKind.ImmersiveGlow, AssistantFaceKind.parse("glow"))
         assertEquals(AssistantFaceKind.ImmersiveHybrid, AssistantFaceKind.parse("hybrid"))
+        assertEquals(AssistantFaceKind.ImmersiveTrapezoid, AssistantFaceKind.parse("trapezoid"))
         assertEquals(AssistantFaceKind.Eporo, AssistantFaceKind.parse("eporo"))
         assertEquals(AssistantFaceKind.Fusion, AssistantFaceKind.parse("fusion"))
         assertEquals(AssistantFaceKind.FusionGlow, AssistantFaceKind.parse("fusionglow"))
@@ -30,6 +31,9 @@ class AssistantFaceKindTest {
         assertEquals(AssistantFaceKind.ImmersiveGlow, AssistantFaceKind.parse("purple_eyes"))
         assertEquals(AssistantFaceKind.ImmersiveHybrid, AssistantFaceKind.parse("immersive_hybrid"))
         assertEquals(AssistantFaceKind.ImmersiveHybrid, AssistantFaceKind.parse("glow_hybrid"))
+        assertEquals(AssistantFaceKind.ImmersiveTrapezoid, AssistantFaceKind.parse("trap"))
+        assertEquals(AssistantFaceKind.ImmersiveTrapezoid, AssistantFaceKind.parse("trapezium"))
+        assertEquals(AssistantFaceKind.ImmersiveTrapezoid, AssistantFaceKind.parse("isosceles"))
         assertEquals(AssistantFaceKind.Eporo, AssistantFaceKind.parse("eporp"))
         assertEquals(AssistantFaceKind.Fusion, AssistantFaceKind.parse("express"))
         assertEquals(AssistantFaceKind.FusionGlow, AssistantFaceKind.parse("fusion_glow"))
@@ -46,6 +50,7 @@ class AssistantFaceKindTest {
         assertEquals(AssistantFaceKind.ImmersiveEyes, AssistantFaceKind.parse("Eyes"))
         assertEquals(AssistantFaceKind.ImmersiveGlow, AssistantFaceKind.parse("Glow"))
         assertEquals(AssistantFaceKind.ImmersiveHybrid, AssistantFaceKind.parse("Hybrid"))
+        assertEquals(AssistantFaceKind.ImmersiveTrapezoid, AssistantFaceKind.parse("Trapezoid"))
         assertEquals(AssistantFaceKind.FusionGlow, AssistantFaceKind.parse("FusionGlow"))
         assertEquals(AssistantFaceKind.FusionEyes, AssistantFaceKind.parse("FusionEyes"))
     }
@@ -65,6 +70,7 @@ class AssistantFaceKindTest {
         assertTrue(keys.contains("eyes"))
         assertTrue(keys.contains("glow"))
         assertTrue(keys.contains("hybrid"))
+        assertTrue(keys.contains("trapezoid"))
         assertTrue(keys.contains("eporo"))
         assertTrue(keys.contains("fusion"))
         assertTrue(keys.contains("fusionglow"))
@@ -72,7 +78,7 @@ class AssistantFaceKindTest {
     }
 
     @Test
-    fun defaultIsImmersiveEyes() {
-        assertEquals(AssistantFaceKind.ImmersiveEyes, AssistantFaceKind.Default)
+    fun defaultIsImmersiveTrapezoid() {
+        assertEquals(AssistantFaceKind.ImmersiveTrapezoid, AssistantFaceKind.Default)
     }
 }

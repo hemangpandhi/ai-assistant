@@ -25,7 +25,7 @@ All commands below are **one-liners** (copy/paste as-is).
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell appops set com.tcs.vehicleassistant SYSTEM_ALERT_WINDOW allow
 adb shell settings put global vehicle_assistant_ui compose
-adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_face trapezoid
 ```
 
 SET broadcasts summon and hold the immersive overlay by default. Pass `--ez summon false` to change preview without opening it.

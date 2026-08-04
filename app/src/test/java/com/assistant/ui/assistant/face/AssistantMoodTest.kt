@@ -202,6 +202,11 @@ class AssistantMoodTest {
             assertTrue(mood.toShellKind() in ExpressiveShellKind.entries.toSet())
         }
         assertTrue(ExpressiveShellKind.Gem in ExpressiveShellKind.entries)
+        assertTrue(ExpressiveShellKind.Trapezoid in ExpressiveShellKind.entries)
+        // Trapezoid is fixed for the main overlay face — never selected by mood morph.
+        AssistantMood.entries.forEach { mood ->
+            assertTrue(mood.toShellKind() != ExpressiveShellKind.Trapezoid)
+        }
     }
 
     @Test

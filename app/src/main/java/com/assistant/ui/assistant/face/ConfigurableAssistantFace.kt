@@ -76,6 +76,17 @@ fun ConfigurableAssistantFace(
                 gesture = gesture,
                 faceCues = faceCues,
             )
+            AssistantFaceKind.ImmersiveTrapezoid -> ImmersiveTrapezoidEyesFace(
+                mood = mood,
+                modifier = Modifier.fillMaxSize(),
+                gazeX = gazeX,
+                gazeY = gazeY,
+                mouthAmplitude = mouthAmplitude,
+                brandGlow = brandGlow,
+                highContrast = highContrast,
+                gesture = gesture,
+                faceCues = faceCues,
+            )
             AssistantFaceKind.Eporo -> EporoAssistantFace(
                 mood = mood,
                 modifier = Modifier.fillMaxSize(),

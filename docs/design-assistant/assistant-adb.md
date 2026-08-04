@@ -2,8 +2,8 @@
 
 Host package: `com.tcs.vehicleassistant`
 
-Default UI: **Compose immersive** with face **hybrid** (immersive hybrid).  
-Legacy XML voice plates remain available via UI profile.
+Default UI: **Compose immersive** with face **trapezoid** (immersive trapezoid).  
+Legacy XML voice plates remain available via UI profile. Switch back with `--es face hybrid`.
 
 | Section | Settings.Global key |
 |---------|---------------------|
@@ -55,20 +55,16 @@ Tokens: `compose` | `immersive` | `xml` | `xml:polestar` | `xml:pill` | `xml:sid
 
 ## Swap face (live)
 
-Tokens: `none` | `eyes` | `glow` | `hybrid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph`
+Tokens: `none` | `eyes` | `glow` | `hybrid` | `trapezoid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph`
 
-Default on first install: `hybrid`
+Default on first install: `trapezoid` (isosceles plate, 45° base, light rounding). Prior look: `hybrid`.
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver \
-  --es face hybrid
-
-adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver --es face trapezoid
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver --es face hybrid
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver
 adb logcat -d -s AssistantFace:I | tail -n 3
-
-adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_face trapezoid
 adb shell settings get global design_assistant_face
 ```
 
@@ -228,9 +224,9 @@ Wake-word / home-button VIS session uses the same Compose immersive UI by defaul
 ### Quick presets
 
 ```bash
-# Compose + hybrid face + fullscreen + hide debug strip + 5s idle close
+# Compose + trapezoid face + fullscreen + hide debug strip + 5s idle close
 adb shell settings put global vehicle_assistant_ui compose
-adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_face trapezoid
 adb shell settings put global design_assistant_placement fullscreen
 adb shell settings put global vehicle_assistant_debug_strip off
 adb shell settings put global vehicle_assistant_idle_timeout_sec 5
@@ -238,7 +234,7 @@ adb shell am force-stop com.tcs.vehicleassistant
 
 # Left-edge card demo
 adb shell settings put global vehicle_assistant_ui compose
-adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_face trapezoid
 adb shell settings put global design_assistant_placement left
 adb shell am force-stop com.tcs.vehicleassistant
 ```

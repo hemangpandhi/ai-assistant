@@ -24,7 +24,7 @@ Related:
 | Setting | Default | Notes |
 |---------|---------|--------|
 | UI renderer | `compose` | Immersive Compose stage in the voice session |
-| Face | `hybrid` | Immersive hybrid eyes |
+| Face | `trapezoid` | Immersive trapezoid plate (switch back: `hybrid`) |
 | Placement | `fullscreen` | Full overlay, or left / right / bottom edge cards |
 | Backend (UI events) | `VehicleAgentAssistantBackend` (default) / `DemoAssistantBackend` | Production agent bridge; demo scripts for UI-only validation |
 
@@ -140,13 +140,13 @@ Persisted in SharedPreferences + `Settings.Global` (`design_assistant_face`). Li
 ```bash
 adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE \
   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver \
-  --es face hybrid
+  --es face trapezoid
 
 adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE \
   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver
 adb logcat -d -s AssistantFace:I | tail -n 3
 
-adb shell settings put global design_assistant_face hybrid
+adb shell settings put global design_assistant_face trapezoid
 adb shell settings get global design_assistant_face
 ```
 
@@ -157,7 +157,8 @@ adb shell settings get global design_assistant_face
 | `none` | Transcript only |
 | `eyes` | Immersive eyes |
 | `glow` | Immersive glow |
-| `hybrid` | Immersive hybrid (**default**) |
+| `hybrid` | Immersive hybrid (prior default; switch back) |
+| `trapezoid` | Immersive trapezoid plate (**default**) |
 | `eporo` | EPORO robot head |
 | `fusion` | Fusion (EPORO shell + immersive expressions) |
 | `fusionglow` | Fusion + glow capsule eyes |
@@ -165,7 +166,7 @@ adb shell settings get global design_assistant_face
 | `droid` | Droid |
 | `glyph` | Classic glyph |
 
-Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `express`→`fusion`, `classic`→`glyph`.
+Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `trap`/`trapezium`→`trapezoid`, `express`→`fusion`, `classic`→`glyph`.
 
 ---
 
