@@ -168,7 +168,7 @@ internal fun DrawScope.drawNomiMateDecor(
             color,
         )
         NomiProp.Glasses -> drawNomiGlasses(
-            cx = cx,
+            eyeMidX = eyeMidX,
             eyeY = eyeY,
             faceR = faceR,
             color = color,
@@ -330,7 +330,7 @@ private fun DrawScope.drawNomiCrown(c: Offset, s: Float, color: Color) {
  * (outer-left to outer-right); each lens sits on one eye.
  */
 private fun DrawScope.drawNomiGlasses(
-    cx: Float,
+    eyeMidX: Float,
     eyeY: Float,
     faceR: Float,
     color: Color,
@@ -343,8 +343,8 @@ private fun DrawScope.drawNomiGlasses(
     val bridge = (eyeHalfGap * 0.22f).coerceIn(faceR * 0.03f, faceR * 0.08f)
     val lensW = ((bothEyesWidth - bridge) * 0.5f).coerceAtLeast(eyeHalfWidth * 2.4f)
     val lensH = (eyeHalfWidth * 2.6f).coerceIn(faceR * 0.22f, faceR * 0.34f)
-    val leftCx = cx - eyeHalfGap
-    val rightCx = cx + eyeHalfGap
+    val leftCx = eyeMidX - eyeHalfGap
+    val rightCx = eyeMidX + eyeHalfGap
     val leftX = leftCx - lensW * 0.5f
     val rightX = rightCx - lensW * 0.5f
     val y = eyeY - lensH * 0.5f
@@ -364,11 +364,10 @@ private fun DrawScope.drawNomiGlasses(
         cornerRadius = corner,
         style = Stroke(width = stroke),
     )
-    val bridgeY = eyeY
     drawLine(
         color,
-        Offset(leftX + lensW, bridgeY),
-        Offset(rightX, bridgeY),
+        Offset(leftX + lensW, eyeY),
+        Offset(rightX, eyeY),
         stroke,
         StrokeCap.Round,
     )

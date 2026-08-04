@@ -747,6 +747,7 @@ fun ImmersiveEyesFace(
                         skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
                             mouthIcon != null,
                         eyeHalfGap = gap,
+                        eyeMidX = cx + gaze,
                         eyeY = eyeY,
                         eyeHalfWidth = barW,
                     )
