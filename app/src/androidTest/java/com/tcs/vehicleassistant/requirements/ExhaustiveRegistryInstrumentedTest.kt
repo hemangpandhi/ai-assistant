@@ -3,7 +3,7 @@ package com.tcs.vehicleassistant.requirements
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.core.DirectToolResolver
-import com.tcs.vehicleassistant.handlers.ToolHandlerRegistry
+import com.tcs.vehicleassistant.handlers.DefaultToolHandlerRegistry
 import com.tcs.vehicleassistant.support.RegistryTestSupport
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -87,7 +87,7 @@ class ExhaustiveRegistryInstrumentedTest {
                 missing += "no ToolDefinition for $key"
                 continue
             }
-            if (ToolHandlerRegistry.getHandler(key, def) == null) {
+            if (DefaultToolHandlerRegistry().getHandler(key, def) == null) {
                 missing += "no handler impl for $key"
             }
         }

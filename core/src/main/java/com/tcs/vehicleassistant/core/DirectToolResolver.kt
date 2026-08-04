@@ -13,7 +13,7 @@ package com.tcs.vehicleassistant.core
 class DirectToolResolver {
     companion object {
         private val testInstance = DirectToolResolver()
-        fun resolve(query: String, specs: List<ToolSpec>, policy: Policy): Outcome = testInstance.resolve(query, specs, policy)
+        fun resolve(query: String, specs: List<ToolSpec>, policy: Policy = Policy()): Outcome = testInstance.resolve(query, specs, policy)
         fun normalize(query: String): String = testInstance.normalize(query)
         fun collapseAsrRepeats(query: String): String = testInstance.collapseAsrRepeats(query)
         fun extractCityArg(query: String): String? = testInstance.extractCityArg(query)

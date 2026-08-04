@@ -1,7 +1,7 @@
 package com.tcs.vehicleassistant.requirements
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.tcs.vehicleassistant.MemoryManager
+import com.tcs.vehicleassistant.ConversationMemory
 import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.core.TtsVoiceCatalog
 import com.tcs.vehicleassistant.support.RegistryTestSupport
@@ -21,17 +21,19 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class UseCaseScenarioInstrumentedTest {
+    private val tm = RegistryTestSupport.initializedToolManager()
+
 
     private lateinit var specs: List<DirectToolResolver.ToolSpec>
 
     @Before
     fun setUp() {
-        MemoryManager.clearMemory()
+        ConversationMemory.clearMemory()
         specs = RegistryTestSupport.directToolSpecs()
     }
 
     private fun assertTool(query: String, expectedId: String): DirectToolResolver.Hit {
-        val outcome = DirectToolResolver.resolve(query, specs)
+        val outcome = tm.directToolResolver.resolve(query, specs)
         assertTrue("expected Execute for '$query', got $outcome", outcome is DirectToolResolver.Outcome.Execute)
         val hit = (outcome as DirectToolResolver.Outcome.Execute).hit
         assertEquals("query='$query'", expectedId, hit.toolId)

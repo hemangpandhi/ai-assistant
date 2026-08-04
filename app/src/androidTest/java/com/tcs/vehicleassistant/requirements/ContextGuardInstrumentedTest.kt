@@ -2,7 +2,7 @@ package com.tcs.vehicleassistant.requirements
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.tcs.vehicleassistant.core.CabinSnapshot
-import com.tcs.vehicleassistant.core.CabinSnapshotReader
+import com.tcs.vehicleassistant.hardware.CabinSnapshotReader
 import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.core.NavSessionState
 import com.tcs.vehicleassistant.support.RegistryTestSupport
@@ -18,6 +18,8 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class ContextGuardInstrumentedTest {
+    private val tm = RegistryTestSupport.initializedToolManager()
+
 
     @Before
     fun setUp() {
@@ -28,7 +30,7 @@ class ContextGuardInstrumentedTest {
 
     @Test
     fun registryLoadsContextPolicies() {
-        assertTrue("context policies should be enabled after ToolManager init", ContextGuard.enabled)
+        assertTrue("context policies should be enabled after ToolManager init", tm.contextGuard.enabled)
         val loud = CabinSnapshot(
             mediaVolumePct = 92,
             mediaPlaying = true,
@@ -43,7 +45,7 @@ class ContextGuardInstrumentedTest {
             isParked = true,
             city = "Tokyo",
         )
-        val decision = ContextGuard.evaluate("setVolumeLevel(up)", loud)
+        val decision = tm.contextGuard.evaluate("setVolumeLevel(up)", loud)
         assertTrue(
             "expected Confirm for loud volume-up, got $decision",
             decision is ContextGuard.Decision.Confirm,
@@ -66,7 +68,7 @@ class ContextGuardInstrumentedTest {
             speedMph = 0,
             gear = "Park",
         )
-        val d = ContextGuard.evaluate("increaseFanSpeed()", snap)
+        val d = tm.contextGuard.evaluate("increaseFanSpeed()", snap)
         assertTrue(d is ContextGuard.Decision.Block)
     }
 
@@ -86,11 +88,11 @@ class ContextGuardInstrumentedTest {
             fuelLevelPct = 8,
             city = "Tokyo",
         )
-        val low = ContextGuard.evaluate("startNavigationTo(\"airport\")", lowFuel)
+        val low = tm.contextGuard.evaluate("startNavigationTo(\"airport\")", lowFuel)
         assertTrue("expected low-fuel confirm, got $low", low is ContextGuard.Decision.Confirm)
 
         val rerouteSnap = lowFuel.copy(fuelLevelPct = 80, navActiveDest = "Tokyo Tower")
-        val reroute = ContextGuard.evaluate("startNavigationTo(\"Tokyo Skytree\")", rerouteSnap)
+        val reroute = tm.contextGuard.evaluate("startNavigationTo(\"Tokyo Skytree\")", rerouteSnap)
         assertTrue("expected reroute confirm, got $reroute", reroute is ContextGuard.Decision.Confirm)
     }
 
@@ -109,7 +111,7 @@ class ContextGuardInstrumentedTest {
             gear = "Drive",
             isParked = false,
         )
-        val d = ContextGuard.evaluate("openTrunk()", moving)
+        val d = tm.contextGuard.evaluate("openTrunk()", moving)
         assertTrue(d is ContextGuard.Decision.Block)
     }
 
@@ -130,9 +132,9 @@ class ContextGuardInstrumentedTest {
             isParked = true,
             city = "Tokyo",
         )
-        val first = ContextGuard.evaluate("setVolumeLevel(up)", loud)
+        val first = tm.contextGuard.evaluate("setVolumeLevel(up)", loud)
         assertTrue(first is ContextGuard.Decision.Confirm)
-        val second = ContextGuard.evaluate("setVolumeLevel(up)", loud)
+        val second = tm.contextGuard.evaluate("setVolumeLevel(up)", loud)
         assertTrue(
             "unchanged cabin must still Confirm — orchestrator skipGuard is required",
             second is ContextGuard.Decision.Confirm,

@@ -93,6 +93,12 @@ object TabletUseCaseReport {
 
     fun passedCount(): Int = results.count { it.passed }
     fun failedCount(): Int = results.count { !it.passed }
+    fun totalCount(): Int = results.size
+
+    fun getFailedCasesSummary(): String {
+        return results.filter { !it.passed }
+            .joinToString("\n") { "- ${it.title}: ${it.detail}" }
+    }
 
     fun toJson(
         deviceSerial: String = "",

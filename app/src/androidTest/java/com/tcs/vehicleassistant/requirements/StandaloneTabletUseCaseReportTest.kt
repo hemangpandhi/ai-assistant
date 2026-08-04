@@ -2,9 +2,9 @@ package com.tcs.vehicleassistant.requirements
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.tcs.vehicleassistant.MemoryManager
+import com.tcs.vehicleassistant.ConversationMemory
 import com.tcs.vehicleassistant.core.CabinSnapshot
-import com.tcs.vehicleassistant.core.CabinSnapshotReader
+import com.tcs.vehicleassistant.hardware.CabinSnapshotReader
 import com.tcs.vehicleassistant.core.ConfirmationPolicy
 import com.tcs.vehicleassistant.core.ContextGuard
 import com.tcs.vehicleassistant.core.ConversationalIntent
@@ -34,12 +34,12 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class StandaloneTabletUseCaseReportTest {
+    private val tm = RegistryTestSupport.initializedToolManager()
 
     @Test
     fun runAllStandaloneUseCases_andWriteReport() {
         TabletUseCaseReport.reset()
-        MemoryManager.clearMemory()
-        val tm = RegistryTestSupport.initializedToolManager()
+        ConversationMemory.clearMemory()
         val specs = RegistryTestSupport.directToolSpecs(tm)
         val args = InstrumentationRegistry.getArguments()
         val serial = args.getString("deviceSerial").orEmpty()
@@ -59,9 +59,9 @@ class StandaloneTabletUseCaseReportTest {
 
         val failed = TabletUseCaseReport.failedCount()
         val total = TabletUseCaseReport.snapshot().size
+        val failedCases = TabletUseCaseReport.getFailedCasesSummary()
         assertTrue(
-            "Standalone tablet use-case report: $failed/$total failed. " +
-                "See ${TabletUseCaseReport.MD_PATH}",
+            "Standalone tablet use-case report: $failed/${TabletUseCaseReport.totalCount()} failed.\n$failedCases\nSee /data/local/tmp/vehicleassistant_usecase_report.md",
             failed == 0,
         )
     }
@@ -75,7 +75,7 @@ class StandaloneTabletUseCaseReportTest {
                 title = "DirectTool '${scenario.query}' → ${scenario.toolId}",
                 nextStepHint = NextStepHint.SEMANTIC_KEYWORD,
             ) {
-                val outcome = DirectToolResolver.resolve(scenario.query, specs)
+                val outcome = tm.directToolResolver.resolve(scenario.query, specs)
                 check(outcome is DirectToolResolver.Outcome.Execute) {
                     "expected Execute, got $outcome"
                 }
@@ -111,7 +111,7 @@ class StandaloneTabletUseCaseReportTest {
                 title = "Demo phrase '$query' → $expected",
                 nextStepHint = NextStepHint.SEMANTIC_KEYWORD,
             ) {
-                val outcome = DirectToolResolver.resolve(query, specs)
+                val outcome = tm.directToolResolver.resolve(query, specs)
                 check(outcome is DirectToolResolver.Outcome.Execute) {
                     "expected Execute for '$query', got $outcome"
                 }
@@ -153,7 +153,7 @@ class StandaloneTabletUseCaseReportTest {
             title = "Unlock while driving → Confirm",
             nextStepHint = NextStepHint.VIOLATION,
         ) {
-            val d = ContextGuard.evaluate("unlockDoors()", driving)
+            val d = tm.contextGuard.evaluate("unlockDoors()", driving)
             check(d is ContextGuard.Decision.Confirm) { "got $d" }
         }
 
@@ -163,7 +163,7 @@ class StandaloneTabletUseCaseReportTest {
             title = "Open trunk while driving → Block",
             nextStepHint = NextStepHint.VIOLATION,
         ) {
-            val d = ContextGuard.evaluate("openTrunk()", driving)
+            val d = tm.contextGuard.evaluate("openTrunk()", driving)
             check(d is ContextGuard.Decision.Block) { "got $d" }
         }
 
@@ -173,7 +173,7 @@ class StandaloneTabletUseCaseReportTest {
             title = "Unlock when parked (known gear) → Allow",
             nextStepHint = NextStepHint.VIOLATION,
         ) {
-            val d = ContextGuard.evaluate("unlockDoors()", parked)
+            val d = tm.contextGuard.evaluate("unlockDoors()", parked)
             check(d is ContextGuard.Decision.Allow) { "got $d" }
         }
 
@@ -184,7 +184,7 @@ class StandaloneTabletUseCaseReportTest {
             nextStepHint = NextStepHint.VIOLATION,
         ) {
             val unknown = parked.copy(gear = "Unknown", isParked = false)
-            val d = ContextGuard.evaluate("unlockDoors()", unknown)
+            val d = tm.contextGuard.evaluate("unlockDoors()", unknown)
             check(d is ContextGuard.Decision.Confirm) { "got $d" }
             check((d as ContextGuard.Decision.Confirm).policyId == SafetyCriticalTools.GEAR_UNKNOWN_POLICY_ID)
         }
@@ -195,7 +195,7 @@ class StandaloneTabletUseCaseReportTest {
             title = "Volume up when loud → Confirm",
             nextStepHint = NextStepHint.VIOLATION,
         ) {
-            val d = ContextGuard.evaluate("setVolumeLevel(up)", driving)
+            val d = tm.contextGuard.evaluate("setVolumeLevel(up)", driving)
             check(d is ContextGuard.Decision.Confirm) { "got $d" }
             check(LlmToolTurnPolicy.looksLikeQuestion((d as ContextGuard.Decision.Confirm).message))
         }
@@ -302,7 +302,7 @@ class StandaloneTabletUseCaseReportTest {
             title = "feeling cold → yes → seat heater",
             nextStepHint = NextStepHint.BUG,
         ) {
-            val outcome = DirectToolResolver.resolve("I am feeling cold", specs)
+            val outcome = tm.directToolResolver.resolve("I am feeling cold", specs)
             check(outcome is DirectToolResolver.Outcome.Execute)
             val follow = FollowUpRouter.resolveDirectTool(
                 "yes",
@@ -322,7 +322,7 @@ class StandaloneTabletUseCaseReportTest {
             val confirmTools = specs.filter { it.requiresConfirmation && it.directExecutable }
             for (tool in confirmTools) {
                 val kw = tool.keywords.firstOrNull { it.length >= 5 } ?: continue
-                val outcome = DirectToolResolver.resolve(kw, specs)
+                val outcome = tm.directToolResolver.resolve(kw, specs)
                 check(outcome is DirectToolResolver.Outcome.Skip) {
                     "${tool.id} keyword '$kw' should Skip, got $outcome"
                 }

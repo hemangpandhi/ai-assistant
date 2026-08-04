@@ -20,6 +20,8 @@ import org.junit.runners.Parameterized
 class DirectToolRegistryInstrumentedTest(
     private val scenario: RegistryTestSupport.DirectScenario,
 ) {
+    private val tm = RegistryTestSupport.initializedToolManager()
+
 
     companion object {
         @JvmStatic
@@ -34,7 +36,7 @@ class DirectToolRegistryInstrumentedTest(
     @Test
     fun resolvesToExpectedTool() {
         val specs = RegistryTestSupport.directToolSpecs()
-        val outcome = DirectToolResolver.resolve(scenario.query, specs)
+        val outcome = tm.directToolResolver.resolve(scenario.query, specs)
         assertTrue(
             "expected Execute for '${scenario.query}' → ${scenario.toolId}, got $outcome",
             outcome is DirectToolResolver.Outcome.Execute,
@@ -55,6 +57,7 @@ class DirectToolRegistryInstrumentedTest(
 
 @RunWith(AndroidJUnit4::class)
 class DirectToolCatalogueSanityInstrumentedTest {
+    private val tm = RegistryTestSupport.initializedToolManager()
 
     private lateinit var specs: List<DirectToolResolver.ToolSpec>
 
@@ -89,7 +92,7 @@ class DirectToolCatalogueSanityInstrumentedTest {
             "where was inception filmed in tokyo",
         )
         for (q in skips) {
-            val outcome = DirectToolResolver.resolve(q, specs)
+            val outcome = tm.directToolResolver.resolve(q, specs)
             assertTrue("expected Skip for '$q', got $outcome", outcome is DirectToolResolver.Outcome.Skip)
         }
     }

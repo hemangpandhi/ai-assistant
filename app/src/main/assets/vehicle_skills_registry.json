@@ -2022,7 +2022,7 @@
       },
       {
         "user": "I'm so excited for this trip",
-        "assistant": "<mood>excited</mood> Same here — this is going to be great!"
+        "assistant": "<mood>excited</mood> Same here \u2014 this is going to be great!"
       }
     ],
     "context_policies": {
@@ -2278,6 +2278,19 @@
           },
           "action": "confirm",
           "message": "Fuel is low ({fuel_level_pct}%) near {city}. Start navigation anyway?"
+        },
+        {
+          "id": "reroute_confirmation",
+          "priority": 11,
+          "applies_to": [
+            "startNavigationTo"
+          ],
+          "when": {
+            "require_nav_active": true,
+            "require_nav_dest_differs_arg": true
+          },
+          "action": "confirm",
+          "message": "You are already navigating to {nav_active_dest}. Route to the new destination instead?"
         }
       ]
     }
