@@ -57,7 +57,7 @@ Tokens: `compose` | `immersive` | `xml` | `xml:polestar` | `xml:pill` | `xml:sid
 
 Tokens: `none` | `eyes` | `glow` | `hybrid` | `trapezoid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph`
 
-Default on first install: `trapezoid` (isosceles plate, 45° base, light rounding). Prior look: `hybrid`.
+Default on first install: `trapezoid` (isosceles plate, base ~20% wider than top, light rounding). Prior look: `hybrid`.
 
 ```bash
 adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver --es face trapezoid

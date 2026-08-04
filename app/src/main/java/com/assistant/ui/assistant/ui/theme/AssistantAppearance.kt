@@ -70,9 +70,12 @@ internal const val ImmersiveShellHeightFactor = 1.42f
 
 /**
  * Trapezoid top width as a fraction of the matched SemiCircle shell width.
- * Base grows to `top + 2*height` so legs land at 45°; eyes/mouth stay on faceR.
+ * Base is [ImmersiveTrapezoidBaseOverTop] × top (subtle taper); eyes/mouth stay on faceR.
  */
-internal const val ImmersiveTrapezoidTopWidthFactor = 0.62f
+internal const val ImmersiveTrapezoidTopWidthFactor = 1f
+
+/** Base width / top width for the immersive trapezoid plate (20% wider base). */
+internal const val ImmersiveTrapezoidBaseOverTop = 1.20f
 
 internal fun immersiveMatchedShellBounds(
     width: Float,
@@ -93,16 +96,15 @@ internal fun immersiveMatchedShellBounds(
     )
 }
 
-/** Same vertical band as [immersiveMatchedShellBounds]; wider base for 45° trapezoid legs. */
+/** Same vertical band as [immersiveMatchedShellBounds]; base ~20% wider than top. */
 internal fun immersiveTrapezoidShellBounds(
     width: Float,
     height: Float,
     breath: Float = 1f,
 ): Rect {
     val matched = immersiveMatchedShellBounds(width, height, breath)
-    val shellHeight = matched.height
     val topWidth = matched.width * ImmersiveTrapezoidTopWidthFactor
-    val baseWidth = topWidth + 2f * shellHeight
+    val baseWidth = topWidth * ImmersiveTrapezoidBaseOverTop
     val cx = (matched.left + matched.right) * 0.5f
     return Rect(
         left = cx - baseWidth * 0.5f,

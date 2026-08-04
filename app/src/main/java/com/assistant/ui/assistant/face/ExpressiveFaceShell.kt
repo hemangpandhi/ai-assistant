@@ -25,9 +25,7 @@ import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.assistant.ui.assistant.face.AssistantMood
-import com.assistant.ui.assistant.ui.theme.ImmersiveShellHeightFactor
-import com.assistant.ui.assistant.ui.theme.ImmersiveShellWidthFactor
-import com.assistant.ui.assistant.ui.theme.ImmersiveTrapezoidTopWidthFactor
+import com.assistant.ui.assistant.ui.theme.ImmersiveTrapezoidBaseOverTop
 
 /**
  * Small Material 3 expressive silhouette set for the assistant outer frame.
@@ -40,7 +38,7 @@ enum class ExpressiveShellKind {
     /** Material 3 gem — used for the pale outer rim plate behind the face shell. */
     Gem,
     /**
-     * Fixed isosceles trapezoid (wider base, 45° base angles after shell bounds mapping).
+     * Fixed isosceles trapezoid (base ~20% wider than top, light rounding).
      * Not used in mood morphing — main-overlay [ImmersiveTrapezoidEyesFace] only.
      */
     Trapezoid,
@@ -102,18 +100,14 @@ internal fun ExpressiveShellKind.toRoundedPolygon(): RoundedPolygon = when (this
 /**
  * Unit-normalized isosceles trapezoid: wider base at bottom, light corner rounding.
  *
- * Top inset is chosen so that after non-uniform scale into
- * [immersiveTrapezoidShellBounds] the base angles are 45°.
+ * Top/base ratio matches [ImmersiveTrapezoidBaseOverTop] (base 20% wider than top).
  */
 internal fun isoscelesTrapezoidShellPolygon(
     roundingRadius: Float = 0.05f,
 ): RoundedPolygon {
-    // matched width/height = 2*WFactor / (1.4*HFactor); top = factor * matched width
-    // base = top + 2*height → unit topInset a = height/base.
-    val matchedAspect =
-        (2f * ImmersiveShellWidthFactor) / (1.4f * ImmersiveShellHeightFactor)
-    val boundsAspect = ImmersiveTrapezoidTopWidthFactor * matchedAspect + 2f
-    val topInset = (1f / boundsAspect).coerceIn(0.05f, 0.45f)
+    // Unit box width = base; topWidth/base = 1 / baseOverTop → inset each side.
+    val topFraction = (1f / ImmersiveTrapezoidBaseOverTop).coerceIn(0.5f, 0.95f)
+    val topInset = ((1f - topFraction) * 0.5f).coerceIn(0.02f, 0.24f)
     val topY = 0.04f
     val bottomY = 0.98f
     val bottomPad = 0.01f

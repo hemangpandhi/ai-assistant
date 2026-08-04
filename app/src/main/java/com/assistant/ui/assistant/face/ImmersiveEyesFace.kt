@@ -610,7 +610,7 @@ fun ImmersiveEyesFace(
         )
 
         translate(left = swayX, top = bobY) {
-            // Shell footprint: matched SemiCircle band, or wider 45° trapezoid base.
+            // Shell footprint: matched SemiCircle band, or trapezoid (base ~20% > top).
             val shellBounds = shellBoundsOf(size.width, size.height, breath)
 
             // Glossy black face plate — layered depth (not flat matte).

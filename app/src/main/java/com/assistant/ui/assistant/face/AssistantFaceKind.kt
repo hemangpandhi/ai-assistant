@@ -33,7 +33,7 @@ enum class AssistantFaceKind(
     ),
     /**
      * Immersive hybrid eyes/glow on a fixed isosceles trapezoid plate
-     * (wider base, 45° legs, light rounding). Main-overlay default.
+     * (base ~20% wider than top, light rounding). Main-overlay default.
      */
     ImmersiveTrapezoid(
         adbKey = "trapezoid",
