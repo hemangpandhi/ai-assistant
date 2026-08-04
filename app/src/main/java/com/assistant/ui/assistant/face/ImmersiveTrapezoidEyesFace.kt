@@ -11,11 +11,11 @@ import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 
 /**
- * Main-overlay immersive face with a fixed isosceles trapezoid shell
+ * Optional immersive face with a fixed isosceles trapezoid shell
  * (base ~20% wider than top, light corner rounding).
  *
  * Eyes / mouth / cues / hybrid purple-glow behavior match [ImmersiveHybridEyesFace];
- * only the outer plate differs. Switch back with face token `hybrid`.
+ * only the outer plate differs. Enable with face token `trapezoid`.
  */
 @Composable
 fun ImmersiveTrapezoidEyesFace(
