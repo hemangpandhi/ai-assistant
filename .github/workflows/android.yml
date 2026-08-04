@@ -37,27 +37,27 @@ jobs:
         run: echo "GEMINI_API_KEY=" > local.properties
 
       - name: Compile
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: ./gradlew :app:assembleDevDebug --stacktrace
 
       - name: Unit tests
-        run: ./gradlew :app:testDebugUnitTest --stacktrace
+        run: ./gradlew :app:testDevDebugUnitTest --stacktrace
 
       - name: Coverage report
         run: ./gradlew :app:jacocoDebugUnitTestReport --stacktrace
 
       - name: Lint
-        run: ./gradlew :app:lintDebug --stacktrace
+        run: ./gradlew :app:lintDevDebug --stacktrace
 
       # Exercises R8 and the resource shrinker. Minification is where reflective and JNI-reached
       # classes get stripped, so a broken keep rule has to fail here rather than on a head unit.
       - name: Release build with R8
-        run: ./gradlew :app:assembleRelease --stacktrace
+        run: ./gradlew :app:assembleProdRelease --stacktrace
 
       - name: Verify reflectively-reached classes survived R8
         run: ./scripts/verify_r8_keeps.sh
 
       - name: Instrumented test compilation
-        run: ./gradlew :app:assembleDebugAndroidTest --stacktrace
+        run: ./gradlew :app:assembleDevDebugAndroidTest --stacktrace
 
       - name: Upload reports
         if: always()

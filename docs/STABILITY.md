@@ -176,9 +176,10 @@ refactor.
   proves the classes exist under their original names, not that every reflective lookup succeeds.
   The first on-device run of a release build after any change to `proguard-rules.pro` is a real test
   and should be treated as one.
-- **`app/platform.jks` is committed with the password in `build.gradle.kts`.** That is fine for a
-  platform-signed development image and unacceptable for a production release; wire the signing
-  config to environment variables or a keystore service before shipping.
+- **Release signing is externalized.** Keystore material is no longer stored in the repository.
+  Release signing is configured through `local.properties`/CI-injected values
+  (`SIGNING_STORE_FILE`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD`).
+  Production releases must use managed secrets or a keystore service.
 - **Instrumented tests are compile-verified only.** `app/src/androidTest` builds in CI but nothing
   runs it. Running it needs an AAOS emulator image with the `android.car` service, which is a
   meaningful piece of CI infrastructure to stand up.

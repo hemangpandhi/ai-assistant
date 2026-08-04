@@ -7,6 +7,10 @@ if (localPropertiesFile.exists()) {
     localProperties.load(FileInputStream(localPropertiesFile))
 }
 val geminiApiKey: String = localProperties.getProperty("GEMINI_API_KEY", "")
+val signingStoreFile = localProperties.getProperty("SIGNING_STORE_FILE", "")
+val signingStorePassword = localProperties.getProperty("SIGNING_STORE_PASSWORD", "")
+val signingKeyAlias = localProperties.getProperty("SIGNING_KEY_ALIAS", "")
+val signingKeyPassword = localProperties.getProperty("SIGNING_KEY_PASSWORD", "")
 
 val coroutinesVersion = "1.8.1"
 val jacocoToolVersion = "0.8.12"
@@ -44,28 +48,56 @@ android {
     }
 
     signingConfigs {
-        create("platform") {
-            storeFile = file("platform.jks")
-            storePassword = "android"
-            keyAlias = "platform"
-            keyPassword = "android"
+        create("releaseExternal") {
+            if (signingStoreFile.isNotBlank()) {
+                storeFile = file(signingStoreFile)
+            }
+            storePassword = signingStorePassword
+            keyAlias = signingKeyAlias
+            keyPassword = signingKeyPassword
         }
     }
 
     buildTypes {
         debug {
-            signingConfig = signingConfigs.getByName("platform")
             enableUnitTestCoverage = true
             enableAndroidTestCoverage = true
         }
         release {
-            signingConfig = signingConfigs.getByName("platform")
+            if (signingStoreFile.isNotBlank()
+                && signingStorePassword.isNotBlank()
+                && signingKeyAlias.isNotBlank()
+                && signingKeyPassword.isNotBlank()
+            ) {
+                signingConfig = signingConfigs.getByName("releaseExternal")
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            buildConfigField("boolean", "ALLOW_DEBUG_CLOUD_INPUT", "false")
+        }
+    }
+
+    flavorDimensions += "env"
+    productFlavors {
+        create("dev") {
+            dimension = "env"
+            applicationIdSuffix = ".dev"
+            versionNameSuffix = "-dev"
+            buildConfigField("boolean", "ALLOW_DEBUG_CLOUD_INPUT", "true")
+        }
+        create("qa") {
+            dimension = "env"
+            applicationIdSuffix = ".qa"
+            versionNameSuffix = "-qa"
+            buildConfigField("boolean", "ALLOW_DEBUG_CLOUD_INPUT", "true")
+        }
+        create("prod") {
+            dimension = "env"
+            buildConfigField("boolean", "ALLOW_DEBUG_CLOUD_INPUT", "false")
         }
     }
     compileOptions {

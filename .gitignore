@@ -23,3 +23,8 @@ device_models/
 /docs/reports/tablet_usecase_report.json
 /docs/reports/tablet_usecase_report.md
 /docs/reports/tablet_usecase_instrumentation.log
+
+# Signing material must never be committed.
+*.jks
+*.p12
+*.pem

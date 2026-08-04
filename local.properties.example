@@ -1,0 +1,15 @@
+# Copy this file to local.properties and customize values for your machine.
+# This file must never contain real secrets in version control.
+
+# Android SDK path (example)
+sdk.dir=/home/your-user/android-sdk
+
+# Optional cloud API key for debug/dev builds
+GEMINI_API_KEY=
+
+# Optional release signing configuration (local or CI-injected)
+# Example: SIGNING_STORE_FILE=/abs/path/to/release.jks
+SIGNING_STORE_FILE=
+SIGNING_STORE_PASSWORD=
+SIGNING_KEY_ALIAS=
+SIGNING_KEY_PASSWORD=
