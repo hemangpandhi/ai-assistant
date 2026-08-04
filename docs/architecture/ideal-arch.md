@@ -8,6 +8,13 @@ Related: [decoupling_roadmap.md](decoupling_roadmap.md),
 [refactor_extension_policy.md](refactor_extension_policy.md),
 [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
 
+External Google / AOSP references:
+
+- [AAOS Voice Interaction Guide](https://source.android.com/docs/automotive/voice/voice_interaction_guide)
+- [VIA app development](https://source.android.com/docs/automotive/voice/voice_interaction_guide/app_development)
+- [Preloaded Assistants UX guidelines (PDF)](https://source.android.com/static/docs/automotive/voice/voice_interaction_guide/preloaded-assistants_UX-guidelines.pdf)
+- [Conversation Design](https://developers.google.com/assistant/conversation-design/learn-about-conversation)
+
 ---
 
 ## Verdict
@@ -398,13 +405,83 @@ If it fails that bar, keep it as a **package**.
 
 ---
 
+## Google / AAOS Voice Interaction alignment
+
+We are a capable **OEM edge agent** (VHAL + on-device LLM + custom KWS), not a
+Google-shaped **AAOS Voice Interaction App (VIA)**. Ideal architecture should
+close the gaps below when product goal is AAOS VIA compliance — or document
+them as conscious OEM exceptions.
+
+### Product posture
+
+| Google preloaded-assistant principle | Ideal posture for this app |
+|--------------------------------------|----------------------------|
+| Integrate as system VIA (PTT / TTT / default assistant) | Keep one system-bound VIS + session; drop dual unbound VIS confusion |
+| Voice-forward; UI augments, does not distract | Prefer voice-plate session; immersive face as optional OEM skin |
+| Reduce complexity / familiar patterns | Car UI Library–friendly plate for OEM theming |
+| Respect privacy — know when listening; easy mute | Wake toggle honored on live path; in-session mic-off affordance |
+| MUST show listening / processing / fulfilling | Keep stage/mood; don’t auto-dismiss errors without recovery |
+| MUST utter feedback on understand / complete | Keep TTS + chime; unify assistant audio attributes |
+| MUST serve as `RecognitionService` for other apps | Real recognizer implementation (not a stub) |
+| SHOULD hotword (DSP / Trusted Hotword when available) | Platform hotword first; app-space KWS as fallback |
+| MAY settings / assist data / keyguard | Settings retained; assist-data path optional but clean |
+
+### High drift (close or explicitly accept)
+
+| Google expects | Current practice | Ideal direction |
+|----------------|------------------|-----------------|
+| **MUST** real `RecognitionService` for `SpeechRecognizer` clients | `StubRecognitionService` always `ERROR_CLIENT`; Sherpa STT is in-process only | Wrap Sherpa (or platform STT) in a real `RecognitionService`; keep cabin path on same engine |
+| **SHOULD** hotword via DSP / `AlwaysOnHotwordDetector` | Custom Vosk `AudioRecord` in `:wakeword` FGS; `CAPTURE_AUDIO_HOTWORD` declared but unused | Prefer OEM DSP / Trusted Hotword; Vosk only as fallback; don’t claim hotword permission without the API |
+| User always knows when listening + easy mute/revoke | UiUx VIS starts wake word **unconditionally**; `WAKE_WORD_ENABLED` honored only on legacy VIS | Honor prefs on **live** VIS; session UI mic-off; stop ≠ pause-only forever |
+| VIS kept light; heavy work in session (ideally separate process) | Agent + LLM + STT in `VehicleAgentService`; dual VIS registered | One bound VIS; session/agent modules own heavy work; legacy VIS unbound or removed |
+| Voice-forward minimal UI; don’t cover system chrome | Immersive full-bleed Compose face/overlay | Default voice plate; immersive as opt-in profile |
+| Car UI Library for OEM-customizable plate | Custom Compose design system only | Expose tokens / plate that OEMs can theme (Car UI where required) |
+| `NotificationListenerService` for tap-to-read | Not implemented | Add if messaging is in product scope |
+| Assist data / `onHandleAssist` for system assist | Weak; Activity fallback when VIS unbound | Stay inside VIS session; optional assist-data handler |
+
+### Medium drift (audio / conversation UX)
+
+| Google / AAOS norm | Current practice | Ideal direction |
+|--------------------|------------------|-----------------|
+| Assistant stream + polite focus | Exclusive focus + reclaim after loss; Compose TTS sometimes `USAGE_MEDIA` | `USAGE_ASSISTANT` end-to-end; transient/may-duck unless OEM requires exclusive |
+| Clear error recovery (no dead ends) | Immersive auto-dismisses some STT errors; XML retries | Uniform retry / re-prompt policy across UI profiles |
+| Interruptible / barge-in | Mic often disarmed in Thinking/Speaking | Listen-through policy on agent port; cancel in-flight on speech start |
+| Concise cooperative replies (Grice maxims) | LLM turns can be long | Prompt/length policy in `:domain:llm`; keep Confirm/Act short |
+| Distraction-optimized activities | Rich settings / gallery / cockpit UIs | Gate setup with UX restrictions; keep drive-time path voice-only |
+
+### Aligned today (preserve)
+
+- System-bound `VoiceInteractionService` + `VoiceInteractionSessionService` + session UI
+- Visual + aural progress (face / stage, chime, TTS)
+- Cabin safety confirm/block (`ContextGuard`, registry policies)
+- Package visibility via `<queries>` (no `QUERY_ALL_PACKAGES`)
+- Release cleartext denied by default
+- Wake in a separate process (isolation idea is right; API choice is the drift)
+- Settings surface (`LocalLLMActivity`)
+
+### Alignment backlog (priority if targeting Google-shaped VIA)
+
+1. Real `RecognitionService` over the cabin STT engine — satisfy MUST.
+2. Honor `WAKE_WORD_ENABLED` on UiUx VIS; obvious mic-off in session UI.
+3. DSP / `AlwaysOnHotwordDetector` when OEM supports it; Vosk as fallback only.
+4. Soften exclusive focus reclaim; unify TTS on `USAGE_ASSISTANT`.
+5. Single bound VIS; Car UI–friendly voice-plate option for OEM.
+6. `NotificationListenerService` / tap-to-read if messaging is in scope.
+
+Module ownership for these fixes should follow blast-radius rules: audio/hotword in
+`:data:hardware` or `:feature:voice`, recognizer contract in voice/app shell,
+UI plate in `:ui`, prefs/policy in `:core` — without rewriting orchestrator.
+
+---
+
 ## Non-goals
 
-- Microservice / multi-process product split (beyond existing wake process)
+- Microservice / multi-process product split (beyond existing wake / Trusted Hotword process)
 - Multi-APK or Play Feature Delivery for cabin control
 - Hilt migration, Firebase / AICore as primary path
 - Rewriting working agent code solely to move folders
 - One Gradle module per handler or audio stage
+- Full Google Assistant cloud parity (Gemini App / phone Assistant feature set)
 
 ---
 
@@ -416,4 +493,6 @@ Ideal is not maximal modularity. It is:
 - a **Capture → Understand → Act → Speak** pipeline that **UI only observes**
 - **hardware and LLM behind ports**
 - each module **hardenable in isolation** via stable contracts + owned tests
+- **AAOS VIA contracts** respected (or consciously excepted): real RecognitionService,
+  privacy-controllable hotword, voice-forward plate, assistant audio etiquette
 - all shipping as **one privileged APK**
