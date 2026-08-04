@@ -563,67 +563,66 @@ fun ImmersiveEyesFace(
         val swayX = idleSway * faceR * 0.02f * motionScale
         val pulse = activityPulse.coerceIn(0f, 1f)
 
-        // Soft pulsing halo behind the character — faint activity cue.
-        val pulseCenter = Offset(cx + swayX * 0.25f, cy + bobY * 0.25f)
-        val pulseA = auraAlphaForContrast(highContrast, 0.08f) * glow *
-            (0.45f + 0.55f * pulse)
-        val pulseR = faceR * (2.15f + 0.22f * pulse)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to brandGlow.copy(alpha = pulseA * 0.16f),
-                    0.45f to brandGlow.copy(alpha = pulseA * 0.06f),
-                    0.80f to brandGlow.copy(alpha = pulseA * 0.02f),
-                    1.0f to Color.Transparent,
+        // Shell-only atmosphere (pulse / parallax / floor) — skipped in island eyes-only mode.
+        if (showShell) {
+            val pulseCenter = Offset(cx + swayX * 0.25f, cy + bobY * 0.25f)
+            val pulseA = auraAlphaForContrast(highContrast, 0.08f) * glow *
+                (0.45f + 0.55f * pulse)
+            val pulseR = faceR * (2.15f + 0.22f * pulse)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to brandGlow.copy(alpha = pulseA * 0.16f),
+                        0.45f to brandGlow.copy(alpha = pulseA * 0.06f),
+                        0.80f to brandGlow.copy(alpha = pulseA * 0.02f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = pulseCenter,
+                    radius = pulseR,
                 ),
-                center = pulseCenter,
                 radius = pulseR,
-            ),
-            radius = pulseR,
-            center = pulseCenter,
-        )
+                center = pulseCenter,
+            )
 
-        // Very light parallax halo — drifts opposite bob/gaze for a soft depth cue.
-        val parallaxX = -lookX.value * faceR * 0.045f - swayX * 0.55f +
-            sin(life * 0.22f).toFloat() * faceR * 0.016f
-        val parallaxY = -bobY * 0.65f - lookY.value * faceR * 0.035f +
-            cos(life * 0.19f).toFloat() * faceR * 0.012f
-        val haloA = auraAlphaForContrast(highContrast, 0.06f) * glow
-        val haloR = faceR * (2.25f + 0.05f * sin(life * 0.5f).toFloat())
-        drawCircle(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to brandGlow.copy(alpha = haloA * 0.18f),
-                    0.50f to brandGlow.copy(alpha = haloA * 0.05f),
-                    1.0f to Color.Transparent,
+            val parallaxX = -lookX.value * faceR * 0.045f - swayX * 0.55f +
+                sin(life * 0.22f).toFloat() * faceR * 0.016f
+            val parallaxY = -bobY * 0.65f - lookY.value * faceR * 0.035f +
+                cos(life * 0.19f).toFloat() * faceR * 0.012f
+            val haloA = auraAlphaForContrast(highContrast, 0.06f) * glow
+            val haloR = faceR * (2.25f + 0.05f * sin(life * 0.5f).toFloat())
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to brandGlow.copy(alpha = haloA * 0.18f),
+                        0.50f to brandGlow.copy(alpha = haloA * 0.05f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = Offset(cx + parallaxX, cy + parallaxY),
+                    radius = haloR,
                 ),
-                center = Offset(cx + parallaxX, cy + parallaxY),
                 radius = haloR,
-            ),
-            radius = haloR,
-            center = Offset(cx + parallaxX, cy + parallaxY),
-        )
+                center = Offset(cx + parallaxX, cy + parallaxY),
+            )
 
-        // Faint floor shadow — flat puddle that barely follows motion so the face feels anchored.
-        val floorCx = cx + swayX * 0.3f
-        val floorCy = cy + faceR * 0.78f + bobY * 0.18f
-        // Track slimmer shell base diameter (was 1.48 when width factor was 1.38).
-        val floorW = faceR * (ImmersiveShellWidthFactor + 0.10f)
-        val floorH = faceR * 0.20f
-        drawOval(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to Color.Black.copy(alpha = 0.30f),
-                    0.40f to Color.Black.copy(alpha = 0.14f),
-                    0.75f to Color.Black.copy(alpha = 0.04f),
-                    1.0f to Color.Transparent,
+            val floorCx = cx + swayX * 0.3f
+            val floorCy = cy + faceR * 0.78f + bobY * 0.18f
+            val floorW = faceR * (ImmersiveShellWidthFactor + 0.10f)
+            val floorH = faceR * 0.20f
+            drawOval(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color.Black.copy(alpha = 0.30f),
+                        0.40f to Color.Black.copy(alpha = 0.14f),
+                        0.75f to Color.Black.copy(alpha = 0.04f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = Offset(floorCx, floorCy),
+                    radius = floorW,
                 ),
-                center = Offset(floorCx, floorCy),
-                radius = floorW,
-            ),
-            topLeft = Offset(floorCx - floorW, floorCy - floorH),
-            size = Size(floorW * 2f, floorH * 2f),
-        )
+                topLeft = Offset(floorCx - floorW, floorCy - floorH),
+                size = Size(floorW * 2f, floorH * 2f),
+            )
+        }
 
         translate(left = swayX, top = bobY) {
             // Shell footprint: matched SemiCircle band, or trapezoid (base ~20% > top).

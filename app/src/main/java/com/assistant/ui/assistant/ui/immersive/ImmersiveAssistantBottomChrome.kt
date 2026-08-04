@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -68,7 +67,7 @@ fun ImmersiveAssistantBottomChrome(
     faceScale: Float = 1f,
     faceAlpha: Float = 1f,
     transcriptAlpha: Float = 1f,
-    /** Multiplier on the ~26%-of-stage face size (e.g. 1.05f for Weather sink). */
+    /** Multiplier on island face size (e.g. 1.05f for Weather sink). */
     faceSizeScale: Float = 1f,
     faceCues: AssistantFaceCues? = null,
     faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)? = null,
@@ -92,9 +91,6 @@ fun ImmersiveAssistantBottomChrome(
                 bottom = 0.dp,
             ),
     ) {
-        // Face targets ~26% of the immersive stage (app area) height — same as pre-island.
-        val stageFaceSize = (maxHeight * AssistantOverlayTokens.FaceStageHeightFraction * faceSizeScale)
-            .coerceIn(AssistantOverlayTokens.FaceSizeMin, AssistantOverlayTokens.FaceSizeMax)
         val density = LocalDensity.current
         // Travel distance for bottom → settled entrance (-1 → 0).
         val belowPx = with(density) {
@@ -111,10 +107,6 @@ fun ImmersiveAssistantBottomChrome(
         IslandCapsuleDock(
             mood = mood,
             hasTranscript = hasTranscript,
-            faceSizeCompact = stageFaceSize,
-            faceSizeExpanded = (stageFaceSize * 0.82f)
-                .coerceIn(AssistantOverlayTokens.FaceSizeMin, stageFaceSize),
-            brandGlow = brandGlow,
             transcriptCharCount = transcript.length,
             contentAlpha = dockAlpha,
             glowBreath = glowBreath,
@@ -135,13 +127,13 @@ fun ImmersiveAssistantBottomChrome(
                     onClick = { /* keep session alive */ },
                 ),
             face = { baseFaceSize ->
-                val faceSize = baseFaceSize.coerceAtLeast(32.dp)
+                val faceSize = (baseFaceSize * faceSizeScale).coerceAtLeast(32.dp)
                 val glyphSize = (faceSize * AssistantOverlayTokens.GlyphSizeFraction)
                     .coerceIn(AssistantOverlayTokens.GlyphSizeMin, AssistantOverlayTokens.GlyphSizeMax)
                 if (showFace && faceKind != AssistantFaceKind.None) {
                     Box(
                         contentAlignment = Alignment.Center,
-                        modifier = Modifier.size(faceSize),
+                        modifier = Modifier.fillMaxSize(),
                     ) {
                         if (showGlyph) {
                             AssistantContextGlyphIcon(
@@ -166,7 +158,7 @@ fun ImmersiveAssistantBottomChrome(
                                 highContrast = highContrast,
                                 gesture = gesture,
                                 faceCues = faceCues,
-                                showShell = true,
+                                showShell = false,
                             )
                         }
                     }

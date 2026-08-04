@@ -47,8 +47,7 @@ internal object AssistantOverlayTokens {
     val IslandListeningHeight = 103.dp
     val IslandExpandedWidthFraction = 0.72f
     val IslandExpandedWidthMin = 168.dp
-    /** Room for stage-sized face + single-line transcript. */
-    val IslandExpandedWidthMax = 720.dp
+    val IslandExpandedWidthMax = 420.dp
     /** Expanded island — a touch taller than idle for breathing room; still widens for text. */
     val IslandExpandedHeight = 120.dp
     val IslandExpandedHeightWithText = 120.dp
