@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -52,6 +54,7 @@ import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
+import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
 import com.assistant.ui.assistant.ui.theme.auraAlphaForContrast
 import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
@@ -286,6 +289,7 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
  * @param faceCues optional LLM anatomy icons; null slots keep geometric eyes/mouth
  * @param shellKind fixed outer silhouette (no mood morph); default SemiCircle
+ * @param showShell when false, draws eyes/mouth only (no SemiCircle plate) — island capsule
  */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -301,6 +305,7 @@ fun ImmersiveEyesFace(
     eyeGlow: Color? = null,
     faceCues: AssistantFaceCues? = null,
     shellKind: ExpressiveShellKind = ExpressiveShellKind.SemiCircle,
+    showShell: Boolean = true,
 ) {
     val cues = faceCues?.takeUnless { it.isEmpty }
     val leftEyeIcon = cues?.leftEye
@@ -525,12 +530,23 @@ fun ImmersiveEyesFace(
         lookX.runMoodGazeScan(mood)
     }
 
-    Canvas(modifier = modifier.aspectRatio(1f)) {
+    val density = LocalDensity.current
+    val islandEyeHalfW = with(density) { (AssistantOverlayTokens.IslandEyeWidth / 2).toPx() }
+    val islandEyeHalfH = with(density) { (AssistantOverlayTokens.IslandEyeHeight / 2).toPx() }
+    val islandEyeHalfGap = with(density) { AssistantOverlayTokens.IslandEyeHalfGap.toPx() }
+
+    Canvas(
+        modifier = if (showShell) {
+            modifier.aspectRatio(1f)
+        } else {
+            modifier.fillMaxSize()
+        },
+    ) {
         val side = minOf(size.width, size.height)
         val cx = size.width * 0.5f
         val cy = size.height * 0.5f
-        // Feature scale only — no drawn shell / black disk.
-        val faceR = side * 0.36f * breath
+        // Feature scale — island uses fixed 20×33 eyes; shell path keeps proportional scale.
+        val faceR = side * (if (showShell) 0.36f else 0.72f) * breath
         val glyph = eyeFillForContrast(highContrast)
         // [eyeGlow].alpha drives a continuous pale↔purple morph (Immersive hybrid).
         val glowAmount = eyeGlow?.alpha?.coerceIn(0f, 1f) ?: 0f
@@ -541,7 +557,7 @@ fun ImmersiveEyesFace(
         }
         val eyeRing = lerp(glyph, glowBase, glowAmount)
         val glow = faceGlow.value.coerceIn(0f, 1.2f)
-        // Listening: static pose + blink only — skip bob/sway to cut GPU while mic is open.
+        // Listening: static pose + blink only — skip bob/sway (same as pre-island).
         val motionScale = if (mood == AssistantMood.Listening) 0f else 1f
         val bobY = idleBob * faceR * 0.058f * motionScale
         val swayX = idleSway * faceR * 0.02f * motionScale
@@ -613,32 +629,48 @@ fun ImmersiveEyesFace(
             // Shell footprint: matched SemiCircle band, or trapezoid (base ~20% > top).
             val shellBounds = shellBoundsOf(size.width, size.height, breath)
 
-            // Glossy black face plate — layered depth (not flat matte).
-            drawGlossyBlackFaceShell(
-                morphState = shellMorph,
-                bounds = shellBounds,
-                base = NomiFaceBlack,
-                rimTint = Color(0xFF8AB4F8),
-            )
-            // Hairline pale rim stroke.
-            val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
-            drawExpressiveFaceShell(
-                morphState = shellMorph,
-                bounds = shellBounds,
-                color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.65f),
-                style = Stroke(width = shellBounds.width * 0.028f, cap = StrokeCap.Round),
-            )
+            if (showShell) {
+                // Glossy black face plate — layered depth (not flat matte).
+                drawGlossyBlackFaceShell(
+                    morphState = shellMorph,
+                    bounds = shellBounds,
+                    base = NomiFaceBlack,
+                    rimTint = Color(0xFF8AB4F8),
+                )
+                // Hairline pale rim stroke.
+                val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
+                drawExpressiveFaceShell(
+                    morphState = shellMorph,
+                    bounds = shellBounds,
+                    color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.65f),
+                    style = Stroke(width = shellBounds.width * 0.028f, cap = StrokeCap.Round),
+                )
+            }
 
             val liveTilt = tilt.value + 0.35f * sin(life * 0.28f).toFloat()
             rotate(liveTilt, pivot = Offset(cx, cy)) {
                 val open = (eyeOpen.value * blink.value).coerceIn(0.05f, 1.12f)
-                val gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
-                val eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
-                val gaze = lookX.value * faceR * 0.06f
-                // Shorter capsules — capped height while animating.
-                val barW = faceR * 0.11f * eyeWidth.value.coerceIn(0.8f, 1.35f)
-                val barH = (faceR * 0.22f * eyeHeight.value.coerceAtMost(1.05f) * open)
-                    .coerceAtMost(faceR * 0.26f)
+                val gap: Float
+                val eyeY: Float
+                val gaze: Float
+                val barW: Float
+                val barH: Float
+                if (showShell) {
+                    gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
+                    eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
+                    gaze = lookX.value * faceR * 0.06f
+                    barW = faceR * 0.11f * eyeWidth.value.coerceIn(0.8f, 1.35f)
+                    barH = (faceR * 0.22f * eyeHeight.value.coerceAtMost(1.05f) * open)
+                        .coerceAtMost(faceR * 0.26f)
+                } else {
+                    // Figma island eyes: 20×33, centers at left 32 / 91 (half-gap 29.5).
+                    // Multiply by breath so the pill still inhales like the shell face.
+                    gap = islandEyeHalfGap
+                    eyeY = cy + lookY.value * islandEyeHalfH * 0.15f
+                    gaze = lookX.value * islandEyeHalfW * 0.35f
+                    barW = islandEyeHalfW * breath
+                    barH = islandEyeHalfH * open * breath
+                }
                 val left = Offset(cx - gap + gaze, eyeY)
                 val right = Offset(cx + gap + gaze, eyeY)
 
@@ -651,9 +683,8 @@ fun ImmersiveEyesFace(
                 val bloom = if (enableIdleMotion) glowAmount else 0f
                 val eyeIconSide = faceR * 0.40f
 
-                // All facial features + cues stay inside the shell — never outside / over eyes.
-                val shellClip = expressiveFaceShellPath(shellMorph, shellBounds)
-                clipPath(shellClip) {
+                // Features stay inside the shell when drawn; island mode skips the clip.
+                val drawFeatures: DrawScope.() -> Unit = {
                     if (blush.value > 0.04f) {
                         val blushA = 0.2f * blush.value
                         val bx = gap * 0.95f
@@ -723,7 +754,7 @@ fun ImmersiveEyesFace(
                             phaseOffset = 2.0f,
                         )
                     }
-                    if (mouthIcon != null && mouthTintCue != null) {
+                    if (mood != AssistantMood.Idle && mouthIcon != null && mouthTintCue != null) {
                         drawAnimatedFaceCueIcon(
                             mouthPainter,
                             mouthCenter,
@@ -763,6 +794,11 @@ fun ImmersiveEyesFace(
                         eyeY = eyeY,
                         eyeHalfWidth = barW,
                     )
+                }
+                if (showShell) {
+                    clipPath(expressiveFaceShellPath(shellMorph, shellBounds), block = drawFeatures)
+                } else {
+                    drawFeatures()
                 }
             }
         }
@@ -934,6 +970,7 @@ fun ImmersiveGlowEyesFace(
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color = EporoGlow,
     faceCues: AssistantFaceCues? = null,
+    showShell: Boolean = true,
 ) {
     ImmersiveEyesFace(
         mood = mood,
@@ -946,6 +983,7 @@ fun ImmersiveGlowEyesFace(
         gesture = gesture,
         eyeGlow = eyeGlow,
         faceCues = faceCues,
+        showShell = showShell,
     )
 }
 
@@ -984,6 +1022,7 @@ fun ImmersiveHybridEyesFace(
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     faceCues: AssistantFaceCues? = null,
+    showShell: Boolean = true,
 ) {
     val glowStrength = remember {
         Animatable(if (mood.usesImmersivePurpleGlow()) 1f else 0f)
@@ -1010,6 +1049,7 @@ fun ImmersiveHybridEyesFace(
         // Always pass a glow color; alpha is the morph amount (0 = pale, 1 = purple).
         eyeGlow = EporoGlow.copy(alpha = glowStrength.value.coerceIn(0f, 1f)),
         faceCues = faceCues,
+        showShell = showShell,
     )
 }
 

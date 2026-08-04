@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -465,11 +466,15 @@ fun ImmersiveAssistantOverlay(
         reveal > 0.02f
     val debugStripVisible by AssistantDebugStripConfig.visible.collectAsStateWithLifecycle()
 
-    // Keep card dim soft if placement flips while already presented.
-    LaunchedEffect(cardPlacement, visible) {
-        if (visible && cardPlacement && backdropAlpha.value > targetBackdropAlpha + 0.02f) {
+    // Keep card dim soft if placement flips while already presented (not during enter).
+    var priorPlacement by remember { mutableStateOf<AssistantPlacement?>(null) }
+    LaunchedEffect(placement, visible) {
+        val prev = priorPlacement
+        priorPlacement = placement
+        if (!visible || prev == null || prev == placement) return@LaunchedEffect
+        if (cardPlacement && backdropAlpha.value > targetBackdropAlpha + 0.02f) {
             backdropAlpha.animateTo(targetBackdropAlpha, tween(220, easing = FastOutSlowInEasing))
-        } else if (visible && !cardPlacement && backdropAlpha.value < 0.95f) {
+        } else if (!cardPlacement && backdropAlpha.value < 0.95f) {
             backdropAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
         }
     }
@@ -754,7 +759,7 @@ fun ImmersiveBorderGlow(
     revealProgress: Float = 1f,
     speechActive: Boolean = false,
     speechEnergy: Float = 0f,
-    /** Shared breath — pass the same instance used by [FaceStageDock] for sync. */
+    /** Shared breath — pass the same instance used by [IslandCapsuleDock] for sync. */
     glowBreath: ImmersiveGlowBreath? = null,
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
@@ -950,11 +955,16 @@ fun ImmersiveTranscript(
     speaker: DialogueSpeaker,
     live: Boolean,
     modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Start,
 ) {
-    // Centered band ≤60% of stage width so spoken words never drift far left.
+    // Fills the island text slot; parent row clamps width as the pill widens.
     Box(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
+        contentAlignment = when (textAlign) {
+            TextAlign.Center -> Alignment.Center
+            TextAlign.End -> Alignment.CenterEnd
+            else -> Alignment.CenterStart
+        },
     ) {
         // Crossfade only when the speaker role changes; word motion lives in LiveInputText.
         AnimatedContent(
@@ -963,7 +973,7 @@ fun ImmersiveTranscript(
                 fadeIn(tween(180)) togetherWith fadeOut(tween(120))
             },
             label = "immersive_transcript_speaker",
-            modifier = Modifier.fillMaxWidth(0.6f),
+            modifier = Modifier.fillMaxWidth(0.95f),
         ) { who ->
             val bodyColor = when (who) {
                 DialogueSpeaker.User -> Color(0xFFD2E3FC)
@@ -975,10 +985,11 @@ fun ImmersiveTranscript(
                 color = bodyColor,
                 live = live && who == DialogueSpeaker.User,
                 speaking = who == DialogueSpeaker.Assistant,
+                textAlign = textAlign,
                 maxLines = 1,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .padding(horizontal = 4.dp),
             )
         }
     }

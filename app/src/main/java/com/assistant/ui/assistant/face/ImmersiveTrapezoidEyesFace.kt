@@ -28,6 +28,7 @@ fun ImmersiveTrapezoidEyesFace(
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     faceCues: AssistantFaceCues? = null,
+    showShell: Boolean = true,
 ) {
     val glowStrength = remember {
         Animatable(if (mood.usesImmersivePurpleGlow()) 1f else 0f)
@@ -54,5 +55,6 @@ fun ImmersiveTrapezoidEyesFace(
         eyeGlow = EporoGlow.copy(alpha = glowStrength.value.coerceIn(0f, 1f)),
         faceCues = faceCues,
         shellKind = ExpressiveShellKind.Trapezoid,
+        showShell = showShell,
     )
 }

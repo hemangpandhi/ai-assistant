@@ -118,6 +118,7 @@ fun DroidAssistantFace(
                     headR = headR,
                     color = glyphColor.copy(alpha = (1f - progress).coerceIn(0f, 1f)),
                     knockout = bodyColor,
+                    showMouth = true,
                 )
             }
             withTransform({
@@ -130,6 +131,7 @@ fun DroidAssistantFace(
                     headR = headR,
                     color = glyphColor.copy(alpha = progress.coerceIn(0f, 1f)),
                     knockout = bodyColor,
+                    showMouth = true,
                 )
             }
         } else {
@@ -140,6 +142,7 @@ fun DroidAssistantFace(
                 headR = headR,
                 color = glyphColor,
                 knockout = bodyColor,
+                showMouth = true,
             )
         }
     }
@@ -192,6 +195,7 @@ private fun DrawScope.drawDroidGlyph(
     headR: Float,
     color: Color,
     knockout: Color,
+    showMouth: Boolean = true,
 ) {
     // Eyes high in the dome; mouth well above chin so strokes never clip.
     val faceCy = chinY - headR * 0.48f
@@ -207,37 +211,47 @@ private fun DrawScope.drawDroidGlyph(
         DroidFaceGlyph.Happy -> {
             drawCircle(color, eyeR, left)
             drawCircle(color, eyeR, right)
-            drawSmile(cx, mouthY, headR * 0.20f, headR * 0.10f, stroke, color)
+            if (showMouth) {
+                drawSmile(cx, mouthY, headR * 0.20f, headR * 0.10f, stroke, color)
+            }
         }
         DroidFaceGlyph.Wink -> {
             drawCircle(color, eyeR, left)
             drawHappyArc(right, eyeR * 1.15f, stroke * 0.95f, color)
-            drawSmile(cx, mouthY, headR * 0.20f, headR * 0.10f, stroke, color)
+            if (showMouth) {
+                drawSmile(cx, mouthY, headR * 0.20f, headR * 0.10f, stroke, color)
+            }
         }
         DroidFaceGlyph.SquintSmile -> {
             drawHappyArc(left, eyeR * 1.2f, stroke * 0.95f, color)
             drawHappyArc(right, eyeR * 1.2f, stroke * 0.95f, color)
-            drawSmile(cx, mouthY, headR * 0.20f, headR * 0.10f, stroke, color)
+            if (showMouth) {
+                drawSmile(cx, mouthY, headR * 0.20f, headR * 0.10f, stroke, color)
+            }
         }
         DroidFaceGlyph.Surprised -> {
             drawCircle(color, eyeR, left)
             drawCircle(color, eyeR, right)
-            drawCircle(color, headR * 0.08f, Offset(cx, mouthY))
+            if (showMouth) {
+                drawCircle(color, headR * 0.08f, Offset(cx, mouthY))
+            }
         }
         DroidFaceGlyph.Laughing -> {
             drawHappyArc(left, eyeR * 1.15f, stroke * 0.95f, color)
             drawHappyArc(right, eyeR * 1.15f, stroke * 0.95f, color)
-            // Open laugh mouth — fully above chin
-            val mw = headR * 0.48f
-            val mh = headR * 0.22f
-            drawArc(
-                color = color,
-                startAngle = 0f,
-                sweepAngle = 180f,
-                useCenter = true,
-                topLeft = Offset(cx - mw * 0.5f, mouthY - mh * 0.15f),
-                size = Size(mw, mh),
-            )
+            if (showMouth) {
+                // Open laugh mouth — fully above chin
+                val mw = headR * 0.48f
+                val mh = headR * 0.22f
+                drawArc(
+                    color = color,
+                    startAngle = 0f,
+                    sweepAngle = 180f,
+                    useCenter = true,
+                    topLeft = Offset(cx - mw * 0.5f, mouthY - mh * 0.15f),
+                    size = Size(mw, mh),
+                )
+            }
         }
         DroidFaceGlyph.Cool -> {
             drawSunglasses(cx, faceCy, headR, color)
@@ -253,24 +267,28 @@ private fun DrawScope.drawDroidGlyph(
         DroidFaceGlyph.Dizzy -> {
             drawX(left, eyeR * 1.05f, stroke * 0.9f, color)
             drawX(right, eyeR * 1.05f, stroke * 0.9f, color)
-            drawLine(
-                color,
-                Offset(cx - headR * 0.16f, mouthY),
-                Offset(cx + headR * 0.16f, mouthY),
-                strokeWidth = stroke,
-                cap = StrokeCap.Round,
-            )
+            if (showMouth) {
+                drawLine(
+                    color,
+                    Offset(cx - headR * 0.16f, mouthY),
+                    Offset(cx + headR * 0.16f, mouthY),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+            }
         }
         DroidFaceGlyph.Neutral -> {
             drawCircle(color, eyeR, left)
             drawCircle(color, eyeR, right)
-            drawLine(
-                color,
-                Offset(cx - headR * 0.16f, mouthY),
-                Offset(cx + headR * 0.16f, mouthY),
-                strokeWidth = stroke,
-                cap = StrokeCap.Round,
-            )
+            if (showMouth) {
+                drawLine(
+                    color,
+                    Offset(cx - headR * 0.16f, mouthY),
+                    Offset(cx + headR * 0.16f, mouthY),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+            }
         }
         DroidFaceGlyph.Sleeping -> {
             drawSleepEye(left, eyeR * 1.25f, stroke, color)
@@ -279,8 +297,10 @@ private fun DrawScope.drawDroidGlyph(
         DroidFaceGlyph.Sad -> {
             drawCircle(color, eyeR, left)
             drawCircle(color, eyeR, right)
-            // Frown curves upward toward chin — keep tip above chin pad
-            drawSmile(cx, mouthY - headR * 0.02f, headR * 0.20f, -headR * 0.10f, stroke, color)
+            if (showMouth) {
+                // Frown curves upward toward chin — keep tip above chin pad
+                drawSmile(cx, mouthY - headR * 0.02f, headR * 0.20f, -headR * 0.10f, stroke, color)
+            }
         }
         DroidFaceGlyph.Success -> drawCheck(cx, contentCy, headR * 0.42f, stroke * 1.35f, color)
         DroidFaceGlyph.Error -> drawX(Offset(cx, contentCy), headR * 0.32f, stroke * 1.35f, color)

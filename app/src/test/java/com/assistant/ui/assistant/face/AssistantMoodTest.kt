@@ -116,24 +116,24 @@ class AssistantMoodTest {
 
     @Test
     fun fusionMouthOnlyOnExpressiveMoods() {
-        val withMouth = setOf(
-            AssistantMood.Happy,
-            AssistantMood.Sad,
-            AssistantMood.Speaking,
-            AssistantMood.Excited,
-        )
-        AssistantMood.entries.forEach { mood ->
-            val visible = mood.toFusionEyePose().mouthVisible
-            if (mood in withMouth) {
-                assertTrue("$mood should show mouth", visible > 0.2f)
-            } else {
-                assertTrue("$mood should hide mouth", visible <= 0.2f)
-            }
-        }
+        assertTrue(AssistantMood.Happy.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Sad.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Speaking.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Excited.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Idle.toFusionEyePose().mouthVisible <= 0.2f)
         assertTrue(
             AssistantMood.Happy.toFusionEyePose().mouthCurve >
                 AssistantMood.Sad.toFusionEyePose().mouthCurve,
         )
+    }
+
+    @Test
+    fun immersiveMouthShowsOnExpressiveAndSpeechMoods() {
+        assertTrue(AssistantMood.Happy.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Sad.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Speaking.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Excited.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Jubilation.toImmersiveEyePose().mouthVisible > 0.2f)
     }
 
     @Test
@@ -284,12 +284,14 @@ class AssistantMoodTest {
 
     @Test
     fun microStatusUsesGlanceableVerbs() {
+        assertEquals(null, AssistantMood.Idle.microStatus())
         assertEquals("Thinking…", AssistantMood.Thinking.microStatus())
         assertEquals("Reading…", AssistantMood.Reading.microStatus())
         assertEquals("Listening…", AssistantMood.Listening.microStatus())
+        assertEquals("SPEAKING", AssistantMood.Speaking.microStatus())
         assertEquals("Taking it easy…", AssistantMood.Drowsy.microStatus())
         assertEquals("Taking it easy…", AssistantMood.Tired.microStatus())
-        assertEquals(null, AssistantMood.Speaking.microStatus())
         assertEquals(null, AssistantMood.Happy.microStatus())
+        assertEquals(null, AssistantMood.Idle.islandStatus())
     }
 }
