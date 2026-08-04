@@ -33,7 +33,7 @@ enum class AssistantFaceKind(
     ),
     /**
      * Immersive hybrid eyes/glow on a fixed isosceles trapezoid plate
-     * (base ~20% wider than top, light rounding). Main-overlay default.
+     * (base ~20% wider than top, light rounding). Optional via ADB `trapezoid`.
      */
     ImmersiveTrapezoid(
         adbKey = "trapezoid",
@@ -66,7 +66,7 @@ enum class AssistantFaceKind(
     ;
 
     companion object {
-        val Default: AssistantFaceKind = ImmersiveTrapezoid
+        val Default: AssistantFaceKind = ImmersiveHybrid
 
         /** Accepts canonical keys plus common aliases (`off`, `immersive`, `classic`, …). */
         fun parse(raw: String?): AssistantFaceKind? {

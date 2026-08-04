@@ -21,7 +21,7 @@ import android.util.Log
  *   -n com.assistant.ui/.face.AssistantFaceReceiver
  * ```
  *
- * Face tokens: `none` | `eyes` | `glow` | `hybrid` | `trapezoid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph` (default: `trapezoid`)
+ * Face tokens: `none` | `eyes` | `glow` | `hybrid` | `trapezoid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph` (default: `hybrid`)
  *
  * Also:
  * ```

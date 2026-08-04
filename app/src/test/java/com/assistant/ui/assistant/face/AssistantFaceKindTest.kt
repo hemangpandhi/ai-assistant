@@ -78,7 +78,7 @@ class AssistantFaceKindTest {
     }
 
     @Test
-    fun defaultIsImmersiveTrapezoid() {
-        assertEquals(AssistantFaceKind.ImmersiveTrapezoid, AssistantFaceKind.Default)
+    fun defaultIsImmersiveHybrid() {
+        assertEquals(AssistantFaceKind.ImmersiveHybrid, AssistantFaceKind.Default)
     }
 }
