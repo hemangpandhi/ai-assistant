@@ -13,6 +13,8 @@ While a preview is set, it **overrides** session / LLM values. Clear restores pi
 
 General UI / face / placement commands: [assistant-adb.md](./assistant-adb.md).
 
+All commands below are **one-liners** (copy/paste as-is).
+
 ---
 
 ## Prerequisites
@@ -20,18 +22,12 @@ General UI / face / placement commands: [assistant-adb.md](./assistant-adb.md).
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell appops set com.tcs.vehicleassistant SYSTEM_ALERT_WINDOW allow
-
-# Compose + hybrid face (recommended for cue + mood morphs)
 adb shell settings put global vehicle_assistant_ui compose
 adb shell settings put global design_assistant_face hybrid
-
-# Avoid auto-dismiss while stepping through expressions
 adb shell settings put global vehicle_assistant_idle_timeout_sec 0
 ```
 
 SET broadcasts summon the immersive overlay by default. Pass `--ez summon false` to change preview without opening it.
-
-Log tags:
 
 ```bash
 adb logcat -s AssistantMood:I AssistantFaceCue:I
@@ -41,40 +37,29 @@ adb logcat -s AssistantMood:I AssistantFaceCue:I
 
 ## Moods (emotions)
 
-Component:
-
-```text
-com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
-```
+Component: `com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver`
 
 ### Set / get / clear
 
 ```bash
 # Set affective mood (summons overlay)
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-  --es mood triumph
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood triumph
 
 # Alias extra key
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-  --es expression happy
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es expression happy
 
 # Preview only (overlay already open)
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-  --es mood excited --ez summon false
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood excited --ez summon false
 
 # Read current preview
-adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
 adb logcat -d -s AssistantMood:I | tail -n 3
 
 # Clear → back to pipeline / LLM mood
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
 
-# Also clears: --es mood off|clear|none
+# Also clears via SET: --es mood off|clear|none
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood clear
 ```
 
 ### Suggested walkthrough
@@ -83,28 +68,13 @@ Step through families and watch pose / glow / blink on the hybrid face:
 
 ```bash
 # Pipeline
-for m in idle listening speaking thinking reading searching; do
-  adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-    -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-    --es mood "$m" --ez summon false
-  sleep 2
-done
+for m in idle listening speaking thinking reading searching; do adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood "$m" --ez summon false; sleep 2; done
 
 # Happiness / high energy
-for m in happy amused joyous excited jubilation triumph gratitude contentment proud; do
-  adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-    -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-    --es mood "$m" --ez summon false
-  sleep 2
-done
+for m in happy amused joyous excited jubilation triumph gratitude contentment proud; do adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood "$m" --ez summon false; sleep 2; done
 
 # Soft / rest / concern
-for m in relaxed shy drowsy tired sleeping doubt concerned sad bored; do
-  adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-    -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-    --es mood "$m" --ez summon false
-  sleep 2
-done
+for m in relaxed shy drowsy tired sleeping doubt concerned sad bored; do adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood "$m" --ez summon false; sleep 2; done
 ```
 
 ### Mood tokens
@@ -127,29 +97,20 @@ Case-insensitive; match `AssistantMood` names (or labels).
 
 ## Face cues (topic icons)
 
-Component:
-
-```text
-com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
-```
+Component: `com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver`
 
 Null / omitted / `none` keeps geometric eyes / mouth for that slot. Accents sit on the cheeks (between eyes and mouth).
 
 ### Per-slot
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es left_eye sunny --es right_eye sunny --es mouth music \
-  --es left_accent sparkle --es right_accent star
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es left_eye sunny --es right_eye sunny --es mouth music --es left_accent sparkle --es right_accent star
 ```
 
 ### LLM-style `<face …/>` tag
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es face '<face left_eye="sunny" right_eye="rain" mouth="music" left_accent="sparkle" right_accent="none"/>'
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es face '<face left_eye="sunny" right_eye="rain" mouth="music" left_accent="sparkle" right_accent="none"/>'
 ```
 
 Extra key alias: `--es tag '…'` (same as `face`).
@@ -157,9 +118,7 @@ Extra key alias: `--es tag '…'` (same as `face`).
 ### Named presets
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es preset weather
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset weather
 ```
 
 | Preset | Approx. slots |
@@ -176,12 +135,9 @@ adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
 ### Get / clear
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 adb logcat -d -s AssistantFaceCue:I | tail -n 3
-
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 ```
 
 ### Icon tokens
@@ -195,12 +151,7 @@ adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
 ### Cue walkthrough
 
 ```bash
-for p in weather rain music search climate sparkle nav; do
-  adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-    -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-    --es preset "$p" --ez summon false
-  sleep 2
-done
+for p in weather rain music search climate sparkle nav; do adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset "$p" --ez summon false; sleep 2; done
 ```
 
 ---
@@ -211,39 +162,24 @@ Previews stack: mood morphs geometry; cues replace slots with icons.
 
 ```bash
 # Happy weather glance
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-  --es mood happy
-
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es preset weather --ez summon false
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood happy
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset weather --ez summon false
 
 # Excited music
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
-  --es mood excited --ez summon false
-
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es preset music --ez summon false
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood excited --ez summon false
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset music --ez summon false
 
 # Reset both
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_MOOD \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 ```
 
 ---
 
 ## Gallery (visual catalog)
 
-Browse moods / faces without broadcasts:
-
 ```bash
-adb shell am start -a com.assistant.ui.action.OPEN_ASSISTANT_GALLERY \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.gallery.AssistantUiGalleryActivity
+adb shell am start -a com.assistant.ui.action.OPEN_ASSISTANT_GALLERY -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.gallery.AssistantUiGalleryActivity
 ```
 
 ---
