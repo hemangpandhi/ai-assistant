@@ -11,6 +11,8 @@ Two independent ADB preview overlays drive the face on the Compose immersive sta
 
 While a preview is set, it **overrides** session / LLM values. Clear restores pipeline mood and LLM cues (or geometry when empty).
 
+**SET auto-opens** the immersive stage (overlay service / VIS composition) and **holds it open** while any mood or face-cue preview is active — idle timeout and SessionComplete will not dismiss it. Close with the overlay dismiss control, `IMMERSIVE_STOP`, or clear both previews and dismiss normally.
+
 General UI / face / placement commands: [assistant-adb.md](./assistant-adb.md).
 
 All commands below are **one-liners** (copy/paste as-is).
@@ -24,10 +26,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell appops set com.tcs.vehicleassistant SYSTEM_ALERT_WINDOW allow
 adb shell settings put global vehicle_assistant_ui compose
 adb shell settings put global design_assistant_face hybrid
-adb shell settings put global vehicle_assistant_idle_timeout_sec 0
 ```
 
-SET broadcasts summon the immersive overlay by default. Pass `--ez summon false` to change preview without opening it.
+SET broadcasts summon and hold the immersive overlay by default. Pass `--ez summon false` to change preview without opening it.
 
 ```bash
 adb logcat -s AssistantMood:I AssistantFaceCue:I
@@ -183,6 +184,19 @@ adb shell am start -a com.assistant.ui.action.OPEN_ASSISTANT_GALLERY -n com.tcs.
 ```
 
 ---
+
+## Explicit close
+
+```bash
+# Clear previews (releases hold; overlay may stay until idle / dismiss)
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+
+# Stop standalone overlay service
+adb shell am startservice -n com.tcs.vehicleassistant/com.assistant.ui.assistant.ui.immersive.ImmersiveAssistantOverlayService -a com.assistant.ui.assistant.IMMERSIVE_STOP
+```
+
+Dismissing the stage (tap/back/stop) also clears both ADB previews.
 
 ## Notes
 

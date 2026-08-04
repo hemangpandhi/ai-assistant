@@ -51,6 +51,7 @@ import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.audio.AssistantSessionAudioFocus
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
+import com.assistant.ui.assistant.face.AssistantAdbPreview
 import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
@@ -598,6 +599,11 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private fun armIdleTimer(reason: String) {
         idleJob?.cancel()
         if (!sessionUiVisible) return
+        if (AssistantAdbPreview.isHolding()) {
+            AssistantDebugLog.d("Session", "idle timer paused — ADB preview holding ($reason)")
+            idleJob = null
+            return
+        }
         val timeoutMs = AssistantIdleTimeout.currentMs()
         if (timeoutMs <= 0L) {
             AssistantDebugLog.d("Session", "idle timer disabled ($reason)")
@@ -625,6 +631,12 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     }
 
     private fun dismissForIdleTimeout() {
+        // ADB mood / face-cue preview holds the stage until cleared or dismissed.
+        if (AssistantAdbPreview.isHolding()) {
+            AssistantDebugLog.d("Session", "idle-timeout skipped — ADB preview holding")
+            pauseIdleTimer()
+            return
+        }
         AssistantDebugLog.d("Session", "idle-timeout — closing overlay + assistant")
         if (usingComposeUi) {
             // Play Compose exit animation (AssistantTokens.ExitMs ≈ 280), then tear down.

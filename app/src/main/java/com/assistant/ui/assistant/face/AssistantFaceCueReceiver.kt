@@ -8,35 +8,19 @@ import com.assistant.ui.assistant.api.AssistantFaceCueIcon
 import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.api.FaceCueParser
 import com.assistant.ui.assistant.api.ToolFaceCues
-import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
-import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
 
 /**
  * ADB preview for in-face Material cues (eyes / mouth / L-R cheek accents).
  *
+ * SET auto-opens the immersive stage and holds it open while the preview is
+ * active (no idle / SessionComplete auto-close). Clear or dismiss explicitly.
+ *
  * ```
- * # Per-slot (omit a slot to leave it geometric / none)
- * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
- *   --es left_eye sunny --es right_eye sunny --es mouth music \
- *   --es left_accent sparkle --es right_accent star
- *
- * # Compact XML tag (same vocabulary as the LLM)
- * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
- *   --es face '<face left_eye="sunny" right_eye="rain" mouth="music"/>'
- *
- * # Named presets
- * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
- *   --es preset weather
- *
- * # Clear override (back to LLM / geometry)
- * adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
- *
- * adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+ * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es left_eye sunny --es right_eye sunny --es mouth music --es left_accent sparkle --es right_accent star
+ * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es face '<face left_eye="sunny" right_eye="rain" mouth="music"/>'
+ * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset weather
+ * adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+ * adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
  * ```
  *
  * Icons: rain|storm|snow|cloudy|sunny|thermostat|ac|heat|fan|defrost|
@@ -44,7 +28,7 @@ import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
  *
  * Presets: weather|music|search|climate|sparkle|nav|clear
  *
- * Pass `--ez summon false` to skip opening the immersive overlay.
+ * Pass `--ez summon false` to change preview without opening the overlay.
  */
 class AssistantFaceCueReceiver : BroadcastReceiver() {
 
@@ -69,9 +53,9 @@ class AssistantFaceCueReceiver : BroadcastReceiver() {
                 } else {
                     AssistantFaceCuePreview.set(cues)
                     Log.i(TAG, "Face cues → ${AssistantFaceCuePreview.describe()}")
-                }
-                if (summon) {
-                    notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Icon)
+                    if (summon) {
+                        AssistantAdbPreview.summon(context)
+                    }
                 }
             }
             ACTION_CLEAR -> {

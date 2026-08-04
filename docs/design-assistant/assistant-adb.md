@@ -118,6 +118,7 @@ Extra key alias: `--es mode …` (same as `placement`).
 ## Face cues (in-face Material icons, ADB preview)
 
 Preview overrides LLM cues while set. Clear to return to LLM / geometry.
+SET auto-opens the immersive stage and holds it open while the preview is active.
 
 Full mood + cue walkthrough: [assistant-emotions-adb.md](./assistant-emotions-adb.md).
 

@@ -87,6 +87,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import android.provider.Settings
+import com.assistant.ui.assistant.entry.VirtualAssistantActivity
+import com.assistant.ui.assistant.face.AssistantAdbPreview
 import com.assistant.ui.assistant.face.AssistantFaceConfig
 import com.assistant.ui.assistant.face.AssistantFaceCuePreview
 import com.assistant.ui.assistant.face.AssistantMoodPreview
@@ -243,12 +246,16 @@ fun ImmersiveAssistantOverlay(
                 StageEffect.RequestListen -> Unit // mic owned by agent backend in production
                 StageEffect.ClusterHandOff -> host.openClusterHandOff()
                 StageEffect.FinishSession -> {
-                    // Agent turn complete (or reduce of SessionComplete) — dismiss chrome.
-                    if (stageStore.state.visible) {
+                    // Agent turn complete — dismiss unless ADB mood/cue preview is holding.
+                    if (stageStore.state.visible && !AssistantAdbPreview.isHolding()) {
                         stageStore.dispatch(StageIntent.Dismiss)
                     }
                 }
-                StageEffect.StopSession -> backend.stopSession()
+                StageEffect.StopSession -> {
+                    if (!AssistantAdbPreview.isHolding()) {
+                        backend.stopSession()
+                    }
+                }
             }
         }
     }
@@ -290,7 +297,8 @@ fun ImmersiveAssistantOverlay(
         launch {
             backend.events.collect { event ->
                 if (event is AssistantSessionEvent.SessionComplete) {
-                    // All summon paths: done turn → dismiss (idle remains safety for continue turns).
+                    // ADB mood/cue preview holds the stage open until cleared or dismissed.
+                    if (AssistantAdbPreview.isHolding()) return@collect
                     if (stageStore.state.visible) {
                         stageStore.dispatch(StageIntent.Dismiss)
                     }
@@ -427,6 +435,8 @@ fun ImmersiveAssistantOverlay(
                 effectsDefaultSpec = effectsDefault,
             )
             immersiveEnteredSession = -1
+            // Explicit close ends ADB preview hold so the next voice session is normal.
+            AssistantAdbPreview.clearAll()
             onPresentationChanged(AssistantPresentation.Compact)
             onDismiss()
         }
@@ -1088,6 +1098,27 @@ fun notifyImmersiveAssistantSummon(origin: ImmersiveSummonOrigin) {
         handlers.forEach { it.invoke(origin) }
     }
     notifyAssistantHotword()
+}
+
+/** True when a Compose immersive stage has registered summon handlers. */
+fun isImmersiveAssistantStageLive(): Boolean = immersiveSummonHandlers.isNotEmpty()
+
+/**
+ * Summon the immersive stage, starting the overlay host when nothing is composed yet.
+ * Used by ADB mood / face-cue previews so SET broadcasts do not require a prior manual open.
+ */
+fun ensureImmersiveAssistantSummoned(
+    context: android.content.Context,
+    origin: ImmersiveSummonOrigin = ImmersiveSummonOrigin.Icon,
+) {
+    notifyImmersiveAssistantSummon(origin)
+    if (isImmersiveAssistantStageLive()) return
+    val app = context.applicationContext
+    if (Settings.canDrawOverlays(app)) {
+        ImmersiveAssistantOverlayService.show(app)
+    } else {
+        VirtualAssistantActivity.launch(app)
+    }
 }
 
 /** Release Compose STT / stage when the VoiceInteractionSession hides. */
