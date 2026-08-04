@@ -668,6 +668,17 @@ fun ImmersiveEyesFace(
                             Offset(cx + bx, cy + faceR * 0.22f),
                         )
                     }
+                    // Glasses behind eyes so capsules show through the lenses.
+                    drawNomiMateGlassesIfNeeded(
+                        mood = mood,
+                        faceR = faceR,
+                        color = glyph,
+                        eyeHalfGap = gap,
+                        eyeMidX = cx + gaze,
+                        eyeY = eyeY,
+                        eyeHalfWidth = barW,
+                        eyeHalfHeight = barH * 0.55f,
+                    )
                     if (leftEyeIcon != null && leftEyeTint != null) {
                         drawAnimatedFaceCueIcon(
                             leftEyePainter, left, eyeIconSide, leftEyeTint, life, phaseOffset = 0.2f,

@@ -166,14 +166,8 @@ internal fun DrawScope.drawNomiMateDecor(
             faceR * 0.22f,
             color,
         )
-        NomiProp.Glasses -> drawNomiGlasses(
-            eyeMidX = eyeMidX,
-            eyeY = eyeY,
-            faceR = faceR,
-            color = color,
-            eyeHalfGap = eyeHalfGap,
-            eyeHalfWidth = eyeHalfWidth,
-        )
+        // Glasses are drawn behind the eyes via [drawNomiMateGlassesIfNeeded].
+        NomiProp.Glasses -> Unit
     }
 
     if (!skipParticles) {
@@ -324,9 +318,32 @@ private fun DrawScope.drawNomiCrown(c: Offset, s: Float, color: Color) {
     drawPath(path, color)
 }
 
+/** Draw wireframe glasses behind eyes when the mood uses [NomiProp.Glasses]. */
+internal fun DrawScope.drawNomiMateGlassesIfNeeded(
+    mood: AssistantMood,
+    faceR: Float,
+    color: Color = DecorWhite,
+    eyeHalfGap: Float = faceR * 0.36f * 1.45f,
+    eyeMidX: Float,
+    eyeY: Float,
+    eyeHalfWidth: Float = faceR * 0.11f,
+    eyeHalfHeight: Float = eyeHalfWidth,
+) {
+    if (mood.toNomiMateDecor().prop != NomiProp.Glasses) return
+    drawNomiGlasses(
+        eyeMidX = eyeMidX,
+        eyeY = eyeY,
+        faceR = faceR,
+        color = color,
+        eyeHalfGap = eyeHalfGap,
+        eyeHalfWidth = eyeHalfWidth,
+        eyeHalfHeight = eyeHalfHeight,
+    )
+}
+
 /**
- * Glasses aligned to immersive eye centers. Overall frame spans both eyes
- * (outer-left to outer-right); each lens sits on one eye.
+ * Thin oval frames around each eye — rims sit outside the capsules so eyes
+ * read clearly through the lenses (draw this *before* the eyes).
  */
 private fun DrawScope.drawNomiGlasses(
     eyeMidX: Float,
@@ -335,38 +352,60 @@ private fun DrawScope.drawNomiGlasses(
     color: Color,
     eyeHalfGap: Float,
     eyeHalfWidth: Float,
+    eyeHalfHeight: Float,
 ) {
-    // Combined width of both eyes (outer edge → outer edge).
-    val bothEyesWidth = (eyeHalfGap + eyeHalfWidth) * 2f
-    // Split that span into two lenses + a short bridge.
-    val bridge = (eyeHalfGap * 0.22f).coerceIn(faceR * 0.03f, faceR * 0.08f)
-    val lensW = ((bothEyesWidth - bridge) * 0.5f).coerceAtLeast(eyeHalfWidth * 2.4f)
-    val lensH = (eyeHalfWidth * 2.6f).coerceIn(faceR * 0.22f, faceR * 0.34f)
     val leftCx = eyeMidX - eyeHalfGap
     val rightCx = eyeMidX + eyeHalfGap
-    val leftX = leftCx - lensW * 0.5f
-    val rightX = rightCx - lensW * 0.5f
-    val y = eyeY - lensH * 0.5f
-    val stroke = faceR * 0.045f
-    val corner = CornerRadius(lensH * 0.45f, lensH * 0.45f)
-    drawRoundRect(
-        color = color,
-        topLeft = Offset(leftX, y),
-        size = Size(lensW, lensH),
-        cornerRadius = corner,
-        style = Stroke(width = stroke),
-    )
-    drawRoundRect(
-        color = color,
-        topLeft = Offset(rightX, y),
-        size = Size(lensW, lensH),
-        cornerRadius = corner,
-        style = Stroke(width = stroke),
+    // Clearance so the rim rings the capsule instead of cutting through it.
+    val padX = eyeHalfWidth * 0.85f
+    val padY = eyeHalfHeight * 0.75f
+    // Keep a visible bridge gap between the two rims.
+    val maxRx = (eyeHalfGap - faceR * 0.055f).coerceAtLeast(eyeHalfWidth * 1.35f)
+    val lensRx = (eyeHalfWidth + padX).coerceAtMost(maxRx)
+    val lensRy = (eyeHalfHeight + padY).coerceIn(faceR * 0.14f, faceR * 0.28f)
+    val stroke = (faceR * 0.026f).coerceIn(2f, faceR * 0.04f)
+    val frame = color.copy(alpha = 0.9f)
+    val rim = Stroke(width = stroke, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+
+    fun drawLens(centerX: Float) {
+        drawOval(
+            color = frame,
+            topLeft = Offset(centerX - lensRx, eyeY - lensRy),
+            size = Size(lensRx * 2f, lensRy * 2f),
+            style = rim,
+        )
+    }
+    drawLens(leftCx)
+    drawLens(rightCx)
+
+    // Soft nose bridge between inner lens edges.
+    val bridgeLeft = leftCx + lensRx
+    val bridgeRight = rightCx - lensRx
+    val bridgeMidY = eyeY - lensRy * 0.12f
+    val bridgePath = Path().apply {
+        moveTo(bridgeLeft, eyeY)
+        quadraticTo(
+            (bridgeLeft + bridgeRight) * 0.5f,
+            bridgeMidY - faceR * 0.04f,
+            bridgeRight,
+            eyeY,
+        )
+    }
+    drawPath(bridgePath, frame, style = rim)
+
+    // Short temple stubs so it reads as eyewear, not two floating ovals.
+    val temple = faceR * 0.10f
+    drawLine(
+        frame,
+        Offset(leftCx - lensRx, eyeY),
+        Offset(leftCx - lensRx - temple, eyeY + faceR * 0.03f),
+        stroke,
+        StrokeCap.Round,
     )
     drawLine(
-        color,
-        Offset(leftX + lensW, eyeY),
-        Offset(rightX, eyeY),
+        frame,
+        Offset(rightCx + lensRx, eyeY),
+        Offset(rightCx + lensRx + temple, eyeY + faceR * 0.03f),
         stroke,
         StrokeCap.Round,
     )
