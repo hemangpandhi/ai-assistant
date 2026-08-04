@@ -6,6 +6,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
@@ -365,7 +366,7 @@ private fun DrawScope.drawNomiGlasses(
     val lensRy = (eyeHalfHeight + padY).coerceIn(faceR * 0.14f, faceR * 0.28f)
     val stroke = (faceR * 0.026f).coerceIn(2f, faceR * 0.04f)
     val frame = color.copy(alpha = 0.9f)
-    val rim = Stroke(width = stroke, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round)
+    val rim = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
 
     fun drawLens(centerX: Float) {
         drawOval(
