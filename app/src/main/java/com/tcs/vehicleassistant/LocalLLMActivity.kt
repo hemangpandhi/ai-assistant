@@ -475,7 +475,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
         // Setup System Prompt Editor
         lifecycleScope.launch {
-            etSystemPrompt.setText(SystemPromptBuilder.getSystemPrompt(this@LocalLLMActivity))
+            etSystemPrompt.setText(SystemPromptBuilder.build(this@LocalLLMActivity))
         }
         
         btnSavePrompt.setOnClickListener {
@@ -487,7 +487,7 @@ class LocalLLMActivity : AppCompatActivity() {
         
         btnResetPrompt.setOnClickListener {
             lifecycleScope.launch {
-                val defaultPrompt = SystemPromptBuilder.getSystemPrompt(this@LocalLLMActivity)
+                val defaultPrompt = SystemPromptBuilder.build(this@LocalLLMActivity)
                 etSystemPrompt.setText(defaultPrompt)
                 prefs.edit().remove("system_prompt").apply()
                 LLMManager.resetConversation()
@@ -1491,7 +1491,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     val isFirst = LLMManager.isFirstMessage
                     val finalQuery = if (isFirst) {
                         LLMManager.isFirstMessage = false
-                        SystemPromptBuilder.getSystemPrompt(applicationContext, query) + "\nUser: " + query
+                        SystemPromptBuilder.build(applicationContext, query) + "\nUser: " + query
                     } else {
                         "User: $query"
                     }

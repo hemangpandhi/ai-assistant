@@ -55,8 +55,8 @@ class CloudLLMProviderTest {
     }
 
     @Test
-    fun `test generateStream routes to GeminiManager when model contains Gemini`() = runTest {
-        LLMManager.currentCloudModelName = "Gemini Pro"
+    fun `test Gemini model routing`() = runTest {
+        EngineStatusStore.currentCloudModelName = "Gemini Pro"
         
         val callbackSlot = slot<CloudMessageCallback>()
         coEvery { GeminiManager.sendMessageAsync(any(), any(), capture(callbackSlot)) } returns Unit
@@ -84,8 +84,8 @@ class CloudLLMProviderTest {
     }
     
     @Test
-    fun `test generateStream routes to AnthropicManager otherwise`() = runTest {
-        LLMManager.currentCloudModelName = "Claude 3.5 Sonnet"
+    fun `test Anthropic model routing`() = runTest {
+        EngineStatusStore.currentCloudModelName = "Claude 3.5 Sonnet"
         
         val callbackSlot = slot<CloudMessageCallback>()
         coEvery { AnthropicManager.sendMessageAsync(any(), any(), capture(callbackSlot)) } returns Unit

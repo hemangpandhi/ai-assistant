@@ -36,7 +36,10 @@ Koin singles: audio, orchestrator, `AssistantViewModel`, pipeline helpers.
 
 ### Remaining migration debt
 
-- `LLMManager` / `VehicleManager` / `MemoryManager` objects still exist as adapters under the ports
+- `LLMManager` is now a thin facade over `LiteRtEngineHost`, `LlmConversationSession`,
+  `SystemPromptBuilder`, `LlmInferenceGate`, `LlmModelLocator`, `LlmBenchmarkRunner`,
+  and `EngineStatusStore` (mirrors the ToolManager → domain:tools split)
+- `VehicleManager` / `MemoryManager` objects still exist as adapters under the ports
 - `LocalLLMActivity` still a large settings/debug host (not fully thinned)
 - Legacy companions synced from `AssistantFeatureFlags` until Settings UI is ported
 

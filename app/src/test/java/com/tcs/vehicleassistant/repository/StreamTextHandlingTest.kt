@@ -122,6 +122,18 @@ class StreamTextHandlingTest {
     }
 
     @Test
+    fun `empty model fallback for accident never offers music`() {
+        val msg = AgentOrchestrator.resolveEmptyModelFallback("my car got into an accident")
+        assertFalse(msg.contains("music", ignoreCase = true))
+        assertFalse(msg.contains("Done", ignoreCase = true))
+        assertTrue(
+            msg.contains("emergency", ignoreCase = true) ||
+                msg.contains("hurt", ignoreCase = true) ||
+                msg.contains("okay", ignoreCase = true),
+        )
+    }
+
+    @Test
     fun `empty model fallback for action-like phrases admits tool failure`() {
         val msg = AgentOrchestrator.resolveEmptyModelFallback("play some music")
         assertTrue(msg.contains("couldn't run a tool", ignoreCase = true))

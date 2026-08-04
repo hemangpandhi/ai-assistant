@@ -29,6 +29,13 @@ class ConversationalIntentTest {
     }
 
     @Test
+    fun emotionalWellness_excludesCrisisAccidents() {
+        assertFalse(ConversationalIntent.isEmotionalOrWellness("my car got into an accident"))
+        assertFalse(ConversationalIntent.isEmotionalOrWellness("call 911"))
+        assertFalse(ConversationalIntent.isEmotionalOrWellness("I can't breathe"))
+    }
+
+    @Test
     fun openChat_excludesCabinCommandsAndClimate() {
         assertFalse(ConversationalIntent.isOpenChat("play some music"))
         assertFalse(ConversationalIntent.isOpenChat("turn on the AC"))

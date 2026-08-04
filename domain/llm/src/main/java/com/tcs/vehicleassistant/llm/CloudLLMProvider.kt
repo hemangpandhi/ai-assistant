@@ -40,7 +40,7 @@ class CloudLLMProvider : ILLMProvider {
         }
 
         try {
-            if (com.tcs.vehicleassistant.llm.LLMManager.currentCloudModelName.contains("Gemini")) {
+            if (EngineStatusStore.currentCloudModelName.contains("Gemini")) {
                 GeminiManager.sendMessageAsync(systemPrompt, userQuery, callback)
             } else {
                 AnthropicManager.sendMessageAsync(systemPrompt, userQuery, callback)

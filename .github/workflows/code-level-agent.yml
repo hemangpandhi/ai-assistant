@@ -1,0 +1,70 @@
+name: Code-level agent verification
+
+# Fast JVM-only gate for dialogue/routing/safety policy — no device, no LiteRT weights.
+on:
+  push:
+    branches: [dev/clean, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: code-level-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GRADLE_OPTS: -Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2g
+
+jobs:
+  agent-code-level:
+    name: Agent + safety unit suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Write local.properties
+        run: echo "GEMINI_API_KEY=" > local.properties
+
+      - name: Compile app (debug unit classpath)
+        run: ./gradlew :app:compileDebugUnitTestKotlin --stacktrace
+
+      - name: Agent turn pipeline (router, confirm, stream, tools, goldens)
+        run: >
+          ./gradlew :app:testDebugUnitTest
+          --tests 'com.tcs.vehicleassistant.assistant.agent.*'
+          --stacktrace
+
+      - name: Conversation safety + intent (core policies)
+        run: >
+          ./gradlew :app:testDebugUnitTest
+          --tests 'com.tcs.vehicleassistant.core.ConversationSafetyPolicyTest'
+          --tests 'com.tcs.vehicleassistant.core.ConversationSafetyRegressionParameterizedTest'
+          --tests 'com.tcs.vehicleassistant.core.ConversationalIntentTest'
+          --tests 'com.tcs.vehicleassistant.CapabilityReminderTest'
+          --tests 'com.tcs.vehicleassistant.InferenceLifecycleContractTest'
+          --stacktrace
+
+      - name: Empty-model / stream fallback contracts
+        run: >
+          ./gradlew :app:testDebugUnitTest
+          --tests 'com.tcs.vehicleassistant.repository.StreamTextHandlingTest'
+          --stacktrace
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-level-agent-reports
+          if-no-files-found: ignore
+          path: |
+            app/build/reports/tests/**

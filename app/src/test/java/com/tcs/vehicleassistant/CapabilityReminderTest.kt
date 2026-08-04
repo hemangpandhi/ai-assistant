@@ -36,6 +36,7 @@ class CapabilityReminderTest {
         assertTrue(text.contains("<TOOL>"))
         assertTrue(text.contains("clear cabin", ignoreCase = true) || text.contains("media command", ignoreCase = true))
         assertTrue(text.contains("empathy", ignoreCase = true) || text.contains("feelings", ignoreCase = true))
+        assertTrue(text.contains("accident", ignoreCase = true) || text.contains("emergency", ignoreCase = true))
         assertFalse(text.contains("I cannot help", ignoreCase = true))
     }
 }
