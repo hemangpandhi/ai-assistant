@@ -103,7 +103,6 @@ internal fun AssistantMood.toNomiMateDecor(): NomiMateDecor = when (this) {
     AssistantMood.Proud -> NomiMateDecor(hands = NomiHandPose.Hips)
     AssistantMood.Triumph -> NomiMateDecor(
         hands = NomiHandPose.Victory,
-        prop = NomiProp.Crown,
         sparkles = 1,
     )
     AssistantMood.Relaxed -> NomiMateDecor(prop = NomiProp.Glasses)
