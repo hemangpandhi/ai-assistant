@@ -677,7 +677,8 @@ fun ImmersiveEyesFace(
                         eyeMidX = cx + gaze,
                         eyeY = eyeY,
                         eyeHalfWidth = barW,
-                        eyeHalfHeight = barH * 0.55f,
+                        // Capsule outer ring spans ±barH; pass full half-height for rim clearance.
+                        eyeHalfHeight = barH,
                     )
                     if (leftEyeIcon != null && leftEyeTint != null) {
                         drawAnimatedFaceCueIcon(

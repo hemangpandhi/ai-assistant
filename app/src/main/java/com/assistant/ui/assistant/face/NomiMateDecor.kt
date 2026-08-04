@@ -357,14 +357,14 @@ private fun DrawScope.drawNomiGlasses(
 ) {
     val leftCx = eyeMidX - eyeHalfGap
     val rightCx = eyeMidX + eyeHalfGap
-    // Clearance so the rim rings the capsule instead of cutting through it.
-    val padX = eyeHalfWidth * 0.85f
-    val padY = eyeHalfHeight * 0.75f
+    val stroke = (faceR * 0.024f).coerceIn(2f, faceR * 0.036f)
+    // Clearance so the rim rings the capsule (include half stroke — stroke is centered on path).
+    val padX = eyeHalfWidth * 0.9f + stroke * 0.5f
+    val padY = eyeHalfHeight * 1.15f + stroke * 0.5f
     // Keep a visible bridge gap between the two rims.
     val maxRx = (eyeHalfGap - faceR * 0.055f).coerceAtLeast(eyeHalfWidth * 1.35f)
     val lensRx = (eyeHalfWidth + padX).coerceAtMost(maxRx)
-    val lensRy = (eyeHalfHeight + padY).coerceIn(faceR * 0.14f, faceR * 0.28f)
-    val stroke = (faceR * 0.026f).coerceIn(2f, faceR * 0.04f)
+    val lensRy = (eyeHalfHeight + padY).coerceIn(faceR * 0.18f, faceR * 0.42f)
     val frame = color.copy(alpha = 0.9f)
     val rim = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round)
 
