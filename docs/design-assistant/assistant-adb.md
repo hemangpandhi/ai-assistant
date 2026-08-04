@@ -123,26 +123,17 @@ Full mood + cue walkthrough: [assistant-emotions-adb.md](./assistant-emotions-ad
 
 ```bash
 # Per-slot
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es left_eye sunny --es right_eye sunny --es mouth music \
-  --es left_accent sparkle --es right_accent star
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es left_eye sunny --es right_eye sunny --es mouth music --es left_accent sparkle --es right_accent star
 
 # Compact XML tag (same vocabulary as the LLM)
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es face '<face left_eye="sunny" right_eye="rain" mouth="music"/>'
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es face '<face left_eye="sunny" right_eye="rain" mouth="music"/>'
 
 # Named presets
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es preset weather
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset weather
 
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 
-adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 adb logcat -d -s AssistantFaceCue:I | tail -n 3
 ```
 

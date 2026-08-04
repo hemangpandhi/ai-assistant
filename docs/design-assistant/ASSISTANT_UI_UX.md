@@ -207,12 +207,8 @@ Host-package action alias: `com.tcs.vehicleassistant.action.SET_ASSISTANT_PLACEM
 ADB preview overrides LLM-driven cues until cleared. See [assistant-emotions-adb.md](./assistant-emotions-adb.md) for mood + cue walkthroughs, and [assistant-adb.md](./assistant-adb.md) for the short cheat sheet.
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es preset weather
-
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset weather
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 ```
 
 ---
