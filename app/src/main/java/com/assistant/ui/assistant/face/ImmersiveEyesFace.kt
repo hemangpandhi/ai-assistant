@@ -746,6 +746,9 @@ fun ImmersiveEyesFace(
                         life = life,
                         skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
                             mouthIcon != null,
+                        eyeHalfGap = gap,
+                        eyeY = eyeY,
+                        eyeHalfWidth = barW,
                     )
                 }
             }

@@ -137,6 +137,14 @@ internal fun DrawScope.drawNomiMateDecor(
     color: Color = DecorWhite,
     life: Float = 0f,
     skipParticles: Boolean = false,
+    /** Half-distance between eye centers (matches Immersive gap). */
+    eyeHalfGap: Float = faceR * 0.36f * 1.45f,
+    /** Midpoint X between the two eyes (includes gaze). */
+    eyeMidX: Float = cx,
+    /** Vertical center of the eyes. */
+    eyeY: Float = cy - faceR * 0.06f,
+    /** Half-width of one capsule eye (barW). */
+    eyeHalfWidth: Float = faceR * 0.11f,
 ) {
     val decor = mood.toNomiMateDecor()
     if (decor == NomiMateDecor()) return
@@ -159,7 +167,14 @@ internal fun DrawScope.drawNomiMateDecor(
             faceR * 0.22f,
             color,
         )
-        NomiProp.Glasses -> drawNomiGlasses(cx, cy - faceR * 0.02f, faceR, color)
+        NomiProp.Glasses -> drawNomiGlasses(
+            cx = cx,
+            eyeY = eyeY,
+            faceR = faceR,
+            color = color,
+            eyeHalfGap = eyeHalfGap,
+            eyeHalfWidth = eyeHalfWidth,
+        )
     }
 
     if (!skipParticles) {
@@ -310,15 +325,31 @@ private fun DrawScope.drawNomiCrown(c: Offset, s: Float, color: Color) {
     drawPath(path, color)
 }
 
-private fun DrawScope.drawNomiGlasses(cx: Float, cy: Float, faceR: Float, color: Color) {
-    val lensW = faceR * 0.26f
-    val lensH = faceR * 0.16f
-    val gap = faceR * 0.07f
-    val leftX = cx - gap * 0.5f - lensW
-    val rightX = cx + gap * 0.5f
-    val y = cy - lensH * 0.15f
-    val stroke = faceR * 0.04f
-    val corner = CornerRadius(lensH * 0.35f)
+/**
+ * Glasses aligned to immersive eye centers. Overall frame spans both eyes
+ * (outer-left to outer-right); each lens sits on one eye.
+ */
+private fun DrawScope.drawNomiGlasses(
+    cx: Float,
+    eyeY: Float,
+    faceR: Float,
+    color: Color,
+    eyeHalfGap: Float,
+    eyeHalfWidth: Float,
+) {
+    // Combined width of both eyes (outer edge → outer edge).
+    val bothEyesWidth = (eyeHalfGap + eyeHalfWidth) * 2f
+    // Split that span into two lenses + a short bridge.
+    val bridge = (eyeHalfGap * 0.22f).coerceIn(faceR * 0.03f, faceR * 0.08f)
+    val lensW = ((bothEyesWidth - bridge) * 0.5f).coerceAtLeast(eyeHalfWidth * 2.4f)
+    val lensH = (eyeHalfWidth * 2.6f).coerceIn(faceR * 0.22f, faceR * 0.34f)
+    val leftCx = cx - eyeHalfGap
+    val rightCx = cx + eyeHalfGap
+    val leftX = leftCx - lensW * 0.5f
+    val rightX = rightCx - lensW * 0.5f
+    val y = eyeY - lensH * 0.5f
+    val stroke = faceR * 0.045f
+    val corner = CornerRadius(lensH * 0.45f, lensH * 0.45f)
     drawRoundRect(
         color = color,
         topLeft = Offset(leftX, y),
@@ -333,10 +364,11 @@ private fun DrawScope.drawNomiGlasses(cx: Float, cy: Float, faceR: Float, color:
         cornerRadius = corner,
         style = Stroke(width = stroke),
     )
+    val bridgeY = eyeY
     drawLine(
         color,
-        Offset(leftX + lensW, cy + lensH * 0.15f),
-        Offset(rightX, cy + lensH * 0.15f),
+        Offset(leftX + lensW, bridgeY),
+        Offset(rightX, bridgeY),
         stroke,
         StrokeCap.Round,
     )
