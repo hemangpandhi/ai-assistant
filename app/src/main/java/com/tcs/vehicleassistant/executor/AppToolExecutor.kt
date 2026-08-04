@@ -6,11 +6,14 @@ import android.util.Log
 import com.tcs.vehicleassistant.domain.tools.IToolExecutor
 import com.tcs.vehicleassistant.domain.tools.ToolRegistry
 import com.tcs.vehicleassistant.VehicleManager
-import com.tcs.vehicleassistant.handlers.ToolHandlerRegistry
+import com.tcs.vehicleassistant.handlers.IToolHandlerRegistry
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class AppToolExecutor(private val toolRegistry: ToolRegistry) : IToolExecutor {
+class AppToolExecutor(
+    private val toolRegistry: ToolRegistry,
+    private val toolHandlerRegistry: IToolHandlerRegistry
+) : IToolExecutor {
 
     companion object {
         private const val TAG = "AppToolExecutor"
@@ -77,7 +80,7 @@ class AppToolExecutor(private val toolRegistry: ToolRegistry) : IToolExecutor {
             if (matchedTool.handlerType == "CUSTOM_KOTLIN") {
                 val handlerKey = matchedTool.handlerKey
                 if (handlerKey != null) {
-                    val handler = ToolHandlerRegistry.getHandler(handlerKey, matchedTool)
+                    val handler = toolHandlerRegistry.getHandler(handlerKey, matchedTool)
                     if (handler != null) {
                         val args = toolCall.substringAfter("(").substringBeforeLast(")")
                         val startToolTime = System.currentTimeMillis()

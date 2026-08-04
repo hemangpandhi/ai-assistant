@@ -1,11 +1,12 @@
 package com.tcs.vehicleassistant.assistant.session
+
+import com.tcs.vehicleassistant.llm.LLMManager
 import com.tcs.vehicleassistant.assistant.AssistantLlmDebugLabels
 import com.tcs.vehicleassistant.WakeWordService
 import com.tcs.vehicleassistant.VoiceAnimationView
 import com.tcs.vehicleassistant.VehicleManager
 import com.tcs.vehicleassistant.R
 import com.tcs.vehicleassistant.LocalLLMActivity
-import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.LatencyLogger
 
 import android.app.Activity

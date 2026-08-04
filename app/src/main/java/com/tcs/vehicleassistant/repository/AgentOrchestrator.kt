@@ -1,4 +1,9 @@
 package com.tcs.vehicleassistant.repository
+import com.tcs.vehicleassistant.llm.CloudMessageCallback
+
+import com.tcs.vehicleassistant.assistant.SystemPromptBuilder
+
+import com.tcs.vehicleassistant.llm.LLMManager
 
 import android.content.Context
 import android.content.Intent
@@ -6,7 +11,6 @@ import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
-import com.tcs.vehicleassistant.CloudMessageCallback
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.hardware.CabinSnapshotReader
 import com.tcs.vehicleassistant.core.VisionState
@@ -727,7 +731,7 @@ class AgentOrchestrator(
         
         // Wait for any background native inference to drain before touching the engine state.
         // Preemptively closing the conversation while LiteRT is generating tokens corrupts the GPU context.
-        while (com.tcs.vehicleassistant.LLMManager.hasActiveInference()) {
+        while (LLMManager.hasActiveInference()) {
             if (!isCurrentTurn(turnId)) return
             kotlinx.coroutines.delay(100)
         }
@@ -815,7 +819,7 @@ class AgentOrchestrator(
                 }
             }
 
-            val sysPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
+            val sysPrompt = SystemPromptBuilder.getSystemPrompt(context, interceptedQuery)
             val needsTelemetry = !isAgenticObservation && (interceptedQuery.length >= 25 || isFollowUp)
             val dynamicState = if (needsTelemetry) {
                 SmartContextInjector.getInjectedContext(interceptedQuery, context)
@@ -893,7 +897,7 @@ class AgentOrchestrator(
                     // DO NOT re-inject historyBlock, as it will duplicate the history and crash the context window.
                     buildString {
                         append("<start_of_turn>user\n")
-                        append(LLMManager.capabilityReminder())
+                        append(SystemPromptBuilder.capabilityReminder())
                         append('\n')
                         append(toolsBlock)
                         if (stateInject.isNotBlank()) append(stateInject)

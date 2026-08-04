@@ -1,7 +1,8 @@
-package com.tcs.vehicleassistant
+package com.tcs.vehicleassistant.llm
 
 import org.json.JSONArray
 import org.json.JSONObject
+import com.tcs.vehicleassistant.MemoryManager
 
 /**
  * Builds the message arrays for the cloud LLM APIs from [MemoryManager] history.

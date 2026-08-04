@@ -1,9 +1,10 @@
-package com.tcs.vehicleassistant
+package com.tcs.vehicleassistant.llm
 
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import com.tcs.vehicleassistant.MemoryManager
 
 /**
  * Covers history construction for the cloud providers. Both managers used to ignore their

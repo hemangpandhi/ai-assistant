@@ -1,5 +1,7 @@
 package com.tcs.vehicleassistant
 
+import com.tcs.vehicleassistant.llm.LLMManager
+
 import com.tcs.vehicleassistant.core.AssistantConfig
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -18,7 +20,7 @@ class InferenceLifecycleContractTest {
 
     @Test
     fun `capability reminder still forbids text-AI refusals`() {
-        val text = LLMManager.capabilityReminder().lowercase()
+        val text = com.tcs.vehicleassistant.assistant.SystemPromptBuilder.capabilityReminder().lowercase()
         assertTrue(text.contains("text-based"))
         assertTrue(text.contains("cannot play music"))
     }

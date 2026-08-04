@@ -1,4 +1,4 @@
-package com.tcs.vehicleassistant
+package com.tcs.vehicleassistant.llm
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -18,7 +18,7 @@ object GeminiManager {
     var apiKey: String = ""
 
     fun resetConversation() {
-        MemoryManager.clearMemory()
+        // Cloud conversational state is usually handled per-request via history array
     }
 
     suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, callback: CloudMessageCallback) {

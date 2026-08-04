@@ -1,6 +1,7 @@
 package com.tcs.vehicleassistant.assistant
 
-import com.tcs.vehicleassistant.LLMManager
+import com.tcs.vehicleassistant.llm.LLMManager
+
 import com.tcs.vehicleassistant.LocalLLMActivity
 import java.io.File
 

@@ -31,7 +31,7 @@ class ToolManager {
 
     fun initialize(context: Context) {
         registry.initialize(context)
-        executor = AppToolExecutor(registry)
+        executor = AppToolExecutor(registry, com.tcs.vehicleassistant.handlers.DefaultToolHandlerRegistry())
     }
 
     fun getAllTools(): Map<String, ToolDefinition> {

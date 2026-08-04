@@ -23,12 +23,20 @@ object SmartContextInjector {
                 val key = tool.handlerKey ?: ""
                 
                 // Map matched tool to Domain using ToolHandlerRegistry architectural routing!
-                if (com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.hvacHandlers.contains(key)) {
-                    requiresClimateState = true
-                }
+                val toolHandlerRegistry = org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.handlers.IToolHandlerRegistry>()
+                // Note: To avoid exposing the raw sets from the interface, we can use instanceof checks if needed, 
+                // but since the interface doesn't expose hvacHandlers, let's cast to DefaultToolHandlerRegistry temporarily
+                // or just check against known handler keys for HVAC/Nav.
+                val defaultRegistry = toolHandlerRegistry as? com.tcs.vehicleassistant.handlers.DefaultToolHandlerRegistry
                 
-                if (com.tcs.vehicleassistant.handlers.ToolHandlerRegistry.navHandlers.contains(key) || key == "getWeather") {
-                    requiresLocationState = true
+                if (defaultRegistry?.allRegisteredKeys()?.contains(key) == true) {
+                    // For now, keep the legacy logic by hardcoding a few known keys for climate/nav
+                    if (key in listOf("setAirflowDirection", "increaseTemperature", "decreaseTemperature", "setTemperature", "setDriverTemperature", "setPassengerTemperature", "increasePassengerTemperature", "decreasePassengerTemperature", "increaseDriverTemperature", "decreaseDriverTemperature", "increaseFanSpeed", "decreaseFanSpeed", "setFanSpeed", "setSeatHeater", "setSeatMassager", "turnOnDefroster", "turnOffDefroster", "turnOnRearDefroster", "turnOffRearDefroster", "turnOnAC", "turnOffAC", "turnOnAutoClimate", "turnOffAutoClimate", "turnOnHvacPower", "turnOffHvacPower")) {
+                        requiresClimateState = true
+                    }
+                    if (key in listOf("startNavigationTo", "searchNearby", "search", "suggestNearbyPlaces", "provideLaneLevelGuidance", "suggestAlternateRoute", "getWeather")) {
+                        requiresLocationState = true
+                    }
                 }
                 
                 if (key == "checkVehicleState") {

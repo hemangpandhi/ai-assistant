@@ -1,10 +1,7 @@
 package com.tcs.vehicleassistant.llm
 
 import android.content.Context
-import com.tcs.vehicleassistant.AnthropicManager
-import com.tcs.vehicleassistant.CloudMessageCallback
-import com.tcs.vehicleassistant.GeminiManager
-import com.tcs.vehicleassistant.LocalLLMActivity
+import com.tcs.vehicleassistant.llm.LLMManager
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
@@ -33,7 +30,7 @@ class CloudLLMProviderTest {
         provider = CloudLLMProvider()
         mockContext = mockk(relaxed = true)
         
-        mockkObject(LocalLLMActivity.Companion)
+        mockkObject(LLMManager)
         mockkObject(GeminiManager)
         mockkObject(AnthropicManager)
     }
@@ -59,7 +56,7 @@ class CloudLLMProviderTest {
 
     @Test
     fun `test generateStream routes to GeminiManager when model contains Gemini`() = runTest {
-        LocalLLMActivity.currentCloudModelName = "Gemini Pro"
+        LLMManager.currentCloudModelName = "Gemini Pro"
         
         val callbackSlot = slot<CloudMessageCallback>()
         coEvery { GeminiManager.sendMessageAsync(any(), any(), capture(callbackSlot)) } returns Unit
@@ -88,7 +85,7 @@ class CloudLLMProviderTest {
     
     @Test
     fun `test generateStream routes to AnthropicManager otherwise`() = runTest {
-        LocalLLMActivity.currentCloudModelName = "Claude 3.5 Sonnet"
+        LLMManager.currentCloudModelName = "Claude 3.5 Sonnet"
         
         val callbackSlot = slot<CloudMessageCallback>()
         coEvery { AnthropicManager.sendMessageAsync(any(), any(), capture(callbackSlot)) } returns Unit

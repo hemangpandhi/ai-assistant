@@ -1,5 +1,7 @@
 package com.tcs.vehicleassistant.service
 
+import com.tcs.vehicleassistant.llm.LLMManager
+
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -111,7 +113,7 @@ class VehicleAgentService : Service(), ComponentCallbacks2 {
         if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
             // unload() declines while an inference is still inside the native engine, so a
             // memory-pressure callback can no longer free state a streaming callback is using.
-            val unloaded = com.tcs.vehicleassistant.LLMManager.unload()
+            val unloaded = com.tcs.vehicleassistant.llm.LLMManager.unload()
             android.util.Log.w(TAG, "Memory pressure level=$level. LLM unloaded=$unloaded")
         }
     }

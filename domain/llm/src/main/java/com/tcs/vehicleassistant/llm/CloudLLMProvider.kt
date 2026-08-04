@@ -1,9 +1,6 @@
 package com.tcs.vehicleassistant.llm
 
 import android.content.Context
-import com.tcs.vehicleassistant.LocalLLMActivity
-import com.tcs.vehicleassistant.GeminiManager
-import com.tcs.vehicleassistant.AnthropicManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -26,12 +23,10 @@ class CloudLLMProvider : ILLMProvider {
         // Use the orchestrator-assembled [prompt] as the API system instruction. Recomputing
         // LLMManager.getSystemPrompt here dropped telemetry injection, capability reminders, and
         // agentic observation framing that only AgentOrchestrator builds.
-        val systemPrompt = prompt.ifBlank {
-            com.tcs.vehicleassistant.LLMManager.getSystemPrompt(context, userQuery)
-        }
+        val systemPrompt = prompt
 
         val responseBuilder = StringBuilder()
-        val callback = object : com.tcs.vehicleassistant.CloudMessageCallback {
+        val callback = object : CloudMessageCallback {
             override fun onMessage(chunkText: String) {
                 responseBuilder.append(chunkText)
                 onToken(chunkText)
@@ -45,7 +40,7 @@ class CloudLLMProvider : ILLMProvider {
         }
 
         try {
-            if (LocalLLMActivity.currentCloudModelName.contains("Gemini")) {
+            if (com.tcs.vehicleassistant.llm.LLMManager.currentCloudModelName.contains("Gemini")) {
                 GeminiManager.sendMessageAsync(systemPrompt, userQuery, callback)
             } else {
                 AnthropicManager.sendMessageAsync(systemPrompt, userQuery, callback)

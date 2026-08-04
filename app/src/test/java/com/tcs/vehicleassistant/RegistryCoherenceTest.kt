@@ -2,7 +2,6 @@ package com.tcs.vehicleassistant
 
 import android.app.Application
 import androidx.test.core.app.ApplicationProvider
-import com.tcs.vehicleassistant.handlers.ToolHandlerRegistry
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -37,7 +36,8 @@ class RegistryCoherenceTest {
 
     @Test
     fun `every CUSTOM_KOTLIN tool has a registered handler`() {
-        val missing = ToolHandlerRegistry.missingHandlers(toolManager.getAllTools())
+        val registry = com.tcs.vehicleassistant.handlers.DefaultToolHandlerRegistry()
+        val missing = registry.missingHandlers(toolManager.getAllTools())
         assertTrue(
             "CUSTOM_KOTLIN tools without a ToolHandlerRegistry entry: $missing",
             missing.isEmpty()

@@ -1,5 +1,7 @@
 package com.tcs.vehicleassistant
 
+import com.tcs.vehicleassistant.llm.LLMManager
+
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,14 +17,14 @@ class CapabilityReminderTest {
 
     @Test
     fun `reminder asserts vehicle co-pilot identity`() {
-        val text = LLMManager.capabilityReminder()
+        val text = com.tcs.vehicleassistant.assistant.SystemPromptBuilder.capabilityReminder()
         assertTrue(text.contains("vehicle", ignoreCase = true))
         assertTrue(text.contains("co-pilot", ignoreCase = true) || text.contains("copilot", ignoreCase = true))
     }
 
     @Test
     fun `reminder forbids the common text-AI refusal phrases`() {
-        val text = LLMManager.capabilityReminder().lowercase()
+        val text = com.tcs.vehicleassistant.assistant.SystemPromptBuilder.capabilityReminder().lowercase()
         for (phrase in listOf("text-based", "cannot play music", "cannot control playback", "never say")) {
             assertTrue("reminder must address '$phrase', was:\n$text", text.contains(phrase))
         }
@@ -30,7 +32,7 @@ class CapabilityReminderTest {
 
     @Test
     fun `reminder requires emitting a tool tag for clear cabin commands`() {
-        val text = LLMManager.capabilityReminder()
+        val text = com.tcs.vehicleassistant.assistant.SystemPromptBuilder.capabilityReminder()
         assertTrue(text.contains("<TOOL>"))
         assertTrue(text.contains("clear cabin", ignoreCase = true) || text.contains("media command", ignoreCase = true))
         assertTrue(text.contains("empathy", ignoreCase = true) || text.contains("feelings", ignoreCase = true))

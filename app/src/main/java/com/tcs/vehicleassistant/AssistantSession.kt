@@ -1,4 +1,6 @@
 package com.tcs.vehicleassistant
+
+import com.tcs.vehicleassistant.llm.LLMManager
 import kotlinx.coroutines.*
 
 import android.content.Context

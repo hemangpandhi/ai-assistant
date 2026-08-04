@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
-import com.tcs.vehicleassistant.LLMManager
 import com.tcs.vehicleassistant.LatencyLogger
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers

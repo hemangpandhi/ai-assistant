@@ -10,7 +10,8 @@ import org.koin.dsl.module
 val appModule = module {
     single { com.tcs.vehicleassistant.domain.tools.ToolRegistry() }
     single { com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator(get()) }
-    single<com.tcs.vehicleassistant.domain.tools.IToolExecutor> { com.tcs.vehicleassistant.executor.AppToolExecutor(get()) }
+    single<com.tcs.vehicleassistant.handlers.IToolHandlerRegistry> { com.tcs.vehicleassistant.handlers.DefaultToolHandlerRegistry() }
+    single<com.tcs.vehicleassistant.domain.tools.IToolExecutor> { com.tcs.vehicleassistant.executor.AppToolExecutor(get(), get()) }
 
     single<ILLMProvider>(named("edge")) { EdgeLLMProvider() }
     single<ILLMProvider>(named("cloud")) { CloudLLMProvider() }

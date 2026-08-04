@@ -1,5 +1,11 @@
 
 package com.tcs.vehicleassistant
+
+import com.tcs.vehicleassistant.assistant.SystemPromptBuilder
+
+import com.tcs.vehicleassistant.llm.LLMManager
+import com.tcs.vehicleassistant.llm.GeminiManager
+import com.tcs.vehicleassistant.llm.AnthropicManager
 import android.content.IntentFilter
 import android.content.BroadcastReceiver
 
@@ -469,7 +475,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
         // Setup System Prompt Editor
         lifecycleScope.launch {
-            etSystemPrompt.setText(LLMManager.getSystemPrompt(this@LocalLLMActivity))
+            etSystemPrompt.setText(SystemPromptBuilder.getSystemPrompt(this@LocalLLMActivity))
         }
         
         btnSavePrompt.setOnClickListener {
@@ -481,7 +487,7 @@ class LocalLLMActivity : AppCompatActivity() {
         
         btnResetPrompt.setOnClickListener {
             lifecycleScope.launch {
-                val defaultPrompt = LLMManager.getDefaultSystemPrompt(this@LocalLLMActivity)
+                val defaultPrompt = SystemPromptBuilder.getSystemPrompt(this@LocalLLMActivity)
                 etSystemPrompt.setText(defaultPrompt)
                 prefs.edit().remove("system_prompt").apply()
                 LLMManager.resetConversation()
@@ -1485,7 +1491,7 @@ class LocalLLMActivity : AppCompatActivity() {
                     val isFirst = LLMManager.isFirstMessage
                     val finalQuery = if (isFirst) {
                         LLMManager.isFirstMessage = false
-                        LLMManager.getSystemPrompt(applicationContext, query) + "\nUser: " + query
+                        SystemPromptBuilder.getSystemPrompt(applicationContext, query) + "\nUser: " + query
                     } else {
                         "User: $query"
                     }

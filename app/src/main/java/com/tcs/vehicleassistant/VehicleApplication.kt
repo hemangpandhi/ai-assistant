@@ -1,5 +1,7 @@
 package com.tcs.vehicleassistant
 
+import com.tcs.vehicleassistant.llm.LLMManager
+
 import android.app.Application
 import com.tcs.vehicleassistant.di.appModule
 import org.koin.android.ext.koin.androidContext
@@ -25,7 +27,7 @@ class VehicleApplication : Application() {
         // This eliminates the 20-60 second initialization hang when the user opens the popup.
         if (android.app.Application.getProcessName() == packageName) {
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default).launch {
-                com.tcs.vehicleassistant.LLMManager.autoInitialize(this@VehicleApplication)
+                com.tcs.vehicleassistant.llm.LLMManager.autoInitialize(this@VehicleApplication)
             }
         }
     }
