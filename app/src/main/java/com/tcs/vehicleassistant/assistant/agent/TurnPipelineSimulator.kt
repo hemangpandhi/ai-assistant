@@ -37,7 +37,7 @@ class TurnPipelineSimulator(
         cloudModelActive: Boolean = false,
         isAffirmativeKeepAlive: Boolean? = null,
     ): RoutedTurn {
-        val normalized = TurnRouter.normalize(raw)
+        val normalized = TurnRouter.normalize(raw, com.tcs.vehicleassistant.core.DirectToolResolver())
         confirms.applySupersedeIfNeeded(normalized.query)
         val snap = confirms.snapshot()
         val affirmative = isAffirmativeKeepAlive

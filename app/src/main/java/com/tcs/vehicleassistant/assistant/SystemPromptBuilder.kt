@@ -1,7 +1,7 @@
 package com.tcs.vehicleassistant.assistant
 
 import android.content.Context
-import com.tcs.vehicleassistant.MemoryManager
+import com.tcs.vehicleassistant.ConversationMemory
 import com.tcs.vehicleassistant.VehicleManager
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator
@@ -63,9 +63,13 @@ object SystemPromptBuilder {
         return buildDefault(context, query)
     }
 
-    suspend fun buildDefault(context: Context, query: String = ""): String {
+    suspend fun buildDefault(
+        context: Context, 
+        query: String = "",
+        memory: ConversationMemory = getKoin().get()
+    ): String {
         val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
-        val storedMemory = MemoryManager.getLongTermMemory(context)
+        val storedMemory = memory.getLongTermMemory(context)
         val userMemory = if (storedMemory.isNotEmpty()) storedMemory else "None"
         val isCompanionModeEnabled = prefs.getBoolean(AssistantConfig.Prefs.COMPANION_MODE, true)
 

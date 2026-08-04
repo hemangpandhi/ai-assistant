@@ -14,7 +14,7 @@ class RequirementsGapFillUnitTest {
     private val specs get() = RegistryFixture.toSpecs()
 
     private fun hit(query: String): DirectToolResolver.Hit {
-        val outcome = DirectToolResolver.resolve(query, specs)
+        val outcome = DirectToolResolver().resolve(query, specs)
         assertTrue("expected Execute for '$query', got $outcome", outcome is DirectToolResolver.Outcome.Execute)
         return (outcome as DirectToolResolver.Outcome.Execute).hit
     }
@@ -42,7 +42,7 @@ class RequirementsGapFillUnitTest {
 
     @Test
     fun jokeAboutWeather_stillFallsThrough() {
-        val outcome = DirectToolResolver.resolve("tell me a joke about the weather", specs)
+        val outcome = DirectToolResolver().resolve("tell me a joke about the weather", specs)
         assertTrue(outcome is DirectToolResolver.Outcome.Skip)
     }
 

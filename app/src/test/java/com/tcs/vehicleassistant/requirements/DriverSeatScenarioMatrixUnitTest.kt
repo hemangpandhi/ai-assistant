@@ -63,7 +63,7 @@ class DriverSeatScenarioMatrixUnitTest {
     @Test
     fun parked_cabinComfort_directTool() {
         for (phrase in listOf("turn on the ac", "increase temperature", "increase fan")) {
-            val hit = DirectToolResolver.resolve(phrase, specs)
+            val hit = DirectToolResolver().resolve(phrase, specs)
             assertTrue(
                 "parked comfort should DirectTool: $phrase → $hit",
                 hit is DirectToolResolver.Outcome.Execute,
@@ -73,7 +73,7 @@ class DriverSeatScenarioMatrixUnitTest {
 
     @Test
     fun driving_playMusic_directTool() {
-        val play = DirectToolResolver.resolve("play music", specs)
+        val play = DirectToolResolver().resolve("play music", specs)
         assertTrue("play music → $play", play is DirectToolResolver.Outcome.Execute)
     }
 
@@ -154,7 +154,7 @@ class DriverSeatScenarioMatrixUnitTest {
     @Test
     fun weatherAndIdentity_softInterrogatives() {
         for (phrase in listOf("what's the weather?", "who are you", "what model is this")) {
-            val hit = DirectToolResolver.resolve(phrase, specs)
+            val hit = DirectToolResolver().resolve(phrase, specs)
             assertTrue(
                 "soft info should DirectTool: $phrase → $hit",
                 hit is DirectToolResolver.Outcome.Execute,

@@ -109,7 +109,7 @@ object TurnRouter {
         ) : Decision()
     }
 
-    fun normalize(rawQuery: String, defaultSpeaker: String? = null): NormalizedQuery {
+    fun normalize(rawQuery: String, directToolResolver: com.tcs.vehicleassistant.core.DirectToolResolver, defaultSpeaker: String? = null): NormalizedQuery {
         var rawTrimmed = rawQuery.trim()
         var speaker: String? = defaultSpeaker
 
@@ -120,8 +120,8 @@ object TurnRouter {
             rawTrimmed = matchResult.groupValues[2]
         }
 
-        val normalizedFull = DirectToolResolver.normalize(rawTrimmed)
-        val collapsed = DirectToolResolver.collapseAsrRepeats(rawTrimmed)
+        val normalizedFull = directToolResolver.normalize(rawTrimmed)
+        val collapsed = directToolResolver.collapseAsrRepeats(rawTrimmed)
         val collapsedApplied = collapsed.isNotBlank() &&
             collapsed.split(' ').size < normalizedFull.split(' ').size
         val trimmedQuery = if (collapsedApplied) collapsed else rawTrimmed

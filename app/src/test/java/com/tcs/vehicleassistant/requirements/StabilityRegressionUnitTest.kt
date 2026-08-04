@@ -1,6 +1,6 @@
 package com.tcs.vehicleassistant.requirements
 
-import com.tcs.vehicleassistant.MemoryManager
+import com.tcs.vehicleassistant.ConversationMemory
 import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.utils.FollowUpRouter
@@ -17,7 +17,7 @@ class StabilityRegressionUnitTest {
     private val specs get() = RegistryFixture.toSpecs()
 
     private fun hit(query: String): DirectToolResolver.Hit {
-        val outcome = DirectToolResolver.resolve(query, specs)
+        val outcome = DirectToolResolver().resolve(query, specs)
         assertTrue("expected Execute for '$query', got $outcome", outcome is DirectToolResolver.Outcome.Execute)
         return (outcome as DirectToolResolver.Outcome.Execute).hit
     }
@@ -80,15 +80,15 @@ class StabilityRegressionUnitTest {
 
     @Test
     fun affirmativeYesWithPunctuationAndPlease() {
-        assertTrue(MemoryManager.isAffirmative("yes."))
-        assertTrue(MemoryManager.isAffirmative("Yes!"))
-        assertTrue(MemoryManager.isAffirmative("yes please"))
-        assertTrue(MemoryManager.isAffirmative("yeah sure"))
-        assertTrue(MemoryManager.isDecline("no thanks"))
-        assertTrue(MemoryManager.isDecline("not now"))
-        assertTrue(MemoryManager.isDecline("yes no"))
-        assertFalse(MemoryManager.isAffirmative("yes no"))
-        assertFalse(MemoryManager.isAffirmative("please"))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isAffirmative("yes."))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isAffirmative("Yes!"))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isAffirmative("yes please"))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isAffirmative("yeah sure"))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isDecline("no thanks"))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isDecline("not now"))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isDecline("yes no"))
+        assertFalse(com.tcs.vehicleassistant.ConversationMemory.isAffirmative("yes no"))
+        assertFalse(com.tcs.vehicleassistant.ConversationMemory.isAffirmative("please"))
         assertEquals(
             "setSeatHeater(2)",
             FollowUpRouter.resolveDirectTool("yes please", "Would you like me to turn on the seat heater?"),
@@ -106,9 +106,9 @@ class StabilityRegressionUnitTest {
         // cabin snapshot would return Confirm again and re-ask forever.
         assertTrue(
             "confirm replies must stay affirmative for ContextGuard yes-path",
-            MemoryManager.isAffirmative("yes"),
+            com.tcs.vehicleassistant.ConversationMemory.isAffirmative("yes"),
         )
-        assertTrue(MemoryManager.isDecline("cancel"))
+        assertTrue(com.tcs.vehicleassistant.ConversationMemory.isDecline("cancel"))
     }
 
     @Test
@@ -121,7 +121,7 @@ class StabilityRegressionUnitTest {
     fun spokenResponseForNavWithoutSuccessMessage_isDonePlaceholderOnly() {
         val nav = specs.first { it.id == "startNavigationTo" }
         // Registry may omit success_message; orchestrator prefers handler feedback over this.
-        val spoken = DirectToolResolver.spokenResponseFor(nav, """startNavigationTo("Tokyo Tower")""")
+        val spoken = DirectToolResolver().spokenResponseFor(nav, """startNavigationTo("Tokyo Tower")""")
         assertTrue(spoken == "Done." || spoken.isNotBlank())
     }
 }

@@ -13,8 +13,10 @@ import com.tcs.vehicleassistant.utils.ParsedToolCall
  * to use the modularized tool components (ToolRegistry, ToolSchemaGenerator, IToolExecutor).
  */
 class ToolManager {
-    val registry = ToolRegistry()
-    val schemaGenerator = ToolSchemaGenerator(registry)
+    private val contextGuard = com.tcs.vehicleassistant.core.ContextGuard()
+    private val directToolResolver = com.tcs.vehicleassistant.core.DirectToolResolver()
+    val registry = ToolRegistry(contextGuard, directToolResolver)
+    val schemaGenerator = ToolSchemaGenerator(registry, directToolResolver)
     lateinit var executor: IToolExecutor
 
     val isInitialized: Boolean

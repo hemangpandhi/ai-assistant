@@ -25,7 +25,7 @@ class ExhaustiveDirectToolUnitTest(
     @Test
     fun keywordResolvesToExpectedTool() {
         val specs = RegistryFixture.toSpecs()
-        val outcome = DirectToolResolver.resolve(scenario.query, specs)
+        val outcome = DirectToolResolver().resolve(scenario.query, specs)
         assertTrue(
             "expected Execute for '${scenario.query}' → ${scenario.toolId} (${scenario.note}), got $outcome",
             outcome is DirectToolResolver.Outcome.Execute,
@@ -102,7 +102,7 @@ class RegistryAndDocsCoherenceUnitTest {
             "can you explain how the engine works",
         )
         for (q in skips) {
-            val outcome = DirectToolResolver.resolve(q, specs)
+            val outcome = DirectToolResolver().resolve(q, specs)
             assertTrue("expected Skip for '$q', got $outcome", outcome is DirectToolResolver.Outcome.Skip)
         }
     }
@@ -137,7 +137,7 @@ class LlmAllUseCasesTriggerUnitTest {
                 .maxByOrNull { it.length }
             if (tool.directExecutable && !tool.requiresConfirmation && !tool.requiresAgenticLoop && bestKw != null) {
                 val query = RegistryFixture.queryFor(tool, bestKw)
-                val outcome = DirectToolResolver.resolve(query, specs)
+                val outcome = DirectToolResolver().resolve(query, specs)
                 if (outcome !is DirectToolResolver.Outcome.Execute ||
                     (outcome as DirectToolResolver.Outcome.Execute).hit.toolId != tool.handlerKey
                 ) {
@@ -168,7 +168,7 @@ class DocumentedPromptMatrixUnitTest {
             if (q.contains(" OR ", ignoreCase = true)) continue
             if (q.count { it == ' ' } > 14) continue
 
-            val outcome = DirectToolResolver.resolve(q, specs)
+            val outcome = DirectToolResolver().resolve(q, specs)
             if (outcome is DirectToolResolver.Outcome.Execute) {
                 checked += "$src:$q → ${(outcome as DirectToolResolver.Outcome.Execute).hit.toolId}"
                 continue
@@ -203,7 +203,7 @@ class DocumentedPromptMatrixUnitTest {
             "play some jazz" to "jazz",
         )
         for ((q, expect) in cases) {
-            val outcome = DirectToolResolver.resolve(q, specs)
+            val outcome = DirectToolResolver().resolve(q, specs)
             assertTrue("$q → $outcome", outcome is DirectToolResolver.Outcome.Execute)
             val hit = (outcome as DirectToolResolver.Outcome.Execute).hit
             assertEquals("playMusic", hit.toolId)

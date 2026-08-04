@@ -18,7 +18,7 @@ class GoldenPathMatrixUnitTest {
     private val specs get() = RegistryFixture.toSpecs()
 
     private fun expectDirect(query: String, toolId: String, argContains: String? = null) {
-        val outcome = DirectToolResolver.resolve(query, specs)
+        val outcome = DirectToolResolver().resolve(query, specs)
         assertTrue(
             "expected DirectTool Execute for '$query' → $toolId, got $outcome",
             outcome is DirectToolResolver.Outcome.Execute,
@@ -34,7 +34,7 @@ class GoldenPathMatrixUnitTest {
     }
 
     private fun expectSkip(query: String) {
-        val outcome = DirectToolResolver.resolve(query, specs)
+        val outcome = DirectToolResolver().resolve(query, specs)
         assertTrue(
             "expected DirectTool Skip for '$query', got $outcome",
             outcome is DirectToolResolver.Outcome.Skip,
@@ -157,7 +157,7 @@ class GoldenPathParameterizedTest(
 
     @Test
     fun resolves() {
-        val outcome = DirectToolResolver.resolve(query, RegistryFixture.toSpecs())
+        val outcome = DirectToolResolver().resolve(query, RegistryFixture.toSpecs())
         assertTrue("$query → $outcome", outcome is DirectToolResolver.Outcome.Execute)
         assertEquals(toolId, (outcome as DirectToolResolver.Outcome.Execute).hit.toolId)
     }

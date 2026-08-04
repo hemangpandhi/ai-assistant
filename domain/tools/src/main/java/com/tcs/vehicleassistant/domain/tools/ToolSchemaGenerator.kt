@@ -5,7 +5,10 @@ import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.core.LlmToolAllowList
 import com.tcs.vehicleassistant.core.ToolRetriever
 
-class ToolSchemaGenerator(private val registry: ToolRegistry) {
+class ToolSchemaGenerator(
+    private val registry: ToolRegistry,
+    private val directToolResolver: com.tcs.vehicleassistant.core.DirectToolResolver
+) {
 
     @Volatile
     var lastPromptedToolKeys: Set<String> = emptySet()
@@ -22,7 +25,7 @@ class ToolSchemaGenerator(private val registry: ToolRegistry) {
         val lexical = mutableListOf<ToolDefinition>()
 
         if (conversationalContext.isNotBlank() &&
-            com.tcs.vehicleassistant.MemoryManager.isFollowUpQuery(userQuery, conversationalContext)
+            com.tcs.vehicleassistant.ConversationMemory.Companion.isFollowUpQuery(userQuery, conversationalContext)
         ) {
             lexical += matchByKeyword(conversationalContext.lowercase())
         }
@@ -59,7 +62,7 @@ class ToolSchemaGenerator(private val registry: ToolRegistry) {
     }
 
     private fun matchByKeyword(haystack: String): List<ToolDefinition> {
-        val normalized = DirectToolResolver.normalize(haystack)
+        val normalized = directToolResolver.normalize(haystack)
         return registry.getAllTools().entries
             .filter { (name, _) ->
                 registry.getKeywordMatchers()[name]?.any { it.containsMatchIn(normalized) } == true

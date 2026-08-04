@@ -130,7 +130,7 @@ class TurnRouterTest {
 
     @Test
     fun `normalize strips seat tag`() {
-        val n = TurnRouter.normalize("[Seat: Driver] increase temperature")
+        val n = TurnRouter.normalize("[Seat: Driver] increase temperature", com.tcs.vehicleassistant.core.DirectToolResolver())
         assertEquals("Driver", n.speakerName)
         assertEquals("increase temperature", n.query)
     }

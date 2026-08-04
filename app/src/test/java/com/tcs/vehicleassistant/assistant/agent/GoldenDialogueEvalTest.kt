@@ -95,7 +95,7 @@ class GoldenDialogueEvalTest {
             followUpToolCall: String? = null,
             modelReady: Boolean = true,
         ): TurnRouter.Decision {
-            val normalized = TurnRouter.normalize(query)
+            val normalized = TurnRouter.normalize(query, com.tcs.vehicleassistant.core.DirectToolResolver())
             confirms.applySupersedeIfNeeded(normalized.query)
             val snap = confirms.snapshot()
             return TurnRouter.resolve(

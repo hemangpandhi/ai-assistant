@@ -29,7 +29,7 @@ class ToolManagerTest {
 
     @Before
     fun setUp() {
-        MemoryManager.clearMemory()
+        com.tcs.vehicleassistant.ConversationMemory.clearMemory()
         toolManager = ToolManager()
         toolManager.initialize(ApplicationProvider.getApplicationContext())
     }

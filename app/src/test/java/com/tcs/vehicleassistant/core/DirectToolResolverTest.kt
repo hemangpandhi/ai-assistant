@@ -88,7 +88,7 @@ class DirectToolResolverTest {
 
     @Test
     fun warmer_executesIncreaseTemperature() {
-        val outcome = DirectToolResolver.resolve("warmer", catalogue)
+        val outcome = DirectToolResolver().resolve("warmer", catalogue)
         val hit = (outcome as DirectToolResolver.Outcome.Execute).hit
         assertEquals("increaseTemperature()", hit.toolCall)
         assertEquals("warmer", hit.matchedKeyword)
@@ -96,7 +96,7 @@ class DirectToolResolverTest {
 
     @Test
     fun setTemperature_fillsVal() {
-        val hit = (DirectToolResolver.resolve("set temperature to 72", catalogue)
+        val hit = (DirectToolResolver().resolve("set temperature to 72", catalogue)
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("setTemperature(72)", hit.toolCall)
     }
@@ -104,7 +104,7 @@ class DirectToolResolverTest {
     @Test
     fun playJazz_fillsSong() {
         val playWithVerb = play.copy(keywords = listOf("play music", "play"))
-        val hit = (DirectToolResolver.resolve("play jazz", listOf(playWithVerb))
+        val hit = (DirectToolResolver().resolve("play jazz", listOf(playWithVerb))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic(jazz)", hit.toolCall)
         assertTrue(hit.spokenResponse.contains("jazz", ignoreCase = true))
@@ -113,7 +113,7 @@ class DirectToolResolverTest {
     @Test
     fun playArijitSinghMusic_fillsArtistNotGenericMusic() {
         val playWithVerb = play.copy(keywords = listOf("play music", "play"))
-        val hit = (DirectToolResolver.resolve("play arijit singh music", listOf(playWithVerb))
+        val hit = (DirectToolResolver().resolve("play arijit singh music", listOf(playWithVerb))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic(arijit singh)", hit.toolCall)
         assertTrue(
@@ -126,7 +126,7 @@ class DirectToolResolverTest {
     @Test
     fun playMusicByAdele_fillsArtist() {
         val playWithVerb = play.copy(keywords = listOf("play music", "play"))
-        val hit = (DirectToolResolver.resolve("play music by Adele", listOf(playWithVerb))
+        val hit = (DirectToolResolver().resolve("play music by Adele", listOf(playWithVerb))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic(adele)", hit.toolCall)
     }
@@ -134,7 +134,7 @@ class DirectToolResolverTest {
     @Test
     fun playArijitSinghMusic_stripsTrailingMusicAndNamesArtist() {
         val playWithVerb = play.copy(keywords = listOf("play music", "play", "play song"))
-        val hit = (DirectToolResolver.resolve("play arijit singh music", listOf(playWithVerb, stop))
+        val hit = (DirectToolResolver().resolve("play arijit singh music", listOf(playWithVerb, stop))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic(arijit singh)", hit.toolCall)
         assertTrue(
@@ -146,14 +146,14 @@ class DirectToolResolverTest {
     @Test
     fun playSongsByArtist_extractsArtist() {
         val playWithVerb = play.copy(keywords = listOf("play", "play music"))
-        val hit = (DirectToolResolver.resolve("play songs by taylor swift", listOf(playWithVerb))
+        val hit = (DirectToolResolver().resolve("play songs by taylor swift", listOf(playWithVerb))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic(taylor swift)", hit.toolCall)
     }
 
     @Test
     fun playMusicBare_defaultsToMusicArg() {
-        val hit = (DirectToolResolver.resolve("play music", listOf(play, stop))
+        val hit = (DirectToolResolver().resolve("play music", listOf(play, stop))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic(music)", hit.toolCall)
     }
@@ -161,7 +161,7 @@ class DirectToolResolverTest {
     @Test
     fun shortPlayVerb_withSongStillExecutes() {
         val playVerbOnly = play.copy(keywords = listOf("play"))
-        val hit = (DirectToolResolver.resolve("play jazz", listOf(playVerbOnly))
+        val hit = (DirectToolResolver().resolve("play jazz", listOf(playVerbOnly))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic(jazz)", hit.toolCall)
     }
@@ -169,39 +169,39 @@ class DirectToolResolverTest {
     @Test
     fun barePlay_rejected() {
         val playVerbOnly = play.copy(keywords = listOf("play"))
-        val outcome = DirectToolResolver.resolve("play", listOf(playVerbOnly))
+        val outcome = DirectToolResolver().resolve("play", listOf(playVerbOnly))
         assertTrue(outcome is DirectToolResolver.Outcome.Skip)
     }
 
     @Test
     fun bareHot_rejectedAsTooShort() {
-        val outcome = DirectToolResolver.resolve("hot", catalogue)
+        val outcome = DirectToolResolver().resolve("hot", catalogue)
         assertTrue(outcome is DirectToolResolver.Outcome.Skip)
     }
 
     @Test
     fun acOn_phrase_executes() {
-        val hit = (DirectToolResolver.resolve("ac on", catalogue)
+        val hit = (DirectToolResolver().resolve("ac on", catalogue)
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("turnOnAC()", hit.toolCall)
     }
 
     @Test
     fun conversational_fallsThrough() {
-        val outcome = DirectToolResolver.resolve("tell me a joke about the weather", catalogue)
+        val outcome = DirectToolResolver().resolve("tell me a joke about the weather", catalogue)
         assertTrue(outcome is DirectToolResolver.Outcome.Skip)
     }
 
     @Test
     fun question_fallsThrough() {
-        val outcome = DirectToolResolver.resolve("what is the cabin temperature", catalogue)
+        val outcome = DirectToolResolver().resolve("what is the cabin temperature", catalogue)
         assertTrue(outcome is DirectToolResolver.Outcome.Skip)
     }
 
     @Test
     fun unsupportedArgs_fallThroughEvenIfKeywordMatches() {
         // callContact is direct_executable in this fixture but NAME is unsupported.
-        val outcome = DirectToolResolver.resolve("call mom", listOf(call.copy(
+        val outcome = DirectToolResolver().resolve("call mom", listOf(call.copy(
             keywords = listOf("call mom", "call"),
         )))
         assertTrue(
@@ -213,7 +213,7 @@ class DirectToolResolverTest {
     @Test
     fun nonOptInTool_ignored() {
         val locked = climate.copy(directExecutable = false)
-        val outcome = DirectToolResolver.resolve("warmer", listOf(locked))
+        val outcome = DirectToolResolver().resolve("warmer", listOf(locked))
         assertTrue(outcome is DirectToolResolver.Outcome.Skip)
     }
 
@@ -222,13 +222,13 @@ class DirectToolResolverTest {
         // Both tools expose a short shared token; neither phrase fully matches.
         val playOnlyMusic = play.copy(keywords = listOf("music"))
         val stopOnlyMusic = stop.copy(keywords = listOf("music"))
-        val outcome = DirectToolResolver.resolve("music", listOf(playOnlyMusic, stopOnlyMusic))
+        val outcome = DirectToolResolver().resolve("music", listOf(playOnlyMusic, stopOnlyMusic))
         assertTrue(outcome is DirectToolResolver.Outcome.Skip)
     }
 
     @Test
     fun stopMusic_uniquePhraseWins() {
-        val hit = (DirectToolResolver.resolve("stop music", catalogue)
+        val hit = (DirectToolResolver().resolve("stop music", catalogue)
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("stopMusic()", hit.toolCall)
     }
@@ -236,7 +236,7 @@ class DirectToolResolverTest {
     @Test
     fun relativeWarmer_notConfusedWithSetTemperature() {
         val setTempPrecise = setTemp.copy(keywords = listOf("set temperature", "set temp"))
-        val hit = (DirectToolResolver.resolve("warmer", listOf(climate, setTempPrecise))
+        val hit = (DirectToolResolver().resolve("warmer", listOf(climate, setTempPrecise))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("increaseTemperature", hit.toolId)
     }
@@ -253,7 +253,7 @@ class DirectToolResolverTest {
             requiresAgenticLoop = false,
             directExecutable = true,
         )
-        val hit = (DirectToolResolver.resolve("I am feeling cold", listOf(climate, cold))
+        val hit = (DirectToolResolver().resolve("I am feeling cold", listOf(climate, cold))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("handleFeelingCold()", hit.toolCall)
     }
@@ -270,26 +270,26 @@ class DirectToolResolverTest {
             requiresAgenticLoop = false,
             directExecutable = true,
         )
-        val bare = (DirectToolResolver.resolve("what is the weather", listOf(weather))
+        val bare = (DirectToolResolver().resolve("what is the weather", listOf(weather))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("getWeather(here)", bare.toolCall)
-        val tokyo = (DirectToolResolver.resolve("weather in Tokyo", listOf(weather))
+        val tokyo = (DirectToolResolver().resolve("weather in Tokyo", listOf(weather))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("getWeather(tokyo)", tokyo.toolCall)
         assertTrue(
-            DirectToolResolver.resolve("What's the weather?", listOf(weather))
+            DirectToolResolver().resolve("What's the weather?", listOf(weather))
                 is DirectToolResolver.Outcome.Execute,
         )
 
-        val gujarat = (DirectToolResolver.resolve("what's the current weather in Gujarat", listOf(weather))
+        val gujarat = (DirectToolResolver().resolve("what's the current weather in Gujarat", listOf(weather))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("getWeather(gujarat)", gujarat.toolCall)
 
-        val currentIn = (DirectToolResolver.resolve("current weather in Gujarat", listOf(weather))
+        val currentIn = (DirectToolResolver().resolve("current weather in Gujarat", listOf(weather))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("getWeather(gujarat)", currentIn.toolCall)
 
-        val tokyoCurrent = (DirectToolResolver.resolve("what is the current weather in Tokyo", listOf(weather))
+        val tokyoCurrent = (DirectToolResolver().resolve("what is the current weather in Tokyo", listOf(weather))
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("getWeather(tokyo)", tokyoCurrent.toolCall)
     }
@@ -299,57 +299,57 @@ class DirectToolResolverTest {
         assertEquals(
             "gujarat",
             DirectToolResolver.extractCityArg(
-                DirectToolResolver.normalize("what's the current weather in Gujarat"),
+                DirectToolResolver().normalize("what's the current weather in Gujarat"),
             ),
         )
         assertEquals(
             "gujarat",
             DirectToolResolver.extractCityArg(
-                DirectToolResolver.normalize("current weather in Gujarat"),
+                DirectToolResolver().normalize("current weather in Gujarat"),
             ),
         )
         assertEquals(
             "tokyo",
             DirectToolResolver.extractCityArg(
-                DirectToolResolver.normalize("what is the current weather in Tokyo"),
+                DirectToolResolver().normalize("what is the current weather in Tokyo"),
             ),
         )
         assertEquals(
             "tokyo",
             DirectToolResolver.extractCityArg(
-                DirectToolResolver.normalize("whats the weather in tokyo"),
+                DirectToolResolver().normalize("whats the weather in tokyo"),
             ),
         )
     }
 
     @Test
     fun normalize_collapsesSlashAc() {
-        assertEquals("turn on the ac", DirectToolResolver.normalize("Turn on the A/C."))
-        assertEquals("done off the ac", DirectToolResolver.normalize("Done off the AC."))
+        assertEquals("turn on the ac", DirectToolResolver().normalize("Turn on the A/C."))
+        assertEquals("done off the ac", DirectToolResolver().normalize("Done off the AC."))
     }
 
     @Test
     fun collapseAsrRepeats_shortCabinPhrases() {
         assertEquals(
             "play music",
-            DirectToolResolver.collapseAsrRepeats(
+            DirectToolResolver().collapseAsrRepeats(
                 "play music play music play music play music play music play music play music",
             ),
         )
         assertEquals(
             "turn on ac",
-            DirectToolResolver.collapseAsrRepeats(
+            DirectToolResolver().collapseAsrRepeats(
                 "turn on AC turn on AC turn on AC turn on AC turn on AC turn on",
             ),
         )
-        assertEquals("play music", DirectToolResolver.collapseAsrRepeats("play music"))
+        assertEquals("play music", DirectToolResolver().collapseAsrRepeats("play music"))
     }
 
     @Test
     fun resolve_acSlashAndAsrDoneOff() {
         assertEquals(
             "turnOnAC",
-            (DirectToolResolver.resolve("Turn on the A/C.", catalogue)
+            (DirectToolResolver().resolve("Turn on the A/C.", catalogue)
                 as DirectToolResolver.Outcome.Execute).hit.toolId,
         )
 
@@ -367,7 +367,7 @@ class DirectToolResolverTest {
         )
         assertEquals(
             "turnOffAC",
-            (DirectToolResolver.resolve("Done off the AC.", catalogueWithOff)
+            (DirectToolResolver().resolve("Done off the AC.", catalogueWithOff)
                 as DirectToolResolver.Outcome.Execute).hit.toolId,
         )
     }
@@ -376,7 +376,7 @@ class DirectToolResolverTest {
     fun resolve_asrStutterPlayMusic() {
         val stutter =
             "play music play music play music play music play music play music play music"
-        val hit = (DirectToolResolver.resolve(stutter, catalogue)
+        val hit = (DirectToolResolver().resolve(stutter, catalogue)
             as DirectToolResolver.Outcome.Execute).hit
         assertEquals("playMusic", hit.toolId)
     }

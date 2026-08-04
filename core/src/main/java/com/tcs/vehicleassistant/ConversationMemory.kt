@@ -4,9 +4,50 @@ import android.content.Context
 import android.util.Log
 import com.tcs.vehicleassistant.core.AssistantConfig
 
-object MemoryManager {
-    private const val TAG = "MemoryManager"
-    private const val DEFAULT_MAX_CHARS = AssistantConfig.Memory.DEFAULT_MAX_CHARS
+class ConversationMemory {
+    companion object {
+        private const val TAG = "MemoryManager"
+        private const val DEFAULT_MAX_CHARS = AssistantConfig.Memory.DEFAULT_MAX_CHARS
+
+        private val followUpPatterns = listOf(
+            "yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead",
+            "no", "nope", "cancel", "never mind", "nevermind",
+            "the first", "the second", "the third", "first one", "second one", "third one",
+            "that one", "this one", "the one", "number one", "number two", "number three",
+            "take me there", "navigate there", "let's go", "lets go"
+        )
+
+        fun isAffirmative(query: String): Boolean =
+            com.tcs.vehicleassistant.core.ConfirmationPolicy.isAffirmative(query)
+
+        fun isDecline(query: String): Boolean =
+            com.tcs.vehicleassistant.core.ConfirmationPolicy.isDecline(query)
+
+        fun isFollowUpQuery(query: String, previousResponse: String = ""): Boolean {
+            val q = query.lowercase().trim()
+            if (q.length > 60) return false
+            
+            if (previousResponse.trim().endsWith("?")) return true
+            
+            if (followUpPatterns.any { Regex("\\b$it\\b", RegexOption.IGNORE_CASE).containsMatchIn(q) }) {
+                return true
+            }
+            
+            val words = q.split(Regex("\\s+"))
+            if (words.size <= 3) return true
+            
+            return false
+        }
+        
+        // Test compatibility wrappers
+        private val testInstance = ConversationMemory()
+        fun clearMemory() = testInstance.clearMemory()
+        fun addTurn(role: String, content: String) = testInstance.addTurn(role, content)
+        fun getSlidingWindowContext(maxChars: Int): String = testInstance.getSlidingWindowContext(maxChars)
+        fun captureLongTermFacts(context: android.content.Context, query: String): Boolean = testInstance.captureLongTermFacts(context, query)
+        fun getLongTermMemory(context: android.content.Context): String = testInstance.getLongTermMemory(context)
+        val conversationHistory: List<Turn> get() = testInstance.getHistoryForTest()
+    }
 
     data class Turn(val role: String, val content: String)
 
@@ -18,14 +59,6 @@ object MemoryManager {
      */
     private val historyLock = Any()
     private val conversationHistory = mutableListOf<Turn>()
-
-    private val followUpPatterns = listOf(
-        "yes", "yeah", "yep", "sure", "ok", "okay", "do it", "go ahead",
-        "no", "nope", "cancel", "never mind", "nevermind",
-        "the first", "the second", "the third", "first one", "second one", "third one",
-        "that one", "this one", "the one", "number one", "number two", "number three",
-        "take me there", "navigate there", "let's go", "lets go"
-    )
 
     fun addTurn(role: String, content: String) {
         val trimmed = content.trim()
@@ -41,28 +74,6 @@ object MemoryManager {
             conversationHistory.size
         }
         Log.d(TAG, "Added turn: $role. Retained turns: $size")
-    }
-
-    fun isAffirmative(query: String): Boolean =
-        com.tcs.vehicleassistant.core.ConfirmationPolicy.isAffirmative(query)
-
-    fun isDecline(query: String): Boolean =
-        com.tcs.vehicleassistant.core.ConfirmationPolicy.isDecline(query)
-
-    fun isFollowUpQuery(query: String, previousResponse: String = ""): Boolean {
-        val q = query.lowercase().trim()
-        if (q.length > 60) return false
-        
-        if (previousResponse.trim().endsWith("?")) return true
-        
-        if (followUpPatterns.any { Regex("\\b$it\\b", RegexOption.IGNORE_CASE).containsMatchIn(q) }) {
-            return true
-        }
-        
-        val words = q.split(Regex("\\s+"))
-        if (words.size <= 3) return true
-        
-        return false
     }
 
     private val longTermCapturePatterns = listOf(
@@ -100,6 +111,12 @@ object MemoryManager {
             }
         }
         return false
+    }
+
+    fun getHistoryForTest(): List<Turn> {
+        return synchronized(historyLock) {
+            ArrayList(conversationHistory)
+        }
     }
 
     private fun sanitizeFact(raw: String): String? {

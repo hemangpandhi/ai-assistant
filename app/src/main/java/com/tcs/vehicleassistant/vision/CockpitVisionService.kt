@@ -17,7 +17,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.R
-import com.tcs.vehicleassistant.repository.OrchestratorState
+import com.tcs.vehicleassistant.assistant.agent.AgentState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

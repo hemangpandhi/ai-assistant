@@ -1,6 +1,6 @@
 package com.tcs.vehicleassistant.utils
 
-import com.tcs.vehicleassistant.MemoryManager
+import com.tcs.vehicleassistant.core.ConfirmationPolicy
 
 /**
  * Resolves short follow-up utterances into direct tool calls using the last assistant turn.
@@ -43,7 +43,7 @@ object FollowUpRouter {
         val q = query.lowercase().trim()
         val last = lastAssistantMessage.lowercase()
 
-        if (MemoryManager.isAffirmative(query)) {
+        if (ConfirmationPolicy.isAffirmative(query)) {
             when {
                 last.contains("seat heater") || last.contains("seat heat") ||
                     last.contains("heated seat") || last.contains("warm your seat") ||
@@ -61,7 +61,7 @@ object FollowUpRouter {
             }
         }
 
-        if (MemoryManager.isFollowUpQuery(query)) {
+        if (com.tcs.vehicleassistant.ConversationMemory.Companion.isFollowUpQuery(query)) {
             val options = extractNumberedOptions(lastAssistantMessage)
             if (options.isNotEmpty()) {
                 val pickIndex = resolveListPickIndex(query) ?: return null

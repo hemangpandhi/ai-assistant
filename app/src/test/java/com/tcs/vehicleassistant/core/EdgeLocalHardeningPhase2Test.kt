@@ -45,7 +45,7 @@ class EdgeLocalHardeningPhase2Test {
             directExecutable = true,
         )
         val policy = DirectToolResolver.Policy(fanMax = 9, minKeywordChars = 3)
-        val outcome = DirectToolResolver.resolve("max fan", listOf(tool), policy)
+        val outcome = DirectToolResolver().resolve("max fan", listOf(tool), policy)
         assertTrue(outcome is DirectToolResolver.Outcome.Execute)
         assertEquals(
             "setFanSpeed(9)",

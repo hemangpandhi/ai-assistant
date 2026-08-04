@@ -15,9 +15,19 @@ import org.json.JSONObject
  * - [Decision.Block] — speak reason, do not execute
  * - [Decision.Escalate] — speak facts-only prompt; caller may fall through to LLM
  */
-object ContextGuard {
+class ContextGuard {
 
-    private const val TAG = "ContextGuard"
+    companion object {
+        private const val TAG = "ContextGuard"
+        
+        // Backward compatibility for tests that haven't been updated to use the injected instance
+        private val testInstance = ContextGuard()
+        fun evaluate(toolCall: String, snapshot: com.tcs.vehicleassistant.core.CabinSnapshot): Decision = testInstance.evaluate(toolCall, snapshot)
+        fun loadFromConfig(config: org.json.JSONObject?) = testInstance.loadFromConfig(config)
+        fun clearRulesForTest() = testInstance.clearRulesForTest()
+        fun replaceRulesForTest(rules: List<PolicyRule>, policiesEnabled: Boolean = true) = testInstance.replaceRulesForTest(rules, policiesEnabled)
+        val enabled: Boolean get() = testInstance.enabled
+    }
 
     enum class Action {
         ALLOW, CONFIRM, BLOCK, ESCALATE

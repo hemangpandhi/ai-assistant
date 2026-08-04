@@ -1,6 +1,6 @@
 package com.tcs.vehicleassistant.utils
 
-import com.tcs.vehicleassistant.MemoryManager
+
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull

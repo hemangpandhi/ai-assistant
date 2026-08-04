@@ -4,7 +4,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
-import com.tcs.vehicleassistant.MemoryManager
+
 
 /**
  * Covers history construction for the cloud providers. Both managers used to ignore their
@@ -12,15 +12,11 @@ import com.tcs.vehicleassistant.MemoryManager
  * order the orchestrator recorded turns would have sent a request without the actual question.
  */
 class CloudRequestBuilderTest {
+    private val memory = com.tcs.vehicleassistant.ConversationMemory()
 
-    private fun user(content: String) = MemoryManager.Turn("User", content)
-    private fun assistant(content: String) = MemoryManager.Turn("Assistant", content)
+    private fun user(content: String) = com.tcs.vehicleassistant.ConversationMemory.Turn("User", content)
+    private fun assistant(content: String) = com.tcs.vehicleassistant.ConversationMemory.Turn("Assistant", content)
 
-    @Before
-    fun clearHistory() = MemoryManager.clearMemory()
-
-    @After
-    fun tearDown() = MemoryManager.clearMemory()
 
     @Test
     fun `the user message is appended when history does not contain it`() {
@@ -75,43 +71,43 @@ class CloudRequestBuilderTest {
     }
 
     @Test
-    fun `the request always ends with a user turn, which both APIs require`() {
-        MemoryManager.addTurn("User", "hello")
-        MemoryManager.addTurn("Assistant", "hi there")
+    fun `gemini payloads follow the contents array structure`() {
+        memory.addTurn("User", "hello")
+        memory.addTurn("Assistant", "hi there")
 
-        val gemini = CloudRequestBuilder.geminiContents("set the temperature to 72")
+        val gemini = CloudRequestBuilder.geminiContents("set the temperature to 72", memory.snapshot())
         assertEquals("user", gemini.last().getString("role"))
         assertEquals(
             "set the temperature to 72",
             gemini.last().getJSONArray("parts").getJSONObject(0).getString("text")
         )
 
-        val anthropic = CloudRequestBuilder.anthropicMessages("set the temperature to 72")
+        val anthropic = CloudRequestBuilder.anthropicMessages("set the temperature to 72", memory.snapshot())
         assertEquals("user", anthropic.last().getString("role"))
         assertEquals("set the temperature to 72", anthropic.last().getString("content"))
     }
 
     @Test
     fun `gemini uses the model role for assistant turns`() {
-        MemoryManager.addTurn("User", "hello")
-        MemoryManager.addTurn("Assistant", "hi there")
+        memory.addTurn("User", "hello")
+        memory.addTurn("Assistant", "hi there")
 
-        val roles = CloudRequestBuilder.geminiContents("and now").map { it.getString("role") }
+        val roles = CloudRequestBuilder.geminiContents("and now", memory.snapshot()).map { it.getString("role") }
         assertEquals(listOf("user", "model", "user"), roles)
     }
 
     @Test
     fun `anthropic uses the assistant role for assistant turns`() {
-        MemoryManager.addTurn("User", "hello")
-        MemoryManager.addTurn("Assistant", "hi there")
+        memory.addTurn("User", "hello")
+        memory.addTurn("Assistant", "hi there")
 
-        val roles = CloudRequestBuilder.anthropicMessages("and now").map { it.getString("role") }
+        val roles = CloudRequestBuilder.anthropicMessages("and now", memory.snapshot()).map { it.getString("role") }
         assertEquals(listOf("user", "assistant", "user"), roles)
     }
 
     @Test
     fun `an empty conversation still produces a request carrying the question`() {
-        val gemini = CloudRequestBuilder.geminiContents("how far to the next charger")
+        val gemini = CloudRequestBuilder.geminiContents("how far to the next charger", memory.snapshot())
         assertEquals(1, gemini.size)
         assertEquals(
             "how far to the next charger",

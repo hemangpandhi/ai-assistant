@@ -24,10 +24,12 @@ class CloudLLMProviderTest {
 
     private lateinit var provider: CloudLLMProvider
     private lateinit var mockContext: Context
+    private lateinit var conversationMemory: com.tcs.vehicleassistant.ConversationMemory
 
     @Before
     fun setUp() {
-        provider = CloudLLMProvider()
+        conversationMemory = com.tcs.vehicleassistant.ConversationMemory()
+        provider = CloudLLMProvider(conversationMemory)
         mockContext = mockk(relaxed = true)
         
         mockkObject(LLMManager)
@@ -59,7 +61,7 @@ class CloudLLMProviderTest {
         EngineStatusStore.currentCloudModelName = "Gemini Pro"
         
         val callbackSlot = slot<CloudMessageCallback>()
-        coEvery { GeminiManager.sendMessageAsync(any(), any(), capture(callbackSlot)) } returns Unit
+        coEvery { GeminiManager.sendMessageAsync(any(), any(), any(), capture(callbackSlot)) } returns Unit
         
         var receivedToken = ""
         var doneResponse = ""
@@ -73,7 +75,7 @@ class CloudLLMProviderTest {
             onError = {}
         )
         
-        coVerify(exactly = 1) { GeminiManager.sendMessageAsync("System Prompt", "Hello", any()) }
+        coVerify(exactly = 1) { GeminiManager.sendMessageAsync("System Prompt", "Hello", any(), any()) }
         
         // Simulate callback
         callbackSlot.captured.onMessage("Token1")
@@ -88,7 +90,7 @@ class CloudLLMProviderTest {
         EngineStatusStore.currentCloudModelName = "Claude 3.5 Sonnet"
         
         val callbackSlot = slot<CloudMessageCallback>()
-        coEvery { AnthropicManager.sendMessageAsync(any(), any(), capture(callbackSlot)) } returns Unit
+        coEvery { AnthropicManager.sendMessageAsync(any(), any(), any(), capture(callbackSlot)) } returns Unit
         
         var errorThrown = false
         
@@ -101,7 +103,7 @@ class CloudLLMProviderTest {
             onError = { errorThrown = true }
         )
         
-        coVerify(exactly = 1) { AnthropicManager.sendMessageAsync("System Prompt", "Hello", any()) }
+        coVerify(exactly = 1) { AnthropicManager.sendMessageAsync("System Prompt", "Hello", any(), any()) }
         
         // Simulate error callback
         callbackSlot.captured.onError(RuntimeException("Test Exception"))

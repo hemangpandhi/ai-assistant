@@ -4,7 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class CloudLLMProvider : ILLMProvider {
+class CloudLLMProvider(private val conversationMemory: com.tcs.vehicleassistant.ConversationMemory) : ILLMProvider {
     private var isInitialized = false
     
     override suspend fun initialize(context: Context, force: Boolean) {
@@ -41,9 +41,9 @@ class CloudLLMProvider : ILLMProvider {
 
         try {
             if (EngineStatusStore.currentCloudModelName.contains("Gemini")) {
-                GeminiManager.sendMessageAsync(systemPrompt, userQuery, callback)
+                GeminiManager.sendMessageAsync(systemPrompt, userQuery, conversationMemory.snapshot(), callback)
             } else {
-                AnthropicManager.sendMessageAsync(systemPrompt, userQuery, callback)
+                AnthropicManager.sendMessageAsync(systemPrompt, userQuery, conversationMemory.snapshot(), callback)
             }
         } catch (e: Exception) {
             onError(e)

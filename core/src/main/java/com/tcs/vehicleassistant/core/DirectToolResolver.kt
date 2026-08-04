@@ -10,7 +10,19 @@ package com.tcs.vehicleassistant.core
  * Safety over recall: ambiguous, confirmatory, multi-arg, or conversational turns fall through to
  * the LLM rather than risk a wrong VHAL write.
  */
-object DirectToolResolver {
+class DirectToolResolver {
+    companion object {
+        private val testInstance = DirectToolResolver()
+        fun resolve(query: String, specs: List<ToolSpec>, policy: Policy): Outcome = testInstance.resolve(query, specs, policy)
+        fun normalize(query: String): String = testInstance.normalize(query)
+        fun collapseAsrRepeats(query: String): String = testInstance.collapseAsrRepeats(query)
+        fun extractCityArg(query: String): String? = testInstance.extractCityArg(query)
+        fun extractAmenityArg(query: String): String? = testInstance.extractAmenityArg(query)
+        fun extractSongArg(query: String): String? = testInstance.extractSongArg(query)
+        fun containsWholePhrase(a: String, b: String): Boolean = testInstance.containsWholePhrase(a, b)
+        fun spokenResponseFor(tool: ToolSpec, toolCall: String): String = testInstance.spokenResponseFor(tool, toolCall)
+    }
+
 
     data class ToolSpec(
         val id: String,

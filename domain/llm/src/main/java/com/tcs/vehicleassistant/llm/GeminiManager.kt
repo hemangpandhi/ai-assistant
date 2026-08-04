@@ -21,7 +21,7 @@ object GeminiManager {
         // Cloud conversational state is usually handled per-request via history array
     }
 
-    suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, callback: CloudMessageCallback) {
+    suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, history: List<com.tcs.vehicleassistant.ConversationMemory.Turn>, callback: CloudMessageCallback) {
         withContext(Dispatchers.IO) {
             if (apiKey.isEmpty() || apiKey == "Enter API Key") {
                 callback.onError(IllegalStateException("No Gemini API key configured. Add one in settings."))
@@ -29,7 +29,7 @@ object GeminiManager {
             }
 
             val jsonBody = JSONObject().apply {
-                put("contents", JSONArray(CloudRequestBuilder.geminiContents(userMessage)))
+                put("contents", JSONArray(CloudRequestBuilder.geminiContents(userMessage, history)))
                 put("systemInstruction", JSONObject().apply {
                     put("parts", JSONArray().put(JSONObject().put("text", systemPrompt)))
                 })

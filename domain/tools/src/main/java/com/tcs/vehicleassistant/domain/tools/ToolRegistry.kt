@@ -8,7 +8,10 @@ import com.tcs.vehicleassistant.core.DirectToolResolver
 import com.tcs.vehicleassistant.core.ToolRetriever
 import org.json.JSONObject
 
-class ToolRegistry {
+class ToolRegistry(
+    private val contextGuard: com.tcs.vehicleassistant.core.ContextGuard,
+    private val directToolResolver: com.tcs.vehicleassistant.core.DirectToolResolver
+) {
 
     companion object {
         private const val TAG = "ToolRegistry"
@@ -91,9 +94,9 @@ class ToolRegistry {
                 directExecutable = tool.directExecutable,
             )
         }
-        return when (val outcome = DirectToolResolver.resolve(userQuery, specs, directExecutionPolicy)) {
-            is DirectToolResolver.Outcome.Execute -> outcome.hit
-            is DirectToolResolver.Outcome.Skip -> {
+        return when (val outcome = directToolResolver.resolve(userQuery, specs, directExecutionPolicy)) {
+            is com.tcs.vehicleassistant.core.DirectToolResolver.Outcome.Execute -> outcome.hit
+            is com.tcs.vehicleassistant.core.DirectToolResolver.Outcome.Skip -> {
                 Log.d(TAG, "Direct execution skipped: ${outcome.rejection.reason} for '$userQuery'")
                 null
             }
@@ -135,7 +138,7 @@ class ToolRegistry {
                     )
                 }
                 llmFewShots = parseLlmFewShots(config)
-                ContextGuard.loadFromConfig(config)
+                contextGuard.loadFromConfig(config)
             }
 
             systemInstructions = parseSystemInstructions(jsonObject)

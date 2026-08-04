@@ -2,7 +2,7 @@ package com.tcs.vehicleassistant.llm
 
 import org.json.JSONArray
 import org.json.JSONObject
-import com.tcs.vehicleassistant.MemoryManager
+import com.tcs.vehicleassistant.ConversationMemory
 
 /**
  * Builds the message arrays for the cloud LLM APIs from [MemoryManager] history.
@@ -19,8 +19,8 @@ object CloudRequestBuilder {
     private const val ROLE_ASSISTANT = "assistant"
 
     /** Gemini `contents` array: `[{role, parts:[{text}]}]`. */
-    fun geminiContents(userMessage: String): List<JSONObject> =
-        withUserMessage(MemoryManager.snapshot(), userMessage).map { turn ->
+    fun geminiContents(userMessage: String, history: List<ConversationMemory.Turn>): List<JSONObject> =
+        withUserMessage(history, userMessage).map { turn ->
             JSONObject().apply {
                 put("role", if (isUser(turn.role)) ROLE_USER else ROLE_MODEL)
                 put("parts", JSONArray().put(JSONObject().put("text", turn.content)))
@@ -28,8 +28,8 @@ object CloudRequestBuilder {
         }
 
     /** Anthropic `messages` array: `[{role, content}]`. */
-    fun anthropicMessages(userMessage: String): List<JSONObject> =
-        withUserMessage(MemoryManager.snapshot(), userMessage).map { turn ->
+    fun anthropicMessages(userMessage: String, history: List<ConversationMemory.Turn>): List<JSONObject> =
+        withUserMessage(history, userMessage).map { turn ->
             JSONObject().apply {
                 put("role", if (isUser(turn.role)) ROLE_USER else ROLE_ASSISTANT)
                 put("content", turn.content)
@@ -41,16 +41,16 @@ object CloudRequestBuilder {
      * whose final message is from the assistant, and an empty history is rejected outright.
      */
     internal fun withUserMessage(
-        history: List<MemoryManager.Turn>,
+        history: List<ConversationMemory.Turn>,
         userMessage: String
-    ): List<MemoryManager.Turn> {
+    ): List<ConversationMemory.Turn> {
         val trimmed = userMessage.trim()
         if (trimmed.isEmpty()) return history
 
         val last = history.lastOrNull()
         if (last != null && isUser(last.role) && last.content.trim() == trimmed) return history
 
-        return history + MemoryManager.Turn("User", trimmed)
+        return history + ConversationMemory.Turn("User", trimmed)
     }
 
     private fun isUser(role: String) = role.equals("User", ignoreCase = true)

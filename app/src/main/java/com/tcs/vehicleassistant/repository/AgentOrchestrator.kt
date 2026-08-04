@@ -35,34 +35,25 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-sealed class OrchestratorState {
-    object Idle : OrchestratorState()
-    data class Thinking(val query: String? = null) : OrchestratorState()
-    data class Streaming(val displayMsg: String) : OrchestratorState()
-    data class Speaking(val finalMsg: String) : OrchestratorState()
-    data class Error(val message: String) : OrchestratorState()
-}
-
-sealed class OrchestratorEvent {
-    data class ShowToast(val message: String) : OrchestratorEvent()
-    data class SetInputEnabled(val enabled: Boolean) : OrchestratorEvent()
-    data class LaunchIntent(val intent: Intent) : OrchestratorEvent()
-    object StartListening : OrchestratorEvent()
-    object FinishSession : OrchestratorEvent()
-}
+import com.tcs.vehicleassistant.assistant.agent.AgentState
+import com.tcs.vehicleassistant.assistant.agent.AgentIntent
+import com.tcs.vehicleassistant.assistant.agent.AgentEffect
 
 class AgentOrchestrator(
     private val context: Context,
     private val audioManager: com.tcs.vehicleassistant.hardware.IAudioManager,
     private val toolRegistry: com.tcs.vehicleassistant.domain.tools.ToolRegistry,
     private val toolSchemaGenerator: com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator,
-    private val toolExecutor: com.tcs.vehicleassistant.domain.tools.IToolExecutor
+    private val toolExecutor: com.tcs.vehicleassistant.domain.tools.IToolExecutor,
+    private val conversationMemory: com.tcs.vehicleassistant.ConversationMemory,
+    private val contextGuard: com.tcs.vehicleassistant.core.ContextGuard,
+    private val directToolResolver: com.tcs.vehicleassistant.core.DirectToolResolver
 ) {
-    private val _state = MutableStateFlow<OrchestratorState>(OrchestratorState.Idle)
-    val state: StateFlow<OrchestratorState> = _state.asStateFlow()
+    private val _state = MutableStateFlow<AgentState>(AgentState.Idle)
+    val state: StateFlow<AgentState> = _state.asStateFlow()
 
-    private val _events = MutableSharedFlow<OrchestratorEvent>(extraBufferCapacity = 32)
-    val events: SharedFlow<OrchestratorEvent> = _events.asSharedFlow()
+    private val _events = MutableSharedFlow<AgentEffect>(extraBufferCapacity = 32)
+    val events: SharedFlow<AgentEffect> = _events.asSharedFlow()
 
     // MVI Architecture: Run heavy orchestrator logic on background thread.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -178,6 +169,7 @@ class AgentOrchestrator(
     fun handleQuery(query: String, retryCount: Int = 0) {
         val normalized = TurnRouter.normalize(
             rawQuery = query,
+            directToolResolver = directToolResolver,
             defaultSpeaker = currentSpeakerName,
         )
         if (normalized.speakerName != null) {
@@ -214,7 +206,7 @@ class AgentOrchestrator(
                 retryCount = retryCount,
                 pendingConfirmationTool = pendingSnap.pendingConfirmationTool,
                 pendingOfferedTool = pendingSnap.pendingOfferedTool,
-                isAffirmativeKeepAlive = MemoryManager.isAffirmative(trimmedQuery),
+                isAffirmativeKeepAlive = com.tcs.vehicleassistant.ConversationMemory.isAffirmative(trimmedQuery),
                 directHit = directHit,
                 followUpToolCall = followUpTool,
                 modelReady = LLMManager.isReady(),
@@ -245,8 +237,8 @@ class AgentOrchestrator(
                 LatencyLogger.reset()
                 LatencyLogger.log("Orchestrator", "Query received")
                 beginTurn()
-                _state.value = OrchestratorState.Thinking(decision.query)
-                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                _state.value = AgentState.Thinking(decision.query)
+                _events.tryEmit(AgentEffect.SetInputEnabled(false))
                 scope.launch {
                     completeDirectToolTurn(
                         query = decision.query,
@@ -276,8 +268,8 @@ class AgentOrchestrator(
                 LatencyLogger.reset()
                 LatencyLogger.log("Orchestrator", "Offer affirmed → ${decision.toolCall}")
                 beginTurn()
-                _state.value = OrchestratorState.Thinking(decision.query)
-                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                _state.value = AgentState.Thinking(decision.query)
+                _events.tryEmit(AgentEffect.SetInputEnabled(false))
                 scope.launch {
                     completeDirectToolTurn(
                         query = decision.query,
@@ -300,7 +292,7 @@ class AgentOrchestrator(
                 }
             }
             is TurnRouter.Decision.DismissSession -> {
-                _events.tryEmit(OrchestratorEvent.FinishSession)
+                _events.tryEmit(AgentEffect.FinishSession)
                 resetState()
             }
             is TurnRouter.Decision.CrisisSupport -> {
@@ -317,8 +309,8 @@ class AgentOrchestrator(
                 LatencyLogger.reset()
                 LatencyLogger.log("Orchestrator", "Query received")
                 beginTurn()
-                _state.value = OrchestratorState.Thinking(decision.query)
-                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                _state.value = AgentState.Thinking(decision.query)
+                _events.tryEmit(AgentEffect.SetInputEnabled(false))
                 LatencyLogger.log(
                     "DirectTool",
                     "Matched ${decision.toolCall} via '${decision.matchedKeyword}' (${decision.reason})",
@@ -340,8 +332,8 @@ class AgentOrchestrator(
             is TurnRouter.Decision.EnsureModelThenRetry -> {
                 LatencyLogger.reset()
                 LatencyLogger.log("Orchestrator", "Query received")
-                _state.value = OrchestratorState.Thinking(decision.query)
-                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                _state.value = AgentState.Thinking(decision.query)
+                _events.tryEmit(AgentEffect.SetInputEnabled(false))
                 scope.launch {
                     try {
                         val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin()
@@ -349,8 +341,8 @@ class AgentOrchestrator(
                         edgeProvider.initialize(context, force = false)
                         handleQuery(decision.query, decision.retryCount)
                     } catch (e: Exception) {
-                        _state.value = OrchestratorState.Error("Model not loaded. Open the app to load a model.")
-                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                        _state.value = AgentState.Error("Model not loaded. Open the app to load a model.")
+                        _events.tryEmit(AgentEffect.SetInputEnabled(true))
                     }
                 }
             }
@@ -358,8 +350,8 @@ class AgentOrchestrator(
                 LatencyLogger.reset()
                 LatencyLogger.log("Orchestrator", "Query received")
                 val turnId = beginTurn()
-                _state.value = OrchestratorState.Thinking(decision.query)
-                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                _state.value = AgentState.Thinking(decision.query)
+                _events.tryEmit(AgentEffect.SetInputEnabled(false))
                 scope.launch {
                     processQuery(decision.query, decision.retryCount, turnId = turnId)
                 }
@@ -394,7 +386,7 @@ class AgentOrchestrator(
     private fun isCurrentTurn(turnId: Long): Boolean = turnState.isCurrentTurn(turnId)
 
     fun resetState() {
-        _state.value = OrchestratorState.Idle
+        _state.value = AgentState.Idle
     }
 
     private fun onTtsFinalUtteranceDone(utteranceId: String) {
@@ -402,30 +394,30 @@ class AgentOrchestrator(
             when (utteranceId) {
                 "QUESTION_FINAL" -> {
                     delay(500)
-                    _events.tryEmit(OrchestratorEvent.StartListening)
+                    _events.tryEmit(AgentEffect.StartListening)
                 }
                 "STATEMENT_FINAL_TOOL" -> {
                     for (job in currentPendingTools) {
                         try { job.await() } catch (_: Exception) {}
                     }
                     for (intent in pendingIntentsToLaunch) {
-                        _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
+                        _events.tryEmit(AgentEffect.LaunchIntent(intent))
                     }
                     pendingIntentsToLaunch.clear()
                     delay(50)
                     // Soft offer still waiting for yes/no — keep overlay up and listen.
                     if (confirmationCoordinator.pendingOfferedTool != null) {
-                        _events.tryEmit(OrchestratorEvent.StartListening)
+                        _events.tryEmit(AgentEffect.StartListening)
                     } else {
-                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                        _events.tryEmit(AgentEffect.FinishSession)
                     }
                 }
                 "STATEMENT_FINAL" -> {
                     delay(50)
                     if (confirmationCoordinator.pendingOfferedTool != null) {
-                        _events.tryEmit(OrchestratorEvent.StartListening)
+                        _events.tryEmit(AgentEffect.StartListening)
                     } else {
-                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                        _events.tryEmit(AgentEffect.FinishSession)
                     }
                 }
             }
@@ -437,29 +429,29 @@ class AgentOrchestrator(
             when (utteranceId) {
                 "QUESTION_FINAL" -> {
                     delay(500)
-                    _events.tryEmit(OrchestratorEvent.StartListening)
+                    _events.tryEmit(AgentEffect.StartListening)
                 }
                 "STATEMENT_FINAL_TOOL" -> {
                     for (job in currentPendingTools) {
                         try { job.await() } catch (_: Exception) {}
                     }
                     for (intent in pendingIntentsToLaunch) {
-                        _events.tryEmit(OrchestratorEvent.LaunchIntent(intent))
+                        _events.tryEmit(AgentEffect.LaunchIntent(intent))
                     }
                     pendingIntentsToLaunch.clear()
                     delay(3000) // Artificial delay to allow user to read text since TTS failed
                     if (confirmationCoordinator.pendingOfferedTool != null) {
-                        _events.tryEmit(OrchestratorEvent.StartListening)
+                        _events.tryEmit(AgentEffect.StartListening)
                     } else {
-                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                        _events.tryEmit(AgentEffect.FinishSession)
                     }
                 }
                 "STATEMENT_FINAL" -> {
                     delay(4000) // Artificial delay to allow user to read text since TTS failed
                     if (confirmationCoordinator.pendingOfferedTool != null) {
-                        _events.tryEmit(OrchestratorEvent.StartListening)
+                        _events.tryEmit(AgentEffect.StartListening)
                     } else {
-                        _events.tryEmit(OrchestratorEvent.FinishSession)
+                        _events.tryEmit(AgentEffect.FinishSession)
                     }
                 }
             }
@@ -474,15 +466,15 @@ class AgentOrchestrator(
 
     private fun dispatchCrisisSupport(decision: TurnRouter.Decision.CrisisSupport) {
         beginTurn()
-        _state.value = OrchestratorState.Thinking(decision.query)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        _state.value = AgentState.Thinking(decision.query)
+        _events.tryEmit(AgentEffect.SetInputEnabled(false))
         LatencyLogger.log(
             "CrisisSupport",
             "Matched ${decision.severityName} utterance — entertainment offers suppressed",
         )
         scope.launch {
-            MemoryManager.captureLongTermFacts(context, decision.query)
-            MemoryManager.addTurn(currentSpeakerName, decision.query)
+            conversationMemory.captureLongTermFacts(context, decision.query)
+            conversationMemory.addTurn(currentSpeakerName, decision.query)
             confirmationCoordinator.clearOffer()
             finishGuardedTurn(
                 message = decision.spokenResponse,
@@ -496,12 +488,12 @@ class AgentOrchestrator(
 
     private fun dispatchWellnessOffer(query: String) {
         beginTurn()
-        _state.value = OrchestratorState.Thinking(query)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        _state.value = AgentState.Thinking(query)
+        _events.tryEmit(AgentEffect.SetInputEnabled(false))
         LatencyLogger.log("WellnessOffer", "Matched emotional/open-ended wellness utterance")
         scope.launch {
-            MemoryManager.captureLongTermFacts(context, query)
-            MemoryManager.addTurn(currentSpeakerName, query)
+            conversationMemory.captureLongTermFacts(context, query)
+            conversationMemory.addTurn(currentSpeakerName, query)
             confirmationCoordinator.setSoftOffer("playMusic(relaxing)")
             finishGuardedTurn(
                 message = WELLNESS_OFFER,
@@ -516,8 +508,8 @@ class AgentOrchestrator(
     private fun dispatchFollowUp(query: String, toolCall: String) {
         confirmationCoordinator.clearOffer()
         beginTurn()
-        _state.value = OrchestratorState.Thinking(query)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+        _state.value = AgentState.Thinking(query)
+        _events.tryEmit(AgentEffect.SetInputEnabled(false))
         LatencyLogger.log("FollowUp", "Matched $toolCall")
 
         scope.launch {
@@ -566,8 +558,8 @@ class AgentOrchestrator(
         pathLabel: String,
         skipGuard: Boolean = false,
     ) {
-        MemoryManager.captureLongTermFacts(context, query)
-        MemoryManager.addTurn(currentSpeakerName, query)
+        conversationMemory.captureLongTermFacts(context, query)
+        conversationMemory.addTurn(currentSpeakerName, query)
 
         when (val decision = evaluateContextGuard(toolCall)) {
             is ContextGuard.Decision.Confirm -> {
@@ -626,10 +618,10 @@ class AgentOrchestrator(
             else -> "Okay."
         }
 
-        MemoryManager.addTurn("Assistant", finalMsg)
+        conversationMemory.addTurn("Assistant", finalMsg)
         LLMManager.lastAiResponse = finalMsg
-        _state.value = OrchestratorState.Speaking(finalMsg)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        _state.value = AgentState.Speaking(finalMsg)
+        _events.tryEmit(AgentEffect.SetInputEnabled(true))
         turnState.markProcessed()
 
         val elapsed = LatencyLogger.getTotalTime()
@@ -656,10 +648,10 @@ class AgentOrchestrator(
         policyId: String?,
         asQuestion: Boolean,
     ) {
-        MemoryManager.addTurn("Assistant", message)
+        conversationMemory.addTurn("Assistant", message)
         LLMManager.lastAiResponse = message
-        _state.value = OrchestratorState.Speaking(message)
-        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+        _state.value = AgentState.Speaking(message)
+        _events.tryEmit(AgentEffect.SetInputEnabled(true))
         turnState.markProcessed()
         LatencyLogger.log(
             pathLabel,
@@ -677,7 +669,7 @@ class AgentOrchestrator(
     private fun evaluateContextGuard(toolCall: String): ContextGuard.Decision {
         return try {
             val snapshot = CabinSnapshotReader.capture(context.applicationContext)
-            ContextGuard.evaluate(toolCall, snapshot)
+            contextGuard.evaluate(toolCall, snapshot)
         } catch (e: Exception) {
             if (com.tcs.vehicleassistant.core.SafetyCriticalTools.isSafetyCritical(toolCall)) {
                 android.util.Log.w(
@@ -723,8 +715,8 @@ class AgentOrchestrator(
             }
             delay(timeoutDuration)
             if (!turnState.isQueryProcessed && isCurrentTurn(turnId)) {
-                _state.value = OrchestratorState.Error("Timeout - Restarting Model...")
-                _events.tryEmit(OrchestratorEvent.SetInputEnabled(false))
+                _state.value = AgentState.Error("Timeout - Restarting Model...")
+                _events.tryEmit(AgentEffect.SetInputEnabled(false))
                 // Drain the hung stream before tearing the engine down; force-close mid-generation
                 // corrupts the OpenCL/GPU context, but we must recover if permanently hung.
                 if (!LLMManager.awaitInferenceDrain()) {
@@ -732,13 +724,13 @@ class AgentOrchestrator(
                 }
                 LLMManager.autoInitialize(context, force = true, callback = object : LLMManager.InitCallback {
                     override fun onSuccess() {
-                        _state.value = OrchestratorState.Idle
-                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                        _state.value = AgentState.Idle
+                        _events.tryEmit(AgentEffect.SetInputEnabled(true))
                         turnState.markProcessed()
                     }
                     override fun onError(e: Exception) {
-                        _state.value = OrchestratorState.Error("Error restarting.")
-                        _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                        _state.value = AgentState.Error("Error restarting.")
+                        _events.tryEmit(AgentEffect.SetInputEnabled(true))
                         turnState.markProcessed()
                     }
                 })
@@ -748,11 +740,11 @@ class AgentOrchestrator(
         var interceptedQuery = query
 
         if (confirmationCoordinator.pendingConfirmationTool != null) {
-            if (MemoryManager.isDecline(query)) {
+            if (com.tcs.vehicleassistant.ConversationMemory.isDecline(query)) {
                 confirmationCoordinator.clearConfirmation()
                 interceptedQuery = "System: Action aborted by user. User originally said: $query"
-            } else if (MemoryManager.isAffirmative(query)) {
-                // Already confirmed — execute without re-entering ContextGuard.
+            } else if (com.tcs.vehicleassistant.ConversationMemory.isAffirmative(query)) {
+                // Already confirmed — execute without re-entering contextGuard.
                 val toolToExecute = confirmationCoordinator.pendingConfirmationTool!!
                 confirmationCoordinator.clearConfirmation()
                 val feedback = executeToolCall(toolToExecute)
@@ -764,9 +756,9 @@ class AgentOrchestrator(
         }
 
         val maxHistoryChars = toolRegistry.slidingWindowMaxChars
-        val isFollowUp = MemoryManager.isFollowUpQuery(interceptedQuery)
+        val isFollowUp = com.tcs.vehicleassistant.ConversationMemory.isFollowUpQuery(interceptedQuery)
         val historyCap = if (isFollowUp || interceptedQuery.length < 30) maxHistoryChars else minOf(1000, maxHistoryChars)
-        val priorHistory = MemoryManager.getSlidingWindowContext(historyCap)
+        val priorHistory = conversationMemory.getSlidingWindowContext(historyCap)
 
         // Recycle native conversation BEFORE building the prompt so a post-reset turn gets the
         // full system prompt (isFirstMessage=true) instead of a compact later-turn stub.
@@ -790,10 +782,10 @@ class AgentOrchestrator(
             // Empty-chat retries already recorded the user turn; avoid duplicating it in memory.
             if (emptyChatRetry == 0) {
                 if (isAgenticObservation) {
-                    MemoryManager.addTurn("System", interceptedQuery)
+                    conversationMemory.addTurn("System", interceptedQuery)
                 } else {
-                    MemoryManager.captureLongTermFacts(context, interceptedQuery)
-                    MemoryManager.addTurn(currentSpeakerName, interceptedQuery)
+                    conversationMemory.captureLongTermFacts(context, interceptedQuery)
+                    conversationMemory.addTurn(currentSpeakerName, interceptedQuery)
                 }
             }
 
@@ -896,7 +888,7 @@ class AgentOrchestrator(
                 val displayMsg = StreamTextPolicy.normalizeForDisplay(ToolCallParser.stripToolTags(currentText))
 
                 if (displayMsg.isNotEmpty()) {
-                    _state.value = OrchestratorState.Streaming(displayMsg)
+                    _state.value = AgentState.Streaming(displayMsg)
                 }
 
                 var remainingText = displayMsg.substring(Math.min(stream.spokenLength, displayMsg.length))
@@ -926,7 +918,7 @@ class AgentOrchestrator(
                         EmergencyAlarmManager.start(context)
                     }
 
-                    MemoryManager.addTurn("Assistant", tempFinalMsg.trim())
+                    conversationMemory.addTurn("Assistant", tempFinalMsg.trim())
 
                     var finalMsg = StreamTextPolicy.normalizeForDisplay(ToolCallParser.stripToolTags(tempFinalMsg))
                     finalMsg = StreamTextPolicy.sanitizeFinalReply(query, finalMsg)
@@ -959,7 +951,7 @@ class AgentOrchestrator(
                     
                     // Don't emit empty finalMsg to avoid clearing the UI
                     val displayFinalMsg = if (finalMsg.isBlank()) TAKING_ACTION_PLACEHOLDER else finalMsg
-                    _state.value = OrchestratorState.Speaking(displayFinalMsg)
+                    _state.value = AgentState.Speaking(displayFinalMsg)
 
                     // Keep input disabled until tools (and any agentic follow-up) finish. Marking the
                     // turn complete here used to let a new query clear currentPendingTools mid-flight.
@@ -1175,7 +1167,7 @@ class AgentOrchestrator(
 
                     // Update UI with the final resulting message (keep prior text on silent ignore)
                     if (finalDisplayMsg.isNotBlank()) {
-                        _state.value = OrchestratorState.Speaking(finalDisplayMsg)
+                        _state.value = AgentState.Speaking(finalDisplayMsg)
                     }
 
                     val spokenIsQuestion = finalDisplayMsg.isNotBlank() && (
@@ -1194,9 +1186,9 @@ class AgentOrchestrator(
                     // Only now is the turn finished — re-enable input for the next utterance.
                     // Pending confirmation must re-open the mic even if the model already spoke prose.
                     if (spokenIsQuestion && (finalMsg.isBlank() || confirmationCoordinator.pendingConfirmationTool != null)) {
-                        _events.tryEmit(OrchestratorEvent.StartListening)
+                        _events.tryEmit(AgentEffect.StartListening)
                     }
-                    _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                    _events.tryEmit(AgentEffect.SetInputEnabled(true))
                     turnState.markProcessed()
                     currentPendingTools.removeAll(pendingTools.toSet())
                 }
@@ -1209,7 +1201,7 @@ class AgentOrchestrator(
                 scope.launch {
                     timeoutJob?.cancel()
                     if (retryCount < 1) {
-                        _state.value = OrchestratorState.Error("Initializing model...")
+                        _state.value = AgentState.Error("Initializing model...")
                         try {
                             if (!LLMManager.awaitInferenceDrain()) {
                                 android.util.Log.e(TAG, "Model still busy during error recovery. Forcing restart.")
@@ -1221,7 +1213,7 @@ class AgentOrchestrator(
                                 val edgeProvider: ILLMProvider by org.koin.java.KoinJavaComponent.getKoin().inject(org.koin.core.qualifier.named("edge"))
                                 edgeProvider.initialize(context, force = true)
                             }
-                            _state.value = OrchestratorState.Thinking()
+                            _state.value = AgentState.Thinking()
                             processQuery(
                                 query,
                                 retryCount + 1,
@@ -1232,15 +1224,15 @@ class AgentOrchestrator(
                             )
                         } catch (e: Exception) {
                             android.util.Log.e(TAG, "Recovery re-initialization failed", e)
-                            _state.value = OrchestratorState.Error("Hardware Recovery Failed.")
-                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                            _state.value = AgentState.Error("Hardware Recovery Failed.")
+                            _events.tryEmit(AgentEffect.SetInputEnabled(true))
                             turnState.markProcessed()
                         }
                     } else {
                         if (throwable.message?.contains("Cancellation") != true) {
                             android.util.Log.e(TAG, "Inference failed after retry", throwable)
-                            _state.value = OrchestratorState.Error("Model Inference Failed: ${throwable.message}")
-                            _events.tryEmit(OrchestratorEvent.SetInputEnabled(true))
+                            _state.value = AgentState.Error("Model Inference Failed: ${throwable.message}")
+                            _events.tryEmit(AgentEffect.SetInputEnabled(true))
                             turnState.markProcessed()
                         }
                     }

@@ -6,7 +6,6 @@ import android.content.Context
 import android.content.Intent
 import androidx.test.core.app.ApplicationProvider
 import com.tcs.vehicleassistant.DemoSettingsPresets
-import com.tcs.vehicleassistant.MemoryManager
 import com.tcs.vehicleassistant.ToolManager
 import com.tcs.vehicleassistant.handlers.ParameterParser
 import com.tcs.vehicleassistant.handlers.ToolExecutionResult
@@ -343,11 +342,11 @@ class CoverageGapFillJvmTest {
             listOf("set alert level"),
         )
 
-        val mute = DirectToolResolver.resolve("mute volume", listOf(volume))
+        val mute = DirectToolResolver().resolve("mute volume", listOf(volume))
         assertTrue(mute is DirectToolResolver.Outcome.Execute)
         assertEquals("setVolumeLevel(0)", (mute as DirectToolResolver.Outcome.Execute).hit.toolCall)
 
-        val louder = DirectToolResolver.resolve("volume up", listOf(volume))
+        val louder = DirectToolResolver().resolve("volume up", listOf(volume))
         assertTrue(louder is DirectToolResolver.Outcome.Execute)
 
         val maxFan = tool(
@@ -356,26 +355,26 @@ class CoverageGapFillJvmTest {
             "<TOOL>setFanSpeed(LEVEL)</TOOL>",
             listOf("maximum fan"),
         )
-        val max = DirectToolResolver.resolve("maximum fan", listOf(maxFan))
+        val max = DirectToolResolver().resolve("maximum fan", listOf(maxFan))
         assertTrue(max is DirectToolResolver.Outcome.Execute)
         assertEquals("setFanSpeed(7)", (max as DirectToolResolver.Outcome.Execute).hit.toolCall)
 
-        val seatOn = DirectToolResolver.resolve("turn on seat heater", listOf(seat))
+        val seatOn = DirectToolResolver().resolve("turn on seat heater", listOf(seat))
         assertTrue(seatOn is DirectToolResolver.Outcome.Execute)
         assertEquals("setSeatHeater(2)", (seatOn as DirectToolResolver.Outcome.Execute).hit.toolCall)
 
-        val seatOff = DirectToolResolver.resolve("disable seat heater", listOf(seat))
+        val seatOff = DirectToolResolver().resolve("disable seat heater", listOf(seat))
         assertTrue(seatOff is DirectToolResolver.Outcome.Execute)
         assertEquals("setSeatHeater(0)", (seatOff as DirectToolResolver.Outcome.Execute).hit.toolCall)
 
-        val dir = DirectToolResolver.resolve("airflow face and feet", listOf(airflow))
+        val dir = DirectToolResolver().resolve("airflow face and feet", listOf(airflow))
         assertTrue(dir is DirectToolResolver.Outcome.Execute)
         assertEquals(
             "setAirflowDirection(face and floor)",
             (dir as DirectToolResolver.Outcome.Execute).hit.toolCall,
         )
 
-        val alertHit = DirectToolResolver.resolve("set alert level", listOf(alert))
+        val alertHit = DirectToolResolver().resolve("set alert level", listOf(alert))
         assertTrue(alertHit is DirectToolResolver.Outcome.Execute)
         assertEquals("setAlertLevel(2)", (alertHit as DirectToolResolver.Outcome.Execute).hit.toolCall)
 
@@ -584,7 +583,7 @@ class CoverageGapFillJvmTest {
             requiresAgenticLoop = false,
             directExecutable = true,
         )
-        val hit = DirectToolResolver.resolve("defrost airflow", listOf(airflow))
+        val hit = DirectToolResolver().resolve("defrost airflow", listOf(airflow))
         assertTrue(hit is DirectToolResolver.Outcome.Execute)
         assertEquals(
             "setAirflowDirection(defrost)",
@@ -595,10 +594,10 @@ class CoverageGapFillJvmTest {
         assertEquals("coffee", DirectToolResolver.extractAmenityArg("find coffee"))
         assertNull(DirectToolResolver.extractSongArg("play something"))
         assertTrue(
-            DirectToolResolver.resolve("zzzz", emptyList()) is DirectToolResolver.Outcome.Skip,
+            DirectToolResolver().resolve("zzzz", emptyList()) is DirectToolResolver.Outcome.Skip,
         )
         assertTrue(
-            DirectToolResolver.resolve(
+            DirectToolResolver().resolve(
                 "turn on ac",
                 emptyList(),
                 DirectToolResolver.Policy(enabled = false),
@@ -629,24 +628,26 @@ class CoverageGapFillRobolectricTest {
     val tmp = TemporaryFolder()
 
     private lateinit var context: Context
+    private lateinit var conversationMemory: com.tcs.vehicleassistant.ConversationMemory
 
     @Before
     fun setUp() {
         context = ApplicationProvider.getApplicationContext()
         context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE).edit().clear().commit()
-        MemoryManager.clearMemory()
+        conversationMemory = com.tcs.vehicleassistant.ConversationMemory()
+        conversationMemory.clearMemory()
     }
 
     @Test
     fun memoryManager_capturesAndDedupesLongTermFacts() {
-        assertEquals("", MemoryManager.getLongTermMemory(context))
-        assertTrue(MemoryManager.captureLongTermFacts(context, "remember that I prefer 72 degrees"))
-        assertTrue(MemoryManager.getLongTermMemory(context).contains("I prefer 72 degrees"))
-        assertFalse(MemoryManager.captureLongTermFacts(context, "remember that I prefer 72 degrees"))
-        assertTrue(MemoryManager.captureLongTermFacts(context, "my name is Hemang"))
-        assertTrue(MemoryManager.getLongTermMemory(context).contains("Hemang"))
-        assertFalse(MemoryManager.captureLongTermFacts(context, "short"))
-        assertFalse(MemoryManager.captureLongTermFacts(context, "remember that"))
+        assertEquals("", conversationMemory.getLongTermMemory(context))
+        assertTrue(conversationMemory.captureLongTermFacts(context, "remember that I prefer 72 degrees"))
+        assertTrue(conversationMemory.getLongTermMemory(context).contains("I prefer 72 degrees"))
+        assertFalse(conversationMemory.captureLongTermFacts(context, "remember that I prefer 72 degrees"))
+        assertTrue(conversationMemory.captureLongTermFacts(context, "my name is Hemang"))
+        assertTrue(conversationMemory.getLongTermMemory(context).contains("Hemang"))
+        assertFalse(conversationMemory.captureLongTermFacts(context, "short"))
+        assertFalse(conversationMemory.captureLongTermFacts(context, "remember that"))
     }
 
     @Test

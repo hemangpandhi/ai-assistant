@@ -2,8 +2,8 @@ package com.tcs.vehicleassistant.controller
 
 import android.content.Context
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
-import com.tcs.vehicleassistant.repository.OrchestratorEvent
-import com.tcs.vehicleassistant.repository.OrchestratorState
+import com.tcs.vehicleassistant.assistant.agent.AgentEffect
+import com.tcs.vehicleassistant.assistant.agent.AgentState
 import com.tcs.vehicleassistant.hardware.IAudioManager
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -33,7 +33,10 @@ class AssistantViewModel(
         audioManager,
         org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>(),
         org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator>(),
-        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>()
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ConversationMemory>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.core.ContextGuard>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.core.DirectToolResolver>()
     )
 
     // ── Public observable state ──────────────────────────────────────────────
@@ -79,11 +82,11 @@ class AssistantViewModel(
         scope.launch {
             orchestrator.state.collect { state ->
                 _uiState.value = when (state) {
-                    is OrchestratorState.Idle -> AssistantUiState.Idle
-                    is OrchestratorState.Thinking -> AssistantUiState.Thinking(state.query)
-                    is OrchestratorState.Streaming -> AssistantUiState.Streaming(state.displayMsg)
-                    is OrchestratorState.Speaking -> AssistantUiState.Speaking(state.finalMsg)
-                    is OrchestratorState.Error -> AssistantUiState.Error(state.message)
+                    is AgentState.Idle -> AssistantUiState.Idle
+                    is AgentState.Thinking -> AssistantUiState.Thinking(state.query)
+                    is AgentState.Streaming -> AssistantUiState.Streaming(state.displayMsg)
+                    is AgentState.Speaking -> AssistantUiState.Speaking(state.finalMsg)
+                    is AgentState.Error -> AssistantUiState.Error(state.message)
                 }
             }
         }
@@ -92,11 +95,11 @@ class AssistantViewModel(
         scope.launch {
             orchestrator.events.collect { event ->
                 when (event) {
-                    is OrchestratorEvent.ShowToast -> _events.tryEmit(ViewModelEvent.ShowToast(event.message))
-                    is OrchestratorEvent.SetInputEnabled -> _events.tryEmit(ViewModelEvent.SetInputEnabled(event.enabled))
-                    is OrchestratorEvent.LaunchIntent -> _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))
-                    is OrchestratorEvent.StartListening -> _events.tryEmit(ViewModelEvent.StartListening)
-                    is OrchestratorEvent.FinishSession -> _events.tryEmit(ViewModelEvent.FinishSession)
+                    is AgentEffect.ShowToast -> _events.tryEmit(ViewModelEvent.ShowToast(event.message))
+                    is AgentEffect.SetInputEnabled -> _events.tryEmit(ViewModelEvent.SetInputEnabled(event.enabled))
+                    is AgentEffect.LaunchIntent -> _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))
+                    is AgentEffect.StartListening -> _events.tryEmit(ViewModelEvent.StartListening)
+                    is AgentEffect.FinishSession -> _events.tryEmit(ViewModelEvent.FinishSession)
                 }
             }
         }

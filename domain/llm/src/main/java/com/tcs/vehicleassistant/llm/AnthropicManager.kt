@@ -28,7 +28,7 @@ object AnthropicManager {
         // Cloud conversational state is usually handled per-request via history array
     }
 
-    suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, callback: CloudMessageCallback) {
+    suspend fun sendMessageAsync(systemPrompt: String, userMessage: String, history: List<com.tcs.vehicleassistant.ConversationMemory.Turn>, callback: CloudMessageCallback) {
         withContext(Dispatchers.IO) {
             if (apiKey.isEmpty() || apiKey == "sk-ant-...") {
                 callback.onError(IllegalStateException("No Anthropic API key configured. Add one in settings."))
@@ -39,7 +39,7 @@ object AnthropicManager {
                 put("model", CLAUDE_MODEL)
                 put("max_tokens", 1024)
                 put("system", systemPrompt)
-                put("messages", JSONArray(CloudRequestBuilder.anthropicMessages(userMessage)))
+                put("messages", JSONArray(CloudRequestBuilder.anthropicMessages(userMessage, history)))
             }
 
             var connection: HttpURLConnection? = null

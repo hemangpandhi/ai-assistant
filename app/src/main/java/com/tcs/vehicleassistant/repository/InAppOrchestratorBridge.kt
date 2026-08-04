@@ -1,5 +1,8 @@
 package com.tcs.vehicleassistant.repository
 
+import com.tcs.vehicleassistant.assistant.agent.AgentState
+import com.tcs.vehicleassistant.assistant.agent.AgentEffect
+
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -26,7 +29,10 @@ class InAppOrchestratorBridge(
         audioManager,
         org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolRegistry>(),
         org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.ToolSchemaGenerator>(),
-        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>()
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.domain.tools.IToolExecutor>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.ConversationMemory>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.core.ContextGuard>(),
+        org.koin.java.KoinJavaComponent.getKoin().get<com.tcs.vehicleassistant.core.DirectToolResolver>()
     )
 
     var onStreaming: ((String) -> Unit)? = null
@@ -39,17 +45,17 @@ class InAppOrchestratorBridge(
     init {
         orchestrator.state.onEach { state ->
             when (state) {
-                is OrchestratorState.Thinking -> onThinking?.invoke()
-                is OrchestratorState.Streaming -> onStreaming?.invoke(ToolCallParser.stripToolTags(state.displayMsg))
-                is OrchestratorState.Speaking -> onSpeaking?.invoke(state.finalMsg)
-                is OrchestratorState.Error -> onError?.invoke(state.message)
-                is OrchestratorState.Idle -> onIdle?.invoke()
+                is AgentState.Thinking -> onThinking?.invoke()
+                is AgentState.Streaming -> onStreaming?.invoke(ToolCallParser.stripToolTags(state.displayMsg))
+                is AgentState.Speaking -> onSpeaking?.invoke(state.finalMsg)
+                is AgentState.Error -> onError?.invoke(state.message)
+                is AgentState.Idle -> onIdle?.invoke()
             }
         }.launchIn(scope)
 
         orchestrator.events.onEach { event ->
             when (event) {
-                is OrchestratorEvent.LaunchIntent -> onLaunchIntent?.invoke(event.intent)
+                is AgentEffect.LaunchIntent -> onLaunchIntent?.invoke(event.intent)
                 else -> {}
             }
         }.launchIn(scope)
