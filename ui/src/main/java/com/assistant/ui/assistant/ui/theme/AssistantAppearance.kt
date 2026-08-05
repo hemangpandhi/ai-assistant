@@ -68,6 +68,15 @@ internal fun auraAlphaForContrast(highContrast: Boolean, base: Float): Float =
 internal const val ImmersiveShellWidthFactor = 1.24f
 internal const val ImmersiveShellHeightFactor = 1.42f
 
+/**
+ * Trapezoid top width as a fraction of the matched SemiCircle shell width.
+ * Base is [ImmersiveTrapezoidBaseOverTop] × top (subtle taper); eyes/mouth stay on faceR.
+ */
+internal const val ImmersiveTrapezoidTopWidthFactor = 1f
+
+/** Base width / top width for the immersive trapezoid plate (20% wider base). */
+internal const val ImmersiveTrapezoidBaseOverTop = 1.20f
+
 internal fun immersiveMatchedShellBounds(
     width: Float,
     height: Float,
@@ -84,5 +93,23 @@ internal fun immersiveMatchedShellBounds(
         top = cy - shellH * 0.68f,
         right = cx + shellW,
         bottom = cy + shellH * 0.72f,
+    )
+}
+
+/** Same vertical band as [immersiveMatchedShellBounds]; base ~20% wider than top. */
+internal fun immersiveTrapezoidShellBounds(
+    width: Float,
+    height: Float,
+    breath: Float = 1f,
+): Rect {
+    val matched = immersiveMatchedShellBounds(width, height, breath)
+    val topWidth = matched.width * ImmersiveTrapezoidTopWidthFactor
+    val baseWidth = topWidth * ImmersiveTrapezoidBaseOverTop
+    val cx = (matched.left + matched.right) * 0.5f
+    return Rect(
+        left = cx - baseWidth * 0.5f,
+        top = matched.top,
+        right = cx + baseWidth * 0.5f,
+        bottom = matched.bottom,
     )
 }
