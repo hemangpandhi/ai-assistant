@@ -159,6 +159,14 @@ internal fun AssistantMood.isGazeScanMood(): Boolean =
         this == AssistantMood.Searching ||
         this == AssistantMood.Bored
 
+/** Geometric mouth for clear emotional / speaking states. */
+internal fun AssistantMood.showsGeometricMouth(): Boolean =
+    this == AssistantMood.Happy ||
+        this == AssistantMood.Sad ||
+        this == AssistantMood.Speaking ||
+        this == AssistantMood.Excited ||
+        this == AssistantMood.Jubilation
+
 internal fun AssistantMood.isSpeechMouthMood(): Boolean =
     this == AssistantMood.Speaking ||
         this == AssistantMood.Excited ||

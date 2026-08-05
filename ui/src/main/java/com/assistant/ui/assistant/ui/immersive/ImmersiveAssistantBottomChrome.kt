@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -38,8 +37,8 @@ import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Shared bottom chrome for the immersive assistant stage:
- * local [FaceStageDock] glass plate + face (optional floating context glyph) +
- * [ImmersiveTranscript].
+ * Dynamic Island capsule + face (optional floating context glyph) +
+ * transcript inside the pill when expanded.
  *
  * [faceRise] entrance lift: -1 = off-screen below, 0 = settled.
  *
@@ -68,7 +67,7 @@ fun ImmersiveAssistantBottomChrome(
     faceScale: Float = 1f,
     faceAlpha: Float = 1f,
     transcriptAlpha: Float = 1f,
-    /** Multiplier on the ~32%-of-stage face size (e.g. 1.05f for Weather sink). */
+    /** Multiplier on island face size (e.g. 1.05f for Weather sink). */
     faceSizeScale: Float = 1f,
     faceCues: AssistantFaceCues? = null,
     faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)? = null,
@@ -78,6 +77,7 @@ fun ImmersiveAssistantBottomChrome(
         faceKind == AssistantFaceKind.FusionEyes &&
         contextGlyph != null &&
         faceContent == null
+    val hasTranscript = transcript.isNotBlank()
 
     BoxWithConstraints(
         modifier = modifier
@@ -91,11 +91,6 @@ fun ImmersiveAssistantBottomChrome(
                 bottom = 0.dp,
             ),
     ) {
-        // Face targets ~32% of the immersive stage (app area) height.
-        val faceSize = (maxHeight * AssistantOverlayTokens.FaceStageHeightFraction * faceSizeScale)
-            .coerceIn(AssistantOverlayTokens.FaceSizeMin, AssistantOverlayTokens.FaceSizeMax)
-        val glyphSize = (faceSize * AssistantOverlayTokens.GlyphSizeFraction)
-            .coerceIn(AssistantOverlayTokens.GlyphSizeMin, AssistantOverlayTokens.GlyphSizeMax)
         val density = LocalDensity.current
         // Travel distance for bottom → settled entrance (-1 → 0).
         val belowPx = with(density) {
@@ -105,85 +100,85 @@ fun ImmersiveAssistantBottomChrome(
             faceRise >= 0f -> 0
             else -> (-faceRise * belowPx).roundToInt() // faceRise=-1 → push below
         }
-        // Diameter ≥ ~2× face+transcript stack so the semicircle's 0% rim clears
-        // the top of the chrome (avoids left/right clip → hard edges).
-        val estimatedStack = faceSize + AssistantOverlayTokens.EstimatedStackExtra
-        val dockWidth = maxOf(
-            faceSize * AssistantOverlayTokens.DockWidthFaceMul,
-            estimatedStack * AssistantOverlayTokens.DockWidthStackMul,
-        ).coerceIn(AssistantOverlayTokens.DockWidthMin, maxWidth)
         val dockAlpha = maxOf(faceAlpha, transcriptAlpha).coerceIn(0f, 1f)
 
-        // Only the face + transcript dock consumes taps; empty stage passes through
+        // Only the island capsule consumes taps; empty stage passes through
         // to the backdrop dismiss target underneath.
-        FaceStageDock(
-            brandGlow = brandGlow,
-            width = dockWidth,
+        IslandCapsuleDock(
+            mood = mood,
+            hasTranscript = hasTranscript,
+            transcriptCharCount = transcript.length,
+            hasStatusCue = faceCues?.leftEye != null || faceCues?.rightEye != null,
             contentAlpha = dockAlpha,
             glowBreath = glowBreath,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = AssistantOverlayTokens.BottomChromeDockPadding)
+                .fillMaxWidth()
+                .padding(bottom = AssistantOverlayTokens.IslandBottomInset)
                 .offset { IntOffset(0, entranceY) }
+                .graphicsLayer {
+                    val s = faceScale.coerceIn(0f, 1.15f)
+                    scaleX = s
+                    scaleY = s
+                    alpha = 1f
+                }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = { /* keep session alive */ },
                 ),
-        ) {
-            if (showFace && faceKind != AssistantFaceKind.None) {
-                // Close canvas chin dead space without covering the transcript.
-                val faceNudge = (faceSize * AssistantOverlayTokens.FaceTowardTranscriptNudgeFraction)
-                    .coerceAtLeast(0.dp)
-                Box(
-                    contentAlignment = Alignment.TopCenter,
-                    modifier = Modifier
-                        .padding(top = if (showGlyph) glyphSize * 0.72f else 0.dp)
-                        .padding(bottom = AssistantOverlayTokens.FaceTranscriptGap)
-                        .offset {
-                            IntOffset(0, faceNudge.roundToPx())
+            face = { baseFaceSize ->
+                val faceSize = (baseFaceSize * faceSizeScale).coerceAtLeast(32.dp)
+                val glyphSize = (faceSize * AssistantOverlayTokens.GlyphSizeFraction)
+                    .coerceIn(AssistantOverlayTokens.GlyphSizeMin, AssistantOverlayTokens.GlyphSizeMax)
+                if (showFace && faceKind != AssistantFaceKind.None) {
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        if (showGlyph) {
+                            AssistantContextGlyphIcon(
+                                glyph = contextGlyph,
+                                size = glyphSize,
+                                modifier = Modifier
+                                    .align(Alignment.TopCenter)
+                                    .offset(y = -(glyphSize * 0.55f)),
+                            )
                         }
-                        .graphicsLayer {
-                            val s = faceScale
-                            scaleX = s
-                            scaleY = s
-                            // Dock owns fade; keep face fully painted inside the plate.
-                            alpha = 1f
-                        },
-                ) {
-                    if (showGlyph) {
-                        AssistantContextGlyphIcon(
-                            glyph = contextGlyph,
-                            size = glyphSize,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .offset(y = -(glyphSize * 0.72f)),
-                        )
-                    }
-                    if (faceContent != null) {
-                        faceContent(Modifier.size(faceSize), faceSize)
-                    } else {
-                        ConfigurableAssistantFace(
-                            mood = mood,
-                            kind = faceKind,
-                            modifier = Modifier.size(faceSize),
-                            gazeX = gazeX,
-                            gazeY = gazeY,
-                            mouthAmplitude = mouthAmplitude,
-                            brandGlow = brandGlow,
-                            highContrast = highContrast,
-                            gesture = gesture,
-                            faceCues = faceCues,
-                        )
+                        if (faceContent != null) {
+                            faceContent(Modifier.fillMaxSize(), faceSize)
+                        } else {
+                            ConfigurableAssistantFace(
+                                mood = mood,
+                                kind = faceKind,
+                                modifier = Modifier.fillMaxSize(),
+                                gazeX = gazeX,
+                                gazeY = gazeY,
+                                mouthAmplitude = mouthAmplitude,
+                                brandGlow = brandGlow,
+                                highContrast = highContrast,
+                                gesture = gesture,
+                                faceCues = faceCues,
+                                showShell = false,
+                            )
+                        }
                     }
                 }
-            }
-            ImmersiveTranscript(
-                text = transcript,
-                speaker = speaker,
-                live = speaker == DialogueSpeaker.User && mood == AssistantMood.Listening,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
+            },
+            transcript = if (hasTranscript) {
+                {
+                    ImmersiveTranscript(
+                        text = transcript,
+                        speaker = speaker,
+                        live = speaker == DialogueSpeaker.User && mood == AssistantMood.Listening,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer { alpha = transcriptAlpha.coerceIn(0f, 1f) },
+                    )
+                }
+            } else {
+                null
+            },
+        )
     }
 }

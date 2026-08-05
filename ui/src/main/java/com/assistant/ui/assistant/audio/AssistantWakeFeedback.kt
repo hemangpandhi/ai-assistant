@@ -14,7 +14,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import com.tcs.vehicleassistant.ui.R
+import com.tcs.vehicleassistant.R
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -25,9 +25,11 @@ import kotlin.concurrent.thread
  *
  * Entry plays [R.raw.intro]; exit plays [R.raw.exit].
  *
- * Playback uses [AudioAttributes.USAGE_ASSISTANT] under the session's exclusive
- * focus ([AssistantSessionAudioFocus]) — no separate focus request, so media stays
- * paused for the whole overlay lifetime.
+ * Playback uses [AudioAttributes.USAGE_MEDIA] (same as [AssistantTts]) — on AAOS,
+ * [AudioAttributes.USAGE_ASSISTANT] is often silent / not routed without a car
+ * audio patch, so earcons would not follow media/"system" volume. No separate
+ * focus request: the session's exclusive hold ([AssistantSessionAudioFocus]) keeps
+ * other media paused for the overlay lifetime.
  */
 class AssistantWakeFeedback(
     private val context: Context,
@@ -85,9 +87,9 @@ class AssistantWakeFeedback(
                 }
                 finished.countDown()
             }
-            // Ride the session's exclusive ASSISTANT focus — do not request/abandon here.
+            // Ride session exclusive focus; use MEDIA so AAOS routes to audible volume.
             val chimeAttrs = AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                .setUsage(AudioAttributes.USAGE_MEDIA)
                 .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                 .build()
             try {

@@ -57,6 +57,7 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,6 +88,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
+import android.provider.Settings
+import com.assistant.ui.assistant.entry.VirtualAssistantActivity
+import com.assistant.ui.assistant.face.AssistantAdbPreview
 import com.assistant.ui.assistant.face.AssistantFaceConfig
 import com.assistant.ui.assistant.face.AssistantFaceCuePreview
 import com.assistant.ui.assistant.face.AssistantMoodPreview
@@ -243,12 +247,16 @@ fun ImmersiveAssistantOverlay(
                 StageEffect.RequestListen -> Unit // mic owned by agent backend in production
                 StageEffect.ClusterHandOff -> host.openClusterHandOff()
                 StageEffect.FinishSession -> {
-                    // Agent turn complete (or reduce of SessionComplete) — dismiss chrome.
-                    if (stageStore.state.visible) {
+                    // Agent turn complete — dismiss unless ADB mood/cue preview is holding.
+                    if (stageStore.state.visible && !AssistantAdbPreview.isHolding()) {
                         stageStore.dispatch(StageIntent.Dismiss)
                     }
                 }
-                StageEffect.StopSession -> backend.stopSession()
+                StageEffect.StopSession -> {
+                    if (!AssistantAdbPreview.isHolding()) {
+                        backend.stopSession()
+                    }
+                }
             }
         }
     }
@@ -290,7 +298,8 @@ fun ImmersiveAssistantOverlay(
         launch {
             backend.events.collect { event ->
                 if (event is AssistantSessionEvent.SessionComplete) {
-                    // All summon paths: done turn → dismiss (idle remains safety for continue turns).
+                    // ADB mood/cue preview holds the stage open until cleared or dismissed.
+                    if (AssistantAdbPreview.isHolding()) return@collect
                     if (stageStore.state.visible) {
                         stageStore.dispatch(StageIntent.Dismiss)
                     }
@@ -427,6 +436,8 @@ fun ImmersiveAssistantOverlay(
                 effectsDefaultSpec = effectsDefault,
             )
             immersiveEnteredSession = -1
+            // Explicit close ends ADB preview hold so the next voice session is normal.
+            AssistantAdbPreview.clearAll()
             onPresentationChanged(AssistantPresentation.Compact)
             onDismiss()
         }
@@ -455,11 +466,15 @@ fun ImmersiveAssistantOverlay(
         reveal > 0.02f
     val debugStripVisible by AssistantDebugStripConfig.visible.collectAsStateWithLifecycle()
 
-    // Keep card dim soft if placement flips while already presented.
-    LaunchedEffect(cardPlacement, visible) {
-        if (visible && cardPlacement && backdropAlpha.value > targetBackdropAlpha + 0.02f) {
+    // Keep card dim soft if placement flips while already presented (not during enter).
+    var priorPlacement by remember { mutableStateOf<AssistantPlacement?>(null) }
+    LaunchedEffect(placement, visible) {
+        val prev = priorPlacement
+        priorPlacement = placement
+        if (!visible || prev == null || prev == placement) return@LaunchedEffect
+        if (cardPlacement && backdropAlpha.value > targetBackdropAlpha + 0.02f) {
             backdropAlpha.animateTo(targetBackdropAlpha, tween(220, easing = FastOutSlowInEasing))
-        } else if (visible && !cardPlacement && backdropAlpha.value < 0.95f) {
+        } else if (!cardPlacement && backdropAlpha.value < 0.95f) {
             backdropAlpha.animateTo(1f, tween(220, easing = FastOutSlowInEasing))
         }
     }
@@ -744,7 +759,7 @@ fun ImmersiveBorderGlow(
     revealProgress: Float = 1f,
     speechActive: Boolean = false,
     speechEnergy: Float = 0f,
-    /** Shared breath — pass the same instance used by [FaceStageDock] for sync. */
+    /** Shared breath — pass the same instance used by [IslandCapsuleDock] for sync. */
     glowBreath: ImmersiveGlowBreath? = null,
 ) {
     val idleMotion = LocalAssistantIdleMotion.current
@@ -940,11 +955,16 @@ fun ImmersiveTranscript(
     speaker: DialogueSpeaker,
     live: Boolean,
     modifier: Modifier = Modifier,
+    textAlign: TextAlign = TextAlign.Start,
 ) {
-    // Centered band ≤60% of stage width so spoken words never drift far left.
+    // Fills the island text slot; parent pill caps at 60% stage width, then this autoscrolls.
     Box(
         modifier = modifier.fillMaxWidth(),
-        contentAlignment = Alignment.Center,
+        contentAlignment = when (textAlign) {
+            TextAlign.Center -> Alignment.Center
+            TextAlign.End -> Alignment.CenterEnd
+            else -> Alignment.CenterStart
+        },
     ) {
         // Crossfade only when the speaker role changes; word motion lives in LiveInputText.
         AnimatedContent(
@@ -953,7 +973,7 @@ fun ImmersiveTranscript(
                 fadeIn(tween(180)) togetherWith fadeOut(tween(120))
             },
             label = "immersive_transcript_speaker",
-            modifier = Modifier.fillMaxWidth(0.6f),
+            modifier = Modifier.fillMaxWidth(),
         ) { who ->
             val bodyColor = when (who) {
                 DialogueSpeaker.User -> Color(0xFFD2E3FC)
@@ -965,10 +985,9 @@ fun ImmersiveTranscript(
                 color = bodyColor,
                 live = live && who == DialogueSpeaker.User,
                 speaking = who == DialogueSpeaker.Assistant,
+                textAlign = textAlign,
                 maxLines = 1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -1088,6 +1107,27 @@ fun notifyImmersiveAssistantSummon(origin: ImmersiveSummonOrigin) {
         handlers.forEach { it.invoke(origin) }
     }
     notifyAssistantHotword()
+}
+
+/** True when a Compose immersive stage has registered summon handlers. */
+fun isImmersiveAssistantStageLive(): Boolean = immersiveSummonHandlers.isNotEmpty()
+
+/**
+ * Summon the immersive stage, starting the overlay host when nothing is composed yet.
+ * Used by ADB mood / face-cue previews so SET broadcasts do not require a prior manual open.
+ */
+fun ensureImmersiveAssistantSummoned(
+    context: android.content.Context,
+    origin: ImmersiveSummonOrigin = ImmersiveSummonOrigin.Icon,
+) {
+    notifyImmersiveAssistantSummon(origin)
+    if (isImmersiveAssistantStageLive()) return
+    val app = context.applicationContext
+    if (Settings.canDrawOverlays(app)) {
+        ImmersiveAssistantOverlayService.show(app)
+    } else {
+        VirtualAssistantActivity.launch(app)
+    }
 }
 
 /** Release Compose STT / stage when the VoiceInteractionSession hides. */

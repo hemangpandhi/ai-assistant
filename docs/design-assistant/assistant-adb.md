@@ -3,7 +3,7 @@
 Host package: `com.tcs.vehicleassistant`
 
 Default UI: **Compose immersive** with face **hybrid** (immersive hybrid).  
-Legacy XML voice plates remain available via UI profile.
+Legacy XML voice plates remain available via UI profile. Trapezoid plate: `--es face trapezoid`.
 
 | Section | Settings.Global key |
 |---------|---------------------|
@@ -55,19 +55,15 @@ Tokens: `compose` | `immersive` | `xml` | `xml:polestar` | `xml:pill` | `xml:sid
 
 ## Swap face (live)
 
-Tokens: `none` | `eyes` | `glow` | `hybrid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph`
+Tokens: `none` | `eyes` | `glow` | `hybrid` | `trapezoid` | `eporo` | `fusion` | `fusionglow` | `fusioneyes` | `droid` | `glyph`
 
-Default on first install: `hybrid`
+Default on first install: `hybrid`. Optional: `trapezoid` (isosceles plate, base ~20% wider than top).
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver \
-  --es face hybrid
-
-adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver --es face hybrid
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver --es face trapezoid
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceReceiver
 adb logcat -d -s AssistantFace:I | tail -n 3
-
 adb shell settings put global design_assistant_face hybrid
 adb shell settings get global design_assistant_face
 ```
@@ -118,29 +114,23 @@ Extra key alias: `--es mode …` (same as `placement`).
 ## Face cues (in-face Material icons, ADB preview)
 
 Preview overrides LLM cues while set. Clear to return to LLM / geometry.
+SET auto-opens the immersive stage and holds it open while the preview is active.
+
+Full mood + cue walkthrough: [assistant-emotions-adb.md](./assistant-emotions-adb.md).
 
 ```bash
 # Per-slot
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es left_eye sunny --es right_eye sunny --es mouth music \
-  --es left_accent sparkle --es right_accent star
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es left_eye sunny --es right_eye sunny --es mouth music --es left_accent sparkle --es right_accent star
 
 # Compact XML tag (same vocabulary as the LLM)
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es face '<face left_eye="sunny" right_eye="rain" mouth="music"/>'
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es face '<face left_eye="sunny" right_eye="rain" mouth="music"/>'
 
 # Named presets
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es preset weather
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset weather
 
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 
-adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 adb logcat -d -s AssistantFaceCue:I | tail -n 3
 ```
 

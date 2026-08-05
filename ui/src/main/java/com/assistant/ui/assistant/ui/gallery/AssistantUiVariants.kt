@@ -70,12 +70,10 @@ import com.assistant.ui.assistant.dialogue.LiveInputText
 import com.assistant.ui.assistant.ui.chrome.ThinkingCloudOverlay
 import com.assistant.ui.assistant.ui.chrome.VoiceWaveform
 import com.assistant.ui.assistant.face.WeatherSinkFace
-import com.assistant.ui.assistant.ui.overlay.AssistantState
-import com.assistant.ui.assistant.ui.overlay.CarAssistantFace
+import com.assistant.ui.assistant.ui.chrome.AssistantCornerBubble
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlinx.coroutines.delay
-import com.assistant.ui.assistant.ui.chrome.AssistantCornerBubble
 
 /**
  * Renders one opaque-stage assistant chrome style for the given mood.
@@ -93,7 +91,7 @@ fun AssistantUiVariant(
             AssistantUiStyle.FaceOnly -> FaceOnlyUi(mood, Modifier.fillMaxSize())
             AssistantUiStyle.WaveformCenter -> WaveformCenterUi(mood, Modifier.fillMaxSize())
             AssistantUiStyle.OrbGlow -> OrbGlowUi(mood, Modifier.fillMaxSize())
-            AssistantUiStyle.CapsuleFace -> CapsuleFaceUi(mood, Modifier.fillMaxSize())
+            AssistantUiStyle.CapsuleFace -> CapsuleFaceUi(mood, prompt, Modifier.fillMaxSize())
             AssistantUiStyle.SideRail -> SideRailUi(mood, prompt, Modifier.fillMaxSize())
             AssistantUiStyle.EqualizerBars -> EqualizerBarsUi(mood, Modifier.fillMaxSize())
             AssistantUiStyle.ListeningRings -> ListeningRingsUi(mood, Modifier.fillMaxSize())
@@ -596,19 +594,27 @@ private fun Modifier.borderOrb(): Modifier =
     )
 
 @Composable
-private fun CapsuleFaceUi(mood: AssistantMood, modifier: Modifier) {
-    val state = when (mood) {
-        AssistantMood.Listening -> AssistantState.LISTENING
-        AssistantMood.Thinking -> AssistantState.THINKING
-        AssistantMood.Speaking -> AssistantState.SPEAKING
-        AssistantMood.Sad -> AssistantState.ERROR
-        else -> AssistantState.IDLE
-    }
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-        CarAssistantFace(
-            state = state,
-            audioAmplitude = if (mood == AssistantMood.Speaking) 0.55f else 0.15f,
-            modifier = Modifier.padding(bottom = 32.dp),
+private fun CapsuleFaceUi(mood: AssistantMood, prompt: String, modifier: Modifier) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color(0xFF0A0C10)),
+        contentAlignment = Alignment.BottomCenter,
+    ) {
+        ImmersiveAssistantBottomChrome(
+            mood = mood,
+            faceKind = AssistantFaceKind.ImmersiveEyes,
+            transcript = prompt,
+            speaker = when (mood) {
+                AssistantMood.Listening -> DialogueSpeaker.User
+                AssistantMood.Speaking -> DialogueSpeaker.Assistant
+                else -> DialogueSpeaker.System
+            },
+            floatContextGlyph = false,
+            faceRise = 0f,
+            faceScale = 1f,
+            faceAlpha = 1f,
+            transcriptAlpha = 1f,
         )
     }
 }

@@ -38,6 +38,8 @@ import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.Morph
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -52,10 +54,12 @@ import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
+import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
 import com.assistant.ui.assistant.ui.theme.auraAlphaForContrast
 import com.assistant.ui.assistant.ui.theme.eyeFillForContrast
 import com.assistant.ui.assistant.ui.theme.immersiveMatchedShellBounds
+import com.assistant.ui.assistant.ui.theme.immersiveTrapezoidShellBounds
 import com.assistant.ui.assistant.ui.theme.ImmersiveShellWidthFactor
 
 /** Deep black face fill (NOMI-like) — base for [drawGlossyBlackFaceShell]. */
@@ -277,13 +281,19 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  * Floating Nomi glyphs on a matte black SemiCircle face.
  *
  * @param gazeX/gazeY optional cabin gaze override (−1..1); null keeps mood look loops
- * @param mouthAmplitude optional lip-sync 0..1 (drives mouth while speaking)
+ * @param mouthAmplitude optional lip-sync 0..1 (drives mouth while speaking; on island,
+ *   drives eye talk instead — mouth is omitted when [showShell] is false)
  * @param brandGlow OEM / Material accent for soft pulse / parallax halo
  * @param highContrast sunlight-safe glyph rendering
  * @param gesture nod / shake micro-expressions for yes/no
  * @param eyeGlow when non-null, capsule eyes use this EPORO-style purple glow ring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
- * @param faceCues optional LLM anatomy icons; null slots keep geometric eyes/mouth
+ * @param faceCues optional LLM anatomy icons. On the shell face, eye/mouth slots can
+ *   replace geometry; on the island capsule ([showShell] false), eye-slot cues appear
+ *   in a badge circle to the right of the eyes (eyes stay geometric).
+ * @param shellKind fixed outer silhouette (no mood morph); default SemiCircle
+ * @param showShell when false, island capsule: eyes only (no mouth / SemiCircle plate);
+ *   speech amplitude opens the eyes instead of the mouth
  */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -298,6 +308,8 @@ fun ImmersiveEyesFace(
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color? = null,
     faceCues: AssistantFaceCues? = null,
+    shellKind: ExpressiveShellKind = ExpressiveShellKind.SemiCircle,
+    showShell: Boolean = true,
 ) {
     val cues = faceCues?.takeUnless { it.isEmpty }
     val leftEyeIcon = cues?.leftEye
@@ -328,15 +340,23 @@ fun ImmersiveEyesFace(
     val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val target = mood.toImmersiveEyePose()
     val enableIdleMotion = LocalAssistantIdleMotion.current
-    // Fixed SemiCircle shell — glossy layered black face fill.
-    val shellMorph = remember {
+    // Fixed shell — glossy layered black face fill (no mood morphing).
+    val shellMorph = remember(shellKind) {
+        val poly = shellKind.toRoundedPolygon()
         ExpressiveShellMorphState(
-            morph = Morph(
-                start = ExpressiveShellKind.SemiCircle.toRoundedPolygon(),
-                end = ExpressiveShellKind.SemiCircle.toRoundedPolygon(),
-            ),
+            morph = Morph(start = poly, end = poly),
             progress = 1f,
         )
+    }
+    val shellBoundsOf: (Float, Float, Float) -> Rect = remember(shellKind) {
+        when (shellKind) {
+            ExpressiveShellKind.Trapezoid -> { w, h, breath ->
+                immersiveTrapezoidShellBounds(w, h, breath)
+            }
+            else -> { w, h, breath ->
+                immersiveMatchedShellBounds(w, h, breath)
+            }
+        }
     }
     val eyeOpen = remember { Animatable(target.eyeOpen) }
     val eyeWidth = remember { Animatable(target.eyeWidth) }
@@ -514,12 +534,24 @@ fun ImmersiveEyesFace(
         lookX.runMoodGazeScan(mood)
     }
 
-    Canvas(modifier = modifier.aspectRatio(1f)) {
+    val density = LocalDensity.current
+    val islandEyeHalfW = with(density) { (AssistantOverlayTokens.IslandEyeWidth / 2).toPx() }
+    val islandEyeHalfH = with(density) { (AssistantOverlayTokens.IslandEyeHeight / 2).toPx() }
+    val islandEyeHalfGap = with(density) { AssistantOverlayTokens.IslandEyeHalfGap.toPx() }
+    val islandCueMarginPx = with(density) { AssistantOverlayTokens.IslandCueBadgeMargin.toPx() }
+
+    Canvas(
+        modifier = if (showShell) {
+            modifier.aspectRatio(1f)
+        } else {
+            modifier.fillMaxSize()
+        },
+    ) {
         val side = minOf(size.width, size.height)
         val cx = size.width * 0.5f
         val cy = size.height * 0.5f
-        // Feature scale only — no drawn shell / black disk.
-        val faceR = side * 0.36f * breath
+        // Feature scale — island uses fixed 20×33 eyes; shell path keeps proportional scale.
+        val faceR = side * (if (showShell) 0.36f else 0.72f) * breath
         val glyph = eyeFillForContrast(highContrast)
         // [eyeGlow].alpha drives a continuous pale↔purple morph (Immersive hybrid).
         val glowAmount = eyeGlow?.alpha?.coerceIn(0f, 1f) ?: 0f
@@ -530,106 +562,155 @@ fun ImmersiveEyesFace(
         }
         val eyeRing = lerp(glyph, glowBase, glowAmount)
         val glow = faceGlow.value.coerceIn(0f, 1.2f)
-        // Listening: static pose + blink only — skip bob/sway to cut GPU while mic is open.
+        // Listening: static pose + blink only — skip bob/sway (same as pre-island).
         val motionScale = if (mood == AssistantMood.Listening) 0f else 1f
         val bobY = idleBob * faceR * 0.058f * motionScale
         val swayX = idleSway * faceR * 0.02f * motionScale
         val pulse = activityPulse.coerceIn(0f, 1f)
 
-        // Soft pulsing halo behind the character — faint activity cue.
-        val pulseCenter = Offset(cx + swayX * 0.25f, cy + bobY * 0.25f)
-        val pulseA = auraAlphaForContrast(highContrast, 0.08f) * glow *
-            (0.45f + 0.55f * pulse)
-        val pulseR = faceR * (2.15f + 0.22f * pulse)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to brandGlow.copy(alpha = pulseA * 0.16f),
-                    0.45f to brandGlow.copy(alpha = pulseA * 0.06f),
-                    0.80f to brandGlow.copy(alpha = pulseA * 0.02f),
-                    1.0f to Color.Transparent,
+        // Shell-only atmosphere (pulse / parallax / floor) — skipped in island eyes-only mode.
+        if (showShell) {
+            val pulseCenter = Offset(cx + swayX * 0.25f, cy + bobY * 0.25f)
+            val pulseA = auraAlphaForContrast(highContrast, 0.08f) * glow *
+                (0.45f + 0.55f * pulse)
+            val pulseR = faceR * (2.15f + 0.22f * pulse)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to brandGlow.copy(alpha = pulseA * 0.16f),
+                        0.45f to brandGlow.copy(alpha = pulseA * 0.06f),
+                        0.80f to brandGlow.copy(alpha = pulseA * 0.02f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = pulseCenter,
+                    radius = pulseR,
                 ),
-                center = pulseCenter,
                 radius = pulseR,
-            ),
-            radius = pulseR,
-            center = pulseCenter,
-        )
+                center = pulseCenter,
+            )
 
-        // Very light parallax halo — drifts opposite bob/gaze for a soft depth cue.
-        val parallaxX = -lookX.value * faceR * 0.045f - swayX * 0.55f +
-            sin(life * 0.22f).toFloat() * faceR * 0.016f
-        val parallaxY = -bobY * 0.65f - lookY.value * faceR * 0.035f +
-            cos(life * 0.19f).toFloat() * faceR * 0.012f
-        val haloA = auraAlphaForContrast(highContrast, 0.06f) * glow
-        val haloR = faceR * (2.25f + 0.05f * sin(life * 0.5f).toFloat())
-        drawCircle(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to brandGlow.copy(alpha = haloA * 0.18f),
-                    0.50f to brandGlow.copy(alpha = haloA * 0.05f),
-                    1.0f to Color.Transparent,
+            val parallaxX = -lookX.value * faceR * 0.045f - swayX * 0.55f +
+                sin(life * 0.22f).toFloat() * faceR * 0.016f
+            val parallaxY = -bobY * 0.65f - lookY.value * faceR * 0.035f +
+                cos(life * 0.19f).toFloat() * faceR * 0.012f
+            val haloA = auraAlphaForContrast(highContrast, 0.06f) * glow
+            val haloR = faceR * (2.25f + 0.05f * sin(life * 0.5f).toFloat())
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to brandGlow.copy(alpha = haloA * 0.18f),
+                        0.50f to brandGlow.copy(alpha = haloA * 0.05f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = Offset(cx + parallaxX, cy + parallaxY),
+                    radius = haloR,
                 ),
-                center = Offset(cx + parallaxX, cy + parallaxY),
                 radius = haloR,
-            ),
-            radius = haloR,
-            center = Offset(cx + parallaxX, cy + parallaxY),
-        )
+                center = Offset(cx + parallaxX, cy + parallaxY),
+            )
 
-        // Faint floor shadow — flat puddle that barely follows motion so the face feels anchored.
-        val floorCx = cx + swayX * 0.3f
-        val floorCy = cy + faceR * 0.78f + bobY * 0.18f
-        // Track slimmer shell base diameter (was 1.48 when width factor was 1.38).
-        val floorW = faceR * (ImmersiveShellWidthFactor + 0.10f)
-        val floorH = faceR * 0.20f
-        drawOval(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to Color.Black.copy(alpha = 0.30f),
-                    0.40f to Color.Black.copy(alpha = 0.14f),
-                    0.75f to Color.Black.copy(alpha = 0.04f),
-                    1.0f to Color.Transparent,
+            val floorCx = cx + swayX * 0.3f
+            val floorCy = cy + faceR * 0.78f + bobY * 0.18f
+            val floorW = faceR * (ImmersiveShellWidthFactor + 0.10f)
+            val floorH = faceR * 0.20f
+            drawOval(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to Color.Black.copy(alpha = 0.30f),
+                        0.40f to Color.Black.copy(alpha = 0.14f),
+                        0.75f to Color.Black.copy(alpha = 0.04f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = Offset(floorCx, floorCy),
+                    radius = floorW,
                 ),
-                center = Offset(floorCx, floorCy),
-                radius = floorW,
-            ),
-            topLeft = Offset(floorCx - floorW, floorCy - floorH),
-            size = Size(floorW * 2f, floorH * 2f),
-        )
+                topLeft = Offset(floorCx - floorW, floorCy - floorH),
+                size = Size(floorW * 2f, floorH * 2f),
+            )
+        }
 
         translate(left = swayX, top = bobY) {
-            // SemiCircle: narrower base diameter, same height (chin clearance unchanged).
-            val shellBounds = immersiveMatchedShellBounds(size.width, size.height, breath = breath)
+            // Shell footprint: matched SemiCircle band, or trapezoid (base ~20% > top).
+            val shellBounds = shellBoundsOf(size.width, size.height, breath)
 
-            // Glossy black SemiCircle — layered depth (not flat matte).
-            drawGlossyBlackFaceShell(
-                morphState = shellMorph,
-                bounds = shellBounds,
-                base = NomiFaceBlack,
-                rimTint = Color(0xFF8AB4F8),
-            )
-            // Hairline pale rim stroke.
-            val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
-            drawExpressiveFaceShell(
-                morphState = shellMorph,
-                bounds = shellBounds,
-                color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.65f),
-                style = Stroke(width = shellBounds.width * 0.028f, cap = StrokeCap.Round),
-            )
+            if (showShell) {
+                // Glossy black face plate — layered depth (not flat matte).
+                drawGlossyBlackFaceShell(
+                    morphState = shellMorph,
+                    bounds = shellBounds,
+                    base = NomiFaceBlack,
+                    rimTint = Color(0xFF8AB4F8),
+                )
+                // Hairline pale rim stroke.
+                val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
+                drawExpressiveFaceShell(
+                    morphState = shellMorph,
+                    bounds = shellBounds,
+                    color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.65f),
+                    style = Stroke(width = shellBounds.width * 0.028f, cap = StrokeCap.Round),
+                )
+            }
 
             val liveTilt = tilt.value + 0.35f * sin(life * 0.28f).toFloat()
             rotate(liveTilt, pivot = Offset(cx, cy)) {
                 val open = (eyeOpen.value * blink.value).coerceIn(0.05f, 1.12f)
-                val gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
-                val eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
-                val gaze = lookX.value * faceR * 0.06f
-                // Shorter capsules — capped height while animating.
-                val barW = faceR * 0.11f * eyeWidth.value.coerceIn(0.8f, 1.35f)
-                val barH = (faceR * 0.22f * eyeHeight.value.coerceAtMost(1.05f) * open)
-                    .coerceAtMost(faceR * 0.26f)
-                val left = Offset(cx - gap + gaze, eyeY)
-                val right = Offset(cx + gap + gaze, eyeY)
+                val gap: Float
+                val eyeY: Float
+                val gaze: Float
+                val barW: Float
+                val barH: Float
+                // Island: speech drives the eyes (no mouth). Shell keeps lip-sync mouth.
+                val eyeTalk = if (!showShell) {
+                    when {
+                        mouthAmplitude != null -> mouthAmplitude.coerceIn(0f, 1f)
+                        mood.isSpeechMouthMood() -> mouthOpen.value.coerceIn(0f, 1f)
+                        else -> 0f
+                    }
+                } else {
+                    0f
+                }
+                val talkOpen = (open * (1f + 0.55f * eyeTalk)).coerceIn(0.05f, 1.35f)
+                // Island: near-capsule-height status circle on the right; eyes keep the left band.
+                val islandEyeCue = !showShell && (rightEyeIcon != null || leftEyeIcon != null)
+                val islandCueBadgeR = if (islandEyeCue) {
+                    (size.height * 0.5f - islandCueMarginPx).coerceAtLeast(1f)
+                } else {
+                    0f
+                }
+                if (showShell) {
+                    gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
+                    eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
+                    gaze = lookX.value * faceR * 0.06f
+                    barW = faceR * 0.11f * eyeWidth.value.coerceIn(0.8f, 1.35f)
+                    barH = (faceR * 0.22f * eyeHeight.value.coerceAtMost(1.05f) * open)
+                        .coerceAtMost(faceR * 0.26f)
+                } else {
+                    // Figma island eyes: 20×33, centers at left 32 / 91 (half-gap 29.5).
+                    // Breath + speech open so the pill eyes "talk" without a mouth.
+                    gap = if (islandEyeCue) islandEyeHalfGap * 0.70f else islandEyeHalfGap
+                    eyeY = cy + lookY.value * islandEyeHalfH * 0.15f
+                    gaze = lookX.value * islandEyeHalfW * 0.35f
+                    barW = islandEyeHalfW * (1f + 0.16f * eyeTalk) * breath
+                    barH = islandEyeHalfH * talkOpen * breath
+                }
+                // With a status cue, anchor eyes in the left band; badge sits on the right.
+                val eyeAnchorX = if (islandEyeCue) {
+                    val badgeLeft = size.width - islandCueMarginPx - islandCueBadgeR * 2f
+                    (badgeLeft - islandCueMarginPx).coerceAtLeast(0f) * 0.5f
+                } else {
+                    cx
+                }
+                val left = Offset(eyeAnchorX - gap + gaze, eyeY)
+                val right = Offset(eyeAnchorX + gap + gaze, eyeY)
+                val eyeMidX = eyeAnchorX + gaze
+                val islandCueCenter = if (islandEyeCue) {
+                    Offset(
+                        size.width - islandCueMarginPx - islandCueBadgeR,
+                        cy,
+                    )
+                } else {
+                    Offset.Zero
+                }
 
                 val speaking = mouthAmplitude != null ||
                     mood == AssistantMood.Speaking ||
@@ -640,9 +721,8 @@ fun ImmersiveEyesFace(
                 val bloom = if (enableIdleMotion) glowAmount else 0f
                 val eyeIconSide = faceR * 0.40f
 
-                // All facial features + cues stay inside the shell — never outside / over eyes.
-                val shellClip = expressiveFaceShellPath(shellMorph, shellBounds)
-                clipPath(shellClip) {
+                // Features stay inside the shell when drawn; island mode skips the clip.
+                val drawFeatures: DrawScope.() -> Unit = {
                     if (blush.value > 0.04f) {
                         val blushA = 0.2f * blush.value
                         val bx = gap * 0.95f
@@ -657,7 +737,20 @@ fun ImmersiveEyesFace(
                             Offset(cx + bx, cy + faceR * 0.22f),
                         )
                     }
-                    if (leftEyeIcon != null && leftEyeTint != null) {
+                    // Glasses behind eyes so capsules show through the lenses.
+                    drawNomiMateGlassesIfNeeded(
+                        mood = mood,
+                        faceR = faceR,
+                        color = glyph,
+                        eyeHalfGap = gap,
+                        eyeMidX = eyeMidX,
+                        eyeY = eyeY,
+                        eyeHalfWidth = barW,
+                        // Capsule outer ring spans ±barH; pass full half-height for rim clearance.
+                        eyeHalfHeight = barH,
+                    )
+                    // Shell: eye-slot cues may replace geometry. Island: always keep capsules.
+                    if (showShell && leftEyeIcon != null && leftEyeTint != null) {
                         drawAnimatedFaceCueIcon(
                             leftEyePainter, left, eyeIconSide, leftEyeTint, life, phaseOffset = 0.2f,
                         )
@@ -666,7 +759,7 @@ fun ImmersiveEyesFace(
                             left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom,
                         )
                     }
-                    if (rightEyeIcon != null && rightEyeTint != null) {
+                    if (showShell && rightEyeIcon != null && rightEyeTint != null) {
                         drawAnimatedFaceCueIcon(
                             rightEyePainter, right, eyeIconSide, rightEyeTint, life,
                             phaseOffset = 1.1f,
@@ -677,54 +770,72 @@ fun ImmersiveEyesFace(
                         )
                     }
 
-                    // Cheek accents — lower sides of the face (not center, not over eyes).
-                    val cheekSide = faceR * 0.30f
-                    val cheekY = cy + faceR * 0.22f
-                    if (leftAccentIcon != null && leftAccentTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            leftAccentPainter,
-                            Offset(cx - faceR * 0.42f, cheekY),
-                            cheekSide,
-                            leftAccentTint,
-                            life,
-                            phaseOffset = 0.6f,
-                        )
+                    // Island: eye-slot cue in a near-capsule-height badge (right slot wins).
+                    if (!showShell && islandCueBadgeR > 0f) {
+                        val cueTint = if (rightEyeIcon != null) rightEyeTint else leftEyeTint
+                        val cuePainter =
+                            if (rightEyeIcon != null) rightEyePainter else leftEyePainter
+                        if (cueTint != null) {
+                            drawIslandEyeCueBadge(
+                                painter = cuePainter,
+                                center = islandCueCenter,
+                                radius = islandCueBadgeR,
+                                tint = cueTint,
+                                life = life,
+                            )
+                        }
                     }
-                    if (rightAccentIcon != null && rightAccentTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            rightAccentPainter,
-                            Offset(cx + faceR * 0.42f, cheekY),
-                            cheekSide,
-                            rightAccentTint,
-                            life,
-                            phaseOffset = 2.0f,
-                        )
-                    }
-                    if (mouthIcon != null && mouthTintCue != null) {
-                        drawAnimatedFaceCueIcon(
-                            mouthPainter,
-                            mouthCenter,
-                            faceR * 0.42f,
-                            mouthTintCue,
-                            life,
-                            phaseOffset = 1.4f,
-                        )
-                    } else if (mouthVisible.value > 0.08f ||
-                        (mouthAmplitude != null && mouthAmplitude > 0.05f)
-                    ) {
-                        drawNomiGlyphMouth(
-                            center = mouthCenter,
-                            faceR = faceR,
-                            curve = mouthCurve.value,
-                            open = mouthOpen.value,
-                            visible = maxOf(
-                                mouthVisible.value,
-                                if (mouthAmplitude != null) 0.9f else 0f,
-                            ),
-                            color = glyph,
-                            speaking = speaking,
-                            life = life,
-                        )
+
+                    // Cheek accents + mouth cues — shell face only (island uses eye badge).
+                    if (showShell) {
+                        val cheekSide = faceR * 0.30f
+                        val cheekY = cy + faceR * 0.22f
+                        if (leftAccentIcon != null && leftAccentTint != null) {
+                            drawAnimatedFaceCueIcon(
+                                leftAccentPainter,
+                                Offset(cx - faceR * 0.42f, cheekY),
+                                cheekSide,
+                                leftAccentTint,
+                                life,
+                                phaseOffset = 0.6f,
+                            )
+                        }
+                        if (rightAccentIcon != null && rightAccentTint != null) {
+                            drawAnimatedFaceCueIcon(
+                                rightAccentPainter,
+                                Offset(cx + faceR * 0.42f, cheekY),
+                                cheekSide,
+                                rightAccentTint,
+                                life,
+                                phaseOffset = 2.0f,
+                            )
+                        }
+                        if (mood != AssistantMood.Idle && mouthIcon != null && mouthTintCue != null) {
+                            drawAnimatedFaceCueIcon(
+                                mouthPainter,
+                                mouthCenter,
+                                faceR * 0.42f,
+                                mouthTintCue,
+                                life,
+                                phaseOffset = 1.4f,
+                            )
+                        } else if (mouthVisible.value > 0.08f ||
+                            (mouthAmplitude != null && mouthAmplitude > 0.05f)
+                        ) {
+                            drawNomiGlyphMouth(
+                                center = mouthCenter,
+                                faceR = faceR,
+                                curve = mouthCurve.value,
+                                open = mouthOpen.value,
+                                visible = maxOf(
+                                    mouthVisible.value,
+                                    if (mouthAmplitude != null) 0.9f else 0f,
+                                ),
+                                color = glyph,
+                                speaking = speaking,
+                                life = life,
+                            )
+                        }
                     }
                     drawNomiMateDecor(
                         mood = mood,
@@ -734,8 +845,17 @@ fun ImmersiveEyesFace(
                         color = glyph,
                         life = life,
                         skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
-                            mouthIcon != null,
+                            mouthIcon != null || !showShell,
+                        eyeHalfGap = gap,
+                        eyeMidX = eyeMidX,
+                        eyeY = eyeY,
+                        eyeHalfWidth = barW,
                     )
+                }
+                if (showShell) {
+                    clipPath(expressiveFaceShellPath(shellMorph, shellBounds), block = drawFeatures)
+                } else {
+                    drawFeatures()
                 }
             }
         }
@@ -907,6 +1027,7 @@ fun ImmersiveGlowEyesFace(
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color = EporoGlow,
     faceCues: AssistantFaceCues? = null,
+    showShell: Boolean = true,
 ) {
     ImmersiveEyesFace(
         mood = mood,
@@ -919,6 +1040,7 @@ fun ImmersiveGlowEyesFace(
         gesture = gesture,
         eyeGlow = eyeGlow,
         faceCues = faceCues,
+        showShell = showShell,
     )
 }
 
@@ -957,6 +1079,7 @@ fun ImmersiveHybridEyesFace(
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     faceCues: AssistantFaceCues? = null,
+    showShell: Boolean = true,
 ) {
     val glowStrength = remember {
         Animatable(if (mood.usesImmersivePurpleGlow()) 1f else 0f)
@@ -983,6 +1106,7 @@ fun ImmersiveHybridEyesFace(
         // Always pass a glow color; alpha is the morph amount (0 = pale, 1 = purple).
         eyeGlow = EporoGlow.copy(alpha = glowStrength.value.coerceIn(0f, 1f)),
         faceCues = faceCues,
+        showShell = showShell,
     )
 }
 

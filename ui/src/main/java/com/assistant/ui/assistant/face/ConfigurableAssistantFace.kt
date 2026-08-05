@@ -8,7 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.assistant.ui.assistant.api.AssistantFaceCues
-import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.chrome.FaceWithThinkingCloud
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
@@ -19,6 +18,8 @@ import com.assistant.ui.assistant.ui.theme.AssistantTokens
  * Thinking mood shows a shared in/out thought cloud at the face top-right.
  *
  * [faceCues] applies to Immersive / Fusion eye faces on the main overlay only.
+ * [showShell] false = island capsule eyes only (no mouth / SemiCircle plate);
+ * eye-slot [faceCues] show in a badge to the right of the eyes.
  */
 @Composable
 fun ConfigurableAssistantFace(
@@ -32,6 +33,7 @@ fun ConfigurableAssistantFace(
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     faceCues: AssistantFaceCues? = null,
+    showShell: Boolean = true,
 ) {
     val configured by AssistantFaceConfig.kind.collectAsStateWithLifecycle()
     val resolved = kind ?: configured
@@ -41,6 +43,53 @@ fun ConfigurableAssistantFace(
     }
 
     FaceWithThinkingCloud(mood = mood, modifier = modifier) {
+        // Island mode: always glyph eyes without the SemiCircle / EPORO head plate.
+        if (!showShell) {
+            when (resolved) {
+                AssistantFaceKind.ImmersiveGlow,
+                AssistantFaceKind.FusionGlow,
+                -> ImmersiveGlowEyesFace(
+                    mood = mood,
+                    modifier = Modifier.fillMaxSize(),
+                    gazeX = gazeX,
+                    gazeY = gazeY,
+                    mouthAmplitude = mouthAmplitude,
+                    brandGlow = brandGlow,
+                    highContrast = highContrast,
+                    gesture = gesture,
+                    faceCues = faceCues,
+                    showShell = false,
+                )
+                AssistantFaceKind.ImmersiveHybrid,
+                AssistantFaceKind.ImmersiveTrapezoid,
+                -> ImmersiveHybridEyesFace(
+                    mood = mood,
+                    modifier = Modifier.fillMaxSize(),
+                    gazeX = gazeX,
+                    gazeY = gazeY,
+                    mouthAmplitude = mouthAmplitude,
+                    brandGlow = brandGlow,
+                    highContrast = highContrast,
+                    gesture = gesture,
+                    faceCues = faceCues,
+                    showShell = false,
+                )
+                else -> ImmersiveEyesFace(
+                    mood = mood,
+                    modifier = Modifier.fillMaxSize(),
+                    gazeX = gazeX,
+                    gazeY = gazeY,
+                    mouthAmplitude = mouthAmplitude,
+                    brandGlow = brandGlow,
+                    highContrast = highContrast,
+                    gesture = gesture,
+                    faceCues = faceCues,
+                    showShell = false,
+                )
+            }
+            return@FaceWithThinkingCloud
+        }
+
         when (resolved) {
             AssistantFaceKind.None -> Unit
             AssistantFaceKind.ImmersiveEyes -> ImmersiveEyesFace(
@@ -66,6 +115,17 @@ fun ConfigurableAssistantFace(
                 faceCues = faceCues,
             )
             AssistantFaceKind.ImmersiveHybrid -> ImmersiveHybridEyesFace(
+                mood = mood,
+                modifier = Modifier.fillMaxSize(),
+                gazeX = gazeX,
+                gazeY = gazeY,
+                mouthAmplitude = mouthAmplitude,
+                brandGlow = brandGlow,
+                highContrast = highContrast,
+                gesture = gesture,
+                faceCues = faceCues,
+            )
+            AssistantFaceKind.ImmersiveTrapezoid -> ImmersiveTrapezoidEyesFace(
                 mood = mood,
                 modifier = Modifier.fillMaxSize(),
                 gazeX = gazeX,

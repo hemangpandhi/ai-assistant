@@ -1,5 +1,6 @@
 package com.assistant.ui.assistant.ui.theme
 
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 /**
@@ -29,20 +30,69 @@ internal object AssistantOverlayTokens {
     val BottomChromePaddingTop = 16.dp
     val BottomChromePaddingEnd = 32.dp
     val BottomChromeDockPadding = 4.dp
-    // FaceStageDock Column bottom pad — keeps transcript near the map base.
+    // Island capsule content pad (status sits outside below).
     val DockContentPaddingBottom = 8.dp
-    // Fraction of faceSize pulled toward the transcript (closes canvas chin dead space).
-    // ~0.13 matches shell bottom; FaceTranscriptGap keeps a slim clear band.
-    const val FaceTowardTranscriptNudgeFraction = 0.13f
     val FaceTranscriptGap = 6.dp
-    // ~26% of stage height (~20% smaller than prior 32%).
-    val FaceStageHeightFraction = 0.256f
-    val FaceSizeMin = 70.dp
-    val FaceSizeMax = 384.dp
     val GlyphSizeFraction = 0.38f
     val GlyphSizeMin = 40.dp
     val GlyphSizeMax = 96.dp
     val FaceBelowTravelFraction = 0.38f
+
+    // Dynamic Island — idle pill wider than Figma 154×103 for face breathing room.
+    val IslandCompactWidth = 192.dp
+    val IslandCompactHeight = 103.dp
+    val IslandCornerRadius = 51.5.dp
+    val IslandEyesTop = 33.dp
+    val IslandListeningWidth = 192.dp
+    val IslandListeningHeight = 103.dp
+    /** Expanded pill grows with text up to this fraction of stage width, then transcript autoscrolls. */
+    val IslandExpandedWidthFraction = 0.60f
+    val IslandExpandedWidthMin = 192.dp
+    /** Expanded island — a touch taller than idle for breathing room; still widens for text. */
+    val IslandExpandedHeight = 120.dp
+    val IslandExpandedHeightWithText = 120.dp
+    val IslandBottomInset = 28.dp
+    val IslandFrameStroke = 2.5.dp
+    val IslandStatusGap = 10.dp
+    val IslandContentPadH = 16.dp
+    /** Inset from the pill’s rounded ends so face/text aren’t flush to the curve. */
+    val IslandExpandedPadStart = 40.dp
+    val IslandExpandedPadEnd = 36.dp
+    /** Gap between left face slot and transcript in the expanded row. */
+    val IslandFaceTextGap = 20.dp
+    val IslandContentPadV = 0.dp
+    val IslandCompactPadH = 0.dp
+    val IslandCompactPadV = 0.dp
+    val IslandFaceCompact = 88.dp
+    val IslandFaceListening = 88.dp
+    val IslandFaceExpanded = 72.dp
+    /** Idle eye glyph outer size (full width × height). */
+    val IslandEyeWidth = 20.dp
+    val IslandEyeHeight = 33.dp
+    /**
+     * Half-distance between eye centers.
+     * Figma: eye1 left 32, eye2 left 91 → center gap 59 → half 29.5.
+     */
+    val IslandEyeHalfGap = 29.5.dp
+    /** Top/bottom (and side) air so the status cue circle doesn’t hug the pill edge. */
+    val IslandCueBadgeMargin = 10.dp
+    val IslandListeningGlowBlur = 18.dp
+    /** Near-black capsule fill. */
+    val IslandFill = Color(0xFF121418)
+    /** Dark gray outer frame (idle / speaking / default). */
+    val IslandFrame = Color(0xFF3A3F46)
+    /** Listening cyan-tinted frame. */
+    val IslandListeningFrame = Color(0xFF40C4FF)
+    /** Soft listening outer glow. */
+    val IslandListeningGlow = Color(0x6640C4FF)
+    val IslandStatus = Color(0xFF9CA3AF)
+    val IslandListeningStatus = Color(0xFF40C4FF)
+
+    // Legacy face-stage sizing retained for card chrome / weather sink callers.
+    const val FaceTowardTranscriptNudgeFraction = 0.13f
+    val FaceStageHeightFraction = 0.256f
+    val FaceSizeMin = 70.dp
+    val FaceSizeMax = 384.dp
     val DockWidthFaceMul = 2.5f
     val DockWidthStackMul = 2.2f
     val DockWidthMin = 320.dp

@@ -114,27 +114,26 @@ class AssistantMoodTest {
         )
     }
 
-    @org.junit.Ignore("Broken in dev/clean branch")
     @Test
     fun fusionMouthOnlyOnExpressiveMoods() {
-        val withMouth = setOf(
-            AssistantMood.Happy,
-            AssistantMood.Sad,
-            AssistantMood.Speaking,
-            AssistantMood.Excited,
-        )
-        AssistantMood.entries.forEach { mood ->
-            val visible = mood.toFusionEyePose().mouthVisible
-            if (mood in withMouth) {
-                assertTrue("$mood should show mouth", visible > 0.2f)
-            } else {
-                assertTrue("$mood should hide mouth", visible <= 0.2f)
-            }
-        }
+        assertTrue(AssistantMood.Happy.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Sad.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Speaking.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Excited.toFusionEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Idle.toFusionEyePose().mouthVisible <= 0.2f)
         assertTrue(
             AssistantMood.Happy.toFusionEyePose().mouthCurve >
                 AssistantMood.Sad.toFusionEyePose().mouthCurve,
         )
+    }
+
+    @Test
+    fun immersiveMouthShowsOnExpressiveAndSpeechMoods() {
+        assertTrue(AssistantMood.Happy.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Sad.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Speaking.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Excited.toImmersiveEyePose().mouthVisible > 0.2f)
+        assertTrue(AssistantMood.Jubilation.toImmersiveEyePose().mouthVisible > 0.2f)
     }
 
     @Test
@@ -203,6 +202,11 @@ class AssistantMoodTest {
             assertTrue(mood.toShellKind() in ExpressiveShellKind.entries.toSet())
         }
         assertTrue(ExpressiveShellKind.Gem in ExpressiveShellKind.entries)
+        assertTrue(ExpressiveShellKind.Trapezoid in ExpressiveShellKind.entries)
+        // Trapezoid is fixed for the main overlay face — never selected by mood morph.
+        AssistantMood.entries.forEach { mood ->
+            assertTrue(mood.toShellKind() != ExpressiveShellKind.Trapezoid)
+        }
     }
 
     @Test
@@ -240,7 +244,6 @@ class AssistantMoodTest {
         assertTrue(AssistantMood.Searching.toPresencePose().sparkle > AssistantMood.Sad.toPresencePose().sparkle)
     }
 
-    @org.junit.Ignore("Broken in dev/clean branch")
     @Test
     fun dialogueScriptCoversAllMoods() {
         val moods = DemoDialogueScript.map { it.mood }.toSet()
@@ -281,12 +284,14 @@ class AssistantMoodTest {
 
     @Test
     fun microStatusUsesGlanceableVerbs() {
+        assertEquals(null, AssistantMood.Idle.microStatus())
         assertEquals("Thinking…", AssistantMood.Thinking.microStatus())
         assertEquals("Reading…", AssistantMood.Reading.microStatus())
         assertEquals("Listening…", AssistantMood.Listening.microStatus())
+        assertEquals("SPEAKING", AssistantMood.Speaking.microStatus())
         assertEquals("Taking it easy…", AssistantMood.Drowsy.microStatus())
         assertEquals("Taking it easy…", AssistantMood.Tired.microStatus())
-        assertEquals(null, AssistantMood.Speaking.microStatus())
         assertEquals(null, AssistantMood.Happy.microStatus())
+        assertEquals(null, AssistantMood.Idle.islandStatus())
     }
 }

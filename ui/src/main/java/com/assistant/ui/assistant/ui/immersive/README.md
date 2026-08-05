@@ -6,7 +6,7 @@ Fullscreen / edge-card immersive stage for the Compose assistant.
 
 1. Session host shows `ImmersiveAssistantOverlay` (or overlay service).
 2. Placement (`AssistantPlacement` / config / receiver) chooses fullscreen, left, right, or bottom.
-3. Chrome splits: bottom dock vs card chrome; face docks via `FaceStageDock`.
+3. Chrome splits: bottom dock vs card chrome; face docks via `IslandCapsuleDock`.
 4. Transcript / glow / backdrop / motion are composables in this package.
 5. Stage bus / prewarmer / latency helpers support first-frame TTFR.
 
@@ -16,6 +16,7 @@ Fullscreen / edge-card immersive stage for the Compose assistant.
 |------|------|
 | `ImmersiveAssistantOverlay.kt` | Root immersive composition |
 | `ImmersiveAssistantBottomChrome.kt` | Bottom placement chrome |
+| `IslandCapsuleDock.kt` | Pill / Dynamic Island face + transcript capsule |
 | `ImmersiveAssistantCardChrome.kt` | Edge card chrome |
 | `AssistantPlacement*.kt` | Placement model + config + ADB |
 | `ImmersiveOverlayMotion.kt` | Enter/exit / presence motion |

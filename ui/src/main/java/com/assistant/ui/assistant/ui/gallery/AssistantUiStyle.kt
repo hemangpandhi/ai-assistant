@@ -25,7 +25,7 @@ enum class AssistantUiStyle(
     ),
     CapsuleFace(
         title = "Capsule face",
-        blurb = "Wide geometric glyph capsule",
+        blurb = "Dynamic Island pill · eyes · status",
     ),
     SideRail(
         title = "Side rail",

@@ -4,22 +4,17 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
-import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
-import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
 
 /**
  * ADB preview for Nomi-Mate / affective moods on the main overlay face.
  *
+ * SET auto-opens the immersive stage and holds it open while the preview is
+ * active (no idle / SessionComplete auto-close). Clear or dismiss explicitly.
+ *
  * ```
- * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver \
- *   --es mood triumph
- *
- * adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_MOOD \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
- *
- * adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_MOOD \
- *   -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
+ * adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver --es mood triumph
+ * adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
+ * adb shell am broadcast -a com.assistant.ui.action.GET_ASSISTANT_MOOD -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantMoodReceiver
  * ```
  *
  * Mood tokens match [AssistantMood] names (case-insensitive), e.g.
@@ -27,7 +22,7 @@ import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
  * gratitude|contentment|proud|triumph|relaxed|shy|acceptance|complicity|
  * concentration|dreamy|sleeping|doubt|concerned|impressed|happy|excited|…
  *
- * Pass `--ez summon false` to skip opening the immersive overlay.
+ * Pass `--ez summon false` to change preview without opening the overlay.
  */
 class AssistantMoodReceiver : BroadcastReceiver() {
 
@@ -56,9 +51,9 @@ class AssistantMoodReceiver : BroadcastReceiver() {
                         return
                     }
                     Log.i(TAG, "Assistant mood → ${AssistantMoodPreview.describe()}")
-                }
-                if (summon) {
-                    notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Icon)
+                    if (summon) {
+                        AssistantAdbPreview.summon(context)
+                    }
                 }
             }
             ACTION_CLEAR -> {
