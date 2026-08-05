@@ -46,16 +46,23 @@ class IslandCapsuleDockTest {
 
     @Test
     fun shortTranscriptWidensButStaysUnderCap() {
+        // Cap = 60% of an 800dp stage.
+        val cap = 480.dp
         val short = estimateIslandExpandedWidth(
             charCount = "i didn't catch that".length,
-            maxWidth = 800.dp,
+            maxWidth = cap,
         )
         val longer = estimateIslandExpandedWidth(
             charCount = 48,
-            maxWidth = 800.dp,
+            maxWidth = cap,
+        )
+        val overflow = estimateIslandExpandedWidth(
+            charCount = 120,
+            maxWidth = cap,
         )
         assertTrue(short > 168.dp)
         assertTrue(longer > short)
-        assertTrue(longer <= 420.dp)
+        assertTrue(longer <= cap)
+        assertEquals(cap, overflow)
     }
 }

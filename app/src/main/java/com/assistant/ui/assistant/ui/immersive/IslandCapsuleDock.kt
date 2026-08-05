@@ -48,13 +48,13 @@ fun resolveIslandSizeClass(mood: AssistantMood, hasTranscript: Boolean): IslandS
 
 /**
  * Gemini-style width estimate for short single-line transcripts: face slot + text + pads,
- * clamped to [min, max]. Longer lines grow the pill horizontally instead of taller.
+ * clamped to [minWidth, maxWidth]. [maxWidth] is the stage cap (60% of available width);
+ * longer lines stop widening there and [LiveInputText] autoscrolls inside the text slot.
  */
 fun estimateIslandExpandedWidth(
     charCount: Int,
     maxWidth: Dp,
     minWidth: Dp = AssistantOverlayTokens.IslandExpandedWidthMin,
-    hardMax: Dp = AssistantOverlayTokens.IslandExpandedWidthMax,
 ): Dp {
     val faceSlot = AssistantOverlayTokens.IslandFaceExpanded
     val pads = AssistantOverlayTokens.IslandExpandedPadStart +
@@ -62,9 +62,7 @@ fun estimateIslandExpandedWidth(
         AssistantOverlayTokens.IslandFaceTextGap
     // ~14dp per glyph at ImmersiveTranscript's 26sp semibold.
     val textW = (charCount.coerceAtLeast(1) * 14).dp.coerceAtLeast(72.dp)
-    return (faceSlot + pads + textW)
-        .coerceIn(minWidth, hardMax)
-        .coerceAtMost(maxWidth)
+    return (faceSlot + pads + textW).coerceIn(minWidth, maxWidth)
 }
 
 /**
@@ -98,14 +96,13 @@ fun IslandCapsuleDock(
     val transition = updateTransition(targetState = sizeClass, label = "island_size")
 
     BoxWithConstraints(modifier = modifier) {
+        // Grow with text up to 60% of available stage width; overflow autoscrolls in-slot.
+        val expandedCap = (maxWidth * AssistantOverlayTokens.IslandExpandedWidthFraction)
+            .coerceAtLeast(AssistantOverlayTokens.IslandExpandedWidthMin)
+            .coerceAtMost(maxWidth)
         val expandedW = estimateIslandExpandedWidth(
             charCount = transcriptCharCount,
-            maxWidth = (maxWidth * AssistantOverlayTokens.IslandExpandedWidthFraction)
-                .coerceIn(
-                    AssistantOverlayTokens.IslandExpandedWidthMin,
-                    AssistantOverlayTokens.IslandExpandedWidthMax,
-                )
-                .coerceAtMost(maxWidth),
+            maxWidth = expandedCap,
         )
 
         val width by transition.animateDp(
@@ -232,7 +229,12 @@ fun IslandCapsuleDock(
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .fillMaxHeight(),
+                                .fillMaxHeight()
+                                // Extra air so glyphs don’t hug the eye slot or trailing curve.
+                                .padding(
+                                    start = 4.dp,
+                                    end = 4.dp,
+                                ),
                             contentAlignment = Alignment.CenterStart,
                         ) {
                             transcript()

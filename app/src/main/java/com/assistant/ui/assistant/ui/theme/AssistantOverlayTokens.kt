@@ -45,9 +45,9 @@ internal object AssistantOverlayTokens {
     val IslandEyesTop = 33.dp
     val IslandListeningWidth = 192.dp
     val IslandListeningHeight = 103.dp
-    val IslandExpandedWidthFraction = 0.72f
+    /** Expanded pill grows with text up to this fraction of stage width, then transcript autoscrolls. */
+    val IslandExpandedWidthFraction = 0.60f
     val IslandExpandedWidthMin = 192.dp
-    val IslandExpandedWidthMax = 420.dp
     /** Expanded island — a touch taller than idle for breathing room; still widens for text. */
     val IslandExpandedHeight = 120.dp
     val IslandExpandedHeightWithText = 120.dp
@@ -55,11 +55,11 @@ internal object AssistantOverlayTokens {
     val IslandFrameStroke = 2.5.dp
     val IslandStatusGap = 10.dp
     val IslandContentPadH = 16.dp
-    /** Inset from the pill’s rounded ends so the face isn’t flush to the curve. */
-    val IslandExpandedPadStart = 28.dp
-    val IslandExpandedPadEnd = 24.dp
+    /** Inset from the pill’s rounded ends so face/text aren’t flush to the curve. */
+    val IslandExpandedPadStart = 40.dp
+    val IslandExpandedPadEnd = 36.dp
     /** Gap between left face slot and transcript in the expanded row. */
-    val IslandFaceTextGap = 12.dp
+    val IslandFaceTextGap = 20.dp
     val IslandContentPadV = 0.dp
     val IslandCompactPadH = 0.dp
     val IslandCompactPadV = 0.dp

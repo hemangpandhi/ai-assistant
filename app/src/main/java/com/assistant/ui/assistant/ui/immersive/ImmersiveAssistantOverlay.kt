@@ -957,7 +957,7 @@ fun ImmersiveTranscript(
     modifier: Modifier = Modifier,
     textAlign: TextAlign = TextAlign.Start,
 ) {
-    // Fills the island text slot; parent row clamps width as the pill widens.
+    // Fills the island text slot; parent pill caps at 60% stage width, then this autoscrolls.
     Box(
         modifier = modifier.fillMaxWidth(),
         contentAlignment = when (textAlign) {
@@ -973,7 +973,7 @@ fun ImmersiveTranscript(
                 fadeIn(tween(180)) togetherWith fadeOut(tween(120))
             },
             label = "immersive_transcript_speaker",
-            modifier = Modifier.fillMaxWidth(0.95f),
+            modifier = Modifier.fillMaxWidth(),
         ) { who ->
             val bodyColor = when (who) {
                 DialogueSpeaker.User -> Color(0xFFD2E3FC)
@@ -987,9 +987,7 @@ fun ImmersiveTranscript(
                 speaking = who == DialogueSpeaker.Assistant,
                 textAlign = textAlign,
                 maxLines = 1,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
