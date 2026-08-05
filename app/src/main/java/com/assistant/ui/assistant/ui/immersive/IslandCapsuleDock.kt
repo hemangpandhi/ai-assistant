@@ -50,13 +50,21 @@ fun resolveIslandSizeClass(mood: AssistantMood, hasTranscript: Boolean): IslandS
  * Gemini-style width estimate for short single-line transcripts: face slot + text + pads,
  * clamped to [minWidth, maxWidth]. [maxWidth] is the stage cap (60% of available width);
  * longer lines stop widening there and [LiveInputText] autoscrolls inside the text slot.
+ *
+ * When [hasStatusCue] is true the face slot widens for eyes + near-capsule-height badge.
  */
 fun estimateIslandExpandedWidth(
     charCount: Int,
     maxWidth: Dp,
     minWidth: Dp = AssistantOverlayTokens.IslandExpandedWidthMin,
+    hasStatusCue: Boolean = false,
 ): Dp {
-    val faceSlot = AssistantOverlayTokens.IslandFaceExpanded
+    val faceSlot = if (hasStatusCue) {
+        // Eyes band + near-height badge — matches expanded face slot below.
+        AssistantOverlayTokens.IslandExpandedHeightWithText * 1.35f
+    } else {
+        AssistantOverlayTokens.IslandFaceExpanded
+    }
     val pads = AssistantOverlayTokens.IslandExpandedPadStart +
         AssistantOverlayTokens.IslandExpandedPadEnd +
         AssistantOverlayTokens.IslandFaceTextGap
@@ -81,6 +89,8 @@ fun IslandCapsuleDock(
     hasTranscript: Boolean,
     modifier: Modifier = Modifier,
     transcriptCharCount: Int = 0,
+    /** When true, face slot fills capsule height for the near-height status cue circle. */
+    hasStatusCue: Boolean = false,
     contentAlpha: Float = 1f,
     glowBreath: ImmersiveGlowBreath = ImmersiveGlowBreath(1f, 0f, 0.62f),
     face: @Composable (faceSize: Dp) -> Unit,
@@ -103,6 +113,7 @@ fun IslandCapsuleDock(
         val expandedW = estimateIslandExpandedWidth(
             charCount = transcriptCharCount,
             maxWidth = expandedCap,
+            hasStatusCue = hasStatusCue,
         )
 
         val width by transition.animateDp(
@@ -221,7 +232,14 @@ fun IslandCapsuleDock(
                         ),
                     ) {
                         Box(
-                            modifier = Modifier.size(faceSize),
+                            modifier = if (hasStatusCue) {
+                                // Tall status circle needs the full pill height + width for eyes.
+                                Modifier
+                                    .fillMaxHeight()
+                                    .width(height * 1.35f)
+                            } else {
+                                Modifier.size(faceSize)
+                            },
                             contentAlignment = Alignment.Center,
                         ) {
                             face(faceSize)

@@ -74,6 +74,8 @@ internal object AssistantOverlayTokens {
      * Figma: eye1 left 32, eye2 left 91 → center gap 59 → half 29.5.
      */
     val IslandEyeHalfGap = 29.5.dp
+    /** Top/bottom (and side) air so the status cue circle doesn’t hug the pill edge. */
+    val IslandCueBadgeMargin = 10.dp
     val IslandListeningGlowBlur = 18.dp
     /** Near-black capsule fill. */
     val IslandFill = Color(0xFF121418)

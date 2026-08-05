@@ -538,6 +538,7 @@ fun ImmersiveEyesFace(
     val islandEyeHalfW = with(density) { (AssistantOverlayTokens.IslandEyeWidth / 2).toPx() }
     val islandEyeHalfH = with(density) { (AssistantOverlayTokens.IslandEyeHeight / 2).toPx() }
     val islandEyeHalfGap = with(density) { AssistantOverlayTokens.IslandEyeHalfGap.toPx() }
+    val islandCueMarginPx = with(density) { AssistantOverlayTokens.IslandCueBadgeMargin.toPx() }
 
     Canvas(
         modifier = if (showShell) {
@@ -669,10 +670,13 @@ fun ImmersiveEyesFace(
                     0f
                 }
                 val talkOpen = (open * (1f + 0.55f * eyeTalk)).coerceIn(0.05f, 1.35f)
-                // Island: eye-slot cues ride a badge to the right — nudge the pair left for room.
+                // Island: near-capsule-height status circle on the right; eyes keep the left band.
                 val islandEyeCue = !showShell && (rightEyeIcon != null || leftEyeIcon != null)
-                val islandCueBadgeR = if (islandEyeCue) islandEyeHalfH * 0.62f else 0f
-                val pairNudge = if (islandEyeCue) islandCueBadgeR * 0.9f else 0f
+                val islandCueBadgeR = if (islandEyeCue) {
+                    (size.height * 0.5f - islandCueMarginPx).coerceAtLeast(1f)
+                } else {
+                    0f
+                }
                 if (showShell) {
                     gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
                     eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
@@ -689,9 +693,24 @@ fun ImmersiveEyesFace(
                     barW = islandEyeHalfW * (1f + 0.16f * eyeTalk) * breath
                     barH = islandEyeHalfH * talkOpen * breath
                 }
-                val left = Offset(cx - gap + gaze - pairNudge, eyeY)
-                val right = Offset(cx + gap + gaze - pairNudge, eyeY)
-                val eyeMidX = cx + gaze - pairNudge
+                // With a status cue, anchor eyes in the left band; badge sits on the right.
+                val eyeAnchorX = if (islandEyeCue) {
+                    val badgeLeft = size.width - islandCueMarginPx - islandCueBadgeR * 2f
+                    (badgeLeft - islandCueMarginPx).coerceAtLeast(0f) * 0.5f
+                } else {
+                    cx
+                }
+                val left = Offset(eyeAnchorX - gap + gaze, eyeY)
+                val right = Offset(eyeAnchorX + gap + gaze, eyeY)
+                val eyeMidX = eyeAnchorX + gaze
+                val islandCueCenter = if (islandEyeCue) {
+                    Offset(
+                        size.width - islandCueMarginPx - islandCueBadgeR,
+                        cy,
+                    )
+                } else {
+                    Offset.Zero
+                }
 
                 val speaking = mouthAmplitude != null ||
                     mood == AssistantMood.Speaking ||
@@ -751,7 +770,7 @@ fun ImmersiveEyesFace(
                         )
                     }
 
-                    // Island: eye-slot cue in a badge to the right of the eyes (right slot wins).
+                    // Island: eye-slot cue in a near-capsule-height badge (right slot wins).
                     if (!showShell && islandCueBadgeR > 0f) {
                         val cueTint = if (rightEyeIcon != null) rightEyeTint else leftEyeTint
                         val cuePainter =
@@ -759,10 +778,7 @@ fun ImmersiveEyesFace(
                         if (cueTint != null) {
                             drawIslandEyeCueBadge(
                                 painter = cuePainter,
-                                center = Offset(
-                                    right.x + barW + islandCueBadgeR * 1.15f,
-                                    eyeY,
-                                ),
+                                center = islandCueCenter,
                                 radius = islandCueBadgeR,
                                 tint = cueTint,
                                 life = life,

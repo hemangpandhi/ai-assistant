@@ -134,7 +134,7 @@ internal fun DrawScope.drawAnimatedFaceCueIcon(
 }
 
 /**
- * Island capsule badge: small plate to the **right** of the geometric eyes.
+ * Island capsule badge: near-capsule-height plate to the **right** of the geometric eyes.
  * Eye-slot cues live here — they never replace the capsules.
  */
 internal fun DrawScope.drawIslandEyeCueBadge(
@@ -154,12 +154,13 @@ internal fun DrawScope.drawIslandEyeCueBadge(
         color = AssistantOverlayTokens.IslandFrame.copy(alpha = 0.85f),
         radius = r,
         center = center,
-        style = Stroke(width = (r * 0.10f).coerceAtLeast(1f)),
+        style = Stroke(width = (r * 0.06f).coerceIn(1.5f, 3.5f)),
     )
+    // Icon sits inside the plate with a little inset (not larger than the circle).
     drawAnimatedFaceCueIcon(
         painter = painter,
         center = center,
-        side = r * 1.28f,
+        side = r * 1.15f,
         tint = tint,
         life = life,
         phaseOffset = 0.45f,
