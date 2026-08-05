@@ -1,44 +1,46 @@
 package com.tcs.vehicleassistant.controller
 
 import android.content.Context
+import android.util.Log
+import com.tcs.vehicleassistant.core.AssistantConfig
+import com.tcs.vehicleassistant.hardware.IAudioManager
 import com.tcs.vehicleassistant.repository.AgentOrchestrator
 import com.tcs.vehicleassistant.repository.OrchestratorEvent
 import com.tcs.vehicleassistant.repository.OrchestratorState
-import com.tcs.vehicleassistant.hardware.IAudioManager
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.koin.java.KoinJavaComponent.getKoin
+import kotlinx.coroutines.launch
 
 /**
- * ViewModel that owns the UI state for the Assistant.
+ * ViewModel for the assistant overlay.
  *
- * Responsibilities:
- *  - Receive UI intents (Speech Recognition, Text input)
- *  - Delegate queries to AgentOrchestrator
- *  - Map OrchestratorState to AssistantUiState
- *
- * The View (AssistantSession) observes [uiState] and [events] and renders accordingly.
+ * SRP: maps ear / UI intents ↔ observable UI state. Query execution is delegated to
+ * [AgentOrchestrator] unless [AssistantConfig.isEarTestMode] is on (mic→STT bring-up).
  */
 class AssistantViewModel(
     private val context: Context,
-    private val audioManager: IAudioManager
+    private val audioManager: IAudioManager,
 ) {
     private val orchestrator = AgentOrchestrator(context, audioManager)
 
-    // ── Public observable state ──────────────────────────────────────────────
     private val _uiState = MutableStateFlow<AssistantUiState>(AssistantUiState.Idle)
     val uiState: StateFlow<AssistantUiState> = _uiState.asStateFlow()
 
     private val _events = MutableSharedFlow<ViewModelEvent>(extraBufferCapacity = 32)
     val events: SharedFlow<ViewModelEvent> = _events.asSharedFlow()
 
-    // ── Internal state ──────────────────────────────────────────────────────
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+
+    private var isDirectSpeaking = false
 
     init {
         audioManager.setRecognitionListener(
@@ -47,31 +49,53 @@ class AssistantViewModel(
             },
             onBeginningOfSpeech = { },
             onEndOfSpeech = {
-                _uiState.value = AssistantUiState.Thinking()
+                if (!AssistantConfig.isEarTestMode(context)) {
+                    _uiState.value = AssistantUiState.Thinking()
+                }
             },
             onResult = { spokenText ->
                 audioManager.stopSpeaking()
                 _events.tryEmit(ViewModelEvent.SetInputText(spokenText))
-                handleQuery(spokenText)
+                if (AssistantConfig.isEarTestMode(context)) {
+                    // Ear bring-up: surface transcript only — do not orchestrate / LLM / tools.
+                    Log.i(TAG, "EAR_TEST_MODE final='$spokenText' (orchestration skipped)")
+                    _uiState.value = AssistantUiState.Listening(spokenText)
+                    scope.launch {
+                        delay(EAR_TEST_REARM_MS)
+                        audioManager.startListeningForced()
+                    }
+                } else {
+                    handleQuery(spokenText)
+                }
             },
             onEmptyResult = {
                 _uiState.value = AssistantUiState.Error("I didn't hear anything.")
-                // Do not dismiss automatically so user can try again
+                if (AssistantConfig.isEarTestMode(context)) {
+                    scope.launch {
+                        delay(EAR_TEST_REARM_MS)
+                        audioManager.startListeningForced()
+                    }
+                }
             },
             onError = { errorCode ->
                 val errorMsg = mapSpeechError(errorCode)
                 _uiState.value = AssistantUiState.Error(errorMsg)
-                // Do not dismiss automatically so user can try again
+                if (AssistantConfig.isEarTestMode(context)) {
+                    scope.launch {
+                        delay(EAR_TEST_REARM_MS)
+                        audioManager.startListeningForced()
+                    }
+                }
             },
             onPartial = { partialText ->
                 _uiState.value = AssistantUiState.Listening(partialText)
                 _events.tryEmit(ViewModelEvent.SetInputText(partialText))
-            }
+            },
         )
 
-        // Map Orchestrator State to UI State
         scope.launch {
             orchestrator.state.collect { state ->
+                if (AssistantConfig.isEarTestMode(context)) return@collect
                 _uiState.value = when (state) {
                     is OrchestratorState.Idle -> AssistantUiState.Idle
                     is OrchestratorState.Thinking -> AssistantUiState.Thinking(state.query)
@@ -82,25 +106,29 @@ class AssistantViewModel(
             }
         }
 
-        // Map Orchestrator Events to UI Events
         scope.launch {
             orchestrator.events.collect { event ->
+                if (AssistantConfig.isEarTestMode(context)) return@collect
                 when (event) {
-                    is OrchestratorEvent.ShowToast -> _events.tryEmit(ViewModelEvent.ShowToast(event.message))
-                    is OrchestratorEvent.SetInputEnabled -> _events.tryEmit(ViewModelEvent.SetInputEnabled(event.enabled))
-                    is OrchestratorEvent.LaunchIntent -> _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))
-                    is OrchestratorEvent.StartListening -> _events.tryEmit(ViewModelEvent.StartListening)
-                    is OrchestratorEvent.FinishSession -> _events.tryEmit(ViewModelEvent.FinishSession)
+                    is OrchestratorEvent.ShowToast ->
+                        _events.tryEmit(ViewModelEvent.ShowToast(event.message))
+                    is OrchestratorEvent.SetInputEnabled ->
+                        _events.tryEmit(ViewModelEvent.SetInputEnabled(event.enabled))
+                    is OrchestratorEvent.LaunchIntent ->
+                        _events.tryEmit(ViewModelEvent.LaunchIntent(event.intent))
+                    is OrchestratorEvent.StartListening ->
+                        _events.tryEmit(ViewModelEvent.StartListening)
+                    is OrchestratorEvent.FinishSession ->
+                        _events.tryEmit(ViewModelEvent.FinishSession)
                 }
             }
         }
     }
 
-    // ── Public API ──────────────────────────────────────────────────────────
-
-    private var isDirectSpeaking = false
-
-    fun isProcessing(): Boolean = orchestrator.isProcessing() || isDirectSpeaking
+    fun isProcessing(): Boolean {
+        if (AssistantConfig.isEarTestMode(context)) return false
+        return orchestrator.isProcessing() || isDirectSpeaking
+    }
 
     val lastTtsUpdateTime: Long
         get() = orchestrator.lastTtsUpdateTime
@@ -109,6 +137,12 @@ class AssistantViewModel(
         get() = orchestrator.ttsSpokenLength
 
     fun handleQuery(query: String, retryCount: Int = 0) {
+        if (AssistantConfig.isEarTestMode(context)) {
+            Log.i(TAG, "EAR_TEST_MODE drop handleQuery='$query'")
+            _uiState.value = AssistantUiState.Listening(query)
+            _events.tryEmit(ViewModelEvent.SetInputText(query))
+            return
+        }
         orchestrator.handleQuery(query, retryCount)
     }
 
@@ -125,11 +159,12 @@ class AssistantViewModel(
         orchestrator.destroy()
     }
 
-    private fun mapSpeechError(errorCode: Int): String {
-        return when (errorCode) {
+    private fun mapSpeechError(errorCode: Int): String =
+        when (errorCode) {
             android.speech.SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
             android.speech.SpeechRecognizer.ERROR_CLIENT -> "Client side error"
-            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Insufficient permissions"
+            android.speech.SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS ->
+                "Insufficient permissions"
             android.speech.SpeechRecognizer.ERROR_NETWORK -> "Network error"
             android.speech.SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network timeout"
             android.speech.SpeechRecognizer.ERROR_NO_MATCH -> "No recognition result matched"
@@ -138,16 +173,21 @@ class AssistantViewModel(
             android.speech.SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech input"
             else -> "Unknown recognition error"
         }
-    }
 
     fun speakAndDismiss(text: String) {
         scope.launch {
             isDirectSpeaking = true
             _uiState.value = AssistantUiState.Speaking(text)
             audioManager.speak(text, "direct_speech")
-            delay(5000) // Give it time to speak, or rely on a TTS callback if available. For now delay is safe.
+            delay(5000)
             isDirectSpeaking = false
             _events.tryEmit(ViewModelEvent.FinishSession)
         }
+    }
+
+    companion object {
+        private const val TAG = "AssistantViewModel"
+        /** Pause before re-arming the ear in test mode so the final caption is readable. */
+        private const val EAR_TEST_REARM_MS = 800L
     }
 }

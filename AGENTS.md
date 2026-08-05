@@ -4,24 +4,18 @@
 
 This repo is a single Android Automotive OS (AAOS) app — `VehicleEdgeAssistant`
 (package `com.tcs.vehicleassistant`), built with Gradle (Kotlin DSL). There is
-**one module**: `:app`. Agent code lives under `app/src/main/java` at the same
-paths as `origin/master`. UI/UX / Compose live in packages under the same module
-(`.../assistant/`, `com/assistant/ui/`, `com/assistant/api/`).
-There is no backend/server to run; the "product" is an installable APK. See
-`README.md` and `docs/ARCHITECTURE.md` for product/architecture details and
-`app/build.gradle.kts` for the module config.
+**one module**: `:app`. Agent, hardware, and UI/UX / Compose live under
+`app/src/main/java` (`com.tcs.vehicleassistant.*`, `com.assistant.ui.*`,
+`com.assistant.api.*`). There is no backend/server to run; the "product" is an
+installable APK. See `README.md` and `docs/ARCHITECTURE.md` for product/architecture
+details and `app/build.gradle.kts` for the module config.
 
-### Hard rule: do not modify `origin/master`-owned classes
+### Editing
 
-This branch is based on `origin/master`. Master-owned Kotlin lives under
-**`app/src/main/java/com/tcs/vehicleassistant/`** (byte-identical to
-`origin/master` for the allowlist). UI/UX / TTFR work goes in
-**`.../assistant/`**, **`com/assistant/ui/`**, and **`com/assistant/api/`**:
-
-- **Do not edit** allowlisted master-owned `.kt` files unless **extremely required**.
-- Prefer new types in the UX packages above, and manifest / Koin wiring in `:app`.
-- After any accidental touch, restore from `origin/master` into the same app path.
-- Enforced by `MasterOwnedTreeContractTest` (allowlist of `app/src/main/java/...` paths).
+Any file in the repo may be edited when the task requires it. Prefer Clean Code /
+SOLID: small focused types, clear package boundaries (UI vs hardware ear vs
+orchestrator), and extend via new types when it keeps ownership clear — but do
+**not** block necessary edits to existing agent/hardware classes.
 
 ### Toolchain (non-obvious)
 - **Use JDK 17, not the VM default JDK 21.** AGP 8.7.3 / Gradle 8.9 require Java 17;

@@ -65,8 +65,7 @@ import com.tcs.vehicleassistant.controller.AssistantViewModel
 import com.tcs.vehicleassistant.controller.ViewModelEvent
 import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.hardware.IAudioManager
-import com.tcs.vehicleassistant.hardware.SessionAudioPort
-import com.tcs.vehicleassistant.service.UiUxVehicleAgentService
+import com.tcs.vehicleassistant.service.VehicleAgentService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -99,7 +98,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private var audioManager: IAudioManager? = null
     private var viewModel: AssistantViewModel? = null
-    private var agentService: UiUxVehicleAgentService? = null
+    private var agentService: VehicleAgentService? = null
     private var isBound = false
     private var usingComposeUi = true
     private var currentUiToken: String = ""
@@ -214,12 +213,12 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
-            val binder = service as UiUxVehicleAgentService.LocalBinder
+            val binder = service as VehicleAgentService.LocalBinder
             agentService = binder.getService()
             isBound = true
             viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
-            (audioManager as? SessionAudioPort)?.prewarmEar()
+            audioManager?.prewarmEar()
             (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
                 viewModel,
                 audioManager,
@@ -308,7 +307,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     private fun bindAgentService() {
         if (isBound) return
-        val intent = Intent(context, UiUxVehicleAgentService::class.java)
+        val intent = Intent(context, VehicleAgentService::class.java)
         runCatching {
             context.startForegroundService(intent)
             context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
