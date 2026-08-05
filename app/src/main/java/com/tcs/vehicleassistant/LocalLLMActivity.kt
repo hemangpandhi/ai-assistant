@@ -776,7 +776,7 @@ class LocalLLMActivity : AppCompatActivity() {
             com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,
             false
         )
-        val currentSttEngine = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE, com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA) ?: com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA
+        val currentSttEngine = com.tcs.vehicleassistant.core.AssistantConfig.resolvedSttEngine(this)
 
 
         etKvCache.setText(currentKvCache.toString())
@@ -816,10 +816,10 @@ class LocalLLMActivity : AppCompatActivity() {
         val tvResolvedLocation = dialogView.findViewById<android.widget.TextView>(R.id.tvResolvedLocation)
         val btnApplyDemoPreset = dialogView.findViewById<Button>(R.id.btnApplyDemoPreset)
 
-        val sttEngines = listOf("Sherpa-ONNX (Local Whisper)", "Google Speech Engine")
+        val sttEngines = listOf("Google Speech Engine (GAS default)", "Sherpa-ONNX (non-GAS / local)")
         val sttEngineValues = listOf(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_GOOGLE,
             com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA,
-            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_GOOGLE
         )
         val sttAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sttEngines)
         sttAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)

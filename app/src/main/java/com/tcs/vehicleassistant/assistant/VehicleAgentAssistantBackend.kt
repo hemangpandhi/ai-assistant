@@ -530,12 +530,7 @@ class VehicleAgentAssistantBackend(
      */
     private fun usesSherpaEngine(): Boolean? {
         val ctx = appContext ?: return null
-        val prefs = ctx.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
-        val engine = prefs.getString(
-            AssistantConfig.Prefs.STT_ENGINE,
-            AssistantConfig.Prefs.STT_ENGINE_SHERPA,
-        )
-        return engine != AssistantConfig.Prefs.STT_ENGINE_GOOGLE
+        return !AssistantConfig.prefersGoogleStt(ctx)
     }
 
     private fun sherpaModelsPresent(): Boolean {

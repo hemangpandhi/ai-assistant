@@ -19,7 +19,7 @@ import kotlinx.coroutines.isActive
 
 /**
  * Session ear: prewarm standby mic + STT, capture utterances, re-arm without
- * destroying the engine. Primary engine is Sherpa; Google offline is a demoted fallback.
+ * destroying the engine. Default: Google STT on GAS, Sherpa Whisper on non-GAS.
  */
 class AssistantEar(
     private val context: Context,
@@ -77,11 +77,14 @@ class AssistantEar(
             return false
         }
 
+        // Never silently fall back to Google SpeechRecognizer when Sherpa is preferred:
+        // Google STT binds the system Speech Recognition and Synthesis service and,
+        // with ear re-arms, continuously grabs/releases the mic.
         val preferGoogle = prefersGoogleEngine()
         val ok = if (preferGoogle) {
             prepareGoogleEngine() || prepareSherpaEngine()
         } else {
-            prepareSherpaEngine() || prepareGoogleEngine()
+            prepareSherpaEngine()
         }
 
         if (!ok) {
@@ -253,14 +256,8 @@ class AssistantEar(
         }
     }
 
-    private fun prefersGoogleEngine(): Boolean {
-        val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
-        val engine = prefs.getString(
-            AssistantConfig.Prefs.STT_ENGINE,
-            AssistantConfig.Prefs.STT_ENGINE_SHERPA,
-        )
-        return engine == AssistantConfig.Prefs.STT_ENGINE_GOOGLE
-    }
+    private fun prefersGoogleEngine(): Boolean =
+        AssistantConfig.prefersGoogleStt(context)
 
     private fun prepareSherpaEngine(): Boolean {
         val engine = sherpaEngine ?: SherpaEarSttEngine(context, wrapCallbacks(callbacks)).also {

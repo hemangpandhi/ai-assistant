@@ -51,6 +51,9 @@ class AssistantViewModel(
 
     private var isDirectSpeaking = false
 
+    /** Caps EAR_TEST_MODE error re-arms so a failing Google STT path cannot thrash the mic. */
+    private var earTestErrorRearms = 0
+
     init {
         audioManager.setRecognitionListener(
             onReadyForSpeech = {
@@ -68,6 +71,7 @@ class AssistantViewModel(
                 if (AssistantConfig.isEarTestMode(context)) {
                     Log.i(TAG, "EAR_TEST_MODE final='$spokenText' (orchestration skipped)")
                     _uiState.value = AssistantUiState.Listening(spokenText)
+                    earTestErrorRearms = 0
                     scope.launch {
                         delay(EAR_TEST_REARM_MS)
                         audioManager.startListeningForced()
@@ -78,22 +82,12 @@ class AssistantViewModel(
             },
             onEmptyResult = {
                 _uiState.value = AssistantUiState.Error("I didn't hear anything.")
-                if (AssistantConfig.isEarTestMode(context)) {
-                    scope.launch {
-                        delay(EAR_TEST_REARM_MS)
-                        audioManager.startListeningForced()
-                    }
-                }
+                maybeRearmEarAfterTransientFailure("empty")
             },
             onError = { errorCode ->
                 val errorMsg = mapSpeechError(errorCode)
                 _uiState.value = AssistantUiState.Error(errorMsg)
-                if (AssistantConfig.isEarTestMode(context)) {
-                    scope.launch {
-                        delay(EAR_TEST_REARM_MS)
-                        audioManager.startListeningForced()
-                    }
-                }
+                maybeRearmEarAfterTransientFailure("error=$errorCode")
             },
             onPartial = { partialText ->
                 _uiState.value = AssistantUiState.Listening(partialText)
@@ -181,6 +175,24 @@ class AssistantViewModel(
         orchestrator.destroy()
     }
 
+    /**
+     * In ear test mode only: retry a few times after empty/error, then stop.
+     * Unbounded re-arms previously caused Google Speech Recognition to grab/release
+     * the mic every ~800ms.
+     */
+    private fun maybeRearmEarAfterTransientFailure(reason: String) {
+        if (!AssistantConfig.isEarTestMode(context)) return
+        if (earTestErrorRearms >= EAR_TEST_MAX_ERROR_REARMS) {
+            Log.w(TAG, "EAR_TEST_MODE stop re-arm after $earTestErrorRearms failures ($reason)")
+            return
+        }
+        earTestErrorRearms += 1
+        scope.launch {
+            delay(EAR_TEST_REARM_MS)
+            audioManager.startListeningForced()
+        }
+    }
+
     private fun mapSpeechError(errorCode: Int): String =
         when (errorCode) {
             android.speech.SpeechRecognizer.ERROR_AUDIO -> "Audio recording error"
@@ -211,5 +223,7 @@ class AssistantViewModel(
         private const val TAG = "AssistantViewModel"
         /** Pause before re-arming the ear in test mode so the final caption is readable. */
         private const val EAR_TEST_REARM_MS = 800L
+        /** Hard stop for error/empty re-arms in ear test mode (prevents mic thrash). */
+        private const val EAR_TEST_MAX_ERROR_REARMS = 2
     }
 }

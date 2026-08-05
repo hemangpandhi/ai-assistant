@@ -7,9 +7,8 @@ import android.util.Log
 
 /**
  * Minimal [RecognitionService] required by [android.service.voice.VoiceInteractionService]
- * XML (`android:recognitionService`). Cabin STT/TTS uses Sherpa-ONNX via
- * [com.tcs.vehicleassistant.hardware.AndroidAudioManager]; this stub only satisfies the
- * platform contract and fails cleanly for external [android.speech.SpeechRecognizer] clients.
+ * XML (`android:recognitionService`). Cabin STT binds Google’s service on GAS (or Sherpa
+ * on non-GAS) via [com.tcs.vehicleassistant.hardware.AndroidAudioManager] — never this stub.
  */
 class StubRecognitionService : RecognitionService() {
 

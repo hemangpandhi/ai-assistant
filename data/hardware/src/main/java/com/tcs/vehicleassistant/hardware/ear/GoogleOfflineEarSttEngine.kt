@@ -8,15 +8,15 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
 import com.tcs.vehicleassistant.LatencyLogger
+import com.tcs.vehicleassistant.core.AssistantConfig
 import com.tcs.vehicleassistant.core.VisionState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 /**
- * Legacy GAS / platform adapter. Demoted from the happy path: uses
- * [SpeechRecognizer] with [RecognizerIntent.EXTRA_PREFER_OFFLINE] when available.
- * Does not consume PCM from [EarMic] — the ear must release the mic first.
+ * GAS / platform adapter: Google [SpeechRecognizer] (offline preferred).
+ * Default on GAS devices. Does not consume PCM from [EarMic] — the ear must release the mic first.
  */
 class GoogleOfflineEarSttEngine(
     private val context: Context,
@@ -35,11 +35,11 @@ class GoogleOfflineEarSttEngine(
     }
 
     override fun isReady(): Boolean =
-        SpeechRecognizer.isRecognitionAvailable(context)
+        AssistantConfig.resolveGoogleRecognitionService(context) != null
 
     override fun prepare(): Boolean {
         if (!isReady()) {
-            Log.w(TAG, "SpeechRecognizer not available on this device")
+            Log.w(TAG, "Google RecognitionService not available (non-GAS or missing)")
             return false
         }
         return true
@@ -91,7 +91,14 @@ class GoogleOfflineEarSttEngine(
 
     private fun ensureRecognizer() {
         if (recognizer != null) return
-        recognizer = SpeechRecognizer.createSpeechRecognizer(context).apply {
+        val component = AssistantConfig.resolveGoogleRecognitionService(context)
+        if (component == null) {
+            Log.e(TAG, "No Google RecognitionService component")
+            callbacks.onError(SpeechRecognizer.ERROR_CLIENT)
+            return
+        }
+        // Bind Google explicitly — default createSpeechRecognizer can hit our VIS stub.
+        recognizer = SpeechRecognizer.createSpeechRecognizer(context, component).apply {
             setRecognitionListener(object : RecognitionListener {
                 override fun onReadyForSpeech(params: Bundle?) {
                     callbacks.onReadyForSpeech()
