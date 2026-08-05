@@ -78,6 +78,9 @@ fun estimateIslandExpandedWidth(
  * Dynamic Island–style horizontal capsule: black fill, thin outer frame,
  * morphing width/height, face + optional transcript inside.
  *
+ * Soft blue radial breath plate (ex-[FaceStageDock]) sits behind the pill always;
+ * listening adds a brighter cyan glow on top.
+ *
  * Idle: compact capsule (see [AssistantOverlayTokens.IslandCompactWidth]).
  * With transcript: widens horizontally (Gemini-style); face left, text right.
  */
