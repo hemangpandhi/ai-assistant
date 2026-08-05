@@ -4,8 +4,10 @@ package com.assistant.ui.assistant.api
  * Structured face anatomy cues — LLM-owned, same role as affective mood.
  *
  * Null slot = keep geometric eye / mouth / no accent.
- * Non-null eye / mouth **fully replaces** that geometric shape at the same place
- * (not necessarily the exact capsule size). Accents sit on the cheeks (below eyes).
+ * On the shell face, non-null eye / mouth **fully replaces** that geometric shape
+ * at the same place (not necessarily the exact capsule size); accents sit on the
+ * cheeks. On the island capsule, eye-slot cues appear in a badge to the **right**
+ * of the geometric eyes (eyes are never replaced); mouth / accent slots are unused.
  */
 data class AssistantFaceCues(
     val leftEye: AssistantFaceCueIcon? = null,

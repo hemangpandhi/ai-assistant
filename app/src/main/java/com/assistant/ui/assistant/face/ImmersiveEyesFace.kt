@@ -288,7 +288,9 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  * @param gesture nod / shake micro-expressions for yes/no
  * @param eyeGlow when non-null, capsule eyes use this EPORO-style purple glow ring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
- * @param faceCues optional LLM anatomy icons; null slots keep geometric eyes/mouth
+ * @param faceCues optional LLM anatomy icons. On the shell face, eye/mouth slots can
+ *   replace geometry; on the island capsule ([showShell] false), eye-slot cues appear
+ *   in a badge circle to the right of the eyes (eyes stay geometric).
  * @param shellKind fixed outer silhouette (no mood morph); default SemiCircle
  * @param showShell when false, island capsule: eyes only (no mouth / SemiCircle plate);
  *   speech amplitude opens the eyes instead of the mouth
@@ -667,6 +669,10 @@ fun ImmersiveEyesFace(
                     0f
                 }
                 val talkOpen = (open * (1f + 0.55f * eyeTalk)).coerceIn(0.05f, 1.35f)
+                // Island: eye-slot cues ride a badge to the right — nudge the pair left for room.
+                val islandEyeCue = !showShell && (rightEyeIcon != null || leftEyeIcon != null)
+                val islandCueBadgeR = if (islandEyeCue) islandEyeHalfH * 0.62f else 0f
+                val pairNudge = if (islandEyeCue) islandCueBadgeR * 0.9f else 0f
                 if (showShell) {
                     gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
                     eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
@@ -677,14 +683,15 @@ fun ImmersiveEyesFace(
                 } else {
                     // Figma island eyes: 20×33, centers at left 32 / 91 (half-gap 29.5).
                     // Breath + speech open so the pill eyes "talk" without a mouth.
-                    gap = islandEyeHalfGap
+                    gap = if (islandEyeCue) islandEyeHalfGap * 0.70f else islandEyeHalfGap
                     eyeY = cy + lookY.value * islandEyeHalfH * 0.15f
                     gaze = lookX.value * islandEyeHalfW * 0.35f
                     barW = islandEyeHalfW * (1f + 0.16f * eyeTalk) * breath
                     barH = islandEyeHalfH * talkOpen * breath
                 }
-                val left = Offset(cx - gap + gaze, eyeY)
-                val right = Offset(cx + gap + gaze, eyeY)
+                val left = Offset(cx - gap + gaze - pairNudge, eyeY)
+                val right = Offset(cx + gap + gaze - pairNudge, eyeY)
+                val eyeMidX = cx + gaze - pairNudge
 
                 val speaking = mouthAmplitude != null ||
                     mood == AssistantMood.Speaking ||
@@ -717,13 +724,14 @@ fun ImmersiveEyesFace(
                         faceR = faceR,
                         color = glyph,
                         eyeHalfGap = gap,
-                        eyeMidX = cx + gaze,
+                        eyeMidX = eyeMidX,
                         eyeY = eyeY,
                         eyeHalfWidth = barW,
                         // Capsule outer ring spans ±barH; pass full half-height for rim clearance.
                         eyeHalfHeight = barH,
                     )
-                    if (leftEyeIcon != null && leftEyeTint != null) {
+                    // Shell: eye-slot cues may replace geometry. Island: always keep capsules.
+                    if (showShell && leftEyeIcon != null && leftEyeTint != null) {
                         drawAnimatedFaceCueIcon(
                             leftEyePainter, left, eyeIconSide, leftEyeTint, life, phaseOffset = 0.2f,
                         )
@@ -732,7 +740,7 @@ fun ImmersiveEyesFace(
                             left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom,
                         )
                     }
-                    if (rightEyeIcon != null && rightEyeTint != null) {
+                    if (showShell && rightEyeIcon != null && rightEyeTint != null) {
                         drawAnimatedFaceCueIcon(
                             rightEyePainter, right, eyeIconSide, rightEyeTint, life,
                             phaseOffset = 1.1f,
@@ -743,31 +751,49 @@ fun ImmersiveEyesFace(
                         )
                     }
 
-                    // Cheek accents — lower sides of the face (not center, not over eyes).
-                    val cheekSide = faceR * 0.30f
-                    val cheekY = cy + faceR * 0.22f
-                    if (leftAccentIcon != null && leftAccentTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            leftAccentPainter,
-                            Offset(cx - faceR * 0.42f, cheekY),
-                            cheekSide,
-                            leftAccentTint,
-                            life,
-                            phaseOffset = 0.6f,
-                        )
+                    // Island: eye-slot cue in a badge to the right of the eyes (right slot wins).
+                    if (!showShell && islandCueBadgeR > 0f) {
+                        val cueTint = if (rightEyeIcon != null) rightEyeTint else leftEyeTint
+                        val cuePainter =
+                            if (rightEyeIcon != null) rightEyePainter else leftEyePainter
+                        if (cueTint != null) {
+                            drawIslandEyeCueBadge(
+                                painter = cuePainter,
+                                center = Offset(
+                                    right.x + barW + islandCueBadgeR * 1.15f,
+                                    eyeY,
+                                ),
+                                radius = islandCueBadgeR,
+                                tint = cueTint,
+                                life = life,
+                            )
+                        }
                     }
-                    if (rightAccentIcon != null && rightAccentTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            rightAccentPainter,
-                            Offset(cx + faceR * 0.42f, cheekY),
-                            cheekSide,
-                            rightAccentTint,
-                            life,
-                            phaseOffset = 2.0f,
-                        )
-                    }
-                    // Capsule island: no mouth in any mood — eyes carry speech above.
+
+                    // Cheek accents + mouth cues — shell face only (island uses eye badge).
                     if (showShell) {
+                        val cheekSide = faceR * 0.30f
+                        val cheekY = cy + faceR * 0.22f
+                        if (leftAccentIcon != null && leftAccentTint != null) {
+                            drawAnimatedFaceCueIcon(
+                                leftAccentPainter,
+                                Offset(cx - faceR * 0.42f, cheekY),
+                                cheekSide,
+                                leftAccentTint,
+                                life,
+                                phaseOffset = 0.6f,
+                            )
+                        }
+                        if (rightAccentIcon != null && rightAccentTint != null) {
+                            drawAnimatedFaceCueIcon(
+                                rightAccentPainter,
+                                Offset(cx + faceR * 0.42f, cheekY),
+                                cheekSide,
+                                rightAccentTint,
+                                life,
+                                phaseOffset = 2.0f,
+                            )
+                        }
                         if (mood != AssistantMood.Idle && mouthIcon != null && mouthTintCue != null) {
                             drawAnimatedFaceCueIcon(
                                 mouthPainter,
@@ -805,7 +831,7 @@ fun ImmersiveEyesFace(
                         skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
                             mouthIcon != null || !showShell,
                         eyeHalfGap = gap,
-                        eyeMidX = cx + gaze,
+                        eyeMidX = eyeMidX,
                         eyeY = eyeY,
                         eyeHalfWidth = barW,
                     )
