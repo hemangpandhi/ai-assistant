@@ -169,7 +169,7 @@
                  android:permission="android.permission.BIND_VOICE_INTERACTION"
                  android:exported="true" />
                  
-        <!-- Master agent host — Compose + XML sessions bind here. -->
+        <!-- Agent host — Compose + XML sessions bind here (ear via AndroidAudioManager). -->
         <service android:name=".service.VehicleAgentService"
                  android:foregroundServiceType="dataSync"
                  android:exported="false" />

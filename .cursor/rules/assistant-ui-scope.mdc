@@ -17,9 +17,8 @@ When the task is UI, face, overlay, chrome, transcript, placement, gallery, them
 
 ## Do not
 
-- Semantic-search allowlisted master agent packages, `app/libs/`, model/TTS assets, or `docs/reports/` for UI tasks
+- Semantic-search `app/libs/`, model/TTS assets, or `docs/reports/` for UI tasks
 - Import agent/LLM/VHAL types into `com/assistant/ui`
-- Edit allowlisted master-owned agent `.kt` files
 
 ## Where things go
 
@@ -31,3 +30,4 @@ When the task is UI, face, overlay, chrome, transcript, placement, gallery, them
 | Colors / typography / overlay tokens | `…/ui/theme/` |
 | Stage intent/state | `…/mvi/` |
 | Demo event stream | `…/backend/` |
+| Mic / STT ear | `com.tcs.vehicleassistant.hardware.ear` (not UI) |

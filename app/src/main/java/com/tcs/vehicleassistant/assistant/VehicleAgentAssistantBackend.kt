@@ -107,6 +107,7 @@ class VehicleAgentAssistantBackend(
         }
 
         AssistantDebugLog.d(TAG, "attach ViewModel + audio")
+        audioManager?.prewarmEar()
         uiCollectJob = scope.launch {
             vm.uiState.collect { state -> mapUiState(state) }
         }
@@ -255,6 +256,7 @@ class VehicleAgentAssistantBackend(
             return
         }
         AssistantDebugLog.d(TAG, "requestListen")
+        audioManager?.prewarmEar()
         markListenWindowStart()
         scheduleStartMic(reason = "session-request", delayMs = MIC_OPEN_DELAY_MS, force = true)
     }
@@ -340,23 +342,26 @@ class VehicleAgentAssistantBackend(
             return true
         }
         return try {
-            // Forced starts must actually restart. A plain startListening() no-ops while
-            // isListening=true and returns "success", leaving the mic unarmed.
-            // Prefer stop-only: destroySpeechRecognizer() nulls Sherpa and races AudioRecord
-            // release, which surfaces as error code 0 → "Unknown recognition error".
+            // Forced starts must actually restart via startListeningForced (ear cancels
+            // in-flight capture). Prefer stop-only before rebuild: destroySpeechRecognizer()
+            // tears down Sherpa and races AudioRecord release.
             if (force) {
                 val wasArmed = micArmed
-                runCatching { audio.stopListening() }
-                if (rebuildRecognizer) {
-                    runCatching { audio.destroySpeechRecognizer() }
+                if (!rebuildRecognizer) {
+                    audio.startListeningForced()
+                    AssistantDebugLog.d(TAG, "startMic($reason) forced")
+                    return true
                 }
-                // Settle only when a prior capture may still hold the mic.
-                // Cold open (micArmed=false) skips the 250ms pause for Gemini-like TTFR.
+                runCatching { audio.stopListening() }
+                runCatching { audio.destroySpeechRecognizer() }
+                audio.prewarmEar()
                 if (wasArmed || rebuildRecognizer) {
                     delay(if (rebuildRecognizer) MIC_REBUILD_SETTLE_MS else MIC_RESTART_SETTLE_MS)
                 }
+                audio.startListeningForced()
+            } else {
+                audio.startListening()
             }
-            audio.startListening()
             AssistantDebugLog.d(
                 TAG,
                 "startMic($reason) issued force=$force rebuild=$rebuildRecognizer",
@@ -505,9 +510,14 @@ class VehicleAgentAssistantBackend(
                         emitPipelineMood(AssistantMoodId.Sad)
                         _events.emit(AssistantSessionEvent.Error(display))
                         _events.emit(AssistantSessionEvent.MouthAmplitude(null))
-                        // Master ViewModel leaves Error open for XML mic retry; immersive
-                        // has no affordance — dismiss shortly so the session does not stick.
-                        scheduleSttErrorDismiss(raw)
+                        val earTest = appContext?.let { AssistantConfig.isEarTestMode(it) } == true
+                        if (earTest) {
+                            // Keep overlay open; ViewModel re-arms the ear for bring-up.
+                            AssistantDebugLog.d(TAG, "EAR_TEST_MODE — skip STT dismiss")
+                        } else {
+                            // Immersive has no mic-retry affordance — dismiss shortly.
+                            scheduleSttErrorDismiss(raw)
+                        }
                     }
                 }
             }

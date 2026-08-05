@@ -220,6 +220,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             isBound = true
             viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
+            audioManager?.prewarmEar()
             (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
                 viewModel,
                 audioManager,

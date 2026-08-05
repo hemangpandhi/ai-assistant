@@ -47,10 +47,25 @@ object AssistantConfig {
         const val STT_ENGINE_GOOGLE = "google"
 
         /**
+         * When true (default while validating the ear path), final STT text updates
+         * the UI / transcript only and does **not** call [com.tcs.vehicleassistant.repository.AgentOrchestrator].
+         * Set false to restore full voice → agent flow.
+         */
+        const val EAR_TEST_MODE = "ear_test_mode"
+        /** Default true while validating mic→STT; set false to restore agent flow. */
+        const val EAR_TEST_MODE_DEFAULT = true
+
+        /**
          * When true, LiteRT enables speculative decoding / MTP at Engine init if the model
          * reports support (Gallery-style; default off for stability).
          */
         const val ENABLE_SPECULATIVE_DECODING = "enable_speculative_decoding"
+    }
+
+    /** True when mic→STT should stop before orchestration (safe ear bring-up). */
+    fun isEarTestMode(context: android.content.Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        return prefs.getBoolean(Prefs.EAR_TEST_MODE, Prefs.EAR_TEST_MODE_DEFAULT)
     }
 
     object Backend {
