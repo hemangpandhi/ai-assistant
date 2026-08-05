@@ -2,16 +2,16 @@
 
 Short routing guide. Deep dive: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). UI/UX ops: [docs/design-assistant/ASSISTANT_UI_UX.md](docs/design-assistant/ASSISTANT_UI_UX.md).
 
-## Single module — where to put work
+## Modules — where to put work
 
-One Gradle module: **`:app`**. Prefer package boundaries (SOLID / SRP); edit any file when the task needs it.
+Gradle modules: **`:app`**, **`:core`**, **`:domain:llm`**, **`:domain:tools`**, **`:data:hardware`**, **`:ui`**. Prefer package boundaries (SOLID / SRP); edit any file when the task needs it.
 
 | Path / package | Put here | Do not |
 |----------------|----------|--------|
-| **`com/assistant/ui/`** | Compose face, immersive overlay, chrome, theme, MVI stage, demo backend, UI contracts | Agent/LLM/VHAL logic |
+| **`com/assistant/ui/`** (`:ui` / app) | Compose face, immersive overlay, chrome, theme, MVI stage | Agent/LLM/VHAL logic |
 | **`.../assistant/`** (under `com.tcs.vehicleassistant`) | VIS/session host, UiUx* bridges, runtime bootstrap | — |
 | **`com/assistant/api/`** | Thin host-neutral ports (`LlmSessionPort`, `ToolCatalog`) | UI Compose |
-| **`.../hardware/ear/`** | Session mic + STT (`AssistantEar`, `EarMic`, engines) | Orchestrator / LLM |
+| **`.../hardware/ear/`** (`:data:hardware`) | Session mic + STT (`AssistantEar`, `EarMic`, engines) | Orchestrator / LLM |
 | **`:app` shell** | Manifest, assets, resources, wiring tests | — |
 
 ## UI work default search scope
