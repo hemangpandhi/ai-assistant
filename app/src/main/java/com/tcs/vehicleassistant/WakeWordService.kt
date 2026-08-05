@@ -220,22 +220,7 @@ class WakeWordService : Service() {
         if (!promoteToForeground()) return START_NOT_STICKY
 
         return when {
-            action == "com.tcs.vehicleassistant.action.WAKE_WORD_RELOAD_LLM" -> {
-                val modelPath = intent.getStringExtra("model_path")
-                val backendChoice = intent.getStringExtra("backend_choice") ?: com.tcs.vehicleassistant.core.AssistantConfig.Backend.AUTO
-                if (modelPath != null) {
-                    val prefs = getSharedPreferences(com.tcs.vehicleassistant.core.AssistantConfig.PREFS_NAME, android.content.Context.MODE_PRIVATE)
-                    prefs.edit()
-                        .putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.SELECTED_MODEL, modelPath)
-                        .putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.BACKEND_CHOICE, backendChoice)
-                        .apply()
-                    serviceScope.launch {
-                        Log.i(TAG, "Reloading LLM in wakeword process: $modelPath")
-                        LLMManager.autoInitialize(this@WakeWordService, force = true)
-                    }
-                }
-                START_STICKY
-            }
+
 
             AssistantConfig.WakeWordAction.isPause(action) -> {
                 // A voice session is opening. Release the microphone but stay alive so the
@@ -431,7 +416,9 @@ class WakeWordService : Service() {
             // Release on every exit path. The previous version only released the noise
             // suppressor here, so an early return leaked the AudioRecord and kept the mic held.
             releaseAudioResources(record)
-            isRecording = false
+            if (customAudioRecord === null) {
+                isRecording = false
+            }
         }
     }
 
@@ -451,7 +438,7 @@ class WakeWordService : Service() {
         echoCanceler = null
 
         try {
-            if (record?.state == AudioRecord.STATE_INITIALIZED) record.stop()
+            if (record?.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()
         } catch (e: Exception) {
             Log.w(TAG, "Failed to stop AudioRecord", e)
         }
@@ -487,15 +474,9 @@ class WakeWordService : Service() {
         }
         isRecording = false
         stopCustomListening()
-        try {
-            customRecognizer?.close()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to close recognizer", e)
-        }
         customRecognizer = null
         recognizerGrammarKey = null
         model = null
-        releaseModel()
         serviceScope.cancel()
         super.onDestroy()
     }

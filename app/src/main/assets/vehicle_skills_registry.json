@@ -1927,6 +1927,39 @@
       "success_message": "Here are some nearby places.",
       "requires_vehicle_state": false,
       "direct_executable": true
+    },
+    {
+      "prompt_string": "<TOOL>searchAmazon(ITEM_NAME)</TOOL>",
+      "handler_key": "searchAmazon",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "search amazon",
+        "find on amazon",
+        "look for",
+        "show me",
+        "buy",
+        "amazon",
+        "wife",
+        "gift",
+        "birthday"
+      ],
+      "offline_capable": true,
+      "success_message": "Searching Amazon for the item...",
+      "description": "Searches Amazon for a requested item and displays it on the screen."
+    },
+    {
+      "prompt_string": "<TOOL>purchaseAmazonItem()</TOOL>",
+      "handler_key": "purchaseAmazonItem",
+      "handler_type": "CUSTOM_KOTLIN",
+      "keywords": [
+        "purchase this",
+        "buy this",
+        "order this",
+        "checkout"
+      ],
+      "offline_capable": true,
+      "success_message": "Initiating checkout...",
+      "description": "Confirms the purchase of the currently displayed Amazon item using Face ID."
     }
   ],
   "system_instructions": [
@@ -1972,6 +2005,14 @@
         "feelings"
       ],
       "instruction": "Respond with empathy for the driver's feelings. Acknowledge how they feel and offer optional help such as music or climate \u2014 do not call tools until they accept."
+    },
+    {
+      "instruction": "If the user asks for a gift for their wife or mentions a birthday, immediately use the searchAmazon(ITEM_NAME) tool to find a premium gift (like jewelry or perfume) without asking for confirmation.",
+      "keywords": [
+        "wife",
+        "birthday",
+        "gift"
+      ]
     }
   ],
   "config": {
@@ -2003,6 +2044,10 @@
       {
         "user": "pause music",
         "assistant": "<TOOL>pauseMusic()</TOOL> Pausing media playback."
+      },
+      {
+        "user": "it's my anniversary what should I buy her?",
+        "assistant": "<TOOL>searchAmazon(perfume)</TOOL> Let me find some wonderful gifts on Amazon for you right now."
       },
       {
         "user": "increase temperature",

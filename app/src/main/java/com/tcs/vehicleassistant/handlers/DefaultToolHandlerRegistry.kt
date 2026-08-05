@@ -18,6 +18,7 @@ class DefaultToolHandlerRegistry : IToolHandlerRegistry {
     private val macroHandlers = setOf("prepareForCommute", "optimizeCabinForLongDrive", "makeTripEnjoyable", "prepareForElderlyPassengers", "prepareForImportantMeeting", "prepareForArrival", "enableAdaptiveNightMode", "prepareForAirportTrip", "enhanceNiceEvening", "prepareForIncomingRain", "prepareForParking", "handleEmergencyFeeling")
     private val safetyHandlers = setOf("handleDrowsyDriving", "handleDriverFatigue", "alertDriverDistraction", "checkVehicleSecured", "checkTripReadiness", "improveRoadVisibility")
     private val evHandlers = setOf("suggestOptimizedChargingRate", "optimizeEnergyForRange", "explainLowRange")
+    private val shoppingHandlers = setOf("searchAmazon", "purchaseAmazonItem")
 
     override fun getHandler(handlerKey: String, toolDefinition: ToolDefinition): ToolHandler? {
         return when {
@@ -30,13 +31,14 @@ class DefaultToolHandlerRegistry : IToolHandlerRegistry {
             macroHandlers.contains(handlerKey) -> MacroOrchestrationHandler(handlerKey)
             safetyHandlers.contains(handlerKey) -> SafetyAndCareHandler(handlerKey)
             evHandlers.contains(handlerKey) -> EVHandler(handlerKey)
+            shoppingHandlers.contains(handlerKey) -> ShoppingToolHandler(handlerKey)
             else -> null
         }
     }
 
     override fun allRegisteredKeys(): Set<String> =
         hvacHandlers + mediaHandlers + navHandlers + commHandlers +
-            systemHandlers + windowHandlers + macroHandlers + safetyHandlers + evHandlers
+            systemHandlers + windowHandlers + macroHandlers + safetyHandlers + evHandlers + shoppingHandlers
 
     override fun missingHandlers(tools: Map<String, ToolDefinition>): List<String> =
         tools.values

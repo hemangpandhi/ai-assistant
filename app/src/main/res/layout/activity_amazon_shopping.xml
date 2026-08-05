@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#1A1A1A"
+    android:padding="32dp">
+
+    <!-- Amazon Logo / Header -->
+    <TextView
+        android:id="@+id/tvHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Amazon Shopping"
+        android:textColor="#FF9900"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <!-- Product List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvProducts"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginTop="24dp"
+        android:layout_marginBottom="16dp"
+        android:clipToPadding="false"
+        app:layout_constraintTop_toBottomOf="@id/tvHeader"
+        app:layout_constraintBottom_toTopOf="@id/tvStatus"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/svBiometricPreview" />
+
+    <!-- Status / Info Message -->
+    <TextView
+        android:id="@+id/tvStatus"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="32dp"
+        android:text="Please say 'yes' to confirm purchase."
+        android:textColor="#AAAAAA"
+        android:textSize="24sp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toStartOf="@id/svBiometricPreview" />
+        
+    <!-- Biometric Camera Preview (Hidden by default) -->
+    <SurfaceView
+        android:id="@+id/svBiometricPreview"
+        android:layout_width="200dp"
+        android:layout_height="200dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_margin="32dp" />
+        
+    <TextView
+        android:id="@+id/tvBiometricStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Scanning Face..."
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:background="#88000000"
+        android:padding="8dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/svBiometricPreview"
+        app:layout_constraintEnd_toEndOf="@id/svBiometricPreview"
+        app:layout_constraintStart_toStartOf="@id/svBiometricPreview" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
