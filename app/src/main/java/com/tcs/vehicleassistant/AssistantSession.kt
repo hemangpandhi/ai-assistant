@@ -292,7 +292,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private fun startObservingViewModel() {
         if (viewModel == null) return
         
-        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ResetTurn)
 
         // Observe UI state changes
         observerScope.launch {

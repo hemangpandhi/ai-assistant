@@ -48,6 +48,9 @@ class GoogleOfflineEarSttEngine(
     override fun startUtterance() {
         mainScope.launch {
             ensureRecognizer()
+            // Do NOT set EXTRA_PREFER_OFFLINE. On Tangorpro AAOS, Google TTS SODA
+            // offline init fails with ConfigStatus 5 → SpeechRecognizer ERROR_CLIENT (5)
+            // and never produces transcripts (seen in adb logcat). Online/network ASR works.
             val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                 putExtra(
                     RecognizerIntent.EXTRA_LANGUAGE_MODEL,
@@ -55,7 +58,6 @@ class GoogleOfflineEarSttEngine(
                 )
                 putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
                 putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-                putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
             }
             try {
                 recognizer?.startListening(intent)
@@ -128,7 +130,8 @@ class GoogleOfflineEarSttEngine(
                     val best = matches?.firstOrNull().orEmpty()
                     if (best.isNotBlank()) {
                         val speaker = VisionState.recognizedUser
-                        callbacks.onResult("[Seat: $speaker] $best")
+                        val text = if (speaker.isNullOrBlank()) best else "[Seat: $speaker] $best"
+                        callbacks.onResult(text)
                     } else {
                         callbacks.onEmptyResult()
                     }

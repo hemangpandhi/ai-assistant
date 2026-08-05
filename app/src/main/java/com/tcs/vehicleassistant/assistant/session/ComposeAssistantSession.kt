@@ -689,7 +689,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private fun startObservingViewModel() {
         if (viewModel == null || usingComposeUi) return
 
-        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ResetTurn)
 
         observerScope.launch {
             viewModel?.uiState?.collect { state ->
@@ -702,6 +702,10 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         statusText?.visibility = View.VISIBLE
                         startDotAnimation("")
                         voiceAnimation?.state = VoiceAnimationView.State.LISTENING
+                        if (state.partialText.isNotEmpty()) {
+                            responseText?.text = "\"${state.partialText}\""
+                            responseText?.gravity = android.view.Gravity.CENTER
+                        }
                     }
                     is AssistantUiState.Thinking -> {
                         resetDisplayState()

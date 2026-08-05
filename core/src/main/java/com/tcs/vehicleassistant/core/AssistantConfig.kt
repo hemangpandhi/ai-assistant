@@ -82,18 +82,31 @@ object AssistantConfig {
     }
 
     /**
-     * GAS (Google Automotive Services) when Google speech / recognition packages are present.
-     * Non-GAS images use on-device Sherpa Whisper instead.
+     * True GAS when Assistant / search (`googlequicksearchbox`) is installed.
+     * Presence of `com.google.android.tts` alone is NOT GAS — on AOSP Tangorpro its
+     * GoogleTTSRecognitionService SODA offline path fails (ConfigStatus 5) and must not
+     * alone decide the default engine.
      */
-    fun isGasDevice(context: android.content.Context): Boolean {
-        if (isPackageInstalled(context, GAS_SPEECH_PACKAGE)) return true
-        if (isPackageInstalled(context, "com.google.android.tts")) return true
-        return resolveGoogleRecognitionService(context) != null
-    }
+    fun isGasDevice(context: android.content.Context): Boolean =
+        isPackageInstalled(context, GAS_SPEECH_PACKAGE)
 
-    /** Platform default: Google STT on GAS, Sherpa on non-GAS. */
+    /**
+     * Prefer Google STT when a non-stub Google [RecognitionService] is resolvable
+     * (GAS Assistant, or TTS recognition used online — never forced offline).
+     */
+    fun hasGoogleRecognitionService(context: android.content.Context): Boolean =
+        resolveGoogleRecognitionService(context) != null
+
+    /**
+     * Platform default: Google when a Google RecognitionService exists (GAS or TTS ASR);
+     * Sherpa only when there is no Google recognizer at all.
+     */
     fun defaultSttEngine(context: android.content.Context): String =
-        if (isGasDevice(context)) Prefs.STT_ENGINE_GOOGLE else Prefs.STT_ENGINE_SHERPA
+        if (hasGoogleRecognitionService(context) || isGasDevice(context)) {
+            Prefs.STT_ENGINE_GOOGLE
+        } else {
+            Prefs.STT_ENGINE_SHERPA
+        }
 
     /** Explicit pref if set, otherwise [defaultSttEngine]. */
     fun resolvedSttEngine(context: android.content.Context): String {

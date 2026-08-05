@@ -172,7 +172,9 @@ class VehicleAgentAssistantBackend(
         sttDismissJob = null
         AssistantDebugLog.clear()
         AssistantDebugLog.d(TAG, "startSession reason=$reason")
-        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
+        // ResetTurn only — Cancel emits FinishSession and immediately stopSession()'s
+        // the mic / dismisses the overlay before any transcript can appear.
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ResetTurn)
         scope.launch {
             emitPipelineMood(AssistantMoodId.Listening)
             // No status captions ("Listening…") — stage stays blank until STT partials.
