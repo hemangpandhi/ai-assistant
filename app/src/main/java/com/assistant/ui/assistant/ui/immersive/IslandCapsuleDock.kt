@@ -26,18 +26,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
-
-/** Soft panel blue from [ImmersiveBorderGlow] spectrum — not OEM purple. */
-private val BorderPanelBlue = Color(0xFF8AB4F8)
-private val BorderIceBlue = Color(0xFF6EC8FF)
-private val IslandBreathBlue = lerp(BorderPanelBlue, BorderIceBlue, 0.18f)
 
 /** Morph size class for the Dynamic Island capsule. */
 enum class IslandSizeClass {
@@ -78,8 +71,8 @@ fun estimateIslandExpandedWidth(
  * Dynamic Island–style horizontal capsule: black fill, thin outer frame,
  * morphing width/height, face + optional transcript inside.
  *
- * Soft blue radial breath plate (ex-[FaceStageDock]) sits behind the pill always;
- * listening adds a brighter cyan glow on top.
+ * The capsule itself breathes subtly with [glowBreath] (same inhale as the rim /
+ * earlier face dock) — no separate plate behind the pill.
  *
  * Idle: compact capsule (see [AssistantOverlayTokens.IslandCompactWidth]).
  * With transcript: widens horizontally (Gemini-style); face left, text right.
@@ -97,9 +90,11 @@ fun IslandCapsuleDock(
 ) {
     val sizeClass = resolveIslandSizeClass(mood, hasTranscript)
     val listening = mood == AssistantMood.Listening
-    // Frame softens/brightens with shared rim breath.
+    // Same inhale cue the earlier face dock used — subtle on the capsule body.
     val breathMul = (0.72f + glowBreath.inhale * 0.38f + (glowBreath.fade - 0.62f) * 0.25f)
         .coerceIn(0.65f, 1.15f)
+    // ~±3% scale so the pill itself inhales without reading as a bounce.
+    val capsuleBreathScale = 1f + glowBreath.inhale * 0.03f
     val transition = updateTransition(targetState = sizeClass, label = "island_size")
 
     BoxWithConstraints(modifier = modifier) {
@@ -168,7 +163,6 @@ fun IslandCapsuleDock(
         }
         val shape = RoundedCornerShape(corner)
         val showRow = showTranscriptInside > 0.02f && transcript != null
-        val peak = (0.16f * breathMul).coerceIn(0.10f, 0.22f)
         val listenGlow = if (listening) 1f else 0f
 
         Column(
@@ -181,20 +175,22 @@ fun IslandCapsuleDock(
                 modifier = Modifier
                     .width(width)
                     .height(height)
-                    // Soft blue radial breath plate behind the pill (ex-FaceStageDock).
+                    .graphicsLayer {
+                        scaleX = capsuleBreathScale
+                        scaleY = capsuleBreathScale
+                    }
                     .drawBehind {
+                        if (listenGlow < 0.01f) return@drawBehind
                         val cx = size.width * 0.5f
-                        val cy = size.height * 0.55f
-                        val radius = size.width * 0.62f
+                        val cy = size.height * 0.5f
+                        val radius = size.width * 0.55f
+                        val glow = AssistantOverlayTokens.IslandListeningGlow
                         drawCircle(
                             brush = Brush.radialGradient(
                                 colorStops = arrayOf(
-                                    0.00f to IslandBreathBlue.copy(alpha = peak),
-                                    0.28f to IslandBreathBlue.copy(alpha = peak * 0.62f),
-                                    0.52f to IslandBreathBlue.copy(alpha = peak * 0.34f),
-                                    0.74f to IslandBreathBlue.copy(alpha = peak * 0.14f),
-                                    0.90f to IslandBreathBlue.copy(alpha = peak * 0.04f),
-                                    1.00f to IslandBreathBlue.copy(alpha = 0.00f),
+                                    0.00f to glow.copy(alpha = 0.45f * listenGlow),
+                                    0.55f to glow.copy(alpha = 0.18f * listenGlow),
+                                    1.00f to glow.copy(alpha = 0f),
                                 ),
                                 center = Offset(cx, cy),
                                 radius = radius,
@@ -202,22 +198,6 @@ fun IslandCapsuleDock(
                             center = Offset(cx, cy),
                             radius = radius,
                         )
-                        if (listenGlow > 0.01f) {
-                            val glow = AssistantOverlayTokens.IslandListeningGlow
-                            drawCircle(
-                                brush = Brush.radialGradient(
-                                    colorStops = arrayOf(
-                                        0.00f to glow.copy(alpha = 0.55f * listenGlow),
-                                        0.55f to glow.copy(alpha = 0.22f * listenGlow),
-                                        1.00f to glow.copy(alpha = 0f),
-                                    ),
-                                    center = Offset(cx, cy),
-                                    radius = radius * 0.95f,
-                                ),
-                                center = Offset(cx, cy),
-                                radius = radius * 0.95f,
-                            )
-                        }
                     }
                     .background(fill, shape)
                     .border(
