@@ -26,11 +26,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
+
+/** Soft panel blue from [ImmersiveBorderGlow] spectrum — not OEM purple. */
+private val BorderPanelBlue = Color(0xFF8AB4F8)
+private val BorderIceBlue = Color(0xFF6EC8FF)
+private val IslandBreathBlue = lerp(BorderPanelBlue, BorderIceBlue, 0.18f)
 
 /** Morph size class for the Dynamic Island capsule. */
 enum class IslandSizeClass {
@@ -158,6 +165,7 @@ fun IslandCapsuleDock(
         }
         val shape = RoundedCornerShape(corner)
         val showRow = showTranscriptInside > 0.02f && transcript != null
+        val peak = (0.16f * breathMul).coerceIn(0.10f, 0.22f)
         val listenGlow = if (listening) 1f else 0f
 
         Column(
@@ -170,18 +178,20 @@ fun IslandCapsuleDock(
                 modifier = Modifier
                     .width(width)
                     .height(height)
+                    // Soft blue radial breath plate behind the pill (ex-FaceStageDock).
                     .drawBehind {
-                        if (listenGlow < 0.01f) return@drawBehind
                         val cx = size.width * 0.5f
-                        val cy = size.height * 0.5f
-                        val radius = size.width * 0.55f
-                        val glow = AssistantOverlayTokens.IslandListeningGlow
+                        val cy = size.height * 0.55f
+                        val radius = size.width * 0.62f
                         drawCircle(
                             brush = Brush.radialGradient(
                                 colorStops = arrayOf(
-                                    0.00f to glow.copy(alpha = 0.45f * listenGlow),
-                                    0.55f to glow.copy(alpha = 0.18f * listenGlow),
-                                    1.00f to glow.copy(alpha = 0f),
+                                    0.00f to IslandBreathBlue.copy(alpha = peak),
+                                    0.28f to IslandBreathBlue.copy(alpha = peak * 0.62f),
+                                    0.52f to IslandBreathBlue.copy(alpha = peak * 0.34f),
+                                    0.74f to IslandBreathBlue.copy(alpha = peak * 0.14f),
+                                    0.90f to IslandBreathBlue.copy(alpha = peak * 0.04f),
+                                    1.00f to IslandBreathBlue.copy(alpha = 0.00f),
                                 ),
                                 center = Offset(cx, cy),
                                 radius = radius,
@@ -189,6 +199,22 @@ fun IslandCapsuleDock(
                             center = Offset(cx, cy),
                             radius = radius,
                         )
+                        if (listenGlow > 0.01f) {
+                            val glow = AssistantOverlayTokens.IslandListeningGlow
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colorStops = arrayOf(
+                                        0.00f to glow.copy(alpha = 0.55f * listenGlow),
+                                        0.55f to glow.copy(alpha = 0.22f * listenGlow),
+                                        1.00f to glow.copy(alpha = 0f),
+                                    ),
+                                    center = Offset(cx, cy),
+                                    radius = radius * 0.95f,
+                                ),
+                                center = Offset(cx, cy),
+                                radius = radius * 0.95f,
+                            )
+                        }
                     }
                     .background(fill, shape)
                     .border(
