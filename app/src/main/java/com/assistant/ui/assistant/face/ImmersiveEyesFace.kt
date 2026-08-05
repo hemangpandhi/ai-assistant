@@ -281,7 +281,8 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  * Floating Nomi glyphs on a matte black SemiCircle face.
  *
  * @param gazeX/gazeY optional cabin gaze override (−1..1); null keeps mood look loops
- * @param mouthAmplitude optional lip-sync 0..1 (drives mouth while speaking)
+ * @param mouthAmplitude optional lip-sync 0..1 (drives mouth while speaking; on island,
+ *   drives eye talk instead — mouth is omitted when [showShell] is false)
  * @param brandGlow OEM / Material accent for soft pulse / parallax halo
  * @param highContrast sunlight-safe glyph rendering
  * @param gesture nod / shake micro-expressions for yes/no
@@ -289,7 +290,8 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
  * @param faceCues optional LLM anatomy icons; null slots keep geometric eyes/mouth
  * @param shellKind fixed outer silhouette (no mood morph); default SemiCircle
- * @param showShell when false, draws eyes/mouth only (no SemiCircle plate) — island capsule
+ * @param showShell when false, island capsule: eyes only (no mouth / SemiCircle plate);
+ *   speech amplitude opens the eyes instead of the mouth
  */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -654,6 +656,17 @@ fun ImmersiveEyesFace(
                 val gaze: Float
                 val barW: Float
                 val barH: Float
+                // Island: speech drives the eyes (no mouth). Shell keeps lip-sync mouth.
+                val eyeTalk = if (!showShell) {
+                    when {
+                        mouthAmplitude != null -> mouthAmplitude.coerceIn(0f, 1f)
+                        mood.isSpeechMouthMood() -> mouthOpen.value.coerceIn(0f, 1f)
+                        else -> 0f
+                    }
+                } else {
+                    0f
+                }
+                val talkOpen = (open * (1f + 0.55f * eyeTalk)).coerceIn(0.05f, 1.35f)
                 if (showShell) {
                     gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
                     eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
@@ -663,12 +676,12 @@ fun ImmersiveEyesFace(
                         .coerceAtMost(faceR * 0.26f)
                 } else {
                     // Figma island eyes: 20×33, centers at left 32 / 91 (half-gap 29.5).
-                    // Multiply by breath so the pill still inhales like the shell face.
+                    // Breath + speech open so the pill eyes "talk" without a mouth.
                     gap = islandEyeHalfGap
                     eyeY = cy + lookY.value * islandEyeHalfH * 0.15f
                     gaze = lookX.value * islandEyeHalfW * 0.35f
-                    barW = islandEyeHalfW * breath
-                    barH = islandEyeHalfH * open * breath
+                    barW = islandEyeHalfW * (1f + 0.16f * eyeTalk) * breath
+                    barH = islandEyeHalfH * talkOpen * breath
                 }
                 val left = Offset(cx - gap + gaze, eyeY)
                 val right = Offset(cx + gap + gaze, eyeY)
@@ -753,31 +766,34 @@ fun ImmersiveEyesFace(
                             phaseOffset = 2.0f,
                         )
                     }
-                    if (mood != AssistantMood.Idle && mouthIcon != null && mouthTintCue != null) {
-                        drawAnimatedFaceCueIcon(
-                            mouthPainter,
-                            mouthCenter,
-                            faceR * 0.42f,
-                            mouthTintCue,
-                            life,
-                            phaseOffset = 1.4f,
-                        )
-                    } else if (mouthVisible.value > 0.08f ||
-                        (mouthAmplitude != null && mouthAmplitude > 0.05f)
-                    ) {
-                        drawNomiGlyphMouth(
-                            center = mouthCenter,
-                            faceR = faceR,
-                            curve = mouthCurve.value,
-                            open = mouthOpen.value,
-                            visible = maxOf(
-                                mouthVisible.value,
-                                if (mouthAmplitude != null) 0.9f else 0f,
-                            ),
-                            color = glyph,
-                            speaking = speaking,
-                            life = life,
-                        )
+                    // Capsule island: no mouth in any mood — eyes carry speech above.
+                    if (showShell) {
+                        if (mood != AssistantMood.Idle && mouthIcon != null && mouthTintCue != null) {
+                            drawAnimatedFaceCueIcon(
+                                mouthPainter,
+                                mouthCenter,
+                                faceR * 0.42f,
+                                mouthTintCue,
+                                life,
+                                phaseOffset = 1.4f,
+                            )
+                        } else if (mouthVisible.value > 0.08f ||
+                            (mouthAmplitude != null && mouthAmplitude > 0.05f)
+                        ) {
+                            drawNomiGlyphMouth(
+                                center = mouthCenter,
+                                faceR = faceR,
+                                curve = mouthCurve.value,
+                                open = mouthOpen.value,
+                                visible = maxOf(
+                                    mouthVisible.value,
+                                    if (mouthAmplitude != null) 0.9f else 0f,
+                                ),
+                                color = glyph,
+                                speaking = speaking,
+                                life = life,
+                            )
+                        }
                     }
                     drawNomiMateDecor(
                         mood = mood,
@@ -787,7 +803,7 @@ fun ImmersiveEyesFace(
                         color = glyph,
                         life = life,
                         skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
-                            mouthIcon != null,
+                            mouthIcon != null || !showShell,
                         eyeHalfGap = gap,
                         eyeMidX = cx + gaze,
                         eyeY = eyeY,
