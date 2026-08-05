@@ -18,7 +18,8 @@ import com.assistant.ui.assistant.ui.theme.AssistantTokens
  * Thinking mood shows a shared in/out thought cloud at the face top-right.
  *
  * [faceCues] applies to Immersive / Fusion eye faces on the main overlay only.
- * [showShell] false = island capsule eyes only (no mouth / SemiCircle plate).
+ * [showShell] false = island capsule eyes only (no mouth / SemiCircle plate);
+ * eye-slot [faceCues] show in a badge to the right of the eyes.
  */
 @Composable
 fun ConfigurableAssistantFace(
