@@ -200,7 +200,7 @@ class AssistantEar(
     private suspend fun captureLoop(engine: SherpaEarSttEngine) {
         val frame = FloatArray(EarMic.FRAME_SAMPLES)
         try {
-            while (isActive && state == EarState.Capturing) {
+            while (coroutineContext.isActive && state == EarState.Capturing) {
                 val read = mic.readFrame(frame)
                 if (read > 0) {
                     if (engine.acceptPcmAndShouldEndpoint(frame, read)) {
