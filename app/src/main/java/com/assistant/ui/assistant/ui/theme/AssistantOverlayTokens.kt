@@ -38,15 +38,15 @@ internal object AssistantOverlayTokens {
     val GlyphSizeMax = 96.dp
     val FaceBelowTravelFraction = 0.38f
 
-    // Dynamic Island — idle pill slightly wider than Figma 154×103 for breathing room.
-    val IslandCompactWidth = 168.dp
+    // Dynamic Island — idle pill wider than Figma 154×103 for face breathing room.
+    val IslandCompactWidth = 192.dp
     val IslandCompactHeight = 103.dp
     val IslandCornerRadius = 51.5.dp
     val IslandEyesTop = 33.dp
-    val IslandListeningWidth = 168.dp
+    val IslandListeningWidth = 192.dp
     val IslandListeningHeight = 103.dp
     val IslandExpandedWidthFraction = 0.72f
-    val IslandExpandedWidthMin = 168.dp
+    val IslandExpandedWidthMin = 192.dp
     val IslandExpandedWidthMax = 420.dp
     /** Expanded island — a touch taller than idle for breathing room; still widens for text. */
     val IslandExpandedHeight = 120.dp
