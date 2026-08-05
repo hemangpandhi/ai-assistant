@@ -54,6 +54,10 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
 
         // Starting the microphone service unconditionally here re-enabled wake-word listening on
         // every boot even after the user turned it off in settings.
+        if (AssistantConfig.isWakeWordDisabledForTest(this)) {
+            android.util.Log.i("WakeWord", "WAKE_WORD_DISABLED_FOR_TEST — not starting Vosk.")
+            return
+        }
         val enabled = getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
         if (!enabled) {

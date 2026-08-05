@@ -133,6 +133,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
      * scratch and leave the microphone held against their setting.
      */
     private fun resumeWakeWordListening() {
+        if (AssistantConfig.isWakeWordDisabledForTest(context)) return
         val enabled = context
             .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)

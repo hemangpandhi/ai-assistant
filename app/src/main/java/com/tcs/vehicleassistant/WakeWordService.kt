@@ -213,6 +213,13 @@ class WakeWordService : Service() {
             return START_NOT_STICKY
         }
 
+        if (AssistantConfig.isWakeWordDisabledForTest(this)) {
+            Log.i(TAG, "WAKE_WORD_DISABLED_FOR_TEST — refusing to start Vosk; stopping.")
+            stopCustomListening()
+            stopSelf()
+            return START_NOT_STICKY
+        }
+
         // Every branch that keeps the service alive has to post the notification. Callers reach
         // this service through both startService and startForegroundService — the permission-grant
         // path uses the latter with a restart action — and a startForegroundService that is never

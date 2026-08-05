@@ -48,12 +48,19 @@ object AssistantConfig {
 
         /**
          * When true (default while validating the ear path), final STT text updates
-         * the UI / transcript only and does **not** call [com.tcs.vehicleassistant.repository.AgentOrchestrator].
+         * the UI / transcript only and does **not** call orchestrator / LLM / tools.
          * Set false to restore full voice → agent flow.
          */
         const val EAR_TEST_MODE = "ear_test_mode"
         /** Default true while validating mic→STT; set false to restore agent flow. */
         const val EAR_TEST_MODE_DEFAULT = true
+
+        /**
+         * When true (default for ear bring-up), do not start Vosk [WakeWordService].
+         * Keeps the mic free for session STT testing. Set false to re-enable hotword.
+         */
+        const val WAKE_WORD_DISABLED_FOR_TEST = "wake_word_disabled_for_test"
+        const val WAKE_WORD_DISABLED_FOR_TEST_DEFAULT = true
 
         /**
          * When true, LiteRT enables speculative decoding / MTP at Engine init if the model
@@ -66,6 +73,15 @@ object AssistantConfig {
     fun isEarTestMode(context: android.content.Context): Boolean {
         val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
         return prefs.getBoolean(Prefs.EAR_TEST_MODE, Prefs.EAR_TEST_MODE_DEFAULT)
+    }
+
+    /** True when Vosk / WakeWordService must not run (ear STT isolation). */
+    fun isWakeWordDisabledForTest(context: android.content.Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        return prefs.getBoolean(
+            Prefs.WAKE_WORD_DISABLED_FOR_TEST,
+            Prefs.WAKE_WORD_DISABLED_FOR_TEST_DEFAULT,
+        )
     }
 
     object Backend {

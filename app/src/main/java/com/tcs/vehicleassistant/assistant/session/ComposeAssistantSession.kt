@@ -1129,19 +1129,23 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         super.onDestroy()
     }
 
-    /** Releases the wake-word mic for session STT without tearing down the Vosk model. */
-    private fun pauseWakeWordListening() {
-        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
-    }
-
     /**
      * Re-arms wake-word listening after the session ends.
      *
-     * UiUx VIS always starts [WakeWordService] on ready (unlike master's toggle-gated path),
-     * so we always RESTART here to match that always-on hotword policy.
+     * Skipped while [AssistantConfig.isWakeWordDisabledForTest] so Vosk does not
+     * reclaim the mic during ear STT bring-up.
      */
     private fun resumeWakeWordListening() {
+        if (AssistantConfig.isWakeWordDisabledForTest(context)) {
+            AssistantDebugLog.d("Session", "WAKE_WORD_DISABLED_FOR_TEST — skip wake RESTART")
+            return
+        }
         sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)
+    }
+
+    private fun pauseWakeWordListening() {
+        if (AssistantConfig.isWakeWordDisabledForTest(context)) return
+        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
     }
 
     private fun sendWakeWordCommand(action: String) {
