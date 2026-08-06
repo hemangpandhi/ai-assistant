@@ -235,6 +235,7 @@ class LocalLLMActivity : AppCompatActivity() {
         spinnerUILayout.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
                 prefs.edit().putInt("ui_layout_pref", position).apply()
+                com.tcs.vehicleassistant.assistant.AssistantUiProfile.setXmlLayoutIndex(this@LocalLLMActivity, position)
             }
             override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
         }

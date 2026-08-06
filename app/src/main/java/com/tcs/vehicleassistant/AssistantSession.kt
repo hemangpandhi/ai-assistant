@@ -33,6 +33,8 @@ import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.tcs.vehicleassistant.assistant.AssistantUiBootstrap
+import com.tcs.vehicleassistant.assistant.AssistantUiMode
+import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.session.SessionComposeHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +61,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private lateinit var voiceAnimation: VoiceAnimationView
     private var svResponse: android.widget.ScrollView? = null
     private var composeHost: SessionComposeHost? = null
-    
+    private var usingComposeUi = false
+    private var currentUiToken: String = ""
+
     private var lastResponseBuilder = java.lang.StringBuilder()
     companion object {
         var globalTts: TextToSpeech? = null
@@ -144,8 +148,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onHide() {
         super.onHide()
-        notifyImmersiveAssistantDismiss()
-        runCatching { AssistantUiBootstrap.backend.stopSession() }
+        if (usingComposeUi) {
+            notifyImmersiveAssistantDismiss()
+            runCatching { AssistantUiBootstrap.backend.stopSession() }
+        }
         try {
             speechRecognizer?.cancel()
             speechRecognizer?.destroy()
@@ -172,22 +178,36 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             setupTtsListener()
         }
         
-        inflateComposeImmersiveHybrid()
+        inflateContentForProfile()
         
         return overlayView
     }
 
+    private fun inflateContentForProfile() {
+        AssistantUiProfile.install(context)
+        val mode = AssistantUiProfile.current()
+        currentUiToken = mode.adbToken
+        usingComposeUi = mode is AssistantUiMode.Compose
+        if (usingComposeUi) {
+            inflateComposeImmersiveHybrid()
+        } else {
+            inflateAndBindLayout((mode as AssistantUiMode.Xml).layoutIndex)
+        }
+    }
+
     /** Push mood/transcript into Compose Immersive Hybrid (XML stubs stay for session logic). */
     private fun emitUiMood(mood: AssistantMoodId) {
+        if (!usingComposeUi) return
         runCatching { AssistantUiBootstrap.backend.emitMood(mood) }
     }
 
     private fun emitUiTranscript(text: String, speaker: AssistantSpeaker) {
-        if (text.isBlank()) return
+        if (!usingComposeUi || text.isBlank()) return
         runCatching { AssistantUiBootstrap.backend.emitTranscript(text, speaker) }
     }
 
     private fun emitUiMouth(amplitude: Float?) {
+        if (!usingComposeUi) return
         runCatching { AssistantUiBootstrap.backend.emitMouth(amplitude) }
     }
 
@@ -216,6 +236,85 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             emitUiMood(AssistantMoodId.Idle)
         }
         btnMic.isEnabled = true
+    }
+
+    /** Legacy XML voice plates (ADB `ui=xml:…`). */
+    private fun inflateAndBindLayout(layoutStyle: Int) {
+        currentLayoutStyle = layoutStyle
+        composeHost?.destroy()
+        composeHost = null
+
+        val layoutRes = when (layoutStyle) {
+            0 -> R.layout.assistant_overlay // Polestar Wide
+            1 -> R.layout.assistant_overlay_pill // Center Pill
+            2 -> R.layout.assistant_overlay_side // Left Side Panel
+            3 -> R.layout.assistant_overlay_top // Top Banner
+            4 -> R.layout.assistant_overlay_immersive // Full-Screen Immersive
+            5 -> R.layout.assistant_overlay_hud // Holographic Cyberpunk HUD
+            6 -> R.layout.assistant_overlay_beveled // Beveled Glass Island
+            7 -> R.layout.assistant_overlay_cinematic // Cinematic Letterbox
+            else -> R.layout.assistant_overlay
+        }
+        overlayView = layoutInflater.inflate(layoutRes, null)
+        statusText = overlayView.findViewById(R.id.assistantResponseText)
+        responseText = overlayView.findViewById(R.id.assistantResponseText)
+        etInput = overlayView.findViewById(R.id.etInput)
+        btnSend = overlayView.findViewById(R.id.btnSend)
+        btnMic = overlayView.findViewById(R.id.btnMic)
+        btnOpenApp = overlayView.findViewById(R.id.btnOpenApp)
+        svResponse = overlayView.findViewById(R.id.svResponse)
+        inputControls = overlayView.findViewById(R.id.inputControlsContainer)
+        voiceAnimation = overlayView.findViewById(R.id.voiceAnimation)
+
+        val modelInfoTag: TextView? = overlayView.findViewById(R.id.modelInfoTag)
+        if (modelInfoTag != null) {
+            if (LocalLLMActivity.isCloudModelActive) {
+                modelInfoTag.text = "${LocalLLMActivity.currentCloudModelName} ☁️"
+            } else {
+                val modelName = java.io.File(LLMManager.currentModelPath).nameWithoutExtension
+                modelInfoTag.text = if (modelName.isNotEmpty()) modelName else "Gemma 4 E2B"
+            }
+        }
+
+        responseText.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val len = s?.length ?: 0
+                if (len < 50) {
+                    responseText.gravity = android.view.Gravity.CENTER
+                } else {
+                    responseText.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+                }
+            }
+        })
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+            val blurView = overlayView.findViewById<View>(R.id.blurBackgroundView)
+            blurView?.setRenderEffect(
+                android.graphics.RenderEffect.createBlurEffect(25f, 25f, android.graphics.Shader.TileMode.CLAMP)
+            )
+        }
+
+        overlayView.findViewById<View>(R.id.rootOverlay)?.setOnClickListener { hide() }
+
+        btnOpenApp.setOnClickListener {
+            val intent = Intent(context, LocalLLMActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+            hide()
+        }
+        btnSend.setOnClickListener {
+            val query = etInput.text.toString()
+            if (query.isNotBlank()) {
+                tts?.stop()
+                handleQuery(query)
+                etInput.setText("")
+            }
+        }
+        btnMic.setOnClickListener { startVoiceCapture() }
+
+        setContentView(overlayView)
     }
 
     /**
@@ -393,8 +492,19 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         
         setupSpeechRecognizer()
 
-        overlayView.post {
-            notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Hotword)
+        AssistantUiProfile.install(context)
+        val mode = AssistantUiProfile.current()
+        if (mode.adbToken != currentUiToken) {
+            inflateContentForProfile()
+        } else if (!usingComposeUi && mode is AssistantUiMode.Xml && mode.layoutIndex != currentLayoutStyle) {
+            inflateAndBindLayout(mode.layoutIndex)
+            currentUiToken = mode.adbToken
+        }
+
+        if (usingComposeUi) {
+            overlayView.post {
+                notifyImmersiveAssistantSummon(ImmersiveSummonOrigin.Hotword)
+            }
         }
         
         statusText.visibility = View.VISIBLE

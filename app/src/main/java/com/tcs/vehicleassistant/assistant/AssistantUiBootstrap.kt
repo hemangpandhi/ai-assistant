@@ -25,6 +25,7 @@ object AssistantUiBootstrap {
         synchronized(this) {
             if (installed) return
             val app = context.applicationContext
+            AssistantUiProfile.install(app)
             AssistantFaceConfig.install(app)
             AssistantPlacementConfig.install(app)
             ensureHybridFace(app)
