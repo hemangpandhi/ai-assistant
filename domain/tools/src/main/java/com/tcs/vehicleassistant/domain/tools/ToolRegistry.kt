@@ -20,7 +20,7 @@ class ToolRegistry(
         val CORE_HANDLER_KEYS = setOf(
             "stopMusic", "playMusic", "pauseMusic", "nextTrack",
             "increaseTemperature", "decreaseTemperature", "setSeatHeater",
-            "searchNearby", "search"
+            "searchNearby", "search", "startNavigationTo"
         )
 
         private val SPEAKABLE_SHORT_ALIASES = setOf("play", "pause")
@@ -34,7 +34,7 @@ class ToolRegistry(
         }
 
         private const val BM25_TOP_K = 4
-        private const val MAX_PROMPT_TOOLS = 8
+        private const val MAX_PROMPT_TOOLS = 12
     }
 
     private val activeTools = mutableMapOf<String, ToolDefinition>()
