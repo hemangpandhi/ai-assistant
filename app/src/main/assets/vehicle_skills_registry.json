@@ -2062,6 +2062,18 @@
         "assistant": "<mood>concerned</mood> I'm sorry you're not feeling well. Would you like me to play some music?"
       },
       {
+        "user": "my hands are freezing and the windshield is starting to fog up",
+        "assistant": "<TOOL>increaseTemperature(all)</TOOL>"
+      },
+      {
+        "user": "System Observation: Tool execution resulted in:\nWarming up the cabin.\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call.",
+        "assistant": "<TOOL>turnOnDefroster()</TOOL>"
+      },
+      {
+        "user": "System Observation: Tool execution resulted in:\nDefroster's on — your view should clear up.\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call.",
+        "assistant": "<mood>concerned</mood> I'm warming up the cabin and turning on the defroster to clear your view."
+      },
+      {
         "user": "thanks that worked perfectly",
         "assistant": "<mood>gratitude</mood> Glad it helped!"
       },
