@@ -42,9 +42,17 @@ object LlmToolTurnPolicy {
             val text = useful.joinToString(" ")
             return FinalDisplay(text = text, asQuestion = looksLikeQuestion(text))
         }
-        val executed = actuallyExecutedToolCalls.firstOrNull()?.substringBefore("(")?.trim().orEmpty()
-        if (executed.isNotEmpty()) {
-            return FinalDisplay(text = "Okay — I ran $executed.", asQuestion = false)
+        if (actuallyExecutedToolCalls.isNotEmpty()) {
+            val names = actuallyExecutedToolCalls.map { it.substringBefore("(").trim() }
+            if (names.size == 1) {
+                return FinalDisplay(text = "Okay — I ran ${names.first()}.", asQuestion = false)
+            } else if (names.size == 2) {
+                return FinalDisplay(text = "Okay — I ran ${names[0]} and ${names[1]}.", asQuestion = false)
+            } else {
+                val last = names.last()
+                val rest = names.dropLast(1).joinToString(", ")
+                return FinalDisplay(text = "Okay — I ran $rest, and $last.", asQuestion = false)
+            }
         }
         return FinalDisplay(text = emptyFallback, asQuestion = looksLikeQuestion(emptyFallback))
     }
