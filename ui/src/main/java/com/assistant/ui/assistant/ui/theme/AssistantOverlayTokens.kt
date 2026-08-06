@@ -72,6 +72,10 @@ internal object AssistantOverlayTokens {
      * Must stay wider than tall so the grey face shell reads as a capsule, not a circle.
      */
     val IslandFaceExpandedWidth = 128.dp
+    /**
+     * Expanded face band when a status cue is present: eyes shell + gap + cue circle.
+     */
+    val IslandFaceExpandedWidthWithCue = 176.dp
     /** Idle eye glyph outer size (full width × height). */
     val IslandEyeWidth = 20.dp
     val IslandEyeHeight = 33.dp
@@ -82,6 +86,8 @@ internal object AssistantOverlayTokens {
     val IslandEyeHalfGap = 29.5.dp
     /** Top/bottom (and side) air so the status cue circle doesn’t hug the pill edge. */
     val IslandCueBadgeMargin = 10.dp
+    /** Status cue circle diameter (Compose badge beside the eyes). */
+    val IslandCueBadgeSize = 40.dp
     /**
      * Horizontal / vertical inset from the eye outer bounds to the dark-grey
      * face-shell capsule (island eyes-only mode). Tracks live eye size.
@@ -90,6 +96,8 @@ internal object AssistantOverlayTokens {
     val IslandFaceShellPadV = 14.dp
     /** Air between the face-shell capsule and the status cue circle. */
     val IslandFaceShellCueGap = 10.dp
+    /** Status cue plate — lighter than the eye shell so the circle reads clearly. */
+    val IslandCueBadgeFill = Color(0xFF3A414C)
     val IslandListeningGlowBlur = 18.dp
     /** Near-black capsule fill. */
     val IslandFill = Color(0xFF121418)
@@ -118,8 +126,8 @@ internal object AssistantOverlayTokens {
     val EstimatedStackExtra = 100.dp
 
     // Session timing
-    const val LiveSpeechDelayHotwordMs = 80L
-    const val LiveSpeechDelayDockMs = 120L
+    const val LiveSpeechDelayHotwordMs = 0L
+    const val LiveSpeechDelayDockMs = 40L
     const val ThumbsHideMs = 4_000L
     const val GestureClearMs = 700L
     const val GlyphGazeClearMs = 800L

@@ -374,15 +374,17 @@ class AgentOrchestrator(
     private fun isCurrentTurn(turnId: Long): Boolean = turnState.isCurrentTurn(turnId)
 
     fun resetState() {
+        // Invalidate stream callbacks first so they cannot re-queue speak() after stop.
+        turnState.abandonTurn()
+        timeoutJob?.cancel()
+        timeoutJob = null
+        voiceManager.stop()
         _state.value = AgentState.Idle
     }
 
-    /** Called when the user barges in and starts speaking, halting any current TTS output. */
+    /** Halt TTS (Speaking or Streaming) and abandon the in-flight turn. */
     fun interruptSpeech() {
-        if (_state.value is AgentState.Speaking) {
-            voiceManager.stop()
-            _state.value = AgentState.Idle
-        }
+        resetState()
     }
 
     private fun onTtsFinalUtteranceDone(utteranceId: String) {

@@ -15,7 +15,7 @@ Compose assistant faces and mood/glyph visuals.
 |------|------|
 | `AssistantFace.kt` | Face registry / selection |
 | `AssistantFaceConfig.kt` | Persistable face preference |
-| `ImmersiveEyesFace.kt` / `ImmersiveTrapezoidEyesFace.kt` / `FusionAssistantFace.kt` / … | Concrete face implementations |
+| `ImmersiveEyesFace.kt` / `ClassicHybridEyesFace.kt` / `ImmersiveTrapezoidEyesFace.kt` / `FusionAssistantFace.kt` / … | Concrete face implementations |
 | `ExpressiveFaceShell.kt` | Shared expressive shell (incl. fixed trapezoid) |
 | `FaceCueIconVisuals.kt` | Cue → icon visuals |
 

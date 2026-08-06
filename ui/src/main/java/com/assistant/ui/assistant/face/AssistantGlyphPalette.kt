@@ -14,7 +14,7 @@ internal object AssistantGlyphPalette {
     val ClimateCool = Color(0xFF4DD0E1)
     val ClimateWarm = Color(0xFFFFB74D)
     val ClimateNeutral = Color(0xFFCE93D8)
-    val Media = Color(0xFFE1BEE7)
+    val Media = Color(0xFFCE93D8)
     val Nav = Color(0xFF80CBC4)
     val Accent = Color(0xFFFFF59D)
     val GlyphWhite = Color(0xFFF5F7FA)

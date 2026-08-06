@@ -24,9 +24,13 @@ class AssistantFeaturesTest {
 
     @Test
     fun hotwordMatcherAcceptsCommonVariants() {
-        assertTrue(matchesAssistantHotword("Hey assistant"))
-        assertTrue(matchesAssistantHotword("okay assistant, find coffee"))
-        assertTrue(matchesAssistantHotword("hi assistant"))
+        assertTrue(matchesAssistantHotword("Hey iris"))
+        assertTrue(matchesAssistantHotword("okay car, find coffee"))
+        assertTrue(matchesAssistantHotword("hi sora"))
+        assertTrue(matchesAssistantHotword("hello iris"))
+        assertFalse(matchesAssistantHotword("hi"))
+        assertFalse(matchesAssistantHotword("hello"))
+        assertFalse(matchesAssistantHotword("hey assistant"))
         assertFalse(matchesAssistantHotword("play jazz"))
     }
 

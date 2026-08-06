@@ -323,7 +323,7 @@ object AssistantConfig {
          * [com.tcs.vehicleassistant.hardware.AndroidAudioManager] cover residual contention, so this
          * can stay short.
          */
-        const val MIC_HANDOFF_DELAY_MS = 200L
+        const val MIC_HANDOFF_DELAY_MS = 50L
 
         /**
          * Silero VAD: required silence before a speech segment is closed. Was 1.0s and dominated
@@ -343,7 +343,7 @@ object AssistantConfig {
     }
 
     object WakeWord {
-        const val DEFAULT_WAKE_WORD = "hey assistant"
+        const val DEFAULT_WAKE_WORD = "hey iris"
 
         /** Vosk out-of-vocabulary token; never treated as a match. */
         const val UNKNOWN_TOKEN = "[unk]"

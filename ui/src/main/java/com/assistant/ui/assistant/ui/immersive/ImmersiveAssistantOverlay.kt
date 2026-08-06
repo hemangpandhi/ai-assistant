@@ -389,8 +389,20 @@ fun ImmersiveAssistantOverlay(
     val transcriptAlpha = remember { Animatable(0f) }
     /** 0 = hidden, 1 = fully presented (drives icon emerge / hotword wipe). */
     val overlayReveal = remember { Animatable(0f) }
-    // M3 expressive physics — slow spatial for the hero slide-up path.
+    // Hotword: fast spatial so the island appears instantly; icon/exit keep expressive slow.
+    val spatialEnter =
+        if (summonOrigin == ImmersiveSummonOrigin.Hotword) {
+            MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+        } else {
+            MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+        }
     val spatialSlow = MaterialTheme.motionScheme.slowSpatialSpec<Float>()
+    val effectsEnter =
+        if (summonOrigin == ImmersiveSummonOrigin.Hotword) {
+            MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+        } else {
+            MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+        }
     val effectsSlow = MaterialTheme.motionScheme.slowEffectsSpec<Float>()
     val effectsDefault = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     // Avoid calling onDismiss on first composition when awaitHotword keeps us hidden.
@@ -436,14 +448,19 @@ fun ImmersiveAssistantOverlay(
                         targetBackdropAlpha = targetBackdropAlpha,
                     )
                 } else {
+                    val hotword = summonOrigin == ImmersiveSummonOrigin.Hotword
                     runImmersiveFullscreenEnter(
                         backdropAlpha = backdropAlpha,
                         faceRise = faceRise,
                         faceScale = faceScale,
                         faceAlpha = faceAlpha,
                         overlayReveal = overlayReveal,
-                        spatialSpec = spatialSlow,
-                        effectsSpec = effectsSlow,
+                        spatialSpec = spatialEnter,
+                        effectsSpec = effectsEnter,
+                        // Hotword: start nearly on-stage so open feels instant.
+                        startFaceRise = if (hotword) -0.06f else -1f,
+                        startFaceScale = if (hotword) 0.98f else AssistantOverlayTokens.FaceStartScale,
+                        startReveal = if (hotword) 0.85f else 0f,
                     )
                 }
                 fadeInImmersiveTranscript(
@@ -606,6 +623,29 @@ fun ImmersiveAssistantOverlay(
                             transcriptAlpha = transcriptAlpha.value,
                             faceCues = faceCues,
                             reveal = reveal,
+                        )
+                    } else if (faceKind == AssistantFaceKind.ClassicHybrid) {
+                        // Master-style SemiCircle + text below — no island capsule.
+                        ClassicHybridAssistantBottomChrome(
+                            mood = mood,
+                            faceKind = faceKind,
+                            transcript = transcript,
+                            speaker = speaker,
+                            gazeX = effectiveGazeX,
+                            gazeY = effectiveGazeY,
+                            mouthAmplitude = mouthAmplitude,
+                            brandGlow = brandGlow,
+                            highContrast = highContrast,
+                            gesture = gesture,
+                            contextGlyph = contextGlyph,
+                            floatContextGlyph = false,
+                            showFace = true,
+                            faceRise = faceRise.value,
+                            faceScale = faceScale.value,
+                            faceAlpha = faceAlpha.value,
+                            transcriptAlpha = transcriptAlpha.value,
+                            faceCues = faceCues,
+                            glowBreath = glowBreath,
                         )
                     } else {
                         ImmersiveAssistantBottomChrome(

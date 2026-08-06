@@ -57,7 +57,7 @@ internal suspend fun runImmersiveCardEnter(
 
 /**
  * Face: bottom → settled home (wake word + icon launch).
- * Uses M3 expressive slow spatial springs (physics, not fixed keyframes).
+ * [startFaceRise] near 0 makes hotword feel instant; icon launch keeps the full rise.
  */
 internal suspend fun runImmersiveFullscreenEnter(
     backdropAlpha: Animatable<Float, AnimationVector1D>,
@@ -67,11 +67,15 @@ internal suspend fun runImmersiveFullscreenEnter(
     overlayReveal: Animatable<Float, AnimationVector1D>,
     spatialSpec: AnimationSpec<Float>,
     effectsSpec: AnimationSpec<Float>,
+    startFaceRise: Float = -1f,
+    startFaceScale: Float = AssistantOverlayTokens.FaceStartScale,
+    startReveal: Float = 0f,
 ) = coroutineScope {
     backdropAlpha.snapTo(1f)
-    faceRise.snapTo(-1f)
-    faceScale.snapTo(AssistantOverlayTokens.FaceStartScale)
+    faceRise.snapTo(startFaceRise)
+    faceScale.snapTo(startFaceScale)
     faceAlpha.snapTo(1f)
+    overlayReveal.snapTo(startReveal)
     try {
         launch {
             overlayReveal.animateTo(1f, effectsSpec)

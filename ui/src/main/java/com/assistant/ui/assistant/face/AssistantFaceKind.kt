@@ -32,6 +32,15 @@ enum class AssistantFaceKind(
         label = "Immersive hybrid",
     ),
     /**
+     * Master-style SemiCircle hybrid (pale ↔ purple eyes) with full shell.
+     * Uses [FaceStageDock] (face + transcript below) — no island capsule.
+     * ADB `classichybrid`.
+     */
+    ClassicHybrid(
+        adbKey = "classichybrid",
+        label = "Classic hybrid",
+    ),
+    /**
      * Immersive hybrid eyes/glow on a fixed isosceles trapezoid plate
      * (base ~20% wider than top, light rounding). Optional via ADB `trapezoid`.
      */
@@ -79,6 +88,7 @@ enum class AssistantFaceKind(
                 "immersive", "immersive_eyes", "eye", "orb" -> ImmersiveEyes
                 "immersive_glow", "glow_eyes", "aura", "ring", "purple_eyes" -> ImmersiveGlow
                 "immersive_hybrid", "glow_hybrid", "hybrid_eyes", "eyes_hybrid" -> ImmersiveHybrid
+                "classic_hybrid", "shell_hybrid", "master_hybrid", "hybridshell" -> ClassicHybrid
                 "immersive_trapezoid", "trap", "trapezium", "isosceles", "wedge" -> ImmersiveTrapezoid
                 "eporp", "robot" -> Eporo
                 "express", "eporo_immersive", "eporo_eyes" -> Fusion

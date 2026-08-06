@@ -30,6 +30,7 @@ import com.assistant.ui.assistant.face.AssistantContextGlyphIcon
 import com.assistant.ui.assistant.face.AssistantFaceKind
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.face.ConfigurableAssistantFace
+import com.assistant.ui.assistant.face.IslandStatusCueBadge
 import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
 import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
@@ -92,13 +93,13 @@ fun ImmersiveAssistantBottomChrome(
             ),
     ) {
         val density = LocalDensity.current
-        // Travel distance for bottom → settled entrance (-1 → 0).
+        // Travel distance for bottom ΓåÆ settled entrance (-1 ΓåÆ 0).
         val belowPx = with(density) {
             (maxHeight * AssistantOverlayTokens.FaceBelowTravelFraction).toPx()
         }
         val entranceY = when {
             faceRise >= 0f -> 0
-            else -> (-faceRise * belowPx).roundToInt() // faceRise=-1 → push below
+            else -> (-faceRise * belowPx).roundToInt() // faceRise=-1 ΓåÆ push below
         }
         val dockAlpha = maxOf(faceAlpha, transcriptAlpha).coerceIn(0f, 1f)
 
@@ -133,6 +134,7 @@ fun ImmersiveAssistantBottomChrome(
                 val glyphSize = (faceSize * AssistantOverlayTokens.GlyphSizeFraction)
                     .coerceIn(AssistantOverlayTokens.GlyphSizeMin, AssistantOverlayTokens.GlyphSizeMax)
                 if (showFace && faceKind != AssistantFaceKind.None) {
+                    val statusIcon = faceCues?.islandStatusIcon()
                     Box(
                         contentAlignment = Alignment.Center,
                         modifier = Modifier.fillMaxSize(),
@@ -161,6 +163,16 @@ fun ImmersiveAssistantBottomChrome(
                                 gesture = gesture,
                                 faceCues = faceCues,
                                 showShell = false,
+                            )
+                        }
+                        // Compose badge sits above the eye canvas so the shell never covers it.
+                        if (statusIcon != null) {
+                            IslandStatusCueBadge(
+                                icon = statusIcon,
+                                highContrast = highContrast,
+                                modifier = Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .padding(end = AssistantOverlayTokens.IslandCueBadgeMargin),
                             )
                         }
                     }

@@ -30,6 +30,15 @@ class TurnStateMachine {
         return turnId
     }
 
+    /**
+     * Drops the active turn without opening a new one for inference.
+     * Late stream callbacks for the previous [activeTurnId] are ignored.
+     */
+    fun abandonTurn() {
+        activeTurnId = turnCounter.incrementAndGet()
+        isQueryProcessed = true
+    }
+
     fun isCurrentTurn(turnId: Long): Boolean = activeTurnId == turnId
 
     fun markProcessed() {

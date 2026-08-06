@@ -197,6 +197,12 @@ class VehicleAgentAssistantBackend(
         sttDismissJob?.cancel()
         sttDismissJob = null
         micArmed = false
+        // Abandon the LiteRT turn first so stream callbacks cannot re-queue speak(), then
+        // flush TTS immediately (do not wait for onHide / exit animation).
+        runCatching {
+            viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ResetTurn)
+        }
+        runCatching { audioManager?.stopSpeaking() }
         runCatching { audioManager?.stopListening() }
     }
 
@@ -591,16 +597,21 @@ class VehicleAgentAssistantBackend(
 
         val faceParsed = FaceCueParser.parse(moodParsed.cleanedText)
         val text = faceParsed.cleanedText.ifBlank { moodParsed.cleanedText }.ifBlank { raw }
-        val cues = when {
-            faceParsed.found -> faceParsed.cues?.takeUnless { it.isEmpty }
-            else -> {
-                // DirectTool weather / music / nav has no <face> tags — use pending / spoken infer.
-                ToolFaceCues.forIconId(PendingToolFaceCues.take())
-                    ?: ToolFaceCues.fromSpokenText(text)
+        // Prefer explicit non-empty <face> slots; otherwise keep pending tool / spoken infer.
+        // Empty `<face/>` must NOT wipe music/weather/HVAC cues inferred from the reply.
+        val parsedCues = faceParsed.cues?.takeUnless { it.isEmpty }
+        val inferredCues = ToolFaceCues.forIconId(PendingToolFaceCues.peek())
+            ?: ToolFaceCues.fromSpokenText(text)
+        val cues = parsedCues ?: inferredCues
+        if (cues != null) {
+            // Consume one-shot tool handoff once we've applied it.
+            if (parsedCues == null && PendingToolFaceCues.peek() != null) {
+                PendingToolFaceCues.take()
             }
-        }
-        if (faceParsed.found || cues != null) {
             _events.emit(AssistantSessionEvent.FaceCuesChanged(cues))
+        } else if (faceParsed.found && parsedCues == null && inferredCues == null) {
+            // Explicit clear only when the model sent an empty <face/> and nothing else applies.
+            _events.emit(AssistantSessionEvent.FaceCuesChanged(null))
         }
         _events.emit(
             AssistantSessionEvent.Transcript(
@@ -614,10 +625,10 @@ class VehicleAgentAssistantBackend(
     companion object {
         private const val TAG = "VehicleAgentBackend"
         /**
-         * Brief pause so wake-word AudioRecord can release before agent STT.
-         * Keep tiny — Google / Gemini open the ear almost immediately on tap.
+         * Wake-word AudioRecord is released in onWakeDetected before showSession;
+         * open the ear immediately (retries cover residual contention).
          */
-        private const val MIC_OPEN_DELAY_MS = 80L
+        private const val MIC_OPEN_DELAY_MS = 0L
         private const val MIC_RESTART_SETTLE_MS = 250L
         private const val MIC_REBUILD_SETTLE_MS = 450L
         /** Brief beat so "I didn't catch that." is readable before dismiss. */

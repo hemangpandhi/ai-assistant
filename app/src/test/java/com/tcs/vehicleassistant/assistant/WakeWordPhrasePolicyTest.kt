@@ -9,26 +9,43 @@ import org.junit.Test
 class WakeWordPhrasePolicyTest {
 
     @Test
-    fun shortAliasForHeyName() {
-        assertEquals("iris", WakeWordPhrasePolicy.shortAlias("hey iris"))
-        assertEquals("iris", WakeWordPhrasePolicy.shortAlias("OK Iris"))
+    fun shortAliasDisabled() {
+        assertNull(WakeWordPhrasePolicy.shortAlias("hey iris"))
+        assertNull(WakeWordPhrasePolicy.shortAlias("OK Iris"))
         assertNull(WakeWordPhrasePolicy.shortAlias("iris"))
-        assertNull(WakeWordPhrasePolicy.shortAlias("hello polestar"))
-        assertNull(WakeWordPhrasePolicy.shortAlias("hey assistant"))
     }
 
     @Test
-    fun grammarIncludesBareName() {
-        val phrases = WakeWordPhrasePolicy.grammarPhrases("hey iris")
+    fun grammarIsFixedAllowlist() {
+        val phrases = WakeWordPhrasePolicy.grammarPhrases("hey assistant")
         assertTrue(phrases.contains("hey iris"))
-        assertTrue(phrases.contains("iris"))
+        assertTrue(phrases.contains("hello sora"))
+        assertTrue(phrases.contains("ok car"))
         assertTrue(phrases.contains("[unk]"))
+        assertFalse(phrases.contains("iris"))
+        assertFalse(phrases.contains("hey assistant"))
     }
 
     @Test
-    fun matchesHeyNameAndBareName() {
-        assertTrue(WakeWordPhrasePolicy.matches("hey iris", "hey iris"))
-        assertTrue(WakeWordPhrasePolicy.matches("iris", "hey iris"))
-        assertFalse(WakeWordPhrasePolicy.matches("assistant", "hey assistant"))
+    fun matchesOnlyPrefixPlusName() {
+        assertTrue(WakeWordPhrasePolicy.matches("hey iris", "ignored"))
+        assertTrue(WakeWordPhrasePolicy.matches("hi car open the map", "ignored"))
+        assertTrue(WakeWordPhrasePolicy.matches("hello sora", "ignored"))
+        assertTrue(WakeWordPhrasePolicy.matches("okay iris", "ignored"))
+        assertTrue(WakeWordPhrasePolicy.matches("ok car", "ignored"))
+
+        assertFalse(WakeWordPhrasePolicy.matches("hi", "ignored"))
+        assertFalse(WakeWordPhrasePolicy.matches("hello", "ignored"))
+        assertFalse(WakeWordPhrasePolicy.matches("hey", "ignored"))
+        assertFalse(WakeWordPhrasePolicy.matches("iris", "ignored"))
+        assertFalse(WakeWordPhrasePolicy.matches("hey assistant", "ignored"))
+        assertFalse(WakeWordPhrasePolicy.matches("hello polestar", "ignored"))
+    }
+
+    @Test
+    fun normalizeKwsPhonemeSpacing() {
+        assertEquals("hey iris", WakeWordPhrasePolicy.normalizeKwsKeyword("H EY I R I S"))
+        assertEquals("hi car", WakeWordPhrasePolicy.normalizeKwsKeyword("h i c a r"))
+        assertEquals("hello sora", WakeWordPhrasePolicy.normalizeKwsKeyword("hello sora"))
     }
 }
