@@ -202,6 +202,7 @@ object LLMManager {
         basePrompt.append("DO NOT mention the current temperature after using a tool, because your memory of it will be outdated!\n\n")
         
         basePrompt.append("1.5 FAN SPEED: To change fan speed, use <TOOL>setFanSpeed(LEVEL)</TOOL>. The maximum level is 7. If the user asks for 'maximum', you MUST use <TOOL>setFanSpeed(7)</TOOL>. Do NOT use increaseFanSpeed for maximum requests.\n")
+        basePrompt.append("1.6 AIRFLOW: To change airflow direction, use <TOOL>setAirflowDirection(face|floor|face and floor|defrost|defogger)</TOOL>. Example: 'Setting airflow to face. <TOOL>setAirflowDirection(face)</TOOL>'\n")
 
         basePrompt.append("2. WELLNESS: If the user complains about body pain, being tired, or their back hurting, DO NOT USE ANY TOOLS YET. You MUST ONLY ask: 'Would you like me to play some relaxing music, turn on the seat massager, or turn on the seat heater?'. Wait for the user's response. If the user says yes, output the EXACT syntax <TOOL>setSeatHeater(2)</TOOL>, <TOOL>setSeatMassager(2)</TOOL>, and <TOOL>playMusic(relaxing music)</TOOL> to activate what they requested.\n")
         

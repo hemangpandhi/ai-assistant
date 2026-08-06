@@ -239,8 +239,8 @@ object ToolManager {
                     // 1: Face, 2: Floor, 3: Face+Floor, 4: Defrost, 6: Defrost+Floor
                     val level = when {
                         rawValue.contains("face") && (rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat")) -> 3
-                        rawValue.contains("defrost") && (rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat")) -> 6
-                        rawValue.contains("defrost") -> 4
+                        (rawValue.contains("defrost") || rawValue.contains("defog")) && (rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat")) -> 6
+                        rawValue.contains("defrost") || rawValue.contains("defog") -> 4
                         rawValue.contains("floor") || rawValue.contains("leg") || rawValue.contains("feet") || rawValue.contains("feat") -> 2
                         rawValue.contains("face") -> 1
                         else -> 1
@@ -254,7 +254,7 @@ object ToolManager {
                         else -> "face"
                     }
                     // Passing areaId=0 allows setGenericVhalProperty to auto-resolve the correct VehicleArea seat/row ID.
-                    VehicleManager.setGenericVhalProperty(356517121, 0, level.toString(), "INT")
+                    VehicleManager.setGenericVhalProperty(android.car.VehiclePropertyIds.HVAC_FAN_DIRECTION, 0, level.toString(), "INT")
                     "I've set the airflow direction to $directionName."
                 }
                 "increaseTemperature" -> {

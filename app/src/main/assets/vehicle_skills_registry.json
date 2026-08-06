@@ -367,7 +367,7 @@
       ]
     },
     {
-      "prompt_string": "To set the airflow direction, you MUST output exactly <TOOL>setAirflowDirection(face|floor|face and floor|defrost)</TOOL>.",
+      "prompt_string": "To set the airflow direction, you MUST output exactly <TOOL>setAirflowDirection(face|floor|face and floor|defrost|defogger)</TOOL>.",
       "handler_key": "setAirflowDirection",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
@@ -379,7 +379,9 @@
         "leg",
         "legs",
         "feet",
-        "feat"
+        "feat",
+        "defogger",
+        "defog"
       ]
     },
     {
