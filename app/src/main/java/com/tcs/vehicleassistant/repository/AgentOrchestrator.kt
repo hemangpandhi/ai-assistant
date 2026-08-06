@@ -1064,12 +1064,13 @@ class AgentOrchestrator(
                         val requiresAgenticLoop = executedTools.any { toolRegistry.getToolDefinition(it)?.requiresAgenticLoop == true }
                         val shouldRunAgenticLoop = isAgenticLoopEnabled &&
                             loopCount < AssistantConfig.Llm.MAX_AGENTIC_LOOPS &&
-                            (hasError || isQueryTool || requiresAgenticLoop || (!hasConversationalText && !isTerminalTool))
+                            (hasError || isQueryTool || requiresAgenticLoop || !hasConversationalText)
 
                         if (shouldRunAgenticLoop) {
                             val feedbackString = toolFeedbacks.joinToString("\n")
                             val observation = "System Observation: Tool execution resulted in:\n$feedbackString\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call."
 
+                            conversationMemory.addTurn("Assistant", tempFinalMsg.trim())
                             currentPendingTools.removeAll(pendingTools.toSet())
                             stream.clear()
                             processQuery(
