@@ -200,17 +200,22 @@ class AssistantEar(
         scope.cancel()
     }
 
-    private suspend fun captureLoop(engine: SherpaEarSttEngine) {
-        val frame = FloatArray(EarMic.FRAME_SAMPLES)
-        try {
-            while (coroutineContext.isActive && state == EarState.Capturing) {
-                val read = mic.readFrame(frame)
-                if (read > 0) {
-                    if (engine.acceptPcmAndShouldEndpoint(frame, read)) {
+    private fun captureLoop(engine: SherpaEarSttEngine) {
+        val preRoll = ContinuousAudioPipeline.ringBuffer.snapshotAndClear()
+        if (preRoll.isNotEmpty()) {
+            engine.acceptPcmAndShouldEndpoint(preRoll, preRoll.size)
+        }
+
+        ContinuousAudioPipeline.sttSubscriber = { floatFrame, read ->
+            if (state == EarState.Capturing) {
+                if (engine.acceptPcmAndShouldEndpoint(floatFrame, read)) {
+                    ContinuousAudioPipeline.isAwake = false
+                    ContinuousAudioPipeline.sttSubscriber = null
+                    
+                    scope.launch {
                         mutex.withLock {
                             if (state != EarState.Capturing) return@withLock
                             state = EarState.Finalizing
-                            mic.stopRecording()
                         }
                         // Decode outside the mutex; re-arm after transcript is emitted.
                         engine.finishUtteranceBlocking()
@@ -219,33 +224,21 @@ class AssistantEar(
                                 state = EarState.Armed
                             }
                         }
-                        return
                     }
-                } else {
-                    delay(5)
-                }
-            }
-        } catch (t: Throwable) {
-            Log.e(TAG, "captureLoop failed", t)
-            withContext(Dispatchers.Main) {
-                callbacks.onError(SpeechRecognizer.ERROR_AUDIO)
-            }
-            mutex.withLock {
-                mic.stopRecording()
-                if (state == EarState.Capturing || state == EarState.Finalizing) {
-                    state = EarState.Armed
                 }
             }
         }
+        ContinuousAudioPipeline.isAwake = true
     }
 
     private fun stopCaptureLocked() {
         captureJob?.cancel()
         captureJob = null
-        mic.stopRecording()
-        // Do not call endUtterance() here — that would decode a cancelled buffer.
-        // Google path: stopListening only.
-        if (!usesPcmEngine) {
+        if (usesPcmEngine) {
+            ContinuousAudioPipeline.isAwake = false
+            ContinuousAudioPipeline.sttSubscriber = null
+        } else {
+            mic.stopRecording()
             try {
                 activeEngine?.endUtterance()
             } catch (_: Exception) {

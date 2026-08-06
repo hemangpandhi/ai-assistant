@@ -203,6 +203,10 @@ class VehicleAgentAssistantBackend(
     override fun onSpeechInput(input: AssistantSpeechInput) {
         when (input) {
             is AssistantSpeechInput.Partial -> scope.launch {
+                val vm = viewModel
+                if (vm != null) {
+                    vm.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.InterruptSpeech)
+                }
                 _events.emit(
                     AssistantSessionEvent.Transcript(
                         text = input.text,

@@ -902,7 +902,9 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 btnMic?.isEnabled = true
                 armIdleTimer("model-ready")
                 if (initialQuery == null && (showFlags and SHOW_WITH_ASSIST) != 0) {
-                    delay(500) // Wait for WakeWordService to release the mic
+                    if (com.tcs.vehicleassistant.core.AssistantConfig.prefersGoogleStt(context)) {
+                        delay(500) // Wait for WakeWordService to release the mic
+                    }
                     btnMic?.performClick()
                 }
             }
@@ -917,7 +919,9 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
             if (initialQuery == null && (showFlags and SHOW_WITH_ASSIST) != 0) {
                 observerScope.launch {
-                    delay(500) // Wait for WakeWordService to release the mic
+                    if (com.tcs.vehicleassistant.core.AssistantConfig.prefersGoogleStt(context)) {
+                        delay(500) // Wait for WakeWordService to release the mic
+                    }
                     btnMic?.performClick()
                 }
             }

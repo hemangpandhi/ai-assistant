@@ -176,7 +176,6 @@
                  
         <!-- Master wake word (Compose + XML). -->
         <service android:name=".WakeWordService"
-                 android:process=":wakeword"
                  android:foregroundServiceType="microphone"
                  android:permission="com.tcs.vehicleassistant.permission.CONTROL_ASSISTANT"
                  android:exported="true" />

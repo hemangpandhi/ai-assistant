@@ -12,9 +12,18 @@ object ToolCallParser {
     fun extractToolCalls(llmOutput: String): List<ParsedToolCall> {
         val calls = mutableListOf<ParsedToolCall>()
         
-        // 1. XML Tag Format: <TOOL>toolName(args)</TOOL> (also supports <TOOLCALL>, <TOOL_CALL>, and <|tool_call>call:)
-        val xmlRegex = Regex("(?i)<(?:\\|tool_call>call:|TOOL|TOOL_CALL|TOOLCALL)>?\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:</?(?:TOOL|TOOL_CALL|TOOLCALL)>?|(?=\\s*<)|$)", RegexOption.DOT_MATCHES_ALL)
+        // 1. XML Tag Format: <TOOL>toolName(args)</TOOL>
+        val xmlRegex = Regex("(?i)<(?:TOOL|TOOL_CALL|TOOLCALL)>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*</(?:TOOL|TOOL_CALL|TOOLCALL)>", RegexOption.DOT_MATCHES_ALL)
         for (match in xmlRegex.findAll(llmOutput)) {
+            val fullTag = match.value
+            val toolName = match.groups[1]?.value?.trim() ?: continue
+            val args = match.groups[2]?.value?.trim() ?: ""
+            calls.add(ParsedToolCall(fullTag, toolName, args))
+        }
+
+        // 1b. Gemma Native Tag Format: <|tool_call>call:toolName(args)
+        val gemmaRegex = Regex("(?i)<\\|tool_call>call:\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?(?=\\s*<|$)", RegexOption.DOT_MATCHES_ALL)
+        for (match in gemmaRegex.findAll(llmOutput)) {
             val fullTag = match.value
             val toolName = match.groups[1]?.value?.trim() ?: continue
             val args = match.groups[2]?.value?.trim() ?: ""
@@ -75,19 +84,23 @@ object ToolCallParser {
             cleaned = cleaned.replace(call.fullTag, "")
         }
         
-        // Strip trailing incomplete tags
+        // Strip trailing incomplete tags only if they are truly at the end (not followed by text)
         val finalLastTagIndex = cleaned.lastIndexOf("<")
         if (finalLastTagIndex != -1) {
             val potentialTag = cleaned.substring(finalLastTagIndex).uppercase()
-            if (potentialTag.startsWith("<T") || potentialTag.startsWith("</T") || 
+            val textAfterTag = potentialTag.substringAfter(">", "")
+            if (textAfterTag.trim().isEmpty() && (
+                potentialTag.startsWith("<T") || potentialTag.startsWith("</T") || 
                 "<TOOL".startsWith(potentialTag) || "</TOOL".startsWith(potentialTag) ||
                 "<TOOL_CALL".startsWith(potentialTag) || "</TOOL_CALL".startsWith(potentialTag) ||
-                "<TOOLCALL".startsWith(potentialTag) || "</TOOLCALL".startsWith(potentialTag)) {
+                "<TOOLCALL".startsWith(potentialTag) || "</TOOLCALL".startsWith(potentialTag) ||
+                "<|TOOL_CALL".startsWith(potentialTag)
+            )) {
                 cleaned = cleaned.substring(0, finalLastTagIndex)
             }
         }
         
-        // Final safety sweep: forcibly remove any dangling tool tags
+        // Final safety sweep: forcibly remove any remaining dangling tool tag parts
         cleaned = cleaned.replace(Regex("(?i)</?(?:TOOL|TOOL_CALL|TOOLCALL)>|<\\|tool_call>call:"), "")
         
         return cleaned.trim()

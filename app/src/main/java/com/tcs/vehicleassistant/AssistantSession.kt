@@ -124,7 +124,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
 
     /** Asks the wake-word service to release the microphone while a session is active. */
     private fun pauseWakeWordListening() {
-        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
+        if (com.tcs.vehicleassistant.core.AssistantConfig.prefersGoogleStt(context)) {
+            sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
+        }
     }
 
     /**
@@ -138,7 +140,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
             .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
         if (!enabled) return
-        sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)
+        if (com.tcs.vehicleassistant.core.AssistantConfig.prefersGoogleStt(context)) {
+            sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)
+        }
     }
 
     private fun sendWakeWordCommand(action: String) {
@@ -495,7 +499,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private fun autoStartListening() {
         micHandoffJob?.cancel()
         micHandoffJob = observerScope.launch {
-            delay(AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS)
+            if (com.tcs.vehicleassistant.core.AssistantConfig.prefersGoogleStt(context)) {
+                delay(AssistantConfig.Audio.MIC_HANDOFF_DELAY_MS)
+            }
             btnMic.performClick()
         }
     }

@@ -1,0 +1,5 @@
+{
+  "summary": "A complete markdown document outlining the system context, dialogue flows, tool schemas, data generation requirements, RLHF annotation guidelines, out-of-domain handling, tool chaining, voice/TTS constraints, and edge hardware constraints required by the AI training team to implement the proactive calendar notification use-case.",
+  "updatedAt": "2026-08-05T05:31:27.494196795Z",
+  "userFacing": true
+}

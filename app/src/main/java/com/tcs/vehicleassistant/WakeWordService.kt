@@ -126,38 +126,11 @@ class WakeWordService : Service() {
     private var customRecognizer: Recognizer? = null
     /** Grammar key used to build [customRecognizer]; rebuilt when the wake phrase set changes. */
     private var recognizerGrammarKey: String? = null
-    private var customAudioRecord: AudioRecord? = null
+    private var kwsSpotter: com.k2fsa.sherpa.onnx.KeywordSpotter? = null
+    private var kwsStream: com.k2fsa.sherpa.onnx.OnlineStream? = null
+    private var framesSinceLastSpeech = Int.MAX_VALUE / 2
 
-    private val unlockReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == Intent.ACTION_USER_PRESENT || intent.action == "com.tcs.vehicleassistant.FACE_UNLOCKED") {
-                Log.d(TAG, "Unlock broadcast received in WakeWordService: ${intent.action}")
-                var userName = intent.getStringExtra("USER_NAME")
-                if (userName.isNullOrEmpty()) {
-                    userName = try {
-                        val userManager = context.getSystemService(Context.USER_SERVICE) as UserManager
-                        userManager.userName ?: "User"
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Failed to get user name from UserManager", e)
-                        "User"
-                    }
-                }
-                val serviceIntent = Intent(context, VehicleAgentService::class.java).apply {
-                    action = "com.tcs.vehicleassistant.ACTION_GREET_USER"
-                    putExtra("USER_NAME", userName)
-                }
-                context.startForegroundService(serviceIntent)
-            }
-        }
-    }
-
-    @Volatile
-    private var isRecording = false
-
-    private var listeningJob: Job? = null
     private var restartJob: Job? = null
-    private var noiseSuppressor: NoiseSuppressor? = null
-    private var echoCanceler: android.media.audiofx.AcousticEchoCanceler? = null
 
     /** Elapsed realtime after which a match is allowed again. */
     @Volatile
@@ -169,12 +142,6 @@ class WakeWordService : Service() {
     override fun onCreate() {
         super.onCreate()
         updateWakeWord()
-        
-        val filter = IntentFilter().apply {
-            addAction(Intent.ACTION_USER_PRESENT)
-            addAction("com.tcs.vehicleassistant.FACE_UNLOCKED")
-        }
-        registerReceiver(unlockReceiver, filter, Context.RECEIVER_EXPORTED)
     }
 
     private fun updateWakeWord() {
@@ -341,127 +308,68 @@ class WakeWordService : Service() {
     }
 
     private fun startCustomListening() {
-        if (isRecording) return
-        isRecording = true
-        listeningJob = serviceScope.launch { runMicrophoneLoop() }
-    }
-
-    private suspend fun runMicrophoneLoop() {
-        var record: AudioRecord? = null
-        try {
-            val bufferSize = AudioRecord.getMinBufferSize(
-                AssistantConfig.Audio.SAMPLE_RATE_HZ,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT
-            ) * 2
-
-            record = AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
-                AssistantConfig.Audio.SAMPLE_RATE_HZ,
-                AudioFormat.CHANNEL_IN_MONO,
-                AudioFormat.ENCODING_PCM_16BIT,
-                bufferSize
-            )
-            customAudioRecord = record
-
-            if (record.state != AudioRecord.STATE_INITIALIZED) {
-                Log.e(TAG, "AudioRecord init failed — mic permission missing or mic already in use.")
-                return
-            }
-
-            if (NoiseSuppressor.isAvailable()) {
-                noiseSuppressor = NoiseSuppressor.create(record.audioSessionId)?.apply { enabled = true }
-            }
-            if (android.media.audiofx.AcousticEchoCanceler.isAvailable()) {
-                echoCanceler = android.media.audiofx.AcousticEchoCanceler.create(record.audioSessionId)?.apply { enabled = true }
-            }
-
-            record.startRecording()
-            val buffer = ShortArray(bufferSize)
-            var loopCount = 0
-            var framesSinceLastSpeech = Int.MAX_VALUE / 2
-
-            while (isRecording) {
-                val readSize = record.read(buffer, 0, buffer.size)
-                if (readSize <= 0) {
-                    delay(10)
-                    continue
+        if (com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.isRecording) return
+        
+        kwsSpotter = com.tcs.vehicleassistant.hardware.SherpaKwsManager.getKeywordSpotter(this)
+        
+        com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.kwsSubscriber = { floatFrame, shortBuffer, readSize ->
+            val spotter = kwsSpotter
+            var matched = false
+            if (spotter != null) {
+                if (kwsStream == null) {
+                    kwsStream = spotter.createStream()
                 }
-
+                val stream = kwsStream
+                if (stream != null) {
+                    val slice = if (readSize == floatFrame.size) floatFrame else floatFrame.copyOf(readSize)
+                    stream.acceptWaveform(slice, 16000)
+                    
+                    while (spotter.isReady(stream)) {
+                        spotter.decode(stream)
+                    }
+                    val result = spotter.getResult(stream)
+                    if (result.keyword.isNotBlank()) {
+                        matched = true
+                        spotter.reset(stream)
+                        handleTranscript(result.keyword)
+                    }
+                }
+            }
+            
+            // Vosk Fallback
+            val recognizer = customRecognizer
+            if (!matched && recognizer != null && spotter == null) {
                 var maxAmp = 0
                 for (i in 0 until readSize) {
-                    val absVal = Math.abs(buffer[i].toInt())
+                    val absVal = Math.abs(shortBuffer[i].toInt())
                     if (absVal > maxAmp) maxAmp = absVal
                 }
-
                 framesSinceLastSpeech = if (maxAmp > AssistantConfig.WakeWord.SPEECH_AMPLITUDE_THRESHOLD) {
                     0
                 } else {
                     framesSinceLastSpeech + 1
                 }
-
-                // Only feed the recognizer around detected speech; decoding pure silence wasted
-                // CPU continuously in a service that runs for the whole drive.
-                if (framesSinceLastSpeech >= AssistantConfig.WakeWord.RECOGNITION_TAIL_FRAMES) {
-                    loopCount++
-                    continue
+                if (framesSinceLastSpeech < AssistantConfig.WakeWord.RECOGNITION_TAIL_FRAMES) {
+                    if (recognizer.acceptWaveForm(shortBuffer, readSize)) {
+                        handleTranscript(recognizer.result)
+                        resetRecognizer()
+                    }
                 }
-
-                val recognizer = customRecognizer ?: break
-                // Only finals may open the session. Partials on a sticky decoder re-fired the
-                // previous wake phrase after RESTART (see "hey [unk] hey nissan" rematches).
-                if (recognizer.acceptWaveForm(buffer, readSize)) {
-                    handleTranscript(recognizer.result)
-                    // Clear decoder state after every final so music/TTS cannot rematch leftovers.
-                    resetRecognizer()
-                }
-                loopCount++
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Microphone loop error: ${e.message}", e)
-        } finally {
-            // Release on every exit path. The previous version only released the noise
-            // suppressor here, so an early return leaked the AudioRecord and kept the mic held.
-            releaseAudioResources(record)
-            if (customAudioRecord === null) {
-                isRecording = false
             }
         }
-    }
-
-    private fun releaseAudioResources(record: AudioRecord?) {
-        try {
-            noiseSuppressor?.release()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to release noise suppressor", e)
-        }
-        noiseSuppressor = null
-
-        try {
-            echoCanceler?.release()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to release echo canceler", e)
-        }
-        echoCanceler = null
-
-        try {
-            if (record?.recordingState == AudioRecord.RECORDSTATE_RECORDING) record.stop()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to stop AudioRecord", e)
-        }
-        try {
-            record?.release()
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to release AudioRecord", e)
-        }
-        if (customAudioRecord === record) customAudioRecord = null
+        
+        com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.start(applicationContext)
     }
 
     private fun stopCustomListening() {
-        isRecording = false
-        listeningJob?.cancel()
-        listeningJob = null
-        releaseAudioResources(customAudioRecord)
+        com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.kwsSubscriber = null
+        com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.stop()
+        kwsStream?.release()
+        kwsStream = null
+        try {
+            com.tcs.vehicleassistant.hardware.SherpaKwsManager.release()
+        } catch (_: Exception) {}
+        kwsSpotter = null
     }
 
     /** Drops in-flight Vosk hypotheses so a later RESTART cannot rematch a prior wake phrase. */
@@ -474,12 +382,6 @@ class WakeWordService : Service() {
     }
 
     override fun onDestroy() {
-        try {
-            unregisterReceiver(unlockReceiver)
-        } catch (e: Exception) {
-            Log.e(TAG, "Error unregistering receiver", e)
-        }
-        isRecording = false
         stopCustomListening()
         customRecognizer = null
         recognizerGrammarKey = null

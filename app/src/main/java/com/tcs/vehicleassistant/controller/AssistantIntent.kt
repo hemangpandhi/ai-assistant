@@ -17,6 +17,9 @@ sealed class AssistantIntent {
     /** Called when the user wants to stop the microphone manually. */
     object StopListening : AssistantIntent()
 
+    /** Called when the user barges in with speech, interrupting the assistant's speech. */
+    object InterruptSpeech : AssistantIntent()
+
     /**
      * Clear in-flight orchestrator work for a new listen turn.
      * Does **not** dismiss the session (unlike [Cancel]).

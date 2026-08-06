@@ -159,6 +159,9 @@ class AssistantViewModel(
             is AssistantIntent.StopListening -> {
                 audioManager.stopListening()
             }
+            is AssistantIntent.InterruptSpeech -> {
+                orchestrator.interruptSpeech()
+            }
             is AssistantIntent.ResetTurn -> {
                 // New session / re-listen: drop prior agent work without dismissing UI
                 // and without emitting FinishSession (that killed mic + overlay).

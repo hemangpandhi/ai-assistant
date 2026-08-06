@@ -377,6 +377,14 @@ class AgentOrchestrator(
         _state.value = AgentState.Idle
     }
 
+    /** Called when the user barges in and starts speaking, halting any current TTS output. */
+    fun interruptSpeech() {
+        if (_state.value is AgentState.Speaking) {
+            voiceManager.stop()
+            _state.value = AgentState.Idle
+        }
+    }
+
     private fun onTtsFinalUtteranceDone(utteranceId: String) {
         scope.launch {
             if (utteranceId == "QUESTION_FINAL" || utteranceId == "STATEMENT_FINAL_TOOL" || utteranceId == "STATEMENT_FINAL") {
@@ -849,6 +857,19 @@ class AgentOrchestrator(
         val startTime = System.currentTimeMillis()
         val firstTokenTime = java.util.concurrent.atomic.AtomicLong(-1L)
 
+        // Latency Masking: play a filler phrase immediately while the local LLM loads
+        if (!LocalLLMActivity.isCloudModelActive && loopCount == 0 && emptyChatRetry == 0 && !isAgenticObservation) {
+            val fillerPhrases = listOf(
+                "Let me check...",
+                "I'm on it...",
+                "One moment...",
+                "Let's see..."
+            )
+            val selectedFiller = fillerPhrases.random()
+            // Using a special utterance ID so we don't accidentally terminate the turn or overlap with questions
+            voiceManager.speak(selectedFiller, "LATENCY_MASK")
+        }
+
         val onToken: (String) -> Unit = { chunkText ->
             // Invoked on LiteRT's native streaming thread. Bail out for abandoned turns so a
             // stale inference cannot overwrite the UI or queue TTS for a question already gone.
@@ -978,6 +999,8 @@ class AgentOrchestrator(
                             }
                         },
                     )
+                    val hasExecutedAnyToolThisTurn = actuallyExecutedTools.isNotEmpty()
+                    
                     for (action in planned) {
                         executedTools.add(action.toolCall)
                         when (action) {
@@ -997,7 +1020,7 @@ class AgentOrchestrator(
                             }
                             is ToolLoopPlanner.PlannedToolAction.ScheduleExecute -> {
                                 val toolCall = action.toolCall
-                                val job = scope.async(Dispatchers.IO) {
+                                val result = withContext(Dispatchers.IO) {
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
                                         when (val decision = evaluateContextGuard(toolCall)) {
                                             is ContextGuard.Decision.Confirm -> {
@@ -1014,26 +1037,24 @@ class AgentOrchestrator(
                                             is ContextGuard.Decision.Block -> decision.message
                                             is ContextGuard.Decision.Escalate -> decision.message
                                             is ContextGuard.Decision.Allow -> {
-                                                val result = executeToolCall(
+                                                val res = executeToolCall(
                                                     toolCall,
                                                     enforcePromptAllowList = true,
                                                 )
                                                 actuallyExecutedTools.add(toolCall)
-                                                result
+                                                res
                                             }
                                         }
                                     } ?: "System Error: Tool execution timed out."
                                 }
-                                pendingTools.add(job)
-                                currentPendingTools.add(job)
+                                if (result != null) {
+                                    toolFeedbacks.add(result)
+                                }
                             }
                         }
                     }
 
-                    if (pendingTools.isNotEmpty()) {
-                        // Do NOT emit Thinking here, as it clears the UI screen and causes flickering.
-                        val feedbacks = awaitAll(*pendingTools.toTypedArray()).filterNotNull()
-                        toolFeedbacks.addAll(feedbacks)
+                    if (actuallyExecutedTools.isNotEmpty() || hasExecutedAnyToolThisTurn) {
                         // Tool already ran — don't keep a soft offer pending for a later "yes".
                         if (confirmationCoordinator.pendingConfirmationTool == null) {
                             confirmationCoordinator.clearOffer()
@@ -1044,7 +1065,7 @@ class AgentOrchestrator(
                         EmergencyAlarmManager.start(context)
                     }
 
-                    if (pendingTools.isNotEmpty()) {
+                    if (planned.any { it is ToolLoopPlanner.PlannedToolAction.ScheduleExecute }) {
                         val isAgenticLoopEnabled = context
                             .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
                             .getBoolean(AssistantConfig.Prefs.AGENTIC_LOOP, true)
