@@ -404,7 +404,7 @@ object ToolManager {
                     }
                     "Routing to $spokenDest."
                 }
-                "search" -> {
+                "search", "searchNearby" -> {
                     val query = toolCall.substringAfter("(").substringBefore(")")
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
                         // Intercept and suppress native system toasts to maintain strict bespoke OEM presentation

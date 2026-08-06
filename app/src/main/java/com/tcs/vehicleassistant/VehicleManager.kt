@@ -44,7 +44,7 @@ object VehicleManager {
         val customProps = getCustomPropertiesString()
         val customPropsStr = if (customProps.isNotEmpty()) ", $customProps" else ""
         
-        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Heater: ${getRealSeatHeaterLevel()}, City: ${LocationManager.getCurrentCity()}$customPropsStr"
+        return "Speed: ${getRealSpeed()}mph, Temp: ${getRealTemperature()}F, Heater: ${getRealSeatHeaterLevel()}, Fuel: ${getFuelLevel()}%, City: ${LocationManager.getCurrentCity()}$customPropsStr"
     }
 
     private val carPropertyCallback = object : CarPropertyManager.CarPropertyEventCallback {
@@ -118,8 +118,15 @@ object VehicleManager {
                     customPropertyValues[name] = "Unknown" // Initial state
                     
                     try {
+                        val initialProp = carPropertyManager?.getProperty<Any>(id, 0)
+                        if (initialProp != null && initialProp.value != null) {
+                            customPropertyValues[name] = initialProp.value.toString()
+                        }
+                    } catch (e: Exception) {}
+
+                    try {
                         carPropertyManager?.registerCallback(carPropertyCallback, id, CarPropertyManager.SENSOR_RATE_ONCHANGE)
-                        Log.i("VehicleManager", "Registered custom JSON property: $name ($id)")
+                        Log.d("VehicleManager", "Registered custom property: $name ($id)")
                     } catch (e: Exception) {
                         Log.e("VehicleManager", "Failed to register custom property: $name ($id)", e)
                     }

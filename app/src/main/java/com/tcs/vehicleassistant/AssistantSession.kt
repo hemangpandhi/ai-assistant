@@ -875,11 +875,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         for (job in currentPendingTools) {
                                             try { job.await() } catch (e: Exception) {}
                                         }
+                                        typewriterJob?.join()
                                         kotlinx.coroutines.delay(2000)
                                         finish()
                                     }
                                 } else {
                                     CoroutineScope(Dispatchers.Main).launch {
+                                        typewriterJob?.join()
                                         kotlinx.coroutines.delay(2000)
                                         finish()
                                     }
