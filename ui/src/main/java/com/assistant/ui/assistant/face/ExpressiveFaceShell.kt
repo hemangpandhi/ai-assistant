@@ -21,9 +21,11 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.DrawStyle
 import androidx.compose.ui.graphics.drawscope.Fill
+import androidx.graphics.shapes.CornerRounding
 import androidx.graphics.shapes.Morph
 import androidx.graphics.shapes.RoundedPolygon
 import com.assistant.ui.assistant.face.AssistantMood
+import com.assistant.ui.assistant.ui.theme.ImmersiveTrapezoidBaseOverTop
 
 /**
  * Small Material 3 expressive silhouette set for the assistant outer frame.
@@ -35,6 +37,11 @@ enum class ExpressiveShellKind {
     Oval,
     /** Material 3 gem — used for the pale outer rim plate behind the face shell. */
     Gem,
+    /**
+     * Fixed isosceles trapezoid (base ~20% wider than top, light rounding).
+     * Not used in mood morphing — main-overlay [ImmersiveTrapezoidEyesFace] only.
+     */
+    Trapezoid,
 }
 
 /** Mood → one of three face-like expressive shapes. */
@@ -87,6 +94,33 @@ internal fun ExpressiveShellKind.toRoundedPolygon(): RoundedPolygon = when (this
     ExpressiveShellKind.SemiCircle -> MaterialShapes.SemiCircle
     ExpressiveShellKind.Oval -> MaterialShapes.Oval
     ExpressiveShellKind.Gem -> MaterialShapes.Gem
+    ExpressiveShellKind.Trapezoid -> isoscelesTrapezoidShellPolygon()
+}
+
+/**
+ * Unit-normalized isosceles trapezoid: wider base at bottom, light corner rounding.
+ *
+ * Top/base ratio matches [ImmersiveTrapezoidBaseOverTop] (base 20% wider than top).
+ */
+internal fun isoscelesTrapezoidShellPolygon(
+    roundingRadius: Float = 0.05f,
+): RoundedPolygon {
+    // Unit box width = base; topWidth/base = 1 / baseOverTop → inset each side.
+    val topFraction = (1f / ImmersiveTrapezoidBaseOverTop).coerceIn(0.5f, 0.95f)
+    val topInset = ((1f - topFraction) * 0.5f).coerceIn(0.02f, 0.24f)
+    val topY = 0.04f
+    val bottomY = 0.98f
+    val bottomPad = 0.01f
+    val vertices = floatArrayOf(
+        bottomPad, bottomY,
+        1f - bottomPad, bottomY,
+        1f - topInset, topY,
+        topInset, topY,
+    )
+    return RoundedPolygon(
+        vertices = vertices,
+        rounding = CornerRounding(radius = roundingRadius),
+    )
 }
 
 /**

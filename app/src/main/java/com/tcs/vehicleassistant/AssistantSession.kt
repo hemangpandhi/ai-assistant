@@ -133,6 +133,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
      * scratch and leave the microphone held against their setting.
      */
     private fun resumeWakeWordListening() {
+        if (AssistantConfig.isWakeWordDisabledForTest(context)) return
         val enabled = context
             .getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
             .getBoolean(AssistantConfig.Prefs.WAKE_WORD_ENABLED, false)
@@ -291,7 +292,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
     private fun startObservingViewModel() {
         if (viewModel == null) return
         
-        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ResetTurn)
 
         // Observe UI state changes
         observerScope.launch {

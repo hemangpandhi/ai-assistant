@@ -47,10 +47,124 @@ object AssistantConfig {
         const val STT_ENGINE_GOOGLE = "google"
 
         /**
+         * When true, final STT text updates the UI / transcript only and does **not**
+         * call orchestrator / LLM / tools. Off by default — leaving it on re-arms the
+         * recognizer forever and thrashes the mic (especially Google SpeechRecognizer).
+         */
+        const val EAR_TEST_MODE = "ear_test_mode"
+        /** Default false: voice → agent. Set true only for isolated mic→STT bring-up. */
+        const val EAR_TEST_MODE_DEFAULT = false
+
+        /** One-shot: ear_test_mode off + platform STT default (Google on GAS, Sherpa otherwise). */
+        const val MIC_THRASH_FIX_APPLIED_V2 = "mic_thrash_fix_applied_v2"
+
+        /**
+         * When true (default for ear bring-up), do not start Vosk [WakeWordService].
+         * Keeps the mic free for session STT testing. Set false to re-enable hotword.
+         */
+        const val WAKE_WORD_DISABLED_FOR_TEST = "wake_word_disabled_for_test"
+        const val WAKE_WORD_DISABLED_FOR_TEST_DEFAULT = true
+
+        /**
          * When true, LiteRT enables speculative decoding / MTP at Engine init if the model
          * reports support (Gallery-style; default off for stability).
          */
         const val ENABLE_SPECULATIVE_DECODING = "enable_speculative_decoding"
+    }
+
+    /** Google Assistant / search package present on GAS images. */
+    const val GAS_SPEECH_PACKAGE = "com.google.android.googlequicksearchbox"
+
+    /** True when mic→STT should stop before orchestration (safe ear bring-up). */
+    fun isEarTestMode(context: android.content.Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        return prefs.getBoolean(Prefs.EAR_TEST_MODE, Prefs.EAR_TEST_MODE_DEFAULT)
+    }
+
+    /**
+     * True GAS when Assistant / search (`googlequicksearchbox`) is installed.
+     * Presence of `com.google.android.tts` alone is NOT GAS — on AOSP Tangorpro its
+     * GoogleTTSRecognitionService SODA offline path fails (ConfigStatus 5) and must not
+     * alone decide the default engine.
+     */
+    fun isGasDevice(context: android.content.Context): Boolean =
+        isPackageInstalled(context, GAS_SPEECH_PACKAGE)
+
+    /**
+     * Prefer Google STT when a non-stub Google [RecognitionService] is resolvable
+     * (GAS Assistant, or TTS recognition used online — never forced offline).
+     */
+    fun hasGoogleRecognitionService(context: android.content.Context): Boolean =
+        resolveGoogleRecognitionService(context) != null
+
+    /**
+     * Platform default: Google when a Google RecognitionService exists (GAS or TTS ASR);
+     * Sherpa only when there is no Google recognizer at all.
+     */
+    fun defaultSttEngine(context: android.content.Context): String =
+        if (hasGoogleRecognitionService(context) || isGasDevice(context)) {
+            Prefs.STT_ENGINE_GOOGLE
+        } else {
+            Prefs.STT_ENGINE_SHERPA
+        }
+
+    /** Explicit pref if set, otherwise [defaultSttEngine]. */
+    fun resolvedSttEngine(context: android.content.Context): String {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        return prefs.getString(Prefs.STT_ENGINE, null) ?: defaultSttEngine(context)
+    }
+
+    fun prefersGoogleStt(context: android.content.Context): Boolean =
+        resolvedSttEngine(context) == Prefs.STT_ENGINE_GOOGLE
+
+    /**
+     * Component for a Google [android.speech.RecognitionService] outside this app.
+     * Avoids binding our VIS [StubRecognitionService], which always returns ERROR_CLIENT.
+     */
+    fun resolveGoogleRecognitionService(context: android.content.Context): android.content.ComponentName? {
+        val intent = android.content.Intent("android.speech.RecognitionService")
+        val resolves = context.packageManager.queryIntentServices(intent, 0)
+        return resolves
+            .asSequence()
+            .mapNotNull { resolve ->
+                val si = resolve.serviceInfo ?: return@mapNotNull null
+                android.content.ComponentName(si.packageName, si.name)
+            }
+            .firstOrNull { component ->
+                component.packageName != context.packageName &&
+                    component.packageName.contains("google", ignoreCase = true)
+            }
+    }
+
+    private fun isPackageInstalled(context: android.content.Context, packageName: String): Boolean =
+        try {
+            context.packageManager.getPackageInfo(packageName, 0)
+            true
+        } catch (_: android.content.pm.PackageManager.NameNotFoundException) {
+            false
+        }
+
+    /**
+     * One-shot: turn off sticky ear_test_mode and apply platform STT default
+     * (Google on GAS, Sherpa on non-GAS).
+     */
+    fun migrateMicThrashPrefs(context: android.content.Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean(Prefs.MIC_THRASH_FIX_APPLIED_V2, false)) return
+        prefs.edit()
+            .putBoolean(Prefs.EAR_TEST_MODE, false)
+            .putString(Prefs.STT_ENGINE, defaultSttEngine(context))
+            .putBoolean(Prefs.MIC_THRASH_FIX_APPLIED_V2, true)
+            .apply()
+    }
+
+    /** True when Vosk / WakeWordService must not run (ear STT isolation). */
+    fun isWakeWordDisabledForTest(context: android.content.Context): Boolean {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        return prefs.getBoolean(
+            Prefs.WAKE_WORD_DISABLED_FOR_TEST,
+            Prefs.WAKE_WORD_DISABLED_FOR_TEST_DEFAULT,
+        )
     }
 
     object Backend {

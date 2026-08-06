@@ -22,7 +22,8 @@ class VehicleApplication : Application() {
         }
 
         DemoSettingsPresets.ensureDefaults(this)
-        
+        com.tcs.vehicleassistant.core.AssistantConfig.migrateMicThrashPrefs(this)
+
         // Silently pre-compile the AI models in the background when the main app process boots.
         // This eliminates the 20-60 second initialization hang when the user opens the popup.
         if (android.app.Application.getProcessName() == packageName) {

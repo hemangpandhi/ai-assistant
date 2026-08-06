@@ -52,6 +52,7 @@ import com.assistant.ui.assistant.api.AssistantRuntime
 import com.assistant.ui.assistant.audio.AssistantSessionAudioFocus
 import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
+import com.assistant.ui.assistant.face.AssistantAdbPreview
 import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
@@ -219,6 +220,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             isBound = true
             viewModel = agentService?.viewModel
             audioManager = agentService?.audioManager
+            audioManager?.prewarmEar()
             (AssistantRuntime.backend as? VehicleAgentAssistantBackend)?.attachViewModel(
                 viewModel,
                 audioManager,
@@ -599,6 +601,11 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private fun armIdleTimer(reason: String) {
         idleJob?.cancel()
         if (!sessionUiVisible) return
+        if (AssistantAdbPreview.isHolding()) {
+            AssistantDebugLog.d("Session", "idle timer paused — ADB preview holding ($reason)")
+            idleJob = null
+            return
+        }
         val timeoutMs = AssistantIdleTimeout.currentMs()
         if (timeoutMs <= 0L) {
             AssistantDebugLog.d("Session", "idle timer disabled ($reason)")
@@ -626,6 +633,12 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     }
 
     private fun dismissForIdleTimeout() {
+        // ADB mood / face-cue preview holds the stage until cleared or dismissed.
+        if (AssistantAdbPreview.isHolding()) {
+            AssistantDebugLog.d("Session", "idle-timeout skipped — ADB preview holding")
+            pauseIdleTimer()
+            return
+        }
         AssistantDebugLog.d("Session", "idle-timeout — closing overlay + assistant")
         if (usingComposeUi) {
             // Play Compose exit animation (AssistantTokens.ExitMs ≈ 280), then tear down.
@@ -676,7 +689,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private fun startObservingViewModel() {
         if (viewModel == null || usingComposeUi) return
 
-        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.Cancel)
+        viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ResetTurn)
 
         observerScope.launch {
             viewModel?.uiState?.collect { state ->
@@ -689,6 +702,10 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         statusText?.visibility = View.VISIBLE
                         startDotAnimation("")
                         voiceAnimation?.state = VoiceAnimationView.State.LISTENING
+                        if (state.partialText.isNotEmpty()) {
+                            responseText?.text = "\"${state.partialText}\""
+                            responseText?.gravity = android.view.Gravity.CENTER
+                        }
                     }
                     is AssistantUiState.Thinking -> {
                         resetDisplayState()
@@ -1116,19 +1133,23 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         super.onDestroy()
     }
 
-    /** Releases the wake-word mic for session STT without tearing down the Vosk model. */
-    private fun pauseWakeWordListening() {
-        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
-    }
-
     /**
      * Re-arms wake-word listening after the session ends.
      *
-     * UiUx VIS always starts [WakeWordService] on ready (unlike master's toggle-gated path),
-     * so we always RESTART here to match that always-on hotword policy.
+     * Skipped while [AssistantConfig.isWakeWordDisabledForTest] so Vosk does not
+     * reclaim the mic during ear STT bring-up.
      */
     private fun resumeWakeWordListening() {
+        if (AssistantConfig.isWakeWordDisabledForTest(context)) {
+            AssistantDebugLog.d("Session", "WAKE_WORD_DISABLED_FOR_TEST — skip wake RESTART")
+            return
+        }
         sendWakeWordCommand(AssistantConfig.WakeWordAction.RESTART)
+    }
+
+    private fun pauseWakeWordListening() {
+        if (AssistantConfig.isWakeWordDisabledForTest(context)) return
+        sendWakeWordCommand(AssistantConfig.WakeWordAction.PAUSE)
     }
 
     private fun sendWakeWordCommand(action: String) {

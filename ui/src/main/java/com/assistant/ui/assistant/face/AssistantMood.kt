@@ -237,14 +237,20 @@ enum class AssistantMood(
 }
 
 /**
- * Glanceable verb under the transcript speaker label.
- * Null = no micro status (Speaking / Happy / etc. stay quiet).
+ * Glanceable verb under the island capsule / transcript.
+ * Null = no micro status (Happy / etc. stay quiet).
  */
 fun AssistantMood.microStatus(): String? = when (this) {
     AssistantMood.Listening -> "Listening…"
+    AssistantMood.Speaking -> "SPEAKING"
     AssistantMood.Thinking, AssistantMood.Concentration -> "Thinking…"
     AssistantMood.Reading -> "Reading…"
     AssistantMood.Searching -> "Searching…"
     AssistantMood.Drowsy, AssistantMood.Tired, AssistantMood.Sleeping -> "Taking it easy…"
     else -> null
 }
+
+/**
+ * Status label under the Dynamic Island capsule — same glanceable verbs as [microStatus].
+ */
+fun AssistantMood.islandStatus(): String? = microStatus()

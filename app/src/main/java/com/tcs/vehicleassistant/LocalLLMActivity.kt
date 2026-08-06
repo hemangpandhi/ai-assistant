@@ -682,7 +682,9 @@ class LocalLLMActivity : AppCompatActivity() {
             com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, false
         )
         switchWakeWord.isChecked = isWakeWordEnabled
-        if (isWakeWordEnabled) {
+        if (isWakeWordEnabled &&
+            !com.tcs.vehicleassistant.core.AssistantConfig.isWakeWordDisabledForTest(this)
+        ) {
             try { startService(Intent(this, WakeWordService::class.java)) } catch (e: Exception) {}
         }
         
@@ -691,7 +693,9 @@ class LocalLLMActivity : AppCompatActivity() {
                 com.tcs.vehicleassistant.core.AssistantConfig.Prefs.WAKE_WORD_ENABLED, isChecked
             ).apply()
             val intent = Intent(this, WakeWordService::class.java)
-            if (isChecked) {
+            if (isChecked &&
+                !com.tcs.vehicleassistant.core.AssistantConfig.isWakeWordDisabledForTest(this)
+            ) {
                 try { startService(intent) } catch (e: Exception) {}
             } else {
                 try { stopService(intent) } catch (e: Exception) {}
@@ -772,7 +776,7 @@ class LocalLLMActivity : AppCompatActivity() {
             com.tcs.vehicleassistant.core.AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING,
             false
         )
-        val currentSttEngine = prefs.getString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE, com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA) ?: com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA
+        val currentSttEngine = com.tcs.vehicleassistant.core.AssistantConfig.resolvedSttEngine(this)
 
 
         etKvCache.setText(currentKvCache.toString())
@@ -812,10 +816,10 @@ class LocalLLMActivity : AppCompatActivity() {
         val tvResolvedLocation = dialogView.findViewById<android.widget.TextView>(R.id.tvResolvedLocation)
         val btnApplyDemoPreset = dialogView.findViewById<Button>(R.id.btnApplyDemoPreset)
 
-        val sttEngines = listOf("Sherpa-ONNX (Local Whisper)", "Google Speech Engine")
+        val sttEngines = listOf("Google Speech Engine (GAS default)", "Sherpa-ONNX (non-GAS / local)")
         val sttEngineValues = listOf(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_GOOGLE,
             com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_SHERPA,
-            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE_GOOGLE
         )
         val sttAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, sttEngines)
         sttAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -1133,6 +1137,7 @@ class LocalLLMActivity : AppCompatActivity() {
         super.onStop()
         // Restart background wake word listening when the UI hides — but not while the voice
         // overlay still owns the mic (competing RESTARTs raced session PAUSE and rematched).
+        if (com.tcs.vehicleassistant.core.AssistantConfig.isWakeWordDisabledForTest(this)) return
         if (!isWakeWordEnabled()) return
         if (AssistantSession.isOverlayShowing) {
             android.util.Log.d("WakeWord", "Skipping onStop RESTART; voice overlay is still showing.")
@@ -1157,7 +1162,8 @@ class LocalLLMActivity : AppCompatActivity() {
             val audioIndex = permissions.indexOf(android.Manifest.permission.RECORD_AUDIO)
             if (audioIndex != -1 &&
                 grantResults.getOrNull(audioIndex) == PackageManager.PERMISSION_GRANTED &&
-                isWakeWordEnabled()
+                isWakeWordEnabled() &&
+                !com.tcs.vehicleassistant.core.AssistantConfig.isWakeWordDisabledForTest(this)
             ) {
                 // Restart WakeWordService to bind to the microphone now that permission is granted
                 val serviceIntent = Intent(this, WakeWordService::class.java)

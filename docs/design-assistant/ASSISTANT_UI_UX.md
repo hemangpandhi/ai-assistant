@@ -5,6 +5,7 @@ This document captures the UI/UX architecture decisions and operational instruct
 Related:
 
 - [assistant-adb.md](./assistant-adb.md) — command cheat sheet
+- [assistant-emotions-adb.md](./assistant-emotions-adb.md) — ADB test guide for moods + face cues
 - [assistant-standalone.md](./assistant-standalone.md) — module boundary notes
 
 ---
@@ -23,7 +24,7 @@ Related:
 | Setting | Default | Notes |
 |---------|---------|--------|
 | UI renderer | `compose` | Immersive Compose stage in the voice session |
-| Face | `hybrid` | Immersive hybrid eyes |
+| Face | `hybrid` | Immersive hybrid eyes (optional: `trapezoid`) |
 | Placement | `fullscreen` | Full overlay, or left / right / bottom edge cards |
 | Backend (UI events) | `VehicleAgentAssistantBackend` (default) / `DemoAssistantBackend` | Production agent bridge; demo scripts for UI-only validation |
 
@@ -157,6 +158,7 @@ adb shell settings get global design_assistant_face
 | `eyes` | Immersive eyes |
 | `glow` | Immersive glow |
 | `hybrid` | Immersive hybrid (**default**) |
+| `trapezoid` | Immersive trapezoid plate |
 | `eporo` | EPORO robot head |
 | `fusion` | Fusion (EPORO shell + immersive expressions) |
 | `fusionglow` | Fusion + glow capsule eyes |
@@ -164,7 +166,7 @@ adb shell settings get global design_assistant_face
 | `droid` | Droid |
 | `glyph` | Classic glyph |
 
-Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `express`→`fusion`, `classic`→`glyph`.
+Aliases include: `off`→`none`, `immersive`→`eyes`, `aura`/`ring`→`glow`, `trap`/`trapezium`→`trapezoid`, `express`→`fusion`, `classic`→`glyph`.
 
 ---
 
@@ -203,15 +205,11 @@ Host-package action alias: `com.tcs.vehicleassistant.action.SET_ASSISTANT_PLACEM
 
 ## ADB — Face cues (in-face Material icons)
 
-ADB preview overrides LLM-driven cues until cleared. See [assistant-adb.md](./assistant-adb.md) for the full icon list and presets.
+ADB preview overrides LLM-driven cues until cleared. See [assistant-emotions-adb.md](./assistant-emotions-adb.md) for mood + cue walkthroughs, and [assistant-adb.md](./assistant-adb.md) for the short cheat sheet.
 
 ```bash
-adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver \
-  --es preset weather
-
-adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES \
-  -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
+adb shell am broadcast -a com.assistant.ui.action.SET_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver --es preset weather
+adb shell am broadcast -a com.assistant.ui.action.CLEAR_ASSISTANT_FACE_CUES -n com.tcs.vehicleassistant/com.assistant.ui.assistant.face.AssistantFaceCueReceiver
 ```
 
 ---

@@ -86,7 +86,21 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
         VehicleManager.initialize(this)
         try {
             AssistantUiProfile.install(this)
-            startService(Intent(this, WakeWordService::class.java))
+            if (AssistantConfig.isWakeWordDisabledForTest(this)) {
+                android.util.Log.i(
+                    "WakeWord",
+                    "WAKE_WORD_DISABLED_FOR_TEST — not starting Vosk WakeWordService",
+                )
+                // Ensure any prior instance releases the mic for session STT.
+                runCatching {
+                    startService(
+                        Intent(this, WakeWordService::class.java)
+                            .setAction(AssistantConfig.WakeWordAction.STOP),
+                    )
+                }
+            } else {
+                startService(Intent(this, WakeWordService::class.java))
+            }
         } catch (_: Exception) {
         }
     }

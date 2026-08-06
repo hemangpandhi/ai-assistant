@@ -708,9 +708,8 @@ fun FusionAssistantFace(
                         }
                     }
 
-                    val speaking = mouthAmplitude != null ||
-                        mood == AssistantMood.Speaking ||
-                        mood == AssistantMood.Excited
+                    val speaking = mood.isSpeechMouthMood() &&
+                        (mouthAmplitude != null || mouthOpen.value > 0.08f)
                     val mouthCenter = Offset(cx, h * 0.66f)
                     if (mouthIcon != null && mouthCueTint != null) {
                         drawAnimatedFaceCueIcon(

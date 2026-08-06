@@ -23,6 +23,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
@@ -30,6 +31,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.assistant.ui.assistant.api.AssistantFaceCueIcon
 import com.assistant.ui.assistant.api.FaceCueCategory
+import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
 import kotlin.math.max
 import kotlin.math.sin
 
@@ -129,4 +131,38 @@ internal fun DrawScope.drawAnimatedFaceCueIcon(
             drawFaceCueIcon(painter, pivoted, side, alpha, tint)
         }
     }
+}
+
+/**
+ * Island capsule badge: near-capsule-height plate to the **right** of the geometric eyes.
+ * Eye-slot cues live here — they never replace the capsules.
+ */
+internal fun DrawScope.drawIslandEyeCueBadge(
+    painter: Painter,
+    center: Offset,
+    radius: Float,
+    tint: Color,
+    life: Float,
+) {
+    val r = radius.coerceAtLeast(1f)
+    drawCircle(
+        color = AssistantOverlayTokens.IslandFill,
+        radius = r,
+        center = center,
+    )
+    drawCircle(
+        color = AssistantOverlayTokens.IslandFrame.copy(alpha = 0.85f),
+        radius = r,
+        center = center,
+        style = Stroke(width = (r * 0.06f).coerceIn(1.5f, 3.5f)),
+    )
+    // Icon sits inside the plate with a little inset (not larger than the circle).
+    drawAnimatedFaceCueIcon(
+        painter = painter,
+        center = center,
+        side = r * 1.15f,
+        tint = tint,
+        life = life,
+        phaseOffset = 0.45f,
+    )
 }

@@ -2,15 +2,18 @@
 
 ## Cursor Cloud specific instructions
 
-This repo is a single Android Automotive OS (AAOS) app — `VehicleEdgeAssistant`
-(package `com.tcs.vehicleassistant`), built with Gradle (Kotlin DSL). There is
-**one module**: `:app`. Agent code lives under `app/src/main/java` at the same
-paths as `origin/master`. UI/UX / Compose live in packages under the same module
-(`.../assistant/`, `com/assistant/ui/`, `com/assistant/api/`).
+This repo is an Android Automotive OS (AAOS) app — `VehicleEdgeAssistant`
+(package `com.tcs.vehicleassistant`), built with Gradle (Kotlin DSL). Modules:
+`:app`, `:core`, `:domain:llm`, `:domain:tools`, `:data:hardware`, `:ui`.
 There is no backend/server to run; the "product" is an installable APK. See
-`README.md` and `docs/ARCHITECTURE.md` for product/architecture details and
-`app/build.gradle.kts` for the module config.
+`README.md` and `docs/ARCHITECTURE.md` for product/architecture details.
 
+### Editing
+
+Any file in the repo may be edited when the task requires it. Prefer Clean Code /
+SOLID: small focused types, clear package boundaries (UI vs hardware ear vs
+orchestrator), and extend via new types when it keeps ownership clear — but do
+**not** block necessary edits to existing agent/hardware classes.
 
 ### Toolchain (non-obvious)
 - **Use JDK 17, not the VM default JDK 21.** AGP 8.7.3 / Gradle 8.9 require Java 17;
