@@ -1530,7 +1530,7 @@
       "prompt_string": "<TOOL>startNavigationTo(destination)</TOOL>",
       "handler_key": "startNavigationTo",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "You MUST replace 'destination' with the actual destination. Example: <TOOL>startNavigationTo(Tokyo Tower)</TOOL>. Alias navigate(Destination) also works at execution time.",
+      "instruction": "You MUST replace 'destination' with the actual destination. Example: <TOOL>startNavigationTo(Tokyo Tower)</TOOL>.",
       "keywords": [
         "navigate me to",
         "navigate to",
