@@ -36,7 +36,7 @@ dependencies {
     implementation("androidx.camera:camera-view:$cameraxVersion")
     
     implementation("com.google.mediapipe:tasks-vision:0.10.26")
-    compileOnly(files("../../app/libs/sherpa-onnx.aar"))
+    compileOnly(files("../../app/libs/sherpa-onnx-static.aar"))
     
     implementation("com.google.ai.edge.litert:litert:1.4.0")
     implementation("androidx.lifecycle:lifecycle-process:2.8.7")

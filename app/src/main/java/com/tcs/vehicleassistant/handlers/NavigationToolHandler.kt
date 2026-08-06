@@ -62,6 +62,22 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
             }
             "searchNearby" -> {
                 val amenity = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
+                val query = amenity.ifEmpty { "places" }
+                val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
+                geoIntent.setPackage("com.google.android.apps.maps")
+                geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                try {
+                    if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)
+                } catch (e: Exception) {
+                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=${Uri.encode(query)}"))
+                    fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    try {
+                        if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "No map app found for searchNearby")
+                    }
+                }
+                
                 val bbox = LocationManager.getBbox(context)
                 val places = placesRepository.searchNearby(amenity, bbox)
                 if (places.isNotEmpty()) {
@@ -91,6 +107,21 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                 ToolExecutionResult(true, "I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?")
             }
             "suggestNearbyPlaces" -> {
+                val geoIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=attractions"))
+                geoIntent.setPackage("com.google.android.apps.maps")
+                geoIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                try {
+                    if (intentHandler != null) intentHandler(geoIntent) else context.startActivity(geoIntent)
+                } catch (e: Exception) {
+                    val fallbackIntent = Intent(Intent.ACTION_VIEW, Uri.parse("geo:0,0?q=attractions"))
+                    fallbackIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    try {
+                        if (intentHandler != null) intentHandler(fallbackIntent) else context.startActivity(fallbackIntent)
+                    } catch (e2: Exception) {
+                        Log.e(TAG, "No map app found for suggestNearbyPlaces")
+                    }
+                }
+
                 val bbox = LocationManager.getBbox(context)
                 val places = placesRepository.suggestNearbyAttractions(bbox)
                 if (places.isNotEmpty()) {

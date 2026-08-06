@@ -185,7 +185,7 @@ dependencies {
     // Alternatively, for cloud fallback:
     // implementation("com.google.ai.client.generativeai:generativeai:0.2.0")
 
-    implementation(files("libs/sherpa-onnx.aar"))
+    implementation(files("libs/sherpa-onnx-static.aar"))
     implementation("androidx.work:work-runtime-ktx:2.9.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.ai.edge.litertlm:litertlm-android:0.14.0")

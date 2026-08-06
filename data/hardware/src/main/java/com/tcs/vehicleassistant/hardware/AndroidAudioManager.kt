@@ -374,6 +374,15 @@ class AndroidAudioManager(
     }
 
     override fun playSilentUtterance(durationMs: Long, utteranceId: String) {
+        val engine = AssistantConfig.resolvedTtsEngine(context)
+        if (engine == AssistantConfig.Prefs.TTS_ENGINE_ANDROID && androidTts != null) {
+            ttsChannel.trySend {
+                if (!isActive) return@trySend
+                androidTts?.playSilentUtterance(durationMs, TextToSpeech.QUEUE_ADD, utteranceId)
+            }
+            return
+        }
+
         ttsChannel.trySend {
             withContext(Dispatchers.Main) { onTtsStart?.invoke(utteranceId) }
             delay(durationMs)

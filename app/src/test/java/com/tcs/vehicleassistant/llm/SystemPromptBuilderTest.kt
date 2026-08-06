@@ -37,7 +37,7 @@ class SystemPromptBuilderTest {
     fun `capability reminder requires tool tags for clear cabin commands`() {
         val text = SystemPromptBuilder.capabilityReminder()
         assertTrue(text.contains("<TOOL>"))
-        assertTrue(text.contains("clear cabin", ignoreCase = true) || text.contains("media command", ignoreCase = true))
+        assertTrue(text.contains("clear command", ignoreCase = true) || text.contains("media command", ignoreCase = true))
         assertTrue(text.contains("empathy", ignoreCase = true) || text.contains("feelings", ignoreCase = true))
         assertFalse(text.contains("I cannot help", ignoreCase = true))
     }

@@ -1527,10 +1527,10 @@
       ]
     },
     {
-      "prompt_string": "<TOOL>startNavigationTo(destination)</TOOL>",
+      "prompt_string": "<TOOL>startNavigationTo(PLACE_NAME)</TOOL>",
       "handler_key": "startNavigationTo",
       "handler_type": "CUSTOM_KOTLIN",
-      "instruction": "You MUST replace 'destination' with the actual destination. Example: <TOOL>startNavigationTo(Tokyo Tower)</TOOL>.",
+      "instruction": "You MUST replace 'PLACE_NAME' with the actual destination. Example: <TOOL>startNavigationTo(Tokyo Tower)</TOOL>.",
       "keywords": [
         "navigate me to",
         "navigate to",
@@ -2024,7 +2024,7 @@
     "prewarm_query": "control climate music volume track navigation windows sightseeing food charging",
     "sliding_window_max_chars": 3000,
     "max_relevant_tools": 4,
-    "max_prompt_tools": 8,
+    "max_prompt_tools": 4,
     "direct_execution": {
       "enabled": true,
       "min_keyword_chars": 5,

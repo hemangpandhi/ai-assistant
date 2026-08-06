@@ -9,7 +9,7 @@ class ToolFaceCuesTest {
     @Test
     fun forIconId_musicSetsIslandBadgeAndCheeks() {
         val cues = ToolFaceCues.forIconId("music")
-        assertEquals(AssistantFaceCueIcon.Music, cues?.leftEye)
+        assertNull(cues?.leftEye)
         assertNull(cues?.rightEye)
         assertNull(cues?.mouth)
         assertEquals(AssistantFaceCueIcon.Music, cues?.leftAccent)
@@ -40,7 +40,7 @@ class ToolFaceCuesTest {
         val music = ToolFaceCues.fromSpokenText(
             "Great choice — putting on arijit singh for you!",
         )
-        assertEquals(AssistantFaceCueIcon.Music, music?.leftEye)
+        assertNull(music?.leftEye)
         assertEquals(AssistantFaceCueIcon.Music, music?.islandStatusIcon())
         assertNull(music?.mouth)
 
@@ -62,7 +62,8 @@ class ToolFaceCuesTest {
     @Test
     fun forIconId_climateAndIslandBadge() {
         val climate = ToolFaceCues.forIconId("thermostat")
-        assertEquals(AssistantFaceCueIcon.Thermostat, climate?.leftEye)
+        assertNull(climate?.leftEye)
+        assertEquals(AssistantFaceCueIcon.Thermostat, climate?.mouth)
         assertEquals(AssistantFaceCueIcon.Thermostat, climate?.islandStatusIcon())
 
         val heat = ToolFaceCues.forIconId("heat")

@@ -828,22 +828,29 @@ class AgentOrchestrator(
                     interceptedQuery
                 }
 
+                val isTurnContinuation = isAgenticObservation || (emptyChatRetry > 0)
+                
                 // Tools and identity rules are query-dependent. On turn 1 they ride inside the full
                 // system prompt; on later turns LiteRT only sees the bare user text unless we
                 // re-inject them — which is when the model starts saying it is a text-only AI that
                 // cannot play music.
-                val toolsForTurn = toolSchemaGenerator.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
-                LLMManager.lastInjectedTools = toolsForTurn
-                val toolsBlock = PromptAssembler.toolsBlock(toolsForTurn)
+                val toolsBlock = if (isTurnContinuation) "" else {
+                    val toolsForTurn = toolSchemaGenerator.getLlmToolsPrompt(interceptedQuery, LLMManager.lastAiResponse)
+                    LLMManager.lastInjectedTools = toolsForTurn
+                    PromptAssembler.toolsBlock(toolsForTurn)
+                }
+                val capabilityReminder = if (isTurnContinuation) "" else SystemPromptBuilder.capabilityReminder()
+                val turnStateInject = if (isTurnContinuation) "" else stateInject
+
                 val first = LLMManager.isFirstMessage
                 if (first) LLMManager.isFirstMessage = false
                 PromptAssembler.buildGemmaTurn(
                     isFirstMessage = first,
                     sysPrompt = sysPrompt,
-                    capabilityReminder = SystemPromptBuilder.capabilityReminder(),
+                    capabilityReminder = capabilityReminder,
                     toolsBlock = toolsBlock,
                     historyBlock = historyBlock,
-                    stateInject = stateInject,
+                    stateInject = turnStateInject,
                     chatHint = chatHint,
                     formattedQuery = formattedQuery,
                 )
@@ -1088,7 +1095,7 @@ class AgentOrchestrator(
                         val shouldRunAgenticLoop = isAgenticLoopEnabled &&
                             loopCount < AssistantConfig.Llm.MAX_AGENTIC_LOOPS &&
                             confirmationAsks.isEmpty() &&
-                            (hasError || isQueryTool || requiresAgenticLoop)
+                            (hasError || isQueryTool || requiresAgenticLoop || !hasConversationalText)
 
                         if (shouldRunAgenticLoop) {
                             val feedbackString = toolFeedbacks.joinToString("\n")
