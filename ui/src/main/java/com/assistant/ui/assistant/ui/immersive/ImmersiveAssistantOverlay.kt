@@ -624,6 +624,29 @@ fun ImmersiveAssistantOverlay(
                             faceCues = faceCues,
                             reveal = reveal,
                         )
+                    } else if (faceKind == AssistantFaceKind.ClassicHybrid) {
+                        // Master-style SemiCircle + text below — no island capsule.
+                        ClassicHybridAssistantBottomChrome(
+                            mood = mood,
+                            faceKind = faceKind,
+                            transcript = transcript,
+                            speaker = speaker,
+                            gazeX = effectiveGazeX,
+                            gazeY = effectiveGazeY,
+                            mouthAmplitude = mouthAmplitude,
+                            brandGlow = brandGlow,
+                            highContrast = highContrast,
+                            gesture = gesture,
+                            contextGlyph = contextGlyph,
+                            floatContextGlyph = false,
+                            showFace = true,
+                            faceRise = faceRise.value,
+                            faceScale = faceScale.value,
+                            faceAlpha = faceAlpha.value,
+                            transcriptAlpha = transcriptAlpha.value,
+                            faceCues = faceCues,
+                            glowBreath = glowBreath,
+                        )
                     } else {
                         ImmersiveAssistantBottomChrome(
                             mood = mood,

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -38,11 +37,9 @@ import com.assistant.ui.assistant.ui.theme.AssistantOverlayTokens
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
- * Shared bottom chrome for the immersive assistant stage.
- *
- * Default: Dynamic Island capsule + eyes-in-pill + transcript inside the pill.
- * [AssistantFaceKind.ClassicHybrid]: master-style [FaceStageDock] — SemiCircle
- * face with transcript below (no capsule).
+ * Shared bottom chrome for the immersive assistant stage:
+ * Dynamic Island capsule + face (optional floating context glyph) +
+ * transcript inside the pill when expanded.
  *
  * [faceRise] entrance lift: -1 = off-screen below, 0 = settled.
  *
@@ -71,229 +68,11 @@ fun ImmersiveAssistantBottomChrome(
     faceScale: Float = 1f,
     faceAlpha: Float = 1f,
     transcriptAlpha: Float = 1f,
-    /** Multiplier on island / stage face size (e.g. 1.05f for Weather sink). */
+    /** Multiplier on island face size (e.g. 1.05f for Weather sink). */
     faceSizeScale: Float = 1f,
     faceCues: AssistantFaceCues? = null,
     faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)? = null,
     glowBreath: ImmersiveGlowBreath = ImmersiveGlowBreath(1f, 0f, 0.62f),
-) {
-    if (faceKind == AssistantFaceKind.ClassicHybrid) {
-        ClassicHybridBottomChrome(
-            mood = mood,
-            faceKind = faceKind,
-            transcript = transcript,
-            speaker = speaker,
-            modifier = modifier,
-            gazeX = gazeX,
-            gazeY = gazeY,
-            mouthAmplitude = mouthAmplitude,
-            brandGlow = brandGlow,
-            highContrast = highContrast,
-            gesture = gesture,
-            contextGlyph = contextGlyph,
-            floatContextGlyph = floatContextGlyph,
-            showFace = showFace,
-            faceRise = faceRise,
-            faceScale = faceScale,
-            faceAlpha = faceAlpha,
-            transcriptAlpha = transcriptAlpha,
-            faceSizeScale = faceSizeScale,
-            faceCues = faceCues,
-            faceContent = faceContent,
-            glowBreath = glowBreath,
-        )
-        return
-    }
-
-    IslandCapsuleBottomChrome(
-        mood = mood,
-        faceKind = faceKind,
-        transcript = transcript,
-        speaker = speaker,
-        modifier = modifier,
-        gazeX = gazeX,
-        gazeY = gazeY,
-        mouthAmplitude = mouthAmplitude,
-        brandGlow = brandGlow,
-        highContrast = highContrast,
-        gesture = gesture,
-        contextGlyph = contextGlyph,
-        floatContextGlyph = floatContextGlyph,
-        showFace = showFace,
-        faceRise = faceRise,
-        faceScale = faceScale,
-        faceAlpha = faceAlpha,
-        transcriptAlpha = transcriptAlpha,
-        faceSizeScale = faceSizeScale,
-        faceCues = faceCues,
-        faceContent = faceContent,
-        glowBreath = glowBreath,
-    )
-}
-
-/**
- * Master-style chrome: full SemiCircle hybrid face on [FaceStageDock],
- * transcript below — no Dynamic Island capsule.
- */
-@Composable
-private fun ClassicHybridBottomChrome(
-    mood: AssistantMood,
-    faceKind: AssistantFaceKind,
-    transcript: String,
-    speaker: DialogueSpeaker,
-    modifier: Modifier,
-    gazeX: Float?,
-    gazeY: Float?,
-    mouthAmplitude: Float?,
-    brandGlow: Color,
-    highContrast: Boolean,
-    gesture: FaceGesture,
-    contextGlyph: AssistantContextGlyph?,
-    floatContextGlyph: Boolean,
-    showFace: Boolean,
-    faceRise: Float,
-    faceScale: Float,
-    faceAlpha: Float,
-    transcriptAlpha: Float,
-    faceSizeScale: Float,
-    faceCues: AssistantFaceCues?,
-    faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)?,
-    glowBreath: ImmersiveGlowBreath,
-) {
-    val showGlyph = floatContextGlyph &&
-        faceKind == AssistantFaceKind.FusionEyes &&
-        contextGlyph != null &&
-        faceContent == null
-
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .windowInsetsPadding(WindowInsets.safeDrawing)
-            .assistantChromePadding()
-            .padding(
-                start = AssistantOverlayTokens.BottomChromePaddingStart,
-                top = AssistantOverlayTokens.BottomChromePaddingTop,
-                end = AssistantOverlayTokens.BottomChromePaddingEnd,
-                bottom = 0.dp,
-            ),
-    ) {
-        val faceSize = (maxHeight * AssistantOverlayTokens.FaceStageHeightFraction * faceSizeScale)
-            .coerceIn(AssistantOverlayTokens.FaceSizeMin, AssistantOverlayTokens.FaceSizeMax)
-        val glyphSize = (faceSize * AssistantOverlayTokens.GlyphSizeFraction)
-            .coerceIn(AssistantOverlayTokens.GlyphSizeMin, AssistantOverlayTokens.GlyphSizeMax)
-        val density = LocalDensity.current
-        val belowPx = with(density) {
-            (maxHeight * AssistantOverlayTokens.FaceBelowTravelFraction).toPx()
-        }
-        val entranceY = when {
-            faceRise >= 0f -> 0
-            else -> (-faceRise * belowPx).roundToInt()
-        }
-        val estimatedStack = faceSize + AssistantOverlayTokens.EstimatedStackExtra
-        val dockWidth = maxOf(
-            faceSize * AssistantOverlayTokens.DockWidthFaceMul,
-            estimatedStack * AssistantOverlayTokens.DockWidthStackMul,
-        ).coerceIn(AssistantOverlayTokens.DockWidthMin, maxWidth)
-        val dockAlpha = maxOf(faceAlpha, transcriptAlpha).coerceIn(0f, 1f)
-
-        FaceStageDock(
-            brandGlow = brandGlow,
-            width = dockWidth,
-            contentAlpha = dockAlpha,
-            glowBreath = glowBreath,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = AssistantOverlayTokens.BottomChromeDockPadding)
-                .offset { IntOffset(0, entranceY) }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { /* keep session alive */ },
-                ),
-        ) {
-            if (showFace && faceKind != AssistantFaceKind.None) {
-                val faceNudge = (faceSize * AssistantOverlayTokens.FaceTowardTranscriptNudgeFraction)
-                    .coerceAtLeast(0.dp)
-                Box(
-                    contentAlignment = Alignment.TopCenter,
-                    modifier = Modifier
-                        .padding(top = if (showGlyph) glyphSize * 0.72f else 0.dp)
-                        .padding(bottom = AssistantOverlayTokens.FaceTranscriptGap)
-                        .offset {
-                            IntOffset(0, faceNudge.roundToPx())
-                        }
-                        .graphicsLayer {
-                            val s = faceScale
-                            scaleX = s
-                            scaleY = s
-                            alpha = 1f
-                        },
-                ) {
-                    if (showGlyph) {
-                        AssistantContextGlyphIcon(
-                            glyph = contextGlyph,
-                            size = glyphSize,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .offset(y = -(glyphSize * 0.72f)),
-                        )
-                    }
-                    if (faceContent != null) {
-                        faceContent(Modifier.size(faceSize), faceSize)
-                    } else {
-                        ConfigurableAssistantFace(
-                            mood = mood,
-                            kind = faceKind,
-                            modifier = Modifier.size(faceSize),
-                            gazeX = gazeX,
-                            gazeY = gazeY,
-                            mouthAmplitude = mouthAmplitude,
-                            brandGlow = brandGlow,
-                            highContrast = highContrast,
-                            gesture = gesture,
-                            faceCues = faceCues,
-                            showShell = true,
-                        )
-                    }
-                }
-            }
-            ImmersiveTranscript(
-                text = transcript,
-                speaker = speaker,
-                live = speaker == DialogueSpeaker.User && mood == AssistantMood.Listening,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .graphicsLayer { alpha = transcriptAlpha.coerceIn(0f, 1f) },
-            )
-        }
-    }
-}
-
-/** Island capsule path — unchanged for non-classic face kinds. */
-@Composable
-private fun IslandCapsuleBottomChrome(
-    mood: AssistantMood,
-    faceKind: AssistantFaceKind,
-    transcript: String,
-    speaker: DialogueSpeaker,
-    modifier: Modifier,
-    gazeX: Float?,
-    gazeY: Float?,
-    mouthAmplitude: Float?,
-    brandGlow: Color,
-    highContrast: Boolean,
-    gesture: FaceGesture,
-    contextGlyph: AssistantContextGlyph?,
-    floatContextGlyph: Boolean,
-    showFace: Boolean,
-    faceRise: Float,
-    faceScale: Float,
-    faceAlpha: Float,
-    transcriptAlpha: Float,
-    faceSizeScale: Float,
-    faceCues: AssistantFaceCues?,
-    faceContent: (@Composable (faceModifier: Modifier, faceSize: Dp) -> Unit)?,
-    glowBreath: ImmersiveGlowBreath,
 ) {
     val showGlyph = floatContextGlyph &&
         faceKind == AssistantFaceKind.FusionEyes &&
@@ -314,19 +93,23 @@ private fun IslandCapsuleBottomChrome(
             ),
     ) {
         val density = LocalDensity.current
+        // Travel distance for bottom ΓåÆ settled entrance (-1 ΓåÆ 0).
         val belowPx = with(density) {
             (maxHeight * AssistantOverlayTokens.FaceBelowTravelFraction).toPx()
         }
         val entranceY = when {
             faceRise >= 0f -> 0
-            else -> (-faceRise * belowPx).roundToInt()
+            else -> (-faceRise * belowPx).roundToInt() // faceRise=-1 ΓåÆ push below
         }
         val dockAlpha = maxOf(faceAlpha, transcriptAlpha).coerceIn(0f, 1f)
 
+        // Only the island capsule consumes taps; empty stage passes through
+        // to the backdrop dismiss target underneath.
         IslandCapsuleDock(
             mood = mood,
             hasTranscript = hasTranscript,
             transcriptCharCount = transcript.length,
+            // Any cue slot (eyes / mouth / accents) widens for the island status circle.
             hasStatusCue = faceCues?.islandStatusIcon() != null,
             contentAlpha = dockAlpha,
             glowBreath = glowBreath,
@@ -382,6 +165,7 @@ private fun IslandCapsuleBottomChrome(
                                 showShell = false,
                             )
                         }
+                        // Compose badge sits above the eye canvas so the shell never covers it.
                         if (statusIcon != null) {
                             IslandStatusCueBadge(
                                 icon = statusIcon,
