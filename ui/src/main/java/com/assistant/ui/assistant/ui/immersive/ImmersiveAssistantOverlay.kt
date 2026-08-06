@@ -84,9 +84,12 @@ import com.assistant.ui.assistant.mvi.StageIntent
 import com.assistant.ui.assistant.mvi.StageState
 import com.assistant.ui.assistant.mvi.StageEffect
 import com.assistant.ui.assistant.backend.toUiSpeaker
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.roundToInt
 import android.provider.Settings
 import com.assistant.ui.assistant.entry.VirtualAssistantActivity
@@ -234,11 +237,41 @@ fun ImmersiveAssistantOverlay(
         }
     }
 
+    val overlayScope = rememberCoroutineScope()
+    // One exit at a time: collapse island → idle compact → slide down.
+    val exitMutex = remember { Mutex() }
+    val collapseThenDismiss: () -> Unit = remember(stageStore) {
+        {
+            overlayScope.launch {
+                exitMutex.withLock {
+                    if (!stageStore.state.visible) return@withLock
+                    if (AssistantAdbPreview.isHolding()) return@withLock
+                    val needsCollapse = stageStore.state.transcript.isNotBlank() ||
+                        stageStore.state.faceCues != null ||
+                        stageStore.state.mood != AssistantMood.Idle
+                    if (needsCollapse) {
+                        stageStore.update {
+                            it.copy(
+                                mood = AssistantMood.Idle,
+                                transcript = "",
+                                speaker = DialogueSpeaker.System,
+                                mouthAmplitude = null,
+                                faceCues = null,
+                            )
+                        }
+                        delay(AssistantOverlayTokens.IslandCollapseBeforeExitMs)
+                    }
+                    if (stageStore.state.visible && !AssistantAdbPreview.isHolding()) {
+                        stageStore.dispatch(StageIntent.Dismiss)
+                    }
+                }
+            }
+        }
+    }
+
     ImmersiveSummonBridge(
         onSummon = { origin -> summon(origin) },
-        onDismiss = {
-            if (visible) stageStore.dispatch(StageIntent.Dismiss)
-        },
+        onDismiss = { collapseThenDismiss() },
     )
 
     LaunchedEffect(Unit) {
@@ -247,10 +280,8 @@ fun ImmersiveAssistantOverlay(
                 StageEffect.RequestListen -> Unit // mic owned by agent backend in production
                 StageEffect.ClusterHandOff -> host.openClusterHandOff()
                 StageEffect.FinishSession -> {
-                    // Agent turn complete — dismiss unless ADB mood/cue preview is holding.
-                    if (stageStore.state.visible && !AssistantAdbPreview.isHolding()) {
-                        stageStore.dispatch(StageIntent.Dismiss)
-                    }
+                    // Full utterance done — collapse to idle, then slide down.
+                    collapseThenDismiss()
                 }
                 StageEffect.StopSession -> {
                     if (!AssistantAdbPreview.isHolding()) {
@@ -300,9 +331,8 @@ fun ImmersiveAssistantOverlay(
                 if (event is AssistantSessionEvent.SessionComplete) {
                     // ADB mood/cue preview holds the stage open until cleared or dismissed.
                     if (AssistantAdbPreview.isHolding()) return@collect
-                    if (stageStore.state.visible) {
-                        stageStore.dispatch(StageIntent.Dismiss)
-                    }
+                    // Collapse pill to idle compact, then slide down.
+                    collapseThenDismiss()
                 } else if (event is AssistantSessionEvent.Error) {
                     stageStore.dispatch(StageIntent.BackendEvent(event))
                     stageStore.update {
@@ -520,7 +550,7 @@ fun ImmersiveAssistantOverlay(
                                         Modifier.clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null,
-                                            onClick = { stageStore.dispatch(StageIntent.Dismiss) },
+                                            onClick = { collapseThenDismiss() },
                                         )
                                     } else {
                                         Modifier

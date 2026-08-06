@@ -56,4 +56,17 @@ class ToolFaceCuesTest {
         assertEquals(AssistantFaceCueIcon.Sunny, sunny?.leftEye)
         assertEquals(AssistantFaceCueIcon.Cloudy, sunny?.mouth)
     }
+
+    @Test
+    fun forIconId_climateAndIslandBadge() {
+        val climate = ToolFaceCues.forIconId("thermostat")
+        assertEquals(AssistantFaceCueIcon.Thermostat, climate?.mouth)
+        assertEquals(AssistantFaceCueIcon.Thermostat, climate?.islandStatusIcon())
+
+        val heat = ToolFaceCues.forIconId("heat")
+        assertEquals(AssistantFaceCueIcon.Heat, heat?.islandStatusIcon())
+
+        val music = ToolFaceCues.music()
+        assertEquals(AssistantFaceCueIcon.Music, music.islandStatusIcon())
+    }
 }

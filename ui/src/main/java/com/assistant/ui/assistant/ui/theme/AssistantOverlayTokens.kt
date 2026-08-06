@@ -58,14 +58,20 @@ internal object AssistantOverlayTokens {
     /** Inset from the pill’s rounded ends so face/text aren’t flush to the curve. */
     val IslandExpandedPadStart = 40.dp
     val IslandExpandedPadEnd = 36.dp
-    /** Gap between left face slot and transcript in the expanded row. */
-    val IslandFaceTextGap = 20.dp
+    /** Gap between left face slot (grey eye shell) and transcript in the expanded row. */
+    val IslandFaceTextGap = 24.dp
     val IslandContentPadV = 0.dp
     val IslandCompactPadH = 0.dp
     val IslandCompactPadV = 0.dp
     val IslandFaceCompact = 88.dp
     val IslandFaceListening = 88.dp
-    val IslandFaceExpanded = 72.dp
+    /** Glyph / legacy size hint — expanded face *slot* uses [IslandFaceExpandedWidth]. */
+    val IslandFaceExpanded = 88.dp
+    /**
+     * Expanded face-band width (eyes + shell pads + talk/breath headroom).
+     * Must stay wider than tall so the grey face shell reads as a capsule, not a circle.
+     */
+    val IslandFaceExpandedWidth = 128.dp
     /** Idle eye glyph outer size (full width × height). */
     val IslandEyeWidth = 20.dp
     val IslandEyeHeight = 33.dp
@@ -76,9 +82,22 @@ internal object AssistantOverlayTokens {
     val IslandEyeHalfGap = 29.5.dp
     /** Top/bottom (and side) air so the status cue circle doesn’t hug the pill edge. */
     val IslandCueBadgeMargin = 10.dp
+    /**
+     * Horizontal / vertical inset from the eye outer bounds to the dark-grey
+     * face-shell capsule (island eyes-only mode). Tracks live eye size.
+     */
+    val IslandFaceShellPadH = 16.dp
+    val IslandFaceShellPadV = 14.dp
+    /** Air between the face-shell capsule and the status cue circle. */
+    val IslandFaceShellCueGap = 10.dp
     val IslandListeningGlowBlur = 18.dp
     /** Near-black capsule fill. */
     val IslandFill = Color(0xFF121418)
+    /**
+     * Dark grey face-shell plate behind island eyes (borderless capsule).
+     * Reads clearly against [IslandFill] without competing with eye glyphs.
+     */
+    val IslandFaceShell = Color(0xFF2A2E36)
     /** Dark gray outer frame (idle / speaking / default). */
     val IslandFrame = Color(0xFF3A3F46)
     /** Listening cyan-tinted frame. */
@@ -105,6 +124,13 @@ internal object AssistantOverlayTokens {
     const val GestureClearMs = 700L
     const val GlyphGazeClearMs = 800L
     const val TranscriptFadeInDelayMs = 80L
+    /**
+     * After a full utterance: hold compact idle long enough for the island morph
+     * (Expanded → Compact) before the slide-down exit.
+     */
+    const val IslandCollapseBeforeExitMs = 420L
+    /** Approximate faceRise slide-down duration (slow spatial spring). */
+    const val IslandExitSlideMs = 520L
 
     // Entrance / exit (fullscreen path uses M3 expressive springs; these size snaps)
     const val CardBackdropMs = 280

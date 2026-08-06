@@ -54,6 +54,7 @@ import com.assistant.ui.assistant.ui.theme.AssistantTheme
 import com.assistant.ui.assistant.entry.VirtualAssistantOverlay
 import com.assistant.ui.assistant.face.AssistantAdbPreview
 import com.assistant.ui.assistant.ui.immersive.AssistantUiLatency
+import com.assistant.ui.assistant.ui.immersive.ImmersiveExitTeardownDelayMs
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantDismiss
 import com.assistant.ui.assistant.ui.immersive.notifyImmersiveAssistantSummon
 import com.assistant.ui.assistant.ui.immersive.ImmersiveSummonOrigin
@@ -670,11 +671,11 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         dismissForExternalUi("compose-launch-intent")
                     }
                     is ViewModelEvent.FinishSession -> {
-                        // Match XML FinishSession → finish(); play Compose exit first.
+                        // Match XML FinishSession → finish(); collapse idle then slide-down first.
                         AssistantDebugLog.d("Session", "FinishSession — close overlay + session")
                         notifyImmersiveAssistantDismiss()
                         observerScope.launch {
-                            delay(320L)
+                            delay(ImmersiveExitTeardownDelayMs)
                             dismissForExternalUi("compose-finish-session")
                         }
                     }

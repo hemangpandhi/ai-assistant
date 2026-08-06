@@ -12,6 +12,13 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/**
+ * Host teardown delay after FinishSession: island collapse to idle + slide-down.
+ * Keep in sync with [AssistantOverlayTokens.IslandCollapseBeforeExitMs] (420) +
+ * [AssistantOverlayTokens.IslandExitSlideMs] (520).
+ */
+const val ImmersiveExitTeardownDelayMs = 420L + 520L
+
 internal suspend fun runImmersiveCardEnter(
     backdropAlpha: Animatable<Float, AnimationVector1D>,
     faceRise: Animatable<Float, AnimationVector1D>,
@@ -100,9 +107,14 @@ internal suspend fun runImmersiveExit(
     effectsSlowSpec: AnimationSpec<Float>,
     effectsDefaultSpec: AnimationSpec<Float>,
 ) = coroutineScope {
-    transcriptAlpha.animateTo(0f, effectsDefaultSpec)
+    // Transcript / island already collapsed to idle before dismiss; fade any remainder.
+    if (transcriptAlpha.value > 0.02f) {
+        transcriptAlpha.animateTo(0f, effectsDefaultSpec)
+    } else {
+        transcriptAlpha.snapTo(0f)
+    }
     launch {
-        // Exit: drop back below the stage on the same slow spatial spring.
+        // Exit: drop the compact idle pill below the stage.
         faceRise.animateTo(-1f, spatialSpec)
     }
     overlayReveal.animateTo(0f, effectsSlowSpec)

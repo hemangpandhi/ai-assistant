@@ -73,14 +73,20 @@ class AssistantStageStoreTest {
     }
 
     @Test
-    fun sessionComplete_hidesAndEmitsFinishStop() {
+    fun sessionComplete_collapsesToIdleAndEmitsFinish() {
         val (state, effects) = reduceStage(
-            StageState(visible = true, mood = AssistantMood.Speaking),
+            StageState(
+                visible = true,
+                mood = AssistantMood.Speaking,
+                transcript = "Great choice — putting some music on for you!",
+            ),
             StageIntent.BackendEvent(AssistantSessionEvent.SessionComplete),
         )
-        assertEquals(false, state.visible)
+        // Stay visible so the island can morph to compact idle before slide-down.
+        assertEquals(true, state.visible)
         assertEquals(AssistantMood.Idle, state.mood)
+        assertEquals("", state.transcript)
         assertTrue(effects.any { it is StageEffect.FinishSession })
-        assertTrue(effects.any { it is StageEffect.StopSession })
+        assertTrue(effects.none { it is StageEffect.StopSession })
     }
 }

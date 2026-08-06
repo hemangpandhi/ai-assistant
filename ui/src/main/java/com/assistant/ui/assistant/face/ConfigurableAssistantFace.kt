@@ -15,11 +15,11 @@ import com.assistant.ui.assistant.ui.theme.AssistantTokens
  * Renders the active [AssistantFaceKind] from [AssistantFaceConfig] (or an override).
  * [AssistantFaceKind.None] draws nothing — transcript / chrome still show.
  *
- * Thinking mood uses the island status circle (not a floating thought cloud).
+ * Thinking mood is expressed through eye pose / gaze (no thought-cloud prop).
  *
  * [faceCues] applies to Immersive / Fusion eye faces on the main overlay only.
  * [showShell] false = island capsule eyes only (no mouth / SemiCircle plate);
- * eye-slot [faceCues] and Thinking show in a badge to the right of the eyes.
+ * any non-empty [faceCues] slot shows in a badge to the right of the eyes.
  */
 @Composable
 fun ConfigurableAssistantFace(

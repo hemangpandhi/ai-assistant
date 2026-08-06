@@ -75,7 +75,7 @@ import kotlinx.coroutines.delay
 
 /**
  * Renders one opaque-stage assistant chrome style for the given mood.
- * Thinking uses the island status circle (no floating thought cloud).
+ * Thinking is expressed through eye pose / gaze (no thought-cloud prop).
  */
 @Composable
 fun AssistantUiVariant(

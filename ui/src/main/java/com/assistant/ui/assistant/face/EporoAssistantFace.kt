@@ -385,10 +385,10 @@ internal fun AssistantMood.toEporoPose(): EporoPose = when (this) {
         lookY = -0.03f,
     )
     AssistantMood.Thinking -> EporoPose(
-        eyeOpen = 0.94f,
-        lookX = 0.18f,
-        lookY = -0.08f,
-        tilt = 2f,
+        eyeOpen = 0.86f,
+        lookX = 0.38f,
+        lookY = -0.30f,
+        tilt = 5f,
     )
     AssistantMood.Reading -> EporoPose(
         eyeOpen = 0.96f,

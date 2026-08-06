@@ -54,4 +54,26 @@ class ToolFaceCueMapperTest {
         assertNull(ToolFaceCueMapper.iconIdFromSpokenText("Music stopped."))
         assertNull(ToolFaceCueMapper.iconIdFromSpokenText("Got it, I've remembered that."))
     }
+
+    @Test
+    fun climateReplies_mapToHvacIcons() {
+        assertEquals(
+            "heat",
+            ToolFaceCueMapper.iconIdFromSpokenText(
+                "There we go — warming things up for you.",
+            ),
+        )
+        assertEquals(
+            "ac",
+            ToolFaceCueMapper.iconIdFromSpokenText(
+                "Cooling it down — you should feel better soon.",
+            ),
+        )
+        assertEquals(
+            "thermostat",
+            ToolFaceCueMapper.iconIdFromSpokenText(
+                "Done — I've set it to 72 degrees for you.",
+            ),
+        )
+    }
 }

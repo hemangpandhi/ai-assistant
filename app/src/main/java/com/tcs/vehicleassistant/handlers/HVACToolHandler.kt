@@ -4,12 +4,14 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import android.car.VehiclePropertyIds
+import com.assistant.api.face.PendingToolFaceCues
 import com.tcs.vehicleassistant.VehicleManager
 
 class HVACToolHandler(override val handlerKey: String, val matchedTool: com.tcs.vehicleassistant.domain.tools.ToolDefinition? = null) : ToolHandler {
     private val TAG = "HVACToolHandler"
 
     override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
+        PendingToolFaceCues.offer(faceCueIconId(handlerKey))
         return when (handlerKey) {
             "increaseTemperature" -> {
                 val argStr = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
@@ -186,5 +188,18 @@ class HVACToolHandler(override val handlerKey: String, val matchedTool: com.tcs.
             }
             else -> ToolExecutionResult(false, "I don't know how to handle the command $handlerKey for HVAC.")
         }
+    }
+
+    private fun faceCueIconId(key: String): String = when {
+        key.contains("Defrost", ignoreCase = true) ||
+            key.contains("defog", ignoreCase = true) -> "defrost"
+        key.contains("Fan", ignoreCase = true) -> "fan"
+        key.contains("AC", ignoreCase = true) ||
+            key.contains("Cool", ignoreCase = true) ||
+            key.startsWith("decrease") -> "ac"
+        key.contains("Heat", ignoreCase = true) ||
+            key.startsWith("increase") ||
+            key.contains("Cold", ignoreCase = true) -> "heat"
+        else -> "thermostat"
     }
 }

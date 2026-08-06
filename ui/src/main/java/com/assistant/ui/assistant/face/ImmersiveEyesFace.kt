@@ -130,13 +130,17 @@ internal fun AssistantMood.toImmersiveEyePose(): ImmersiveEyePose = when (this) 
         tilt = 1f,
     )
     AssistantMood.Thinking -> PersonaBase.copy(
-        eyeOpen = 0.98f,
-        eyeHeight = 0.90f,
-        lookX = 0.22f,
-        lookY = -0.08f,
-        mouthVisible = 0.1f,
-        tilt = 4f,
-        faceGlow = 0.58f,
+        // Slightly narrowed; continuous up/down roll drives lookX/lookY at runtime.
+        eyeOpen = 0.88f,
+        eyeWidth = 1.04f,
+        eyeHeight = 0.78f,
+        eyeGap = 1.32f,
+        lookX = 0.28f,
+        lookY = -0.55f,
+        mouthVisible = 0.05f,
+        tilt = 5f,
+        faceGlow = 0.62f,
+        blinkSpeed = 0.52f,
     )
     AssistantMood.Reading -> PersonaBase.copy(
         eyeOpen = 1.0f,
@@ -289,12 +293,11 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  * @param eyeGlow when non-null, capsule eyes use this EPORO-style purple glow ring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
  * @param faceCues optional LLM anatomy icons. On the shell face, eye/mouth slots can
- *   replace geometry; on the island capsule ([showShell] false), eye-slot cues appear
- *   in a badge circle to the right of the eyes (eyes stay geometric). Thinking /
- *   Concentration use that same status circle with bouncing dots (no floating cloud).
+ *   replace geometry; on the island capsule ([showShell] false), any cue slot appears
+ *   in a badge circle to the right of the eyes (eyes stay geometric).
  * @param shellKind fixed outer silhouette (no mood morph); default SemiCircle
- * @param showShell when false, island capsule: eyes only (no mouth / SemiCircle plate);
- *   speech amplitude opens the eyes instead of the mouth
+ * @param showShell when false, island capsule: eyes on a borderless dark-grey pill
+ *   face shell (no mouth / SemiCircle plate); speech amplitude opens the eyes
  */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -381,7 +384,12 @@ fun ImmersiveEyesFace(
         launch { eyeWidth.animateTo(target.eyeWidth, PoseSpring) }
         launch { eyeHeight.animateTo(target.eyeHeight, PoseSpring) }
         launch { eyeGap.animateTo(target.eyeGap, PoseSpring) }
-        launch { lookY.animateTo(gazeY ?: target.lookY, PoseSpring) }
+        // Thinking owns a continuous lookY roll — don't fight it with a static pose.
+        if (!externalGaze && !mood.isThinkingRollMood()) {
+            launch { lookY.animateTo(gazeY ?: target.lookY, PoseSpring) }
+        } else if (gazeY != null) {
+            launch { lookY.animateTo(gazeY, PoseSpring) }
+        }
         launch { tilt.animateTo(target.tilt, PoseSpring) }
         launch {
             faceGlow.animateTo(
@@ -499,6 +507,8 @@ fun ImmersiveEyesFace(
             val base = when (mood) {
                 AssistantMood.Drowsy, AssistantMood.Tired, AssistantMood.Sleeping ->
                     Random.nextLong(900, 1800)
+                AssistantMood.Thinking, AssistantMood.Concentration ->
+                    Random.nextLong(3_200, 5_200)
                 AssistantMood.Bored -> Random.nextLong(2800, 4800)
                 AssistantMood.Excited, AssistantMood.Jubilation, AssistantMood.Listening,
                 AssistantMood.Surprise, AssistantMood.Astonishment,
@@ -531,8 +541,10 @@ fun ImmersiveEyesFace(
     LaunchedEffect(mood, externalGaze, enableIdleMotion) {
         if (!enableIdleMotion) return@LaunchedEffect
         if (externalGaze) return@LaunchedEffect
-        if (!mood.isGazeScanMood()) return@LaunchedEffect
-        lookX.runMoodGazeScan(mood)
+        when {
+            mood.isThinkingRollMood() -> runThinkingEyeRoll(lookX = lookX, lookY = lookY)
+            mood.isGazeScanMood() -> lookX.runMoodGazeScan(mood)
+        }
     }
 
     val density = LocalDensity.current
@@ -540,6 +552,9 @@ fun ImmersiveEyesFace(
     val islandEyeHalfH = with(density) { (AssistantOverlayTokens.IslandEyeHeight / 2).toPx() }
     val islandEyeHalfGap = with(density) { AssistantOverlayTokens.IslandEyeHalfGap.toPx() }
     val islandCueMarginPx = with(density) { AssistantOverlayTokens.IslandCueBadgeMargin.toPx() }
+    val islandFaceShellPadHPx = with(density) { AssistantOverlayTokens.IslandFaceShellPadH.toPx() }
+    val islandFaceShellPadVPx = with(density) { AssistantOverlayTokens.IslandFaceShellPadV.toPx() }
+    val islandFaceShellCueGapPx = with(density) { AssistantOverlayTokens.IslandFaceShellCueGap.toPx() }
 
     Canvas(
         modifier = if (showShell) {
@@ -671,31 +686,52 @@ fun ImmersiveEyesFace(
                     0f
                 }
                 val talkOpen = (open * (1f + 0.55f * eyeTalk)).coerceIn(0.05f, 1.35f)
-                // Island: near-capsule-height status circle on the right; eyes keep the left band.
-                val islandThinking = !showShell &&
-                    (mood == AssistantMood.Thinking || mood == AssistantMood.Concentration)
-                val islandEyeCue = islandThinking ||
-                    (!showShell && (rightEyeIcon != null || leftEyeIcon != null))
+                // Island: status circle from any cue slot (weather eyes, music accents, HVAC mouth…).
+                val islandStatusIcon = if (!showShell) cues?.islandStatusIcon() else null
+                val islandEyeCue = islandStatusIcon != null
                 val islandCueBadgeR = if (islandEyeCue) {
                     (size.height * 0.5f - islandCueMarginPx).coerceAtLeast(1f)
                 } else {
                     0f
                 }
+                val islandBadgePainter = when {
+                    !islandEyeCue -> null
+                    rightEyeIcon != null -> rightEyePainter
+                    leftEyeIcon != null -> leftEyePainter
+                    mouthIcon != null -> mouthPainter
+                    leftAccentIcon != null -> leftAccentPainter
+                    rightAccentIcon != null -> rightAccentPainter
+                    else -> null
+                }
+                val islandBadgeTint = islandStatusIcon?.glyphTint(highContrast)
                 if (showShell) {
+                    val thinkingEyes = mood.isThinkingRollMood()
                     gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
-                    eyeY = cy - faceR * 0.06f + lookY.value * faceR * 0.1f
-                    gaze = lookX.value * faceR * 0.06f
+                    // Stronger vertical travel so the thinking roll reads on the shell face.
+                    eyeY = cy - faceR * 0.06f + lookY.value * faceR *
+                        if (thinkingEyes) 0.20f else 0.1f
+                    gaze = lookX.value * faceR * if (thinkingEyes) 0.10f else 0.06f
                     barW = faceR * 0.11f * eyeWidth.value.coerceIn(0.8f, 1.35f)
                     barH = (faceR * 0.22f * eyeHeight.value.coerceAtMost(1.05f) * open)
                         .coerceAtMost(faceR * 0.26f)
                 } else {
                     // Figma island eyes: 20×33, centers at left 32 / 91 (half-gap 29.5).
                     // Breath + speech open so the pill eyes "talk" without a mouth.
-                    gap = if (islandEyeCue) islandEyeHalfGap * 0.70f else islandEyeHalfGap
-                    eyeY = cy + lookY.value * islandEyeHalfH * 0.15f
-                    gaze = lookX.value * islandEyeHalfW * 0.35f
-                    barW = islandEyeHalfW * (1f + 0.16f * eyeTalk) * breath
-                    barH = islandEyeHalfH * talkOpen * breath
+                    val thinkingEyes = mood.isThinkingRollMood()
+                    gap = when {
+                        islandEyeCue -> islandEyeHalfGap * 0.70f
+                        thinkingEyes -> islandEyeHalfGap * 0.88f
+                        else -> islandEyeHalfGap
+                    }
+                    // Thinking roll needs full vertical travel so up/down reads clearly.
+                    val lookYScale = if (thinkingEyes) 1.15f else 0.15f
+                    val lookXScale = if (thinkingEyes) 0.85f else 0.35f
+                    eyeY = cy + lookY.value * islandEyeHalfH * lookYScale
+                    gaze = lookX.value * islandEyeHalfW * lookXScale
+                    barW = islandEyeHalfW * (1f + 0.16f * eyeTalk) * breath *
+                        if (thinkingEyes) eyeWidth.value.coerceIn(0.9f, 1.2f) else 1f
+                    barH = islandEyeHalfH * talkOpen * breath *
+                        if (thinkingEyes) eyeHeight.value.coerceIn(0.65f, 1f) else 1f
                 }
                 // With a status cue, anchor eyes in the left band; badge sits on the right.
                 val eyeAnchorX = if (islandEyeCue) {
@@ -725,21 +761,46 @@ fun ImmersiveEyesFace(
                 val bloom = if (enableIdleMotion) glowAmount else 0f
                 val eyeIconSide = faceR * 0.40f
 
+                // Island: borderless dark-grey capsule behind the eyes (face shell).
+                // Sized to the eye band with pad; leaves air for the cue circle.
+                if (!showShell) {
+                    drawIslandFaceShell(
+                        leftEye = left,
+                        rightEye = right,
+                        eyeHalfW = barW,
+                        eyeHalfH = barH,
+                        padH = islandFaceShellPadHPx,
+                        padV = islandFaceShellPadVPx,
+                        cueGap = islandFaceShellCueGapPx,
+                        cueCenter = if (islandEyeCue) islandCueCenter else null,
+                        cueRadius = islandCueBadgeR,
+                    )
+                }
+
                 // Features stay inside the shell when drawn; island mode skips the clip.
                 val drawFeatures: DrawScope.() -> Unit = {
                     if (blush.value > 0.04f) {
-                        val blushA = 0.2f * blush.value
-                        val bx = gap * 0.95f
-                        drawCircle(
-                            Color(0xFFFF9BB0).copy(alpha = blushA),
-                            faceR * 0.1f,
-                            Offset(cx - bx, cy + faceR * 0.22f),
-                        )
-                        drawCircle(
-                            Color(0xFFFF9BB0).copy(alpha = blushA),
-                            faceR * 0.1f,
-                            Offset(cx + bx, cy + faceR * 0.22f),
-                        )
+                        val blushA = 0.22f * blush.value
+                        if (!showShell) {
+                            // Island: blush hugs the eye band (not the full canvas faceR).
+                            val bx = gap * 0.92f
+                            val by = eyeY + barH * 1.15f
+                            val br = barH * 0.55f
+                            drawCircle(Color(0xFFFF9BB0).copy(alpha = blushA), br, Offset(eyeMidX - bx, by))
+                            drawCircle(Color(0xFFFF9BB0).copy(alpha = blushA), br, Offset(eyeMidX + bx, by))
+                        } else {
+                            val bx = gap * 0.95f
+                            drawCircle(
+                                Color(0xFFFF9BB0).copy(alpha = blushA),
+                                faceR * 0.1f,
+                                Offset(cx - bx, cy + faceR * 0.22f),
+                            )
+                            drawCircle(
+                                Color(0xFFFF9BB0).copy(alpha = blushA),
+                                faceR * 0.1f,
+                                Offset(cx + bx, cy + faceR * 0.22f),
+                            )
+                        }
                     }
                     // Glasses behind eyes so capsules show through the lenses.
                     drawNomiMateGlassesIfNeeded(
@@ -774,31 +835,20 @@ fun ImmersiveEyesFace(
                         )
                     }
 
-                    // Island: Thinking → status-circle dots; else eye-slot cue (right slot wins).
-                    if (!showShell && islandCueBadgeR > 0f) {
-                        if (islandThinking) {
-                            drawIslandThinkingBadge(
-                                center = islandCueCenter,
-                                radius = islandCueBadgeR,
-                                life = life,
-                            )
-                        } else {
-                            val cueTint = if (rightEyeIcon != null) rightEyeTint else leftEyeTint
-                            val cuePainter =
-                                if (rightEyeIcon != null) rightEyePainter else leftEyePainter
-                            if (cueTint != null) {
-                                drawIslandEyeCueBadge(
-                                    painter = cuePainter,
-                                    center = islandCueCenter,
-                                    radius = islandCueBadgeR,
-                                    tint = cueTint,
-                                    life = life,
-                                )
-                            }
-                        }
+                    // Island: status badge from any cue slot (music / weather / climate / nav…).
+                    if (!showShell && islandCueBadgeR > 0f &&
+                        islandBadgePainter != null && islandBadgeTint != null
+                    ) {
+                        drawIslandEyeCueBadge(
+                            painter = islandBadgePainter,
+                            center = islandCueCenter,
+                            radius = islandCueBadgeR,
+                            tint = islandBadgeTint,
+                            life = life,
+                        )
                     }
 
-                    // Cheek accents + mouth cues — shell face only (island uses eye badge).
+                    // Cheek accents + mouth cues — shell face only (island uses status badge).
                     if (showShell) {
                         val cheekSide = faceR * 0.30f
                         val cheekY = cy + faceR * 0.22f
@@ -851,17 +901,22 @@ fun ImmersiveEyesFace(
                     }
                     drawNomiMateDecor(
                         mood = mood,
-                        cx = cx,
-                        cy = cy,
+                        cx = if (!showShell) eyeMidX else cx,
+                        cy = if (!showShell) eyeY else cy,
                         faceR = faceR,
                         color = glyph,
                         life = life,
-                        skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
-                            mouthIcon != null || !showShell,
+                        // Island: always show hearts / zzz / sparkles (badge is separate).
+                        // Shell: skip particles when mouth/accent cue icons occupy that space.
+                        skipParticles = showShell && (
+                            leftAccentIcon != null || rightAccentIcon != null || mouthIcon != null
+                            ),
+                        islandMode = !showShell,
                         eyeHalfGap = gap,
                         eyeMidX = eyeMidX,
                         eyeY = eyeY,
                         eyeHalfWidth = barW,
+                        eyeHalfHeight = barH,
                     )
                 }
                 if (showShell) {
@@ -872,6 +927,63 @@ fun ImmersiveEyesFace(
             }
         }
     }
+}
+
+/**
+ * Borderless dark-grey capsule plate behind island eyes.
+ * Bounds follow live eye size/gap (talk / breath / blink); stays a horizontal
+ * capsule. When a status cue circle is present, stops short of it.
+ */
+internal fun DrawScope.drawIslandFaceShell(
+    leftEye: Offset,
+    rightEye: Offset,
+    eyeHalfW: Float,
+    eyeHalfH: Float,
+    padH: Float,
+    padV: Float,
+    cueGap: Float,
+    cueCenter: Offset?,
+    cueRadius: Float,
+) {
+    // Hollow eye rings stroke past the geometric half-size — include that extent.
+    val ringExtra = minOf(eyeHalfW, eyeHalfH) * 0.22f
+    val halfW = eyeHalfW + ringExtra
+    val halfH = eyeHalfH + ringExtra
+    val midX = (leftEye.x + rightEye.x) * 0.5f
+    val midY = (leftEye.y + rightEye.y) * 0.5f
+    val eyesHalfSpan = abs(rightEye.x - leftEye.x) * 0.5f + halfW
+    val eyesHalfH = halfH
+    // Desired capsule around the eye band (dynamic with eye morphs).
+    var shellHalfW = eyesHalfSpan + padH
+    var shellHalfH = eyesHalfH + padV
+    // Keep a true horizontal capsule — never let width collapse toward a circle.
+    shellHalfW = maxOf(shellHalfW, shellHalfH * 1.35f)
+    if (cueCenter != null && cueRadius > 0f) {
+        val maxRight = cueCenter.x - cueRadius - cueGap
+        val maxHalfFromCue = (maxRight - midX).coerceAtLeast(shellHalfH)
+        shellHalfW = minOf(shellHalfW, maxHalfFromCue)
+    }
+    // Fit inside the face band without squashing into a circle when possible.
+    val maxHalfW = minOf(midX, size.width - midX).coerceAtLeast(1f)
+    val maxHalfH = minOf(midY, size.height - midY).coerceAtLeast(1f)
+    shellHalfW = shellHalfW.coerceAtMost(maxHalfW)
+    shellHalfH = shellHalfH.coerceAtMost(maxHalfH)
+    // If the band is too tight, prefer width so eyes stay covered.
+    if (shellHalfW < eyesHalfSpan) {
+        shellHalfW = eyesHalfSpan.coerceAtMost(maxHalfW)
+    }
+    if (shellHalfH < eyesHalfH) {
+        shellHalfH = eyesHalfH.coerceAtMost(maxHalfH)
+    }
+    val shellW = shellHalfW * 2f
+    val shellH = shellHalfH * 2f
+    if (shellW < 4f || shellH < 4f) return
+    drawRoundRect(
+        color = AssistantOverlayTokens.IslandFaceShell,
+        topLeft = Offset(midX - shellHalfW, midY - shellHalfH),
+        size = Size(shellW, shellH),
+        cornerRadius = CornerRadius(shellHalfH, shellHalfH),
+    )
 }
 
 /** Immersive capsule eyes — [glowStrength] 0..1 morphs pale rings ↔ EPORO purple bloom. */

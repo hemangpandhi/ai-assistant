@@ -6,13 +6,18 @@ import android.media.session.MediaSessionManager
 import android.provider.MediaStore
 import android.util.Log
 import android.net.Uri
+import com.assistant.api.face.PendingToolFaceCues
 
 class MediaToolHandler(override val handlerKey: String) : ToolHandler {
     private val TAG = "MediaToolHandler"
 
     override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         val mediaSessionManager = context.getSystemService(Context.MEDIA_SESSION_SERVICE) as MediaSessionManager
-        
+        when (handlerKey) {
+            "playMusic", "nextTrack", "prevTrack", "adjustBgmForSituation" ->
+                PendingToolFaceCues.offer("music")
+        }
+
         return when (handlerKey) {
             "playMusic" -> {
                 val rawArg = toolCall.substringAfter("(").substringBefore(")").replace("\"", "").trim()

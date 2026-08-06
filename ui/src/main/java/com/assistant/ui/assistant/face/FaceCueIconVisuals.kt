@@ -23,7 +23,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
@@ -134,8 +133,9 @@ internal fun DrawScope.drawAnimatedFaceCueIcon(
 }
 
 /**
- * Island capsule badge: near-capsule-height plate to the **right** of the geometric eyes.
- * Eye-slot cues live here — they never replace the capsules.
+ * Island capsule badge: near-capsule-height borderless plate to the **right** of the eyes.
+ * Same dark-grey tone as the eye face shell; any cue slot (eyes / mouth / accents) can
+ * drive this badge — geometric eye capsules are never replaced.
  */
 internal fun DrawScope.drawIslandEyeCueBadge(
     painter: Painter,
@@ -144,53 +144,20 @@ internal fun DrawScope.drawIslandEyeCueBadge(
     tint: Color,
     life: Float,
 ) {
-    drawIslandStatusCircle(center = center, radius = radius)
+    val r = radius.coerceAtLeast(1f)
+    // Match the eye face-shell tone so the cue circle reads as a sibling plate.
+    drawCircle(
+        color = AssistantOverlayTokens.IslandFaceShell,
+        radius = r,
+        center = center,
+    )
     // Icon sits inside the plate with a little inset (not larger than the circle).
     drawAnimatedFaceCueIcon(
         painter = painter,
         center = center,
-        side = radius.coerceAtLeast(1f) * 1.15f,
+        side = r * 1.15f,
         tint = tint,
         life = life,
         phaseOffset = 0.45f,
-    )
-}
-
-/**
- * Island status circle for Thinking: same plate as cue badges, with bouncing dots.
- */
-internal fun DrawScope.drawIslandThinkingBadge(
-    center: Offset,
-    radius: Float,
-    life: Float,
-) {
-    val r = radius.coerceAtLeast(1f)
-    drawIslandStatusCircle(center = center, radius = r)
-    val dot = Color(0xFFB39DDB)
-    val gap = r * 0.36f
-    val y = center.y
-    for (i in 0..2) {
-        val bounce = sin(life * 2.2f + i * 0.9f).toFloat() * r * 0.12f
-        val pulse = 0.75f + 0.25f * ((sin(life * 2.4f + i * 1.1f) + 1f) * 0.5f).toFloat()
-        drawCircle(
-            color = dot.copy(alpha = 0.92f),
-            radius = r * 0.11f * pulse,
-            center = Offset(center.x - gap + i * gap, y + bounce),
-        )
-    }
-}
-
-private fun DrawScope.drawIslandStatusCircle(center: Offset, radius: Float) {
-    val r = radius.coerceAtLeast(1f)
-    drawCircle(
-        color = AssistantOverlayTokens.IslandFill,
-        radius = r,
-        center = center,
-    )
-    drawCircle(
-        color = AssistantOverlayTokens.IslandFrame.copy(alpha = 0.85f),
-        radius = r,
-        center = center,
-        style = Stroke(width = (r * 0.06f).coerceIn(1.5f, 3.5f)),
     )
 }

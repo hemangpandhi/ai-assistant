@@ -13,8 +13,37 @@ object ToolFaceCueMapper {
         if (looksLikeMusic(t)) return "music"
         if (looksLikeSearch(t)) return "search"
         if (looksLikeNavigation(t)) return "navigate"
+        climateIconId(t)?.let { return it }
 
         return WeatherFaceCueMapper.iconIdFromSpokenText(t)
+    }
+
+    /** HVAC / climate spoken replies → thermostat / heat / ac / fan / defrost. */
+    private fun climateIconId(t: String): String? {
+        val lower = t.lowercase()
+        if (lower.contains("defrost") || lower.contains("defog")) return "defrost"
+        if (lower.contains("fan")) return "fan"
+        if (lower.contains("a/c") || lower.contains(" ac") ||
+            lower.contains("air conditioning") || lower.contains("cooling it down") ||
+            (lower.contains("cool") && (
+                lower.contains("temp") || lower.contains("cabin") ||
+                    lower.contains("things") || lower.contains("feel")
+                ))
+        ) {
+            return "ac"
+        }
+        if (lower.contains("warming") || lower.contains("warmer") ||
+            lower.contains("heat") || lower.contains("hotter")
+        ) {
+            return "heat"
+        }
+        if (lower.contains("temperature") || lower.contains("degrees") ||
+            lower.contains("climate") || lower.contains("hvac") ||
+            lower.contains("thermostat") || lower.contains("set it to")
+        ) {
+            return "thermostat"
+        }
+        return null
     }
 
     private fun looksLikeMusic(t: String): Boolean {

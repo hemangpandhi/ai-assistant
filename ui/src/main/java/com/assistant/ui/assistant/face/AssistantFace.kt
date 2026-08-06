@@ -93,15 +93,15 @@ internal fun AssistantMood.toFacePose(): FacePose = when (this) {
         tilt = 3f,
     )
     AssistantMood.Thinking -> FacePose(
-        eyeOpen = 0.85f,
-        eyeHeight = 0.7f,
-        lookX = 0.25f,
-        lookY = -0.1f,
+        eyeOpen = 0.82f,
+        eyeHeight = 0.68f,
+        lookX = 0.40f,
+        lookY = -0.32f,
         eyeStyle = -0.35f,
         mouthCurve = 0f,
         mouthOpen = 0f,
         borderGlow = 0.8f,
-        tilt = 6f,
+        tilt = 6.5f,
     )
     AssistantMood.Happy -> FacePose(
         eyeOpen = 1f,

@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -63,7 +62,8 @@ fun estimateIslandExpandedWidth(
         // Eyes band + near-height badge — matches expanded face slot below.
         AssistantOverlayTokens.IslandExpandedHeightWithText * 1.35f
     } else {
-        AssistantOverlayTokens.IslandFaceExpanded
+        // Wide band so the grey eye shell stays a horizontal capsule (not a circle).
+        AssistantOverlayTokens.IslandFaceExpandedWidth
     }
     val pads = AssistantOverlayTokens.IslandExpandedPadStart +
         AssistantOverlayTokens.IslandExpandedPadEnd +
@@ -238,7 +238,10 @@ fun IslandCapsuleDock(
                                     .fillMaxHeight()
                                     .width(height * 1.35f)
                             } else {
-                                Modifier.size(faceSize)
+                                // Wide horizontal band — shell tracks eyes as a capsule, not a 1:1 circle.
+                                Modifier
+                                    .fillMaxHeight()
+                                    .width(AssistantOverlayTokens.IslandFaceExpandedWidth)
                             },
                             contentAlignment = Alignment.Center,
                         ) {

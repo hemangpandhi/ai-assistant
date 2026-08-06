@@ -7,8 +7,10 @@ import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
 import kotlin.random.Random
 
@@ -75,6 +77,16 @@ internal object AssistantFaceMotion {
     const val BoredLeftMs = 1_800
     const val BoredHoldRightMs = 600L
     const val BoredHoldLeftMs = 800L
+    // Thinking — continuous vertical eye-roll with a light horizontal drift.
+    const val ThinkingLookYUp = -0.72f
+    const val ThinkingLookYDown = 0.38f
+    const val ThinkingLookYMid = -0.18f
+    const val ThinkingLookXRight = 0.28f
+    const val ThinkingLookXLeft = -0.18f
+    const val ThinkingRollUpMs = 720
+    const val ThinkingRollDownMs = 880
+    const val ThinkingRollMidMs = 640
+    const val ThinkingRollHoldMs = 140L
 }
 
 internal suspend fun Animatable<Float, AnimationVector1D>.runSyntheticSpeechMouth() {
@@ -154,10 +166,71 @@ internal suspend fun Animatable<Float, AnimationVector1D>.runMoodGazeScan(mood: 
     }
 }
 
+/**
+ * Continuous contemplative eye-roll for Thinking / Concentration —
+ * gaze arcs up → down → mid-up, with a soft left/right drift.
+ */
+internal suspend fun runThinkingEyeRoll(
+    lookX: Animatable<Float, AnimationVector1D>,
+    lookY: Animatable<Float, AnimationVector1D>,
+) {
+    while (coroutineContext.isActive) {
+        coroutineScope {
+            launch {
+                lookY.animateTo(
+                    AssistantFaceMotion.ThinkingLookYUp,
+                    tween(AssistantFaceMotion.ThinkingRollUpMs, easing = FastOutSlowInEasing),
+                )
+            }
+            launch {
+                lookX.animateTo(
+                    AssistantFaceMotion.ThinkingLookXRight,
+                    tween(AssistantFaceMotion.ThinkingRollUpMs, easing = FastOutSlowInEasing),
+                )
+            }
+        }
+        delay(AssistantFaceMotion.ThinkingRollHoldMs)
+        coroutineScope {
+            launch {
+                lookY.animateTo(
+                    AssistantFaceMotion.ThinkingLookYDown,
+                    tween(AssistantFaceMotion.ThinkingRollDownMs, easing = FastOutSlowInEasing),
+                )
+            }
+            launch {
+                lookX.animateTo(
+                    AssistantFaceMotion.ThinkingLookXLeft,
+                    tween(AssistantFaceMotion.ThinkingRollDownMs, easing = FastOutSlowInEasing),
+                )
+            }
+        }
+        delay(AssistantFaceMotion.ThinkingRollHoldMs)
+        coroutineScope {
+            launch {
+                lookY.animateTo(
+                    AssistantFaceMotion.ThinkingLookYMid,
+                    tween(AssistantFaceMotion.ThinkingRollMidMs, easing = FastOutSlowInEasing),
+                )
+            }
+            launch {
+                lookX.animateTo(
+                    AssistantFaceMotion.ThinkingLookXRight * 0.55f,
+                    tween(AssistantFaceMotion.ThinkingRollMidMs, easing = FastOutSlowInEasing),
+                )
+            }
+        }
+        delay(AssistantFaceMotion.ThinkingRollHoldMs)
+    }
+}
+
+internal fun AssistantMood.isThinkingRollMood(): Boolean =
+    this == AssistantMood.Thinking || this == AssistantMood.Concentration
+
 internal fun AssistantMood.isGazeScanMood(): Boolean =
     this == AssistantMood.Reading ||
         this == AssistantMood.Searching ||
-        this == AssistantMood.Bored
+        this == AssistantMood.Bored ||
+        isThinkingRollMood()
 
 /** Geometric mouth for clear emotional / speaking states. */
 internal fun AssistantMood.showsGeometricMouth(): Boolean =

@@ -130,12 +130,14 @@ private fun reduceBackendEvent(
         AssistantSessionEvent.RequestClusterHandOff ->
             state to listOf(StageEffect.ClusterHandOff)
 
+        // Collapse to idle compact first; overlay finishes with slide-down dismiss.
         AssistantSessionEvent.SessionComplete ->
             state.copy(
-                visible = false,
                 mood = AssistantMood.Idle,
+                transcript = "",
+                speaker = DialogueSpeaker.System,
                 mouthAmplitude = null,
                 faceCues = null,
-            ) to listOf(StageEffect.FinishSession, StageEffect.StopSession)
+            ) to listOf(StageEffect.FinishSession)
     }
 }

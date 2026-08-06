@@ -6,8 +6,8 @@ package com.assistant.ui.assistant.api
  * Null slot = keep geometric eye / mouth / no accent.
  * On the shell face, non-null eye / mouth **fully replaces** that geometric shape
  * at the same place (not necessarily the exact capsule size); accents sit on the
- * cheeks. On the island capsule, eye-slot cues appear in a badge to the **right**
- * of the geometric eyes (eyes are never replaced); mouth / accent slots are unused.
+ * cheeks. On the island capsule, any non-empty slot drives a status badge to the
+ * **right** of the geometric eyes (eyes are never replaced) — see [islandStatusIcon].
  */
 data class AssistantFaceCues(
     val leftEye: AssistantFaceCueIcon? = null,
@@ -22,6 +22,14 @@ data class AssistantFaceCues(
             mouth == null &&
             leftAccent == null &&
             rightAccent == null
+
+    /**
+     * Icon shown in the island status circle.
+     * Priority: right eye → left eye → mouth → left accent → right accent
+     * so weather (eyes), climate/nav (mouth), and music (accents) all surface.
+     */
+    fun islandStatusIcon(): AssistantFaceCueIcon? =
+        rightEye ?: leftEye ?: mouth ?: leftAccent ?: rightAccent
 
     companion object {
         val Empty = AssistantFaceCues()

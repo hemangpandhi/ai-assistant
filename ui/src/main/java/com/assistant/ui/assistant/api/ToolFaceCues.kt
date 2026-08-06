@@ -14,12 +14,18 @@ object ToolFaceCues {
 
         WeatherFaceCues.forIconId(id)?.let { return it }
 
-        return when (AssistantFaceCueIcon.parse(id)) {
+        return when (val icon = AssistantFaceCueIcon.parse(id)) {
             AssistantFaceCueIcon.Music,
             AssistantFaceCueIcon.Podcast,
-            -> music()
+            -> music(icon)
             AssistantFaceCueIcon.Navigate -> navigate()
             AssistantFaceCueIcon.Search -> search()
+            AssistantFaceCueIcon.Thermostat,
+            AssistantFaceCueIcon.Ac,
+            AssistantFaceCueIcon.Heat,
+            AssistantFaceCueIcon.Fan,
+            AssistantFaceCueIcon.Defrost,
+            -> climate(icon)
             else -> null
         }
     }
@@ -27,11 +33,15 @@ object ToolFaceCues {
     fun fromSpokenText(text: String?): AssistantFaceCues? =
         forIconId(ToolFaceCueMapper.iconIdFromSpokenText(text))
 
-    /** Geometric eyes + two animated music notes on the cheeks (no center icon). */
-    fun music(): AssistantFaceCues = AssistantFaceCues(
-        leftAccent = AssistantFaceCueIcon.Music,
-        rightAccent = AssistantFaceCueIcon.Music,
-    )
+    /**
+     * Geometric eyes + music notes on the cheeks (shell).
+     * Island badge resolves via [AssistantFaceCues.islandStatusIcon] (accent → circle).
+     */
+    fun music(icon: AssistantFaceCueIcon = AssistantFaceCueIcon.Music): AssistantFaceCues =
+        AssistantFaceCues(
+            leftAccent = icon,
+            rightAccent = icon,
+        )
 
     /** Centered animated map at the mouth — eyes stay geometric. */
     fun navigate(): AssistantFaceCues = AssistantFaceCues(
@@ -41,5 +51,17 @@ object ToolFaceCues {
     /** Search cue at the mouth so geometric eyes stay visible. */
     fun search(): AssistantFaceCues = AssistantFaceCues(
         mouth = AssistantFaceCueIcon.Search,
+    )
+
+    /**
+     * Climate / HVAC / temperature — mouth carries the status icon (island badge);
+     * cheek accents keep the shell face readable.
+     */
+    fun climate(
+        icon: AssistantFaceCueIcon = AssistantFaceCueIcon.Thermostat,
+    ): AssistantFaceCues = AssistantFaceCues(
+        mouth = icon,
+        leftAccent = AssistantFaceCueIcon.Ac,
+        rightAccent = AssistantFaceCueIcon.Heat,
     )
 }

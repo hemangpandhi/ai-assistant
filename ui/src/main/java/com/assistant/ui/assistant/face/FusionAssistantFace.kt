@@ -125,14 +125,15 @@ internal fun AssistantMood.toFusionEyePose(): FusionEyePose = when (this) {
         tilt = 1f,
     )
     AssistantMood.Thinking -> FusionBase.copy(
-        eyeOpen = 0.96f,
-        eyeWidth = 1.02f,
-        eyeHeight = 0.88f,
-        eyeGap = 0.82f, // focused — eyes closer
-        lookX = 0.24f,
-        lookY = -0.1f,
-        tilt = 5f,
-        faceGlow = 0.58f,
+        eyeOpen = 0.86f,
+        eyeWidth = 1.04f,
+        eyeHeight = 0.74f,
+        eyeGap = 0.78f, // focused — eyes closer
+        lookX = 0.40f,
+        lookY = -0.32f,
+        tilt = 6.5f,
+        faceGlow = 0.62f,
+        blinkSpeed = 0.52f,
     )
     AssistantMood.Reading -> FusionBase.copy(
         eyeOpen = 1.0f,

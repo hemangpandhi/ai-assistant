@@ -119,9 +119,8 @@ internal fun AssistantMood.toNomiMateDecor(): NomiMateDecor = when (this) {
     AssistantMood.Dreamy,
     AssistantMood.Concerned,
     -> NomiMateDecor(hands = NomiHandPose.Chin)
-    AssistantMood.Drowsy,
-    AssistantMood.Tired,
-    -> NomiMateDecor()
+    AssistantMood.Drowsy -> NomiMateDecor(zzz = true, cheekBlush = 0.12f)
+    AssistantMood.Tired -> NomiMateDecor(zzz = true)
     AssistantMood.Sleeping -> NomiMateDecor(zzz = true)
     AssistantMood.Doubt -> NomiMateDecor()
     AssistantMood.Impressed -> NomiMateDecor(sparkles = 3)
@@ -137,6 +136,11 @@ internal fun DrawScope.drawNomiMateDecor(
     color: Color = DecorWhite,
     life: Float = 0f,
     skipParticles: Boolean = false,
+    /**
+     * Island capsule: scale hearts / zzz / blush to the eye band (not full canvas
+     * [faceR]) and skip oversized hand props that won't fit the pill.
+     */
+    islandMode: Boolean = false,
     /** Half-distance between eye centers (matches Immersive gap). */
     eyeHalfGap: Float = faceR * 0.36f * 1.45f,
     /** Midpoint X between the two eyes (includes gaze). */
@@ -145,37 +149,57 @@ internal fun DrawScope.drawNomiMateDecor(
     eyeY: Float = cy - faceR * 0.06f,
     /** Half-width of one capsule eye (barW). */
     eyeHalfWidth: Float = faceR * 0.11f,
+    /** Half-height of one capsule eye (barH). */
+    eyeHalfHeight: Float = eyeHalfWidth,
 ) {
     val decor = mood.toNomiMateDecor()
     if (decor == NomiMateDecor()) return
-    val bob = sin(life).toFloat() * faceR * 0.015f
+    // Island unit ≈ eye span so particles stay near the grey face shell.
+    val unit = if (islandMode) {
+        maxOf(eyeHalfGap + eyeHalfWidth, eyeHalfHeight) * 1.35f
+    } else {
+        faceR
+    }
+    val originX = if (islandMode) eyeMidX else cx
+    val originY = if (islandMode) eyeY else cy
+    val bob = sin(life).toFloat() * unit * 0.015f
 
     if (decor.cheekBlush > 0.04f) {
         val a = 0.28f * decor.cheekBlush
-        val bx = faceR * 0.38f
-        val by = cy + faceR * 0.16f
-        drawCircle(BlushPink.copy(alpha = a), faceR * 0.1f, Offset(cx - bx, by))
-        drawCircle(BlushPink.copy(alpha = a), faceR * 0.1f, Offset(cx + bx, by))
+        if (islandMode) {
+            val bx = eyeHalfGap * 0.95f
+            val by = eyeY + eyeHalfHeight * 1.2f
+            val br = eyeHalfHeight * 0.55f
+            drawCircle(BlushPink.copy(alpha = a), br, Offset(eyeMidX - bx, by))
+            drawCircle(BlushPink.copy(alpha = a), br, Offset(eyeMidX + bx, by))
+        } else {
+            val bx = faceR * 0.38f
+            val by = cy + faceR * 0.16f
+            drawCircle(BlushPink.copy(alpha = a), faceR * 0.1f, Offset(cx - bx, by))
+            drawCircle(BlushPink.copy(alpha = a), faceR * 0.1f, Offset(cx + bx, by))
+        }
     }
 
-    drawNomiHands(decor.hands, cx, cy, faceR, color, life)
-
-    when (decor.prop) {
-        NomiProp.None -> Unit
-        NomiProp.Crown -> drawNomiCrown(
-            Offset(cx, cy - faceR * 0.72f + bob),
-            faceR * 0.22f,
-            color,
-        )
-        // Glasses are drawn behind the eyes via [drawNomiMateGlassesIfNeeded].
-        NomiProp.Glasses -> Unit
+    // Hands / crown need the full shell plate — skip on the island pill.
+    if (!islandMode) {
+        drawNomiHands(decor.hands, cx, cy, faceR, color, life)
+        when (decor.prop) {
+            NomiProp.None -> Unit
+            NomiProp.Crown -> drawNomiCrown(
+                Offset(cx, cy - faceR * 0.72f + bob),
+                faceR * 0.22f,
+                color,
+            )
+            // Glasses are drawn behind the eyes via [drawNomiMateGlassesIfNeeded].
+            NomiProp.Glasses -> Unit
+        }
     }
 
     if (!skipParticles) {
         if (decor.zzz) {
             drawNomiZzz(
-                Offset(cx + faceR * 0.22f, cy - faceR * 0.55f + bob),
-                faceR,
+                Offset(originX + unit * 0.28f, originY - unit * 0.55f + bob),
+                unit,
                 color,
                 life,
             )
@@ -183,13 +207,13 @@ internal fun DrawScope.drawNomiMateDecor(
         if (decor.hearts > 0) {
             repeat(decor.hearts) { i ->
                 val ang = (-0.9f + i * 0.35f)
-                val r = faceR * (0.42f + 0.06f * i)
+                val r = unit * (0.42f + 0.06f * i)
                 drawNomiHeart(
                     Offset(
-                        cx + cos(ang).toFloat() * r,
-                        cy - faceR * 0.35f + sin(life * 0.4f + i).toFloat() * faceR * 0.03f,
+                        originX + cos(ang).toFloat() * r,
+                        originY - unit * 0.35f + sin(life * 0.4f + i).toFloat() * unit * 0.03f,
                     ),
-                    faceR * (0.08f - i * 0.012f),
+                    unit * (0.08f - i * 0.012f),
                     color.copy(alpha = 0.95f),
                 )
             }
@@ -197,10 +221,13 @@ internal fun DrawScope.drawNomiMateDecor(
         if (decor.sparkles > 0) {
             repeat(decor.sparkles) { i ->
                 val ang = (i * (2f * PI / decor.sparkles) + life * 0.35).toFloat()
-                val r = faceR * (0.48f + 0.05f * (i % 2))
+                val r = unit * (0.48f + 0.05f * (i % 2))
                 drawNomiSparkle(
-                    Offset(cx + cos(ang) * r, cy + sin(ang) * r * 0.7f - faceR * 0.05f),
-                    faceR * 0.055f,
+                    Offset(
+                        originX + cos(ang) * r,
+                        originY + sin(ang) * r * 0.7f - unit * 0.05f,
+                    ),
+                    unit * 0.055f,
                     color.copy(alpha = 0.85f),
                     life + i,
                 )

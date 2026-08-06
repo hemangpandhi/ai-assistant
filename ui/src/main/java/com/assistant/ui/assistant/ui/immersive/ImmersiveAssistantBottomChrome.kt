@@ -108,10 +108,8 @@ fun ImmersiveAssistantBottomChrome(
             mood = mood,
             hasTranscript = hasTranscript,
             transcriptCharCount = transcript.length,
-            hasStatusCue = mood == AssistantMood.Thinking ||
-                mood == AssistantMood.Concentration ||
-                faceCues?.leftEye != null ||
-                faceCues?.rightEye != null,
+            // Any cue slot (eyes / mouth / accents) widens for the island status circle.
+            hasStatusCue = faceCues?.islandStatusIcon() != null,
             contentAlpha = dockAlpha,
             glowBreath = glowBreath,
             modifier = Modifier
