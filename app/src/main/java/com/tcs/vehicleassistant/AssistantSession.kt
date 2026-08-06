@@ -390,9 +390,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         btnSend.isEnabled = true
                         
                         // Automatically start listening if invoked via voice match/hotword
-                        if (showFlags and SHOW_WITH_ASSIST != 0) {
+                        if ((showFlags and SHOW_WITH_ASSIST != 0) || args?.getBoolean("auto_trigger_mic") == true) {
                             CoroutineScope(Dispatchers.Main).launch {
-                                kotlinx.coroutines.delay(500) // Wait for WakeWordService to release the mic
+                                kotlinx.coroutines.delay(1000) // Wait for WakeWordService to release the mic
                                 btnMic.performClick()
                             }
                         }
@@ -414,9 +414,9 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             btnSend.isEnabled = true
             
             // Automatically start listening if invoked via voice match/hotword
-            if (showFlags and SHOW_WITH_ASSIST != 0) {
+            if ((showFlags and SHOW_WITH_ASSIST != 0) || args?.getBoolean("auto_trigger_mic") == true) {
                 CoroutineScope(Dispatchers.Main).launch {
-                    kotlinx.coroutines.delay(500) // Wait for WakeWordService to release the mic
+                    kotlinx.coroutines.delay(1000) // Wait for WakeWordService to release the mic
                     btnMic.performClick()
                 }
             }

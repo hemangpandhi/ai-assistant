@@ -16,7 +16,9 @@ class AssistantVoiceInteractionService : VoiceInteractionService() {
         fun triggerSession(context: Context? = null) {
             android.util.Log.d("WakeWord", "triggerSession called. instance is $instance")
             if (instance != null) {
-                instance?.showSession(Bundle(), VoiceInteractionSession.SHOW_WITH_ASSIST)
+                val args = Bundle()
+                args.putBoolean("auto_trigger_mic", true)
+                instance?.showSession(args, VoiceInteractionSession.SHOW_WITH_ASSIST)
             } else if (context != null) {
                 android.util.Log.w("WakeWord", "VoiceInteractionService unbound! Launching fallback Activity.")
                 val intent = Intent(context, LocalLLMActivity::class.java)
