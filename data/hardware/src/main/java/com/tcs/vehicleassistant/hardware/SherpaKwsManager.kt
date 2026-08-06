@@ -22,22 +22,17 @@ object SherpaKwsManager {
             if (!kwsDir.exists()) kwsDir.mkdirs()
 
             val keywordsFile = File(kwsDir, "keywords.txt")
-            // Phoneme-spaced keywords; WakeWordPhrasePolicy.normalizeKwsKeyword maps hits
             // back to "hey iris" / etc. before the allowlist gate.
             keywordsFile.writeText(
                 """
-                HEY IRIS : 3.0
-                HI IRIS : 2.5
-                HELLO IRIS : 2.5
-                OK IRIS : 2.5
-                HEY CAR : 3.0
-                HI CAR : 2.5
-                HELLO CAR : 2.5
-                OK CAR : 2.5
-                HEY SORA : 3.0
-                HI SORA : 2.5
-                HELLO SORA : 2.5
-                OK SORA : 2.5
+                ${"\u2581"}HE Y ${"\u2581"}I RI S : 2.5
+                ${"\u2581"}HI ${"\u2581"}I RI S : 2.5
+                ${"\u2581"}HE LL O ${"\u2581"}I RI S : 2.5
+                ${"\u2581"}O K ${"\u2581"}I RI S : 2.5
+                ${"\u2581"}HE Y ${"\u2581"}C AR : 2.5
+                ${"\u2581"}HI ${"\u2581"}C AR : 2.5
+                ${"\u2581"}HE LL O ${"\u2581"}C AR : 2.5
+                ${"\u2581"}O K ${"\u2581"}C AR : 2.5
                 """.trimIndent()
             )
 
@@ -54,7 +49,7 @@ object SherpaKwsManager {
                         tokens = File(externalDir, "tokens.txt").absolutePath,
                         numThreads = 2,
                         debug = false,
-                        modelType = "zipformer",
+                        modelType = "",
                         modelingUnit = "bpe",
                         bpeVocab = File(externalDir, "bpe.model").absolutePath
                     ),

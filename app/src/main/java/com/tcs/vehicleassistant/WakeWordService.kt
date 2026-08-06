@@ -330,37 +330,13 @@ class WakeWordService : Service() {
     }
 
     private fun startCustomListening() {
-        kwsSpotter = com.tcs.vehicleassistant.hardware.SherpaKwsManager.getKeywordSpotter(this)
+        // We rely purely on OpenWakeWord now. SherpaKwsManager is disabled to avoid native crashes
+        // and because OpenWakeWord provides much better custom model support.
+        // kwsSpotter = com.tcs.vehicleassistant.hardware.SherpaKwsManager.getKeywordSpotter(this)
 
         com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.kwsSubscriber = { floatFrame, shortBuffer, readSize ->
-            val spotter = kwsSpotter
+            // val spotter = kwsSpotter
             var matched = false
-            if (spotter != null) {
-                if (kwsStream == null) {
-                    kwsStream = spotter.createStream()
-                }
-                val stream = kwsStream
-                if (stream != null) {
-                    val slice = if (readSize == floatFrame.size) floatFrame else floatFrame.copyOf(readSize)
-                    stream.acceptWaveform(slice, 16000)
-
-                    while (spotter.isReady(stream)) {
-                        spotter.decode(stream)
-                    }
-                    val result = spotter.getResult(stream)
-                    if (result.keyword.isNotBlank()) {
-                        matched = true
-                        spotter.reset(stream)
-                        val label = WakeWordPhrasePolicy.normalizeKwsKeyword(result.keyword)
-                        // Never trust KWS blindly — only allowlisted phrases open the UI.
-                        if (matchesWakeWord(label, wakeWord)) {
-                            onWakeDetected(label)
-                        } else {
-                            Log.d(TAG, "KWS keyword ignored (not allowlisted): '${result.keyword}'")
-                        }
-                    }
-                }
-            }
 
             // Vosk path: primary when KWS is unavailable, also covers frames KWS did not fire on.
             // Always feed PCM (constrained grammar is cheap). Checking partials matters — finals
