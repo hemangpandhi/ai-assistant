@@ -22,6 +22,7 @@ class PlacesRepository {
         else if (lowerAmenity.contains("thai")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"thai\",i]" }
         else if (lowerAmenity.contains("gas") || lowerAmenity.contains("fuel")) { overpassQuery = "node[\"amenity\"=\"fuel\"]" }
         else if (lowerAmenity.contains("charging")) { overpassQuery = "node[\"amenity\"=\"charging_station\"]" }
+        else if (lowerAmenity.contains("coffee") || lowerAmenity.contains("coffe") || lowerAmenity.contains("cafe")) { overpassQuery = "node[\"amenity\"=\"cafe\"]" }
         else if (lowerAmenity.contains("food") || lowerAmenity.contains("restaurant")) { overpassQuery = "node[\"amenity\"=\"restaurant\"]" }
 
         val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 10;"
