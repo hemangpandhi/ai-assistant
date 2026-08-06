@@ -12,8 +12,8 @@ object ToolCallParser {
     fun extractToolCalls(llmOutput: String): List<ParsedToolCall> {
         val calls = mutableListOf<ParsedToolCall>()
         
-        // 1. XML Tag Format: <TOOL>toolName(args)</TOOL> (also supports <TOOLCALL> and <TOOL_CALL>)
-        val xmlRegex = Regex("(?i)<(?:TOOL|TOOL_CALL|TOOLCALL)>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:</(?:TOOL|TOOL_CALL|TOOLCALL)>|</(?:TOOL|TOOL_CALL|TOOLCALL)|$)", RegexOption.DOT_MATCHES_ALL)
+        // 1. XML Tag Format: <TOOL>toolName(args)</TOOL> (also supports <TOOLCALL>, <TOOL_CALL>, and <|tool_call>call:)
+        val xmlRegex = Regex("(?i)<(?:\\|tool_call>call:|TOOL|TOOL_CALL|TOOLCALL)>?\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:</?(?:TOOL|TOOL_CALL|TOOLCALL)>?|(?=\\s*<)|$)", RegexOption.DOT_MATCHES_ALL)
         for (match in xmlRegex.findAll(llmOutput)) {
             val fullTag = match.value
             val toolName = match.groups[1]?.value?.trim() ?: continue
@@ -88,7 +88,7 @@ object ToolCallParser {
         }
         
         // Final safety sweep: forcibly remove any dangling tool tags
-        cleaned = cleaned.replace(Regex("(?i)</?(?:TOOL|TOOL_CALL|TOOLCALL)>"), "")
+        cleaned = cleaned.replace(Regex("(?i)</?(?:TOOL|TOOL_CALL|TOOLCALL)>|<\\|tool_call>call:"), "")
         
         return cleaned.trim()
     }
