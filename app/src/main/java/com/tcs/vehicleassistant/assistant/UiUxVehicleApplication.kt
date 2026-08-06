@@ -17,10 +17,12 @@ class UiUxVehicleApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        startKoin {
-            androidLogger()
-            androidContext(this@UiUxVehicleApplication)
-            modules(appModule)
+        if (org.koin.core.context.GlobalContext.getOrNull() == null) {
+            startKoin {
+                androidLogger()
+                androidContext(this@UiUxVehicleApplication)
+                modules(appModule)
+            }
         }
 
         DemoSettingsPresets.ensureDefaults(this)

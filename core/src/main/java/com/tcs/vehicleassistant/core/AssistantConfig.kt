@@ -294,7 +294,7 @@ object AssistantConfig {
         const val NO_SPEECH_TIMEOUT_FRAMES = 50
 
         /** AudioRecord acquisition retries, covering handoff from the wake-word process. */
-        const val AUDIO_RECORD_MAX_ATTEMPTS = 5
+        const val AUDIO_RECORD_MAX_ATTEMPTS = 20
         const val AUDIO_RECORD_RETRY_DELAY_MS = 150L
 
         /**

@@ -26,6 +26,9 @@ sealed class AssistantIntent {
     /** Called when the user dismisses the assistant or cancels an action. */
     object Cancel : AssistantIntent()
 
+    /** Called to clear the state without finishing the session. */
+    object ClearState : AssistantIntent()
+
     /** Called when the assistant requests confirmation for a tool and the user responds. */
     data class ConfirmTool(val accepted: Boolean) : AssistantIntent()
 }

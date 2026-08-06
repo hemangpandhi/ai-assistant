@@ -11,7 +11,11 @@ object NavSessionState {
 
     fun setActive(dest: String?) {
         val cleaned = dest?.trim()?.removeSurrounding("\"")?.takeIf { it.isNotBlank() }
-        activeDest = cleaned
+        if (cleaned.equals("none", ignoreCase = true) || cleaned.equals("null", ignoreCase = true)) {
+            activeDest = null
+        } else {
+            activeDest = cleaned
+        }
     }
 
     fun clear() {

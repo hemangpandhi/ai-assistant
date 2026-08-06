@@ -22,15 +22,30 @@ object ToolCallParser {
         }
 
         // 2. Native JSON Format: <tool_call>{"name": "toolName", "arguments": {...}}</tool_call>
-        val jsonRegex = Regex("""(?i)<tool_call>\s*\{[\s\S]*?"name"\s*:\s*"([^"]+)"[\s\S]*?\}\s*</tool_call>""")
+        val jsonRegex = Regex("""(?i)<tool_call>\s*(\{.*?\})\s*</tool_call>""", RegexOption.DOT_MATCHES_ALL)
         for (match in jsonRegex.findAll(llmOutput)) {
             val fullTag = match.value
-            val toolName = match.groups[1]?.value?.trim() ?: continue
-            // Extract raw arguments inside JSON
-            val args = if (fullTag.contains("\"arguments\"")) {
-                fullTag.substringAfter("\"arguments\"").substringAfter(":").substringBefore("}").replace("\"", "").replace("{", "").trim()
-            } else ""
-            calls.add(ParsedToolCall(fullTag, toolName, args))
+            val jsonStr = match.groups[1]?.value?.trim() ?: continue
+            try {
+                val jsonObj = org.json.JSONObject(jsonStr)
+                val toolName = jsonObj.optString("name")
+                if (toolName.isEmpty()) continue
+                
+                var args = ""
+                val argumentsObj = jsonObj.optJSONObject("arguments")
+                if (argumentsObj != null) {
+                    val keys = argumentsObj.keys()
+                    if (keys.hasNext()) {
+                        args = argumentsObj.optString(keys.next())
+                    }
+                } else {
+                    args = jsonObj.optString("arguments", "")
+                }
+                
+                calls.add(ParsedToolCall(fullTag, toolName, args))
+            } catch (e: Exception) {
+                // Ignore malformed JSON
+            }
         }
         // 3. Fallback Function Call Syntax: toolName(args) or call:toolName(args) without explicit XML wrapping
         if (calls.isEmpty()) {
@@ -51,15 +66,14 @@ object ToolCallParser {
         return calls
     }
 
-    /**
-     * Strips all tool tags (complete and incomplete) from the LLM output,
-     * leaving only the conversational text for the TTS engine.
-     */
     fun stripToolTags(llmOutput: String): String {
-        // Strip complete XML and JSON tool tags
         var cleaned = llmOutput
-            .replace(Regex("(?i)<TOOL>[\\s\\S]*?(</TOOL>?|$)"), "")
-            .replace(Regex("(?i)<tool_call>[\\s\\S]*?(</tool_call>?|$)"), "")
+        
+        // Strip complete XML, JSON tool tags, and fallback function syntaxes
+        val parsedCalls = extractToolCalls(llmOutput)
+        for (call in parsedCalls) {
+            cleaned = cleaned.replace(call.fullTag, "")
+        }
         
         // Strip trailing incomplete tags
         val finalLastTagIndex = cleaned.lastIndexOf("<")

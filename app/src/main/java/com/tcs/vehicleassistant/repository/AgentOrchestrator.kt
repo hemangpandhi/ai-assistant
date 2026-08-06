@@ -11,6 +11,10 @@ import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.tcs.vehicleassistant.*
+
+import com.tcs.vehicleassistant.manager.VoiceInteractionManager
+import com.tcs.vehicleassistant.manager.VoiceInteractionCallback
+import com.tcs.vehicleassistant.manager.IntentDispatcher
 import com.tcs.vehicleassistant.assistant.agent.ConfirmationCoordinator
 import com.tcs.vehicleassistant.assistant.agent.PromptAssembler
 import com.tcs.vehicleassistant.assistant.agent.StreamTextPolicy
@@ -66,7 +70,6 @@ class AgentOrchestrator(
     private val confirmationCoordinator = ConfirmationCoordinator()
     private val turnState = TurnStateMachine()
 
-    private val pendingIntentsToLaunch = java.util.Collections.synchronizedList(mutableListOf<Intent>())
 
     /**
      * Monotonically increasing turn id lives on [TurnStateMachine]. LiteRT streams on its own
@@ -74,12 +77,21 @@ class AgentOrchestrator(
      * [TurnStateMachine.isCurrentTurn] before touching state.
      */
 
-    @Volatile var ttsSpokenLength = 0
-        private set
-    @Volatile var lastTtsUpdateTime = 0L
-        private set
 
+    val ttsSpokenLength: Int get() = voiceManager.ttsSpokenLength
+    val lastTtsUpdateTime: Long get() = voiceManager.lastTtsUpdateTime
     private val currentPendingTools = java.util.Collections.synchronizedList(mutableListOf<Deferred<String?>>())
+
+    private val intentDispatcher = IntentDispatcher(context)
+    private val voiceManager = VoiceInteractionManager(audioManager, object : VoiceInteractionCallback {
+        override fun onFinalUtteranceDone(utteranceId: String) {
+            this@AgentOrchestrator.onTtsFinalUtteranceDone(utteranceId)
+        }
+        override fun onFinalUtteranceError(utteranceId: String) {
+            this@AgentOrchestrator.onTtsFinalUtteranceError(utteranceId)
+        }
+    })
+
 
     /**
      * Per-turn streaming state. LiteRT invokes `onMessage` from a native thread while `onDone`
@@ -128,29 +140,6 @@ class AgentOrchestrator(
     }
 
     init {
-        audioManager.setUtteranceListener(
-            onStart = { utteranceId ->
-                if (utteranceId.startsWith("SENTENCE_")) {
-                    lastTtsUpdateTime = System.currentTimeMillis()
-                }
-            },
-            onDone = { utteranceId ->
-                if (utteranceId.startsWith("SENTENCE_")) {
-                    lastTtsUpdateTime = System.currentTimeMillis()
-                }
-                onTtsFinalUtteranceDone(utteranceId)
-            },
-            onError = { utteranceId ->
-                onTtsFinalUtteranceError(utteranceId)
-            },
-            onRangeStart = { utteranceId, start, end, frame ->
-                if (utteranceId.startsWith("SENTENCE_")) {
-                    val sentenceStartOffset = utteranceId.substringAfter("SENTENCE_").toIntOrNull() ?: 0
-                    ttsSpokenLength = Math.max(ttsSpokenLength, sentenceStartOffset + end)
-                    lastTtsUpdateTime = System.currentTimeMillis()
-                }
-            }
-        )
     }
 
     fun isProcessing(): Boolean = turnState.isProcessing()
@@ -378,8 +367,7 @@ class AgentOrchestrator(
      */
     private fun beginTurn(): Long {
         val turnId = turnState.beginTurn()
-        ttsSpokenLength = 0
-        lastTtsUpdateTime = 0L
+        voiceManager.resetState()
         return turnId
     }
 
@@ -391,21 +379,21 @@ class AgentOrchestrator(
 
     private fun onTtsFinalUtteranceDone(utteranceId: String) {
         scope.launch {
+            if (utteranceId == "QUESTION_FINAL" || utteranceId == "STATEMENT_FINAL_TOOL" || utteranceId == "STATEMENT_FINAL") {
+                for (job in currentPendingTools) {
+                    try { job.await() } catch (_: Exception) {}
+                }
+                intentDispatcher.dispatchPendingIntents { intent ->
+                    _events.tryEmit(AgentEffect.LaunchIntent(intent))
+                }
+            }
             when (utteranceId) {
                 "QUESTION_FINAL" -> {
                     delay(500)
                     _events.tryEmit(AgentEffect.StartListening)
                 }
                 "STATEMENT_FINAL_TOOL" -> {
-                    for (job in currentPendingTools) {
-                        try { job.await() } catch (_: Exception) {}
-                    }
-                    for (intent in pendingIntentsToLaunch) {
-                        _events.tryEmit(AgentEffect.LaunchIntent(intent))
-                    }
-                    pendingIntentsToLaunch.clear()
                     delay(50)
-                    // Soft offer still waiting for yes/no — keep overlay up and listen.
                     if (confirmationCoordinator.pendingOfferedTool != null) {
                         _events.tryEmit(AgentEffect.StartListening)
                     } else {
@@ -426,19 +414,20 @@ class AgentOrchestrator(
 
     private fun onTtsFinalUtteranceError(utteranceId: String) {
         scope.launch {
+            if (utteranceId == "QUESTION_FINAL" || utteranceId == "STATEMENT_FINAL_TOOL" || utteranceId == "STATEMENT_FINAL") {
+                for (job in currentPendingTools) {
+                    try { job.await() } catch (_: Exception) {}
+                }
+                intentDispatcher.dispatchPendingIntents { intent ->
+                    _events.tryEmit(AgentEffect.LaunchIntent(intent))
+                }
+            }
             when (utteranceId) {
                 "QUESTION_FINAL" -> {
                     delay(500)
                     _events.tryEmit(AgentEffect.StartListening)
                 }
                 "STATEMENT_FINAL_TOOL" -> {
-                    for (job in currentPendingTools) {
-                        try { job.await() } catch (_: Exception) {}
-                    }
-                    for (intent in pendingIntentsToLaunch) {
-                        _events.tryEmit(AgentEffect.LaunchIntent(intent))
-                    }
-                    pendingIntentsToLaunch.clear()
                     delay(3000) // Artificial delay to allow user to read text since TTS failed
                     if (confirmationCoordinator.pendingOfferedTool != null) {
                         _events.tryEmit(AgentEffect.StartListening)
@@ -633,11 +622,11 @@ class AgentOrchestrator(
         )
 
         if (finalMsg.isNotBlank()) {
-            audioManager.speak(finalMsg, "SENTENCE_0")
+            voiceManager.speak(finalMsg, "SENTENCE_0")
             val isQuestion = finalMsg.trim().endsWith("?") ||
                 finalMsg.contains("which one", ignoreCase = true)
             val finalUtterance = if (isQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL"
-            audioManager.playSilentUtterance(10, finalUtterance)
+            voiceManager.playSilentUtterance(10, finalUtterance)
         }
     }
 
@@ -658,8 +647,8 @@ class AgentOrchestrator(
             "ContextGuard policy=$policyId tool=$toolCall msg=$message",
         )
         if (message.isNotBlank()) {
-            audioManager.speak(message, "SENTENCE_0")
-            audioManager.playSilentUtterance(
+            voiceManager.speak(message, "SENTENCE_0")
+            voiceManager.playSilentUtterance(
                 10,
                 if (asQuestion) "QUESTION_FINAL" else "STATEMENT_FINAL_TOOL",
             )
@@ -896,7 +885,7 @@ class AgentOrchestrator(
                 while (match != null) {
                     val sentence = match.value
                     val sentenceStartOffset = stream.consumeSentence(sentence.length)
-                    audioManager.speak(sentence, "SENTENCE_$sentenceStartOffset")
+                    voiceManager.speak(sentence, "SENTENCE_$sentenceStartOffset")
 
                     val nextStart = Math.min(stream.spokenLength, displayMsg.length)
                     remainingText = displayMsg.substring(nextStart)
@@ -962,14 +951,14 @@ class AgentOrchestrator(
                         val remainingSentence = finalMsg.substring(safeIndex).trim()
                         if (remainingSentence.isNotEmpty()) {
                             val sentenceStartOffset = stream.consumeSentence(remainingSentence.length)
-                            audioManager.speak(remainingSentence, "SENTENCE_$sentenceStartOffset")
+                            voiceManager.speak(remainingSentence, "SENTENCE_$sentenceStartOffset")
                         }
                     }
 
                     // Now parse tools — use a turn-local list so a newer turn cannot clear ours.
                     val pendingTools = mutableListOf<Deferred<String?>>()
-                    val confirmationAsks = mutableListOf<String>()
-                    val actuallyExecutedTools = linkedSetOf<String>()
+                    val confirmationAsks = java.util.Collections.synchronizedList(mutableListOf<String>())
+                    val actuallyExecutedTools = java.util.Collections.synchronizedSet(LinkedHashSet<String>())
                     
                     // Combine native tool calls with any text-parsed tool calls (for Cloud fallback)
                     val parsedTools = (nativeToolCalls + ToolCallParser.extractToolCalls(tempFinalMsg)).map {
@@ -1012,9 +1001,15 @@ class AgentOrchestrator(
                                     withTimeoutOrNull(AssistantConfig.Llm.TOOL_TIMEOUT_MS) {
                                         when (val decision = evaluateContextGuard(toolCall)) {
                                             is ContextGuard.Decision.Confirm -> {
-                                                confirmationCoordinator.setConfirmation(decision.originalToolCall)
-                                                confirmationAsks.add(decision.message)
-                                                decision.message
+                                                synchronized(confirmationCoordinator) {
+                                                    if (confirmationCoordinator.pendingConfirmationTool == null) {
+                                                        confirmationCoordinator.setConfirmation(decision.originalToolCall)
+                                                        confirmationAsks.add(decision.message)
+                                                        decision.message
+                                                    } else {
+                                                        "System Error: Skipped execution because another tool is already pending confirmation."
+                                                    }
+                                                }
                                             }
                                             is ContextGuard.Decision.Block -> decision.message
                                             is ContextGuard.Decision.Escalate -> decision.message
@@ -1140,7 +1135,7 @@ class AgentOrchestrator(
                         )
                         finalDisplayMsg = resolved.text
                         if (finalDisplayMsg.isNotBlank()) {
-                            audioManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
+                            voiceManager.speak(finalDisplayMsg, "SENTENCE_FINAL_FB")
                         }
                     } else if (
                         com.tcs.vehicleassistant.core.LlmToolTurnPolicy.shouldSpeakToolFeedback(
@@ -1161,7 +1156,7 @@ class AgentOrchestrator(
                             } else {
                                 "$finalDisplayMsg $feedbackMsg".trim()
                             }
-                            audioManager.speak(feedbackMsg, "SENTENCE_FINAL_CONFIRM")
+                            voiceManager.speak(feedbackMsg, "SENTENCE_FINAL_CONFIRM")
                         }
                     }
 
@@ -1181,7 +1176,7 @@ class AgentOrchestrator(
                     val finalUtterance = if (spokenIsQuestion) "QUESTION_FINAL"
                         else if (toolFeedbacks.isNotEmpty() || pendingTools.isNotEmpty()) "STATEMENT_FINAL_TOOL"
                         else "STATEMENT_FINAL"
-                    audioManager.playSilentUtterance(10, finalUtterance)
+                    voiceManager.playSilentUtterance(10, finalUtterance)
 
                     // Only now is the turn finished — re-enable input for the next utterance.
                     // Pending confirmation must re-open the mic even if the model already spoke prose.
@@ -1270,7 +1265,7 @@ class AgentOrchestrator(
             context.applicationContext,
             toolCall,
             enforcePromptAllowList = enforcePromptAllowList,
-            intentHandler = { intent -> pendingIntentsToLaunch.add(intent) },
+            intentHandler = { intent -> intentDispatcher.queueIntent(intent) },
         )
     }
 

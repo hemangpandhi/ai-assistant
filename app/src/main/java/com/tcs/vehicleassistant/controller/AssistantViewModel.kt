@@ -168,6 +168,10 @@ class AssistantViewModel(
                 orchestrator.resetState()
                 _events.tryEmit(ViewModelEvent.FinishSession)
             }
+            is AssistantIntent.ClearState -> {
+                orchestrator.resetState()
+                _uiState.value = AssistantUiState.Idle
+            }
             is AssistantIntent.ConfirmTool -> {
                 if (AssistantConfig.isEarTestMode(context)) return
                 orchestrator.handleConfirmation(intent.accepted)

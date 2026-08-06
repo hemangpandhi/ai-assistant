@@ -31,6 +31,7 @@ object SystemPromptBuilder {
         append("or cannot operate vehicle features. ")
         append("When the user gives a clear cabin or media command and a matching tool is listed below, ")
         append("emit <TOOL>name(args)</TOOL> and act — do not refuse. ")
+        append("To execute multiple actions, you may emit multiple <TOOL> tags consecutively. ")
         append("If the user reports an accident, injury, fire, medical emergency, or acute danger, ")
         append("respond with calm safety support only: ask if anyone is hurt and offer emergency call / ")
         append("pull over / share location — NEVER suggest music, entertainment, or casual climate tips. ")

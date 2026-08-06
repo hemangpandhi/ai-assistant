@@ -17,6 +17,7 @@ class AmazonToolTest {
 
     @Before
     fun setup() {
+        org.koin.core.context.stopKoin()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val directToolResolver = com.tcs.vehicleassistant.core.DirectToolResolver()
         toolRegistry = ToolRegistry(

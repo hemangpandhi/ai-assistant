@@ -8,15 +8,21 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.util.Log
+import com.tcs.vehicleassistant.repository.PlacesRepository
 
 class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
     private val TAG = "NavigationToolHandler"
+    private val placesRepository = PlacesRepository()
 
     override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         return when (handlerKey) {
             "startNavigationTo" -> {
                 val dest = toolCall.substringAfter("(").substringBefore(")")
                 val spokenDest = dest.trim().replace("\"", "")
+                
+                if (spokenDest.isBlank() || spokenDest.lowercase() == "none" || spokenDest.lowercase() == "null") {
+                    return ToolExecutionResult(false, "I need a specific destination to navigate to.")
+                }
                 
                 var queryParam = spokenDest
                 if (spokenDest.matches(Regex("-?\\d+\\.\\d+,-?\\d+\\.\\d+"))) {
@@ -56,67 +62,13 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
             }
             "searchNearby" -> {
                 val amenity = toolCall.substringAfter("(").substringBefore(")").lowercase().trim()
-                var overpassQuery = "node[\"amenity\"~\"$amenity\",i]"
-                if (amenity.contains("italian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"italian\",i]" }
-                else if (amenity.contains("mexican")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"mexican\",i]" }
-                else if (amenity.contains("chinese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"chinese\",i]" }
-                else if (amenity.contains("pizza")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"pizza\",i]" }
-                else if (amenity.contains("burger") || amenity.contains("fast food") || amenity.contains("american")) { overpassQuery = "node[\"amenity\"=\"fast_food\"][\"cuisine\"~\"burger|american\",i]" }
-                else if (amenity.contains("sushi") || amenity.contains("japanese")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"japanese|sushi\",i]" }
-                else if (amenity.contains("indian")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"indian\",i]" }
-                else if (amenity.contains("thai")) { overpassQuery = "node[\"amenity\"=\"restaurant\"][\"cuisine\"~\"thai\",i]" }
-                else if (amenity.contains("gas") || amenity.contains("fuel")) { overpassQuery = "node[\"amenity\"=\"fuel\"]" }
-                else if (amenity.contains("charging")) { overpassQuery = "node[\"amenity\"=\"charging_station\"]" }
-                else if (amenity.contains("food") || amenity.contains("restaurant")) { overpassQuery = "node[\"amenity\"=\"restaurant\"]" }
-                
                 val bbox = LocationManager.getBbox(context)
-
-                val fullQuery = "[out:json][timeout:10];$overpassQuery($bbox);out 10;"
-                try {
-                    val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
-                    val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.connectTimeout = 10000
-                    connection.readTimeout = 10000
-                    connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
-                    connection.requestMethod = "GET"
-                    if (connection.responseCode == 200) {
-                        val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        val jsonObj = org.json.JSONObject(response)
-                        val elements = jsonObj.optJSONArray("elements") ?: org.json.JSONArray()
-                        val places = mutableListOf<String>()
-                        val placesWithCoords = mutableListOf<Pair<String, String>>()
-                        for (i in 0 until elements.length()) {
-                            val element = elements.getJSONObject(i)
-                            val tags = element.optJSONObject("tags") ?: continue
-                            var name = tags.optString("name", tags.optString("name:en", "")).trim()
-                            val brand = tags.optString("brand", tags.optString("brand:en", "")).trim()
-                            val lat = element.optDouble("lat")
-                            val lon = element.optDouble("lon")
-                            if (name.isEmpty() && brand.isNotEmpty()) name = brand
-                            if (name.isNotEmpty() && !places.contains(name)) {
-                                places.add(name)
-                                placesWithCoords.add(Pair(name, "$lat,$lon"))
-                                if (places.size >= 3) break
-                            }
-                        }
-                        if (places.isEmpty() && elements.length() > 0) {
-                            val firstLat = elements.getJSONObject(0).optDouble("lat")
-                            val firstLon = elements.getJSONObject(0).optDouble("lon")
-                            places.add("Local $amenity")
-                            placesWithCoords.add(Pair("Local $amenity", "$firstLat,$firstLon"))
-                        }
-                        if (places.isNotEmpty()) {
-                            val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-                            ToolExecutionResult(true, "I found these options nearby: $placesStr. Which one would you like to navigate to?")
-                        } else {
-                            ToolExecutionResult(true, "I couldn't find any $amenity nearby.")
-                        }
-                    } else {
-                        ToolExecutionResult(false, "Failed to search for $amenity due to network error.")
-                    }
-                } catch (e: Exception) {
-                    ToolExecutionResult(false, "Failed to search for $amenity due to network error.")
+                val places = placesRepository.searchNearby(amenity, bbox)
+                if (places.isNotEmpty()) {
+                    val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
+                    ToolExecutionResult(true, "I found these options nearby: $placesStr. Which one would you like to navigate to?")
+                } else {
+                    ToolExecutionResult(true, "I couldn't find any $amenity nearby.")
                 }
             }
             "search" -> {
@@ -139,49 +91,13 @@ class NavigationToolHandler(override val handlerKey: String) : ToolHandler {
                 ToolExecutionResult(true, "I've displayed the search results for $query on the map. Would you like me to navigate to any of these options?")
             }
             "suggestNearbyPlaces" -> {
-                // Real path: Overpass tourism/attraction search (same network stack as searchNearby).
                 val bbox = LocationManager.getBbox(context)
-                val overpassQuery = "node[\"tourism\"~\"attraction|museum|viewpoint|gallery\",i]"
-                val fullQuery = "[out:json][timeout:10];($overpassQuery($bbox);node[\"amenity\"=\"place_of_worship\"]($bbox););out 10;"
-                try {
-                    val encodedQuery = java.net.URLEncoder.encode(fullQuery, "UTF-8")
-                    val url = java.net.URL("https://overpass-api.de/api/interpreter?data=$encodedQuery")
-                    val connection = url.openConnection() as java.net.HttpURLConnection
-                    connection.connectTimeout = 10000
-                    connection.readTimeout = 10000
-                    connection.setRequestProperty("User-Agent", "GeminiNanoSample/1.0")
-                    connection.requestMethod = "GET"
-                    if (connection.responseCode == 200) {
-                        val response = connection.inputStream.bufferedReader().use { it.readText() }
-                        val jsonObj = org.json.JSONObject(response)
-                        val elements = jsonObj.optJSONArray("elements") ?: org.json.JSONArray()
-                        val places = mutableListOf<String>()
-                        for (i in 0 until elements.length()) {
-                            val element = elements.getJSONObject(i)
-                            val tags = element.optJSONObject("tags") ?: continue
-                            val name = tags.optString("name", tags.optString("name:en", "")).trim()
-                            if (name.isNotEmpty() && name !in places) {
-                                places.add(name)
-                                if (places.size >= 3) break
-                            }
-                        }
-                        if (places.isNotEmpty()) {
-                            val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
-                            ToolExecutionResult(
-                                true,
-                                "I found these options nearby: $placesStr. Which one would you like to visit?",
-                            )
-                        } else {
-                            ToolExecutionResult(
-                                true,
-                                "I couldn't find named attractions nearby right now. Try asking for a restaurant, museum, or park.",
-                            )
-                        }
-                    } else {
-                        ToolExecutionResult(false, "Failed to search nearby places due to a network error.")
-                    }
-                } catch (e: Exception) {
-                    ToolExecutionResult(false, "Failed to search nearby places due to a network error.")
+                val places = placesRepository.suggestNearbyAttractions(bbox)
+                if (places.isNotEmpty()) {
+                    val placesStr = places.mapIndexed { index, name -> "${index + 1}. $name" }.joinToString(", ")
+                    ToolExecutionResult(true, "I found these options nearby: $placesStr. Which one would you like to visit?")
+                } else {
+                    ToolExecutionResult(true, "I couldn't find named attractions nearby right now. Try asking for a restaurant, museum, or park.")
                 }
             }
             "provideLaneLevelGuidance" -> {

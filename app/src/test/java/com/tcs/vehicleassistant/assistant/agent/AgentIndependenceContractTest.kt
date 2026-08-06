@@ -150,4 +150,25 @@ class ToolLoopPlannerTest {
         assertEquals(1, planned.size)
         assertTrue(planned[0] is ToolLoopPlanner.PlannedToolAction.ScheduleExecute)
     }
+
+    @Test
+    fun `planning breaks after the first tool that requires confirmation`() {
+        val planned = ToolLoopPlanner.plan(
+            tools = listOf(
+                ToolLoopPlanner.ParsedTool("openTrunk", ""),
+                ToolLoopPlanner.ParsedTool("setFanSpeed", "3")
+            ),
+            userQuery = "open trunk and turn on fan",
+            alreadyExecuted = emptySet(),
+            isAllowed = { true },
+            confirmationAsk = { call, _ -> 
+                if (call.contains("openTrunk")) "Are you sure?" else null 
+            }
+        )
+        
+        // It should break on openTrunk, so setFanSpeed is never scheduled
+        assertEquals(1, planned.size)
+        assertTrue(planned[0] is ToolLoopPlanner.PlannedToolAction.RequireConfirmation)
+        assertEquals("openTrunk()", planned[0].toolCall)
+    }
 }

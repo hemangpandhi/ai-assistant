@@ -15,10 +15,12 @@ class VehicleApplication : Application() {
     override fun onCreate() {
         super.onCreate()
 
-        startKoin {
-            androidLogger()
-            androidContext(this@VehicleApplication)
-            modules(appModule)
+        if (org.koin.core.context.GlobalContext.getOrNull() == null) {
+            startKoin {
+                androidLogger()
+                androidContext(this@VehicleApplication)
+                modules(appModule)
+            }
         }
 
         DemoSettingsPresets.ensureDefaults(this)

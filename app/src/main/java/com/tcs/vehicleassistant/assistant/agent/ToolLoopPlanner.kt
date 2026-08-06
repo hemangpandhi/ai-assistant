@@ -80,6 +80,7 @@ object ToolLoopPlanner {
             val ask = confirmationAsk(toolCall, parsed.toolName)
             if (ask != null) {
                 planned += PlannedToolAction.RequireConfirmation(toolCall, ask)
+                break
             } else {
                 planned += PlannedToolAction.ScheduleExecute(toolCall)
             }

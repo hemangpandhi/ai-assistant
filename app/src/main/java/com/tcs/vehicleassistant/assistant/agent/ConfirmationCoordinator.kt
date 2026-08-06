@@ -20,9 +20,11 @@ class ConfirmationCoordinator {
         private set
 
     fun setConfirmation(toolCall: String) {
-        pendingConfirmationTool = toolCall
-        // A hard confirm supersedes any soft offer.
-        pendingOfferedTool = null
+        if (pendingConfirmationTool == null) {
+            pendingConfirmationTool = toolCall
+            // A hard confirm supersedes any soft offer.
+            pendingOfferedTool = null
+        }
     }
 
     fun setSoftOffer(toolCall: String) {

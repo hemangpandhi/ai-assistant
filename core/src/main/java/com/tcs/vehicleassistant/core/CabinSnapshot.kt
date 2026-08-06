@@ -33,7 +33,7 @@ data class CabinSnapshot(
     val latitude: Double? = null,
     val longitude: Double? = null,
 ) {
-    val navActive: Boolean get() = !navActiveDest.isNullOrBlank()
+    val navActive: Boolean get() = !navActiveDest.isNullOrBlank() && !navActiveDest.equals("none", ignoreCase = true) && !navActiveDest.equals("null", ignoreCase = true)
 
     fun sensor(name: String): Double? = when (name.lowercase()) {
         "media_volume_pct", "volume_pct", "volume" -> mediaVolumePct.toDouble()

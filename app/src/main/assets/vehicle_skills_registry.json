@@ -2331,8 +2331,8 @@
             "startNavigationTo"
           ],
           "when": {
-            "require_nav_active": true,
-            "require_nav_dest_differs_arg": true
+            "nav_active": true,
+            "nav_dest_differs_arg": true
           },
           "action": "confirm",
           "message": "You are already navigating to {nav_active_dest}. Route to the new destination instead?"

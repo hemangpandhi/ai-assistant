@@ -137,6 +137,30 @@ class DirectToolResolver {
         }
 
         candidates.sortByDescending { it.second.length }
+        
+        // Check for genuine multi-commands (non-overlapping distinct tools)
+        if (candidates.size > 1) {
+            val distinctTools = candidates.distinctBy { it.first.id }
+            if (distinctTools.size > 1) {
+                // Check if the top two distinct tools have non-overlapping keywords
+                val bestMatch = distinctTools[0].second
+                val secondBestMatch = distinctTools[1].second
+                
+                val idx1 = normalized.indexOf(bestMatch)
+                val idx2 = normalized.indexOf(secondBestMatch)
+                
+                if (idx1 != -1 && idx2 != -1) {
+                    val end1 = idx1 + bestMatch.length
+                    val end2 = idx2 + secondBestMatch.length
+                    
+                    // If they don't overlap, it's a multi-command!
+                    if (end1 <= idx2 || end2 <= idx1) {
+                        return Outcome.Skip(Rejection("multiple_tools_detected"))
+                    }
+                }
+            }
+        }
+
         val best = candidates.first()
         val secondLen = candidates.getOrNull(1)?.second?.length ?: 0
         if (secondLen > 0 && best.second.length - secondLen < policy.minKeywordMargin) {
