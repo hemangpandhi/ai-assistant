@@ -227,6 +227,10 @@ class WakeWordService : Service() {
         }
         val isMatch = lowerHypothesis.contains(wakeWord) || 
                       lowerHypothesis.contains("hey iris") ||
+                      lowerHypothesis.contains("hey harris") ||
+                      lowerHypothesis.contains("harris") ||
+                      lowerHypothesis.contains("hi iris") ||
+                      lowerHypothesis.contains("eyeris") ||
                       lowerHypothesis.contains("hey nice") ||
                       lowerHypothesis.contains("hey me") ||
                       lowerHypothesis.contains("hey listen") ||
