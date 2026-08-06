@@ -1,4 +1,4 @@
-package com.tcs.vehicleassistant.hardware
+﻿package com.tcs.vehicleassistant.hardware
 
 import android.content.Context
 import android.util.Log
@@ -7,7 +7,7 @@ import java.io.File
 
 /**
  * Manages Sherpa-ONNX Zipformer Neural Keyword Spotter (KWS).
- * Provides high-accuracy wake-word detection for "Hey Nissan" with zero false positives.
+ * Keywords are the fixed UiUx allowlist: (hey|hi|hello|ok) + (iris|car|sora).
  */
 object SherpaKwsManager {
     private const val TAG = "SherpaKwsManager"
@@ -22,13 +22,22 @@ object SherpaKwsManager {
             if (!kwsDir.exists()) kwsDir.mkdirs()
 
             val keywordsFile = File(kwsDir, "keywords.txt")
+            // Phoneme-spaced keywords; WakeWordPhrasePolicy.normalizeKwsKeyword maps hits
+            // back to "hey iris" / etc. before the allowlist gate.
             keywordsFile.writeText(
                 """
-                H EY N I S S A N : 3.0
-                N I S S A N : 2.5
-                H EY A S S I S T A N T : 2.0
-                H EY G E M I N I : 2.0
-                H EY S D I : 2.0
+                H EY I R I S : 3.0
+                H I I R I S : 2.5
+                H EH L OW I R I S : 2.5
+                O K I R I S : 2.5
+                H EY C A R : 3.0
+                H I C A R : 2.5
+                H EH L OW C A R : 2.5
+                O K C A R : 2.5
+                H EY S O R A : 3.0
+                H I S O R A : 2.5
+                H EH L OW S O R A : 2.5
+                O K S O R A : 2.5
                 """.trimIndent()
             )
 

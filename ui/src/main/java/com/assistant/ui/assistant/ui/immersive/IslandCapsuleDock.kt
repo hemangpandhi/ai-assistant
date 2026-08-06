@@ -59,8 +59,7 @@ fun estimateIslandExpandedWidth(
     hasStatusCue: Boolean = false,
 ): Dp {
     val faceSlot = if (hasStatusCue) {
-        // Eyes band + near-height badge — matches expanded face slot below.
-        AssistantOverlayTokens.IslandExpandedHeightWithText * 1.35f
+        AssistantOverlayTokens.IslandFaceExpandedWidthWithCue
     } else {
         // Wide band so the grey eye shell stays a horizontal capsule (not a circle).
         AssistantOverlayTokens.IslandFaceExpandedWidth
@@ -232,17 +231,15 @@ fun IslandCapsuleDock(
                         ),
                     ) {
                         Box(
-                            modifier = if (hasStatusCue) {
-                                // Tall status circle needs the full pill height + width for eyes.
-                                Modifier
-                                    .fillMaxHeight()
-                                    .width(height * 1.35f)
-                            } else {
-                                // Wide horizontal band — shell tracks eyes as a capsule, not a 1:1 circle.
-                                Modifier
-                                    .fillMaxHeight()
-                                    .width(AssistantOverlayTokens.IslandFaceExpandedWidth)
-                            },
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(
+                                    if (hasStatusCue) {
+                                        AssistantOverlayTokens.IslandFaceExpandedWidthWithCue
+                                    } else {
+                                        AssistantOverlayTokens.IslandFaceExpandedWidth
+                                    },
+                                ),
                             contentAlignment = Alignment.Center,
                         ) {
                             face(faceSize)

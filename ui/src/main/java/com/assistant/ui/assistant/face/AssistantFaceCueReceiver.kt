@@ -116,6 +116,7 @@ class AssistantFaceCueReceiver : BroadcastReceiver() {
         "music" -> ToolFaceCues.music()
         "search" -> ToolFaceCues.search()
         "climate", "hvac", "ac" -> AssistantFaceCues(
+            leftEye = AssistantFaceCueIcon.Thermostat,
             mouth = AssistantFaceCueIcon.Thermostat,
             leftAccent = AssistantFaceCueIcon.Ac,
             rightAccent = AssistantFaceCueIcon.Heat,

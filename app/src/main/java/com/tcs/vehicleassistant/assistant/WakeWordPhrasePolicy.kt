@@ -3,78 +3,64 @@ package com.tcs.vehicleassistant.assistant
 import com.tcs.vehicleassistant.core.AssistantConfig
 
 /**
- * Wake-phrase matching and Vosk grammar helpers for UiUx.
+ * Strict wake-phrase gate for UiUx.
  *
- * For a configured phrase like `hey iris`, also accepts the bare name `iris`
- * (and includes it in the constrained grammar so Vosk can emit it).
+ * Only `(hey|hi|hello|ok|okay) + (iris|car|sora)` opens the assistant.
+ * Bare greetings (`hi`, `hello`) and bare names (`iris`) never match.
  */
 object WakeWordPhrasePolicy {
 
-    private val NAME_PREFIXES = setOf("hey", "hi", "ok", "okay")
-    private val ALTERNATE_WAKE_WORDS = setOf("hey car", "hello car", "ok car", "hi car")
+    private val PREFIXES = listOf("hey", "hi", "hello", "ok", "okay")
+    private val NAMES = listOf("iris", "car", "sora")
+
+    /** Full two-word phrases accepted as a wake. */
+    val ALLOWED_PHRASES: Set<String> =
+        PREFIXES.flatMap { prefix -> NAMES.map { name -> "$prefix $name" } }.toSet()
 
     /**
-     * Common assistant nouns that must not bare-match (too many false wakes in cabin speech).
-     * Proper names like `iris` are allowed.
+     * Bare-name alias — always null. Kept for call-site / test compatibility; bare names
+     * false-trigger too often with a constrained Vosk grammar.
      */
-    private val BARE_ALIAS_BLOCKLIST = setOf(
-        "assistant",
-        "google",
-        "siri",
-        "alexa",
-        "copilot",
-        "gemini",
-        "nissan",
-    )
+    @Suppress("UNUSED_PARAMETER")
+    fun shortAlias(configuredWakeWord: String): String? = null
+
+    /** Phrases to put in the Vosk grammar (allowlist + `[unk]`). */
+    @Suppress("UNUSED_PARAMETER")
+    fun grammarPhrases(configuredWakeWord: String): Set<String> =
+        LinkedHashSet<String>(ALLOWED_PHRASES.size + 1).apply {
+            addAll(ALLOWED_PHRASES)
+            add(AssistantConfig.WakeWord.UNKNOWN_TOKEN)
+        }
 
     /**
-     * Bare-name alias for `hey|hi|ok|okay <name>` (e.g. `hey iris` → `iris`).
-     * Null when there is no safe single-token alias.
+     * True when [transcript] contains exactly one allowed wake phrase.
+     * [configuredWakeWord] is ignored — the allowlist is fixed.
      */
-    fun shortAlias(configuredWakeWord: String): String? {
-        val parts = configuredWakeWord.lowercase().trim()
-            .split(Regex("\\s+"))
-            .filter { it.isNotEmpty() }
-        if (parts.size != 2) return null
-        if (parts[0] !in NAME_PREFIXES) return null
-        val name = parts[1]
-        if (name == AssistantConfig.WakeWord.UNKNOWN_TOKEN) return null
-        if (name in BARE_ALIAS_BLOCKLIST) return null
-        return name
-    }
-
-    /** Phrases to put in the Vosk grammar (configured + optional bare name + `[unk]`). */
-    fun grammarPhrases(configuredWakeWord: String): Set<String> {
-        val configured = configuredWakeWord.lowercase().trim()
-            .ifEmpty { AssistantConfig.WakeWord.DEFAULT_WAKE_WORD }
-        val phrases = linkedSetOf(configured, AssistantConfig.WakeWord.UNKNOWN_TOKEN)
-        shortAlias(configured)?.let { phrases.add(it) }
-        phrases.addAll(ALTERNATE_WAKE_WORDS)
-        return phrases
-    }
-
+    @Suppress("UNUSED_PARAMETER")
     fun matches(transcript: String, configuredWakeWord: String): Boolean {
-        val configured = configuredWakeWord.lowercase().trim()
-        if (configured.isNotEmpty() && matchesPhrase(transcript, configured)) return true
-        val alias = shortAlias(configured)
-        if (alias != null && matchesPhrase(transcript, alias)) return true
-        
-        for (alt in ALTERNATE_WAKE_WORDS) {
-            if (matchesPhrase(transcript, alt)) return true
+        val text = normalizeTranscript(transcript)
+        if (text.isEmpty()) return false
+        for (phrase in ALLOWED_PHRASES) {
+            if (matchesPhrase(text, phrase)) return true
         }
         return false
     }
 
     /**
-     * True when [transcript] contains [phrase] as a fresh match (same rules as master’s
-     * single-phrase gate: strip `[unk]`, reject repeated lead tokens / duplicate phrases).
+     * True when [transcript] contains [phrase] as whole words once (same rematch guards
+     * as before: reject repeated lead tokens / duplicate phrases).
      */
     fun matchesPhrase(transcript: String, phrase: String): Boolean {
         val configured = phrase.lowercase().trim()
         if (configured.isEmpty()) return false
         val text = normalizeTranscript(transcript)
         if (text.isEmpty()) return false
-        if (!text.contains(configured)) return false
+
+        // Whole-phrase boundary: "hi" must not match inside "hi car" checks for other phrases,
+        // and "hi" alone must not contain "hi car".
+        val phraseRegex = Regex("""\b${Regex.escape(configured)}\b""")
+        val phraseHits = phraseRegex.findAll(text).count()
+        if (phraseHits != 1) return false
 
         val lead = configured.substringBefore(' ')
         if (lead.isNotEmpty()) {
@@ -84,9 +70,7 @@ object WakeWordPhrasePolicy {
             if (inText > inConfigured) return false
         }
 
-        val first = text.indexOf(configured)
-        val second = text.indexOf(configured, first + configured.length)
-        return second < 0
+        return true
     }
 
     fun normalizeTranscript(transcript: String): String =
@@ -94,4 +78,18 @@ object WakeWordPhrasePolicy {
             .replace(AssistantConfig.WakeWord.UNKNOWN_TOKEN, " ")
             .replace(Regex("\\s+"), " ")
             .trim()
+
+    /**
+     * Normalize a Sherpa KWS keyword label (often phoneme-spaced, e.g. `H EY I R I S`)
+     * into a lowercase phrase for [matches].
+     */
+    fun normalizeKwsKeyword(raw: String): String {
+        val lower = raw.lowercase().trim()
+        if (lower.isEmpty()) return ""
+        val compact = lower.replace(" ", "")
+        for (phrase in ALLOWED_PHRASES) {
+            if (compact == phrase.replace(" ", "")) return phrase
+        }
+        return normalizeTranscript(lower)
+    }
 }

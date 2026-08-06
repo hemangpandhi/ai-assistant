@@ -552,6 +552,7 @@ fun ImmersiveEyesFace(
     val islandEyeHalfH = with(density) { (AssistantOverlayTokens.IslandEyeHeight / 2).toPx() }
     val islandEyeHalfGap = with(density) { AssistantOverlayTokens.IslandEyeHalfGap.toPx() }
     val islandCueMarginPx = with(density) { AssistantOverlayTokens.IslandCueBadgeMargin.toPx() }
+    val islandCueBadgeSizePx = with(density) { AssistantOverlayTokens.IslandCueBadgeSize.toPx() }
     val islandFaceShellPadHPx = with(density) { AssistantOverlayTokens.IslandFaceShellPadH.toPx() }
     val islandFaceShellPadVPx = with(density) { AssistantOverlayTokens.IslandFaceShellPadV.toPx() }
     val islandFaceShellCueGapPx = with(density) { AssistantOverlayTokens.IslandFaceShellCueGap.toPx() }
@@ -686,24 +687,10 @@ fun ImmersiveEyesFace(
                     0f
                 }
                 val talkOpen = (open * (1f + 0.55f * eyeTalk)).coerceIn(0.05f, 1.35f)
-                // Island: status circle from any cue slot (weather eyes, music accents, HVAC mouth…).
+                // Island: reserve right band for the Compose status badge (drawn in chrome).
                 val islandStatusIcon = if (!showShell) cues?.islandStatusIcon() else null
                 val islandEyeCue = islandStatusIcon != null
-                val islandCueBadgeR = if (islandEyeCue) {
-                    (size.height * 0.5f - islandCueMarginPx).coerceAtLeast(1f)
-                } else {
-                    0f
-                }
-                val islandBadgePainter = when {
-                    !islandEyeCue -> null
-                    rightEyeIcon != null -> rightEyePainter
-                    leftEyeIcon != null -> leftEyePainter
-                    mouthIcon != null -> mouthPainter
-                    leftAccentIcon != null -> leftAccentPainter
-                    rightAccentIcon != null -> rightAccentPainter
-                    else -> null
-                }
-                val islandBadgeTint = islandStatusIcon?.glyphTint(highContrast)
+                val islandCueBadgeR = if (islandEyeCue) islandCueBadgeSizePx * 0.5f else 0f
                 if (showShell) {
                     val thinkingEyes = mood.isThinkingRollMood()
                     gap = faceR * 0.36f * eyeGap.value.coerceIn(1f, 1.8f)
@@ -733,10 +720,11 @@ fun ImmersiveEyesFace(
                     barH = islandEyeHalfH * talkOpen * breath *
                         if (thinkingEyes) eyeHeight.value.coerceIn(0.65f, 1f) else 1f
                 }
-                // With a status cue, anchor eyes in the left band; badge sits on the right.
+                // With a status cue, anchor eyes in the left band; Compose badge sits on the right.
                 val eyeAnchorX = if (islandEyeCue) {
                     val badgeLeft = size.width - islandCueMarginPx - islandCueBadgeR * 2f
-                    (badgeLeft - islandCueMarginPx).coerceAtLeast(0f) * 0.5f
+                    val eyesBandRight = (badgeLeft - islandFaceShellCueGapPx).coerceAtLeast(0f)
+                    eyesBandRight * 0.5f
                 } else {
                     cx
                 }
@@ -835,18 +823,8 @@ fun ImmersiveEyesFace(
                         )
                     }
 
-                    // Island: status badge from any cue slot (music / weather / climate / nav…).
-                    if (!showShell && islandCueBadgeR > 0f &&
-                        islandBadgePainter != null && islandBadgeTint != null
-                    ) {
-                        drawIslandEyeCueBadge(
-                            painter = islandBadgePainter,
-                            center = islandCueCenter,
-                            radius = islandCueBadgeR,
-                            tint = islandBadgeTint,
-                            life = life,
-                        )
-                    }
+                    // Island status badge is a Compose sibling in ImmersiveAssistantBottomChrome
+                    // (avoids being covered by the dark-grey eye shell).
 
                     // Cheek accents + mouth cues — shell face only (island uses status badge).
                     if (showShell) {

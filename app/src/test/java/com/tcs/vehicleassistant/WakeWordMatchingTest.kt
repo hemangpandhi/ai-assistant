@@ -7,9 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Exercises the wake-word gate that decides whether a Vosk result opens the assistant. These were
- * previously "tested" by re-implementing `contains` inside the test body, which asserted nothing
- * about the service.
+ * Exercises the wake-word gate that decides whether a Vosk result opens the assistant.
  */
 class WakeWordMatchingTest {
 
@@ -17,47 +15,50 @@ class WakeWordMatchingTest {
 
     @Test
     fun `exact phrase matches`() {
-        assertTrue(WakeWordService.matchesWakeWord("hey assistant", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("hey iris", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("hi car", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("hello sora", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("ok iris", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("okay car", wakeWord))
     }
 
     @Test
     fun `phrase embedded in a longer utterance matches`() {
-        assertTrue(WakeWordService.matchesWakeWord("okay hey assistant turn on the ac", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("okay hey iris turn on the ac", wakeWord))
     }
 
     @Test
     fun `stale decoder leftovers with a repeated wake phrase do not rematch`() {
-        // After RESTART without reset, Vosk emitted e.g. "hey [unk] hey nissan" which still
-        // contained the configured phrase and reopened the overlay without a new wake word.
-        assertFalse(WakeWordService.matchesWakeWord("hey [unk] hey assistant", wakeWord))
-        assertFalse(WakeWordService.matchesWakeWord("hey [unk] hey [unk] hey assistant", wakeWord))
-        assertFalse(WakeWordService.matchesWakeWord("hey [unk] hey nissan", "hey nissan"))
-        assertFalse(WakeWordService.matchesWakeWord("hey nissan hey nissan", "hey nissan"))
+        assertFalse(WakeWordService.matchesWakeWord("hey [unk] hey iris", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("hey iris hey iris", wakeWord))
     }
 
     @Test
     fun `a single wake phrase with unk noise around it still matches`() {
-        assertTrue(WakeWordService.matchesWakeWord("hey [unk] assistant", wakeWord))
-        assertTrue(WakeWordService.matchesWakeWord("[unk] hey assistant [unk]", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("hey [unk] iris", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("[unk] hey iris [unk]", wakeWord))
     }
 
     @Test
     fun `matching ignores case and surrounding whitespace`() {
-        assertTrue(WakeWordService.matchesWakeWord("  HEY Assistant  ", wakeWord))
-        assertTrue(WakeWordService.matchesWakeWord("hey assistant", "  HEY ASSISTANT "))
+        assertTrue(WakeWordService.matchesWakeWord("  HEY Iris  ", wakeWord))
+        assertTrue(WakeWordService.matchesWakeWord("hey iris", "  HEY IRIS "))
     }
 
     @Test
-    fun `a single word from the phrase does not trigger`() {
-        // False triggers from bare "assistant" were the reason matching is a strict containment
-        // check rather than a fuzzy or per-word one.
-        assertFalse(WakeWordService.matchesWakeWord("assistant", wakeWord))
+    fun `bare greeting or name does not trigger`() {
+        assertFalse(WakeWordService.matchesWakeWord("hi", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("hello", wakeWord))
         assertFalse(WakeWordService.matchesWakeWord("hey", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("iris", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("car", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("sora", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("assistant", wakeWord))
     }
 
     @Test
     fun `words in the wrong order do not trigger`() {
-        assertFalse(WakeWordService.matchesWakeWord("assistant hey", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("iris hey", wakeWord))
     }
 
     @Test
@@ -72,35 +73,19 @@ class WakeWordMatchingTest {
     }
 
     @Test
-    fun `an empty configured wake word never triggers`() {
-        // Otherwise a blank preference would make every utterance a match.
-        assertFalse(WakeWordService.matchesWakeWord("hey assistant", ""))
-        assertFalse(WakeWordService.matchesWakeWord("anything at all", "   "))
-    }
-
-    @Test
-    fun `a custom wake word is honoured`() {
-        assertTrue(WakeWordService.matchesWakeWord("hello polestar, open the roof", "hello polestar"))
-        assertFalse(WakeWordService.matchesWakeWord("hey assistant", "hello polestar"))
-    }
-
-    @Test
-    fun `hey name also accepts bare name`() {
-        assertTrue(WakeWordService.matchesWakeWord("hey iris", "hey iris"))
-        assertTrue(WakeWordService.matchesWakeWord("iris", "hey iris"))
-        assertTrue(WakeWordService.matchesWakeWord("okay iris open the map", "hey iris"))
-        // Bare "assistant" stays rejected — too many cabin false wakes.
-        assertFalse(WakeWordService.matchesWakeWord("assistant", "hey assistant"))
+    fun `legacy assistant wake words do not trigger`() {
+        assertFalse(WakeWordService.matchesWakeWord("hey assistant", wakeWord))
+        assertFalse(WakeWordService.matchesWakeWord("hello polestar", "hello polestar"))
     }
 
     @Test
     fun `extractTranscript reads a final result`() {
-        assertEquals("hey assistant", WakeWordService.extractTranscript("""{"text" : "hey assistant"}"""))
+        assertEquals("hey iris", WakeWordService.extractTranscript("""{"text" : "hey iris"}"""))
     }
 
     @Test
     fun `extractTranscript reads a partial result`() {
-        assertEquals("hey assist", WakeWordService.extractTranscript("""{"partial" : "hey assist"}"""))
+        assertEquals("hey iri", WakeWordService.extractTranscript("""{"partial" : "hey iri"}"""))
     }
 
     @Test
@@ -117,7 +102,7 @@ class WakeWordMatchingTest {
 
     @Test
     fun `a transcript extracted from Vosk output feeds the matcher`() {
-        val transcript = WakeWordService.extractTranscript("""{"text" : "Hey Assistant, roll the window down"}""")
+        val transcript = WakeWordService.extractTranscript("""{"text" : "Hey Iris, roll the window down"}""")
         assertTrue(WakeWordService.matchesWakeWord(transcript, wakeWord))
     }
 }

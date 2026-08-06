@@ -833,18 +833,17 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                 args?.getString(ImmersiveSummonOrigin.BUNDLE_KEY),
             )
             // post + delayed retry: composition may register the summon bridge a frame late.
-            overlayView.post {
-                val backend = AssistantRuntime.backend as? VehicleAgentAssistantBackend
-                backend?.bindContext(context)
-                notifyImmersiveAssistantSummon(origin)
-                if (initialQuery == null && directSpeech == null) {
-                    backend?.requestListen()
-                }
+            // Summon + arm STT immediately — do not wait an extra frame for mic open.
+            val backend = AssistantRuntime.backend as? VehicleAgentAssistantBackend
+            backend?.bindContext(context)
+            notifyImmersiveAssistantSummon(origin)
+            if (initialQuery == null && directSpeech == null) {
+                backend?.requestListen()
             }
-            overlayView.postDelayed(
-                { notifyImmersiveAssistantSummon(origin) },
-                80L,
-            )
+            // One-frame retry if the Compose summon bridge registered a tick late.
+            overlayView.post {
+                notifyImmersiveAssistantSummon(origin)
+            }
             observerScope.launch(Dispatchers.IO) {
                 runCatching {
                     if (!LLMManager.isReady() && !LocalLLMActivity.isCloudModelActive) {

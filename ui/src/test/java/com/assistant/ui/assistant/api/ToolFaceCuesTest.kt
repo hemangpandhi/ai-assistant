@@ -7,13 +7,14 @@ import org.junit.Test
 class ToolFaceCuesTest {
 
     @Test
-    fun forIconId_musicKeepsGeometricEyesUsesCheeks() {
+    fun forIconId_musicSetsIslandBadgeAndCheeks() {
         val cues = ToolFaceCues.forIconId("music")
-        assertNull(cues?.leftEye)
+        assertEquals(AssistantFaceCueIcon.Music, cues?.leftEye)
         assertNull(cues?.rightEye)
         assertNull(cues?.mouth)
         assertEquals(AssistantFaceCueIcon.Music, cues?.leftAccent)
         assertEquals(AssistantFaceCueIcon.Music, cues?.rightAccent)
+        assertEquals(AssistantFaceCueIcon.Music, cues?.islandStatusIcon())
     }
 
     @Test
@@ -39,7 +40,8 @@ class ToolFaceCuesTest {
         val music = ToolFaceCues.fromSpokenText(
             "Great choice — putting on arijit singh for you!",
         )
-        assertEquals(AssistantFaceCueIcon.Music, music?.leftAccent)
+        assertEquals(AssistantFaceCueIcon.Music, music?.leftEye)
+        assertEquals(AssistantFaceCueIcon.Music, music?.islandStatusIcon())
         assertNull(music?.mouth)
 
         val nav = ToolFaceCues.fromSpokenText(
@@ -60,7 +62,7 @@ class ToolFaceCuesTest {
     @Test
     fun forIconId_climateAndIslandBadge() {
         val climate = ToolFaceCues.forIconId("thermostat")
-        assertEquals(AssistantFaceCueIcon.Thermostat, climate?.mouth)
+        assertEquals(AssistantFaceCueIcon.Thermostat, climate?.leftEye)
         assertEquals(AssistantFaceCueIcon.Thermostat, climate?.islandStatusIcon())
 
         val heat = ToolFaceCues.forIconId("heat")

@@ -90,9 +90,8 @@ class WakeWordService : Service() {
         }
 
         /**
-         * True when [transcript] matches the configured wake word (or its bare-name alias).
-         *
-         * `hey iris` also accepts `iris` — see [WakeWordPhrasePolicy].
+         * True when [transcript] matches the fixed allowlist
+         * `(hey|hi|hello|ok|okay) + (iris|car|sora)` — see [WakeWordPhrasePolicy].
          */
         fun matchesWakeWord(transcript: String, configuredWakeWord: String): Boolean =
             WakeWordPhrasePolicy.matches(transcript, configuredWakeWord)
@@ -277,7 +276,7 @@ class WakeWordService : Service() {
 
         if (customRecognizer == null) {
             try {
-                // Constrained grammar: configured phrase, optional bare name, and [unk].
+                // Constrained grammar: fixed (hey|hi|hello|ok|okay)+(iris|car|sora) + [unk].
                 val grammarJson = phrases.joinToString(prefix = "[", postfix = "]") { "\"$it\"" }
 
                 Log.d(TAG, "Vosk recognizer grammar: $grammarJson")
@@ -316,11 +315,16 @@ class WakeWordService : Service() {
                     }
                     val result = spotter.getResult(stream)
                     if (result.keyword.isNotBlank()) {
-                        matched = true
-                        spotter.reset(stream)
-                        // KWS returns a plain keyword (often token/phoneme spaced), not Vosk JSON.
-                        // Trust the spotter — do not re-parse via extractTranscript.
-                        onWakeDetected(result.keyword)
+                        val label = WakeWordPhrasePolicy.normalizeKwsKeyword(result.keyword)
+                        // Never trust KWS blindly — only allowlisted phrases open the UI.
+                        if (matchesWakeWord(label, wakeWord)) {
+                            matched = true
+                            spotter.reset(stream)
+                            onWakeDetected(label)
+                        } else {
+                            Log.d(TAG, "KWS keyword ignored (not allowlisted): '${result.keyword}'")
+                            spotter.reset(stream)
+                        }
                     }
                 }
             }

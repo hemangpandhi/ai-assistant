@@ -34,11 +34,12 @@ object ToolFaceCues {
         forIconId(ToolFaceCueMapper.iconIdFromSpokenText(text))
 
     /**
-     * Geometric eyes + music notes on the cheeks (shell).
-     * Island badge resolves via [AssistantFaceCues.islandStatusIcon] (accent → circle).
+     * Music note for the island status circle ([leftEye] wins [islandStatusIcon]);
+     * cheek accents keep the shell face readable.
      */
     fun music(icon: AssistantFaceCueIcon = AssistantFaceCueIcon.Music): AssistantFaceCues =
         AssistantFaceCues(
+            leftEye = icon,
             leftAccent = icon,
             rightAccent = icon,
         )
@@ -54,12 +55,13 @@ object ToolFaceCues {
     )
 
     /**
-     * Climate / HVAC / temperature — mouth carries the status icon (island badge);
-     * cheek accents keep the shell face readable.
+     * Climate / HVAC / temperature — [leftEye] drives the island status circle;
+     * mouth / accents keep the shell face readable.
      */
     fun climate(
         icon: AssistantFaceCueIcon = AssistantFaceCueIcon.Thermostat,
     ): AssistantFaceCues = AssistantFaceCues(
+        leftEye = icon,
         mouth = icon,
         leftAccent = AssistantFaceCueIcon.Ac,
         rightAccent = AssistantFaceCueIcon.Heat,

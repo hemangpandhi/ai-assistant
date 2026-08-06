@@ -33,14 +33,18 @@ internal fun matchesAssistantHotword(text: String): Boolean {
         .replace('.', ' ')
         .replace('!', ' ')
         .replace('?', ' ')
+        .replace(Regex("\\s+"), " ")
         .trim()
-    return t.contains("hey assistant") ||
-        t.contains("hey assistent") ||
-        t.contains("hi assistant") ||
-        t.contains("ok assistant") ||
-        t.contains("okay assistant") ||
-        t == "assistant" ||
-        t.startsWith("hey assist")
+    // Strict: (hey|hi|hello|ok|okay) + (iris|car|sora) only — never bare hi/hello.
+    val prefixes = listOf("hey", "hi", "hello", "ok", "okay")
+    val names = listOf("iris", "car", "sora")
+    for (prefix in prefixes) {
+        for (name in names) {
+            val phrase = "$prefix $name"
+            if (t == phrase || t.startsWith("$phrase ")) return true
+        }
+    }
+    return false
 }
 
 /**
