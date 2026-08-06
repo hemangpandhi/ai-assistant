@@ -43,7 +43,8 @@ UI polish (glow, TTS quality, rich context) stays off the critical path.
 ## Tier 2 — Architecture (more invasive) — deferred
 
 6. **Shared PCM ring buffer**  
-   One `AudioRecord` → wake-word + command ASR consumers. Removes exclusive Vosk ↔ SpeechRecognizer handoff (largest remaining hard latency).
+   One `AudioRecord` → wake-word + command ASR consumers. Removes exclusive Vosk ↔ SpeechRecognizer handoff (largest remaining hard latency).  
+   → Target design: [docs/architecture/wakeword-arch.md](docs/architecture/wakeword-arch.md) (Demo-First continuous pipeline + prod/DSP/GAS profiles).
 
 7. **On-device command grammar / small SLU**  
    Tiny keyword/intent model for HVAC/media/windows in parallel with full ASR. Instant path for most cabin commands; full ASR + LLM only on miss.

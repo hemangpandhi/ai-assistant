@@ -6,6 +6,7 @@ pipeline. Not microservices, not multi-APK delivery.
 
 Related: [decoupling_roadmap.md](decoupling_roadmap.md),
 [refactor_extension_policy.md](refactor_extension_policy.md),
+[wakeword-arch.md](wakeword-arch.md) (wake / mic / STT spine — demo vs prod, GAS, DSP),
 [docs/ARCHITECTURE.md](../ARCHITECTURE.md).
 
 External Google / AOSP references:
