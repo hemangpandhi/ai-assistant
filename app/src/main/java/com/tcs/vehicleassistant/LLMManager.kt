@@ -186,9 +186,9 @@ object LLMManager {
         basePrompt.append("Memory: $userMemory\n\n")
         
         basePrompt.append("=== TOOLS ===\n")
-        basePrompt.append("${ToolManager.getLlmToolsPrompt()}\n\n")
+        basePrompt.append("${ToolManager.getLlmToolsPrompt(query)}\n\n")
         
-        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response.\n\n")
+        basePrompt.append("IMPORTANT: If you use a tool, YOU MUST ALWAYS say what you are doing FIRST, and then append the XML TAG '<TOOL>' at the very end of your response. To perform multiple actions, you CAN and SHOULD use multiple <TOOL> tags (e.g. <TOOL>playMusic()</TOOL><TOOL>turnOnAC()</TOOL>).\n\n")
         
         basePrompt.append("=== STRICT RULES ===\n")
         

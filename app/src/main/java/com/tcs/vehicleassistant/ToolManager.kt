@@ -148,7 +148,14 @@ object ToolManager {
     fun getAllTools(): Map<String, ToolDefinition> = activeTools
 
     fun getLlmToolsPrompt(query: String = ""): String {
-        val relevantTools = activeTools.values.toList()
+        val q = query.lowercase()
+        val relevantTools = if (q.isNotBlank()) {
+            activeTools.values.filter { tool ->
+                tool.keywords?.any { k -> q.contains(k.lowercase()) } == true
+            }.take(8).ifEmpty { activeTools.values.take(8).toList() }
+        } else {
+            activeTools.values.take(8).toList()
+        }
         if (relevantTools.isEmpty()) return ""
         return relevantTools.map { it.promptString }.joinToString("\n")
     }
