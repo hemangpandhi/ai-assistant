@@ -231,6 +231,9 @@ class WakeWordService : Service() {
                       lowerHypothesis.contains("harris") ||
                       lowerHypothesis.contains("hi iris") ||
                       lowerHypothesis.contains("eyeris") ||
+                      lowerHypothesis.contains("hey i just") ||
+                      lowerHypothesis.contains("the i just") ||
+                      lowerHypothesis.contains("hi this") ||
                       lowerHypothesis.contains("hey nice") ||
                       lowerHypothesis.contains("hey me") ||
                       lowerHypothesis.contains("hey listen") ||
