@@ -18,8 +18,7 @@ object GpuBackendResolver {
     fun resolve(requested: String, openClAvailable: Boolean): String = when (requested) {
         AssistantConfig.Backend.CPU -> AssistantConfig.Backend.CPU
         AssistantConfig.Backend.NPU -> AssistantConfig.Backend.NPU
-        AssistantConfig.Backend.GPU ->
-            if (openClAvailable) AssistantConfig.Backend.GPU else AssistantConfig.Backend.CPU
+        AssistantConfig.Backend.GPU -> AssistantConfig.Backend.GPU // Bypass check, let it fail natively if really missing
         else ->
             if (openClAvailable) AssistantConfig.Backend.GPU else AssistantConfig.Backend.CPU
     }
