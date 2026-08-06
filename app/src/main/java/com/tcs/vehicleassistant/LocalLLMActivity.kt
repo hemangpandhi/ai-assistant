@@ -1632,7 +1632,7 @@ class LocalLLMActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     progressBar.visibility = android.view.View.GONE
-                    chatAdapter.addMessage(ChatMessage("Download complete! Initializing model...", isUser = false))
+                    chatAdapter.addMessage(ChatMessage("Download complete! Thinking...", isUser = false))
                 }
 
                 initLlm()

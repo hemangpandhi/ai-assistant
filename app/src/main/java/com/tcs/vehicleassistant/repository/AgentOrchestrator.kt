@@ -1085,6 +1085,7 @@ class AgentOrchestrator(
                         val requiresAgenticLoop = executedTools.any { toolRegistry.getToolDefinition(it)?.requiresAgenticLoop == true }
                         val shouldRunAgenticLoop = isAgenticLoopEnabled &&
                             loopCount < AssistantConfig.Llm.MAX_AGENTIC_LOOPS &&
+                            confirmationAsks.isEmpty() &&
                             (hasError || isQueryTool || requiresAgenticLoop || !hasConversationalText)
 
                         if (shouldRunAgenticLoop) {
@@ -1218,7 +1219,7 @@ class AgentOrchestrator(
                 scope.launch {
                     timeoutJob?.cancel()
                     if (retryCount < 1) {
-                        _state.value = AgentState.Error("Initializing model...")
+                        _state.value = AgentState.Thinking(query)
                         try {
                             if (!LLMManager.awaitInferenceDrain()) {
                                 android.util.Log.e(TAG, "Model still busy during error recovery. Forcing restart.")

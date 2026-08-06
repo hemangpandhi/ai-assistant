@@ -41,7 +41,8 @@ object LiteRtEngineHost {
         val cacheDir = KernelCacheManager.prepare(context, modelPath, backendName)
 
         val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
-        val wantSpeculative = prefs.getBoolean(AssistantConfig.Prefs.ENABLE_SPECULATIVE_DECODING, false)
+        // Force speculative decoding ON for maximum generation speed on generic GPUs
+        val wantSpeculative = true
         val enableSpeculative = wantSpeculative &&
             backendName != AssistantConfig.Backend.NPU &&
             modelSupportsSpeculativeDecoding(modelPath)

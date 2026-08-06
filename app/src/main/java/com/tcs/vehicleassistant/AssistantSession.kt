@@ -436,7 +436,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
         pauseWakeWordListening()
 
         if (!LLMManager.isReady() || LLMManager.isInitializing) {
-            statusText.text = "Initializing Model..."
+            statusText.text = "Thinking..."
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
             btnMic.isEnabled = false
@@ -448,7 +448,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context) {
                 val ready = awaitLlmReady()
                 if (!ready) {
                     // Previously this polled forever, leaving the overlay stuck on
-                    // "Initializing Model..." with no way to recover.
+                    // "Thinking..." with no way to recover.
                     statusText.text = "Assistant unavailable — open the app to check the model."
                     inputControls.visibility = View.VISIBLE
                     btnOpenApp.visibility = View.VISIBLE

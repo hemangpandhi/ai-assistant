@@ -864,7 +864,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
         voiceAnimation?.state = VoiceAnimationView.State.IDLE
 
         if (!LLMManager.isReady() || LLMManager.isInitializing) {
-            statusText?.text = "Initializing Model..."
+            statusText?.text = "Thinking..."
             btnOpenApp?.visibility = View.GONE
             inputControls?.visibility = View.GONE
             btnMic?.isEnabled = false
