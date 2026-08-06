@@ -26,6 +26,15 @@ class TurnStateMachineTest {
         sm.markProcessed()
         assertFalse(sm.isProcessing())
     }
+
+    @Test
+    fun `abandonTurn invalidates prior id and is idle`() {
+        val sm = TurnStateMachine()
+        val first = sm.beginTurn()
+        sm.abandonTurn()
+        assertFalse(sm.isCurrentTurn(first))
+        assertFalse(sm.isProcessing())
+    }
 }
 
 class PromptAssemblerTest {

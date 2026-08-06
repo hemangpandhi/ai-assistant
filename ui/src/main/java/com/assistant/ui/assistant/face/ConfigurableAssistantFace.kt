@@ -43,8 +43,20 @@ fun ConfigurableAssistantFace(
     }
 
     // Island mode: always glyph eyes without the SemiCircle / EPORO head plate.
+    // ClassicHybrid is the exception — keep the master SemiCircle shell.
     if (!showShell) {
         when (resolved) {
+            AssistantFaceKind.ClassicHybrid -> ClassicHybridEyesFace(
+                mood = mood,
+                modifier = modifier.fillMaxSize(),
+                gazeX = gazeX,
+                gazeY = gazeY,
+                mouthAmplitude = mouthAmplitude,
+                brandGlow = brandGlow,
+                highContrast = highContrast,
+                gesture = gesture,
+                faceCues = faceCues,
+            )
             AssistantFaceKind.ImmersiveGlow,
             AssistantFaceKind.FusionGlow,
             -> ImmersiveGlowEyesFace(
@@ -114,6 +126,17 @@ fun ConfigurableAssistantFace(
             faceCues = faceCues,
         )
         AssistantFaceKind.ImmersiveHybrid -> ImmersiveHybridEyesFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.ClassicHybrid -> ClassicHybridEyesFace(
             mood = mood,
             modifier = modifier.fillMaxSize(),
             gazeX = gazeX,

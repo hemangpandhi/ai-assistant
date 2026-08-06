@@ -197,6 +197,12 @@ class VehicleAgentAssistantBackend(
         sttDismissJob?.cancel()
         sttDismissJob = null
         micArmed = false
+        // Abandon the LiteRT turn first so stream callbacks cannot re-queue speak(), then
+        // flush TTS immediately (do not wait for onHide / exit animation).
+        runCatching {
+            viewModel?.processIntent(com.tcs.vehicleassistant.controller.AssistantIntent.ResetTurn)
+        }
+        runCatching { audioManager?.stopSpeaking() }
         runCatching { audioManager?.stopListening() }
     }
 
