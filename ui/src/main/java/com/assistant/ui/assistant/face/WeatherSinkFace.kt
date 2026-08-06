@@ -16,12 +16,10 @@ import com.assistant.ui.assistant.api.AssistantContextGlyph
 import kotlinx.coroutines.delay
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
-import com.assistant.ui.assistant.ui.chrome.FaceWithThinkingCloud
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Weather sink face: weather glyphs fully replace both eyes (same capsule size + morph).
- * Thinking cloud comes from [FaceWithThinkingCloud].
  */
 @Composable
 fun WeatherSinkFace(
@@ -55,19 +53,17 @@ fun WeatherSinkFace(
         }
     }
 
-    FaceWithThinkingCloud(mood = mood, modifier = modifier) {
-        FusionEyesAssistantFace(
-            mood = mood,
-            modifier = Modifier.fillMaxSize(),
-            gazeX = gazeX,
-            gazeY = gazeY,
-            mouthAmplitude = mouthAmplitude,
-            brandGlow = brandGlow,
-            highContrast = highContrast,
-            gesture = gesture,
-            visorDisplayGlyph = contextGlyph?.imageVector(),
-            visorDisplayAlpha = if (contextGlyph != null) iconAlpha.value else 0f,
-            visorDisplayTint = contextGlyph?.tint(),
-        )
-    }
+    FusionEyesAssistantFace(
+        mood = mood,
+        modifier = modifier.fillMaxSize(),
+        gazeX = gazeX,
+        gazeY = gazeY,
+        mouthAmplitude = mouthAmplitude,
+        brandGlow = brandGlow,
+        highContrast = highContrast,
+        gesture = gesture,
+        visorDisplayGlyph = contextGlyph?.imageVector(),
+        visorDisplayAlpha = if (contextGlyph != null) iconAlpha.value else 0f,
+        visorDisplayTint = contextGlyph?.tint(),
+    )
 }

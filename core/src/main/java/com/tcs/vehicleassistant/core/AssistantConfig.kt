@@ -59,11 +59,17 @@ object AssistantConfig {
         const val MIC_THRASH_FIX_APPLIED_V2 = "mic_thrash_fix_applied_v2"
 
         /**
-         * When true (default for ear bring-up), do not start Vosk [WakeWordService].
-         * Keeps the mic free for session STT testing. Set false to re-enable hotword.
+         * When true, do not start Vosk / KWS [WakeWordService] (ear STT isolation).
+         * Off by default so hotword listening runs; set true only for mic→STT bring-up.
          */
         const val WAKE_WORD_DISABLED_FOR_TEST = "wake_word_disabled_for_test"
-        const val WAKE_WORD_DISABLED_FOR_TEST_DEFAULT = true
+        const val WAKE_WORD_DISABLED_FOR_TEST_DEFAULT = false
+
+        /**
+         * One-shot: clears a sticky [WAKE_WORD_DISABLED_FOR_TEST]=true left from ear bring-up
+         * builds that defaulted the flag on.
+         */
+        const val WAKE_WORD_REENABLED_V1 = "wake_word_reenabled_v1"
 
         /**
          * When true, LiteRT enables speculative decoding / MTP at Engine init if the model
@@ -146,15 +152,30 @@ object AssistantConfig {
 
     /**
      * One-shot: turn off sticky ear_test_mode and apply platform STT default
-     * (Google on GAS, Sherpa on non-GAS).
+     * (Google on GAS, Sherpa on non-GAS). Also clears sticky wake-word test disable.
      */
     fun migrateMicThrashPrefs(context: android.content.Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
-        if (prefs.getBoolean(Prefs.MIC_THRASH_FIX_APPLIED_V2, false)) return
+        if (!prefs.getBoolean(Prefs.MIC_THRASH_FIX_APPLIED_V2, false)) {
+            prefs.edit()
+                .putBoolean(Prefs.EAR_TEST_MODE, false)
+                .putString(Prefs.STT_ENGINE, defaultSttEngine(context))
+                .putBoolean(Prefs.MIC_THRASH_FIX_APPLIED_V2, true)
+                .apply()
+        }
+        migrateWakeWordReenable(context)
+    }
+
+    /**
+     * One-shot: force [Prefs.WAKE_WORD_DISABLED_FOR_TEST] off when older ear-bring-up builds
+     * persisted it as true (default used to be true).
+     */
+    fun migrateWakeWordReenable(context: android.content.Context) {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        if (prefs.getBoolean(Prefs.WAKE_WORD_REENABLED_V1, false)) return
         prefs.edit()
-            .putBoolean(Prefs.EAR_TEST_MODE, false)
-            .putString(Prefs.STT_ENGINE, defaultSttEngine(context))
-            .putBoolean(Prefs.MIC_THRASH_FIX_APPLIED_V2, true)
+            .putBoolean(Prefs.WAKE_WORD_DISABLED_FOR_TEST, false)
+            .putBoolean(Prefs.WAKE_WORD_REENABLED_V1, true)
             .apply()
     }
 

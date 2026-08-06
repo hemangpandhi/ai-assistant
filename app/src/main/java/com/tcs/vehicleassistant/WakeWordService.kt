@@ -1,29 +1,19 @@
 package com.tcs.vehicleassistant
 
-import com.tcs.vehicleassistant.llm.LLMManager
-
 import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
-import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.pm.PackageManager
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
-import android.media.audiofx.NoiseSuppressor
 import android.os.Build
 import android.os.IBinder
-import android.os.UserManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.tcs.vehicleassistant.assistant.WakeWordPhrasePolicy
 import com.tcs.vehicleassistant.core.AssistantConfig
-import com.tcs.vehicleassistant.service.VehicleAgentService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -128,7 +118,6 @@ class WakeWordService : Service() {
     private var recognizerGrammarKey: String? = null
     private var kwsSpotter: com.k2fsa.sherpa.onnx.KeywordSpotter? = null
     private var kwsStream: com.k2fsa.sherpa.onnx.OnlineStream? = null
-    private var framesSinceLastSpeech = Int.MAX_VALUE / 2
 
     private var restartJob: Job? = null
 
@@ -308,10 +297,8 @@ class WakeWordService : Service() {
     }
 
     private fun startCustomListening() {
-        if (com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.isRecording) return
-        
         kwsSpotter = com.tcs.vehicleassistant.hardware.SherpaKwsManager.getKeywordSpotter(this)
-        
+
         com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.kwsSubscriber = { floatFrame, shortBuffer, readSize ->
             val spotter = kwsSpotter
             var matched = false
@@ -323,7 +310,7 @@ class WakeWordService : Service() {
                 if (stream != null) {
                     val slice = if (readSize == floatFrame.size) floatFrame else floatFrame.copyOf(readSize)
                     stream.acceptWaveform(slice, 16000)
-                    
+
                     while (spotter.isReady(stream)) {
                         spotter.decode(stream)
                     }
@@ -331,34 +318,31 @@ class WakeWordService : Service() {
                     if (result.keyword.isNotBlank()) {
                         matched = true
                         spotter.reset(stream)
-                        handleTranscript(result.keyword)
+                        // KWS returns a plain keyword (often token/phoneme spaced), not Vosk JSON.
+                        // Trust the spotter — do not re-parse via extractTranscript.
+                        onWakeDetected(result.keyword)
                     }
                 }
             }
-            
-            // Vosk Fallback
+
+            // Vosk path: primary when KWS is unavailable, also covers frames KWS did not fire on.
+            // Always feed PCM (constrained grammar is cheap). Checking partials matters — finals
+            // often never arrive if the mic level stays under the old amplitude gate.
             val recognizer = customRecognizer
-            if (!matched && recognizer != null && spotter == null) {
-                var maxAmp = 0
-                for (i in 0 until readSize) {
-                    val absVal = Math.abs(shortBuffer[i].toInt())
-                    if (absVal > maxAmp) maxAmp = absVal
-                }
-                framesSinceLastSpeech = if (maxAmp > AssistantConfig.WakeWord.SPEECH_AMPLITUDE_THRESHOLD) {
-                    0
+            if (!matched && recognizer != null) {
+                if (recognizer.acceptWaveForm(shortBuffer, readSize)) {
+                    handleTranscript(recognizer.result)
+                    resetRecognizer()
                 } else {
-                    framesSinceLastSpeech + 1
-                }
-                if (framesSinceLastSpeech < AssistantConfig.WakeWord.RECOGNITION_TAIL_FRAMES) {
-                    if (recognizer.acceptWaveForm(shortBuffer, readSize)) {
-                        handleTranscript(recognizer.result)
-                        resetRecognizer()
-                    }
+                    handleTranscript(recognizer.partialResult)
                 }
             }
         }
-        
-        com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.start(applicationContext)
+
+        // Always (re)attach the subscriber above; only start the HAL loop if needed.
+        if (!com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.isRecording) {
+            com.tcs.vehicleassistant.hardware.ear.ContinuousAudioPipeline.start(applicationContext)
+        }
     }
 
     private fun stopCustomListening() {
@@ -393,14 +377,18 @@ class WakeWordService : Service() {
     private fun handleTranscript(voskJson: String?) {
         val transcript = extractTranscript(voskJson.orEmpty())
         if (!matchesWakeWord(transcript, wakeWord)) return
+        onWakeDetected(transcript)
+    }
 
+    /** Cooldown + broadcast + mic release after a confirmed wake (Vosk match or Sherpa KWS). */
+    private fun onWakeDetected(label: String) {
         val now = android.os.SystemClock.elapsedRealtime()
         if (now < matchCooldownUntilElapsedMs) {
-            Log.i(TAG, "Wake word ignored during cooldown: '$transcript'")
+            Log.i(TAG, "Wake word ignored during cooldown: '$label'")
             return
         }
 
-        Log.i(TAG, "Wake word matched: '$transcript'")
+        Log.i(TAG, "Wake word matched: '$label'")
         matchCooldownUntilElapsedMs = now + AssistantConfig.WakeWord.POST_MATCH_COOLDOWN_MS
         sendBroadcast(
             Intent(AssistantConfig.WakeWordAction.DETECTED_BROADCAST).setPackage(packageName)

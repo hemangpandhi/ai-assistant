@@ -290,7 +290,8 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
  * @param faceCues optional LLM anatomy icons. On the shell face, eye/mouth slots can
  *   replace geometry; on the island capsule ([showShell] false), eye-slot cues appear
- *   in a badge circle to the right of the eyes (eyes stay geometric).
+ *   in a badge circle to the right of the eyes (eyes stay geometric). Thinking /
+ *   Concentration use that same status circle with bouncing dots (no floating cloud).
  * @param shellKind fixed outer silhouette (no mood morph); default SemiCircle
  * @param showShell when false, island capsule: eyes only (no mouth / SemiCircle plate);
  *   speech amplitude opens the eyes instead of the mouth
@@ -671,7 +672,10 @@ fun ImmersiveEyesFace(
                 }
                 val talkOpen = (open * (1f + 0.55f * eyeTalk)).coerceIn(0.05f, 1.35f)
                 // Island: near-capsule-height status circle on the right; eyes keep the left band.
-                val islandEyeCue = !showShell && (rightEyeIcon != null || leftEyeIcon != null)
+                val islandThinking = !showShell &&
+                    (mood == AssistantMood.Thinking || mood == AssistantMood.Concentration)
+                val islandEyeCue = islandThinking ||
+                    (!showShell && (rightEyeIcon != null || leftEyeIcon != null))
                 val islandCueBadgeR = if (islandEyeCue) {
                     (size.height * 0.5f - islandCueMarginPx).coerceAtLeast(1f)
                 } else {
@@ -770,19 +774,27 @@ fun ImmersiveEyesFace(
                         )
                     }
 
-                    // Island: eye-slot cue in a near-capsule-height badge (right slot wins).
+                    // Island: Thinking → status-circle dots; else eye-slot cue (right slot wins).
                     if (!showShell && islandCueBadgeR > 0f) {
-                        val cueTint = if (rightEyeIcon != null) rightEyeTint else leftEyeTint
-                        val cuePainter =
-                            if (rightEyeIcon != null) rightEyePainter else leftEyePainter
-                        if (cueTint != null) {
-                            drawIslandEyeCueBadge(
-                                painter = cuePainter,
+                        if (islandThinking) {
+                            drawIslandThinkingBadge(
                                 center = islandCueCenter,
                                 radius = islandCueBadgeR,
-                                tint = cueTint,
                                 life = life,
                             )
+                        } else {
+                            val cueTint = if (rightEyeIcon != null) rightEyeTint else leftEyeTint
+                            val cuePainter =
+                                if (rightEyeIcon != null) rightEyePainter else leftEyePainter
+                            if (cueTint != null) {
+                                drawIslandEyeCueBadge(
+                                    painter = cuePainter,
+                                    center = islandCueCenter,
+                                    radius = islandCueBadgeR,
+                                    tint = cueTint,
+                                    life = life,
+                                )
+                            }
                         }
                     }
 

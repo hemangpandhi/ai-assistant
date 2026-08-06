@@ -9,17 +9,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
-import com.assistant.ui.assistant.ui.chrome.FaceWithThinkingCloud
 import com.assistant.ui.assistant.ui.theme.AssistantTokens
 
 /**
  * Renders the active [AssistantFaceKind] from [AssistantFaceConfig] (or an override).
  * [AssistantFaceKind.None] draws nothing — transcript / chrome still show.
- * Thinking mood shows a shared in/out thought cloud at the face top-right.
+ *
+ * Thinking mood uses the island status circle (not a floating thought cloud).
  *
  * [faceCues] applies to Immersive / Fusion eye faces on the main overlay only.
  * [showShell] false = island capsule eyes only (no mouth / SemiCircle plate);
- * eye-slot [faceCues] show in a badge to the right of the eyes.
+ * eye-slot [faceCues] and Thinking show in a badge to the right of the eyes.
  */
 @Composable
 fun ConfigurableAssistantFace(
@@ -42,59 +42,14 @@ fun ConfigurableAssistantFace(
         return
     }
 
-    FaceWithThinkingCloud(mood = mood, modifier = modifier) {
-        // Island mode: always glyph eyes without the SemiCircle / EPORO head plate.
-        if (!showShell) {
-            when (resolved) {
-                AssistantFaceKind.ImmersiveGlow,
-                AssistantFaceKind.FusionGlow,
-                -> ImmersiveGlowEyesFace(
-                    mood = mood,
-                    modifier = Modifier.fillMaxSize(),
-                    gazeX = gazeX,
-                    gazeY = gazeY,
-                    mouthAmplitude = mouthAmplitude,
-                    brandGlow = brandGlow,
-                    highContrast = highContrast,
-                    gesture = gesture,
-                    faceCues = faceCues,
-                    showShell = false,
-                )
-                AssistantFaceKind.ImmersiveHybrid,
-                AssistantFaceKind.ImmersiveTrapezoid,
-                -> ImmersiveHybridEyesFace(
-                    mood = mood,
-                    modifier = Modifier.fillMaxSize(),
-                    gazeX = gazeX,
-                    gazeY = gazeY,
-                    mouthAmplitude = mouthAmplitude,
-                    brandGlow = brandGlow,
-                    highContrast = highContrast,
-                    gesture = gesture,
-                    faceCues = faceCues,
-                    showShell = false,
-                )
-                else -> ImmersiveEyesFace(
-                    mood = mood,
-                    modifier = Modifier.fillMaxSize(),
-                    gazeX = gazeX,
-                    gazeY = gazeY,
-                    mouthAmplitude = mouthAmplitude,
-                    brandGlow = brandGlow,
-                    highContrast = highContrast,
-                    gesture = gesture,
-                    faceCues = faceCues,
-                    showShell = false,
-                )
-            }
-            return@FaceWithThinkingCloud
-        }
-
+    // Island mode: always glyph eyes without the SemiCircle / EPORO head plate.
+    if (!showShell) {
         when (resolved) {
-            AssistantFaceKind.None -> Unit
-            AssistantFaceKind.ImmersiveEyes -> ImmersiveEyesFace(
+            AssistantFaceKind.ImmersiveGlow,
+            AssistantFaceKind.FusionGlow,
+            -> ImmersiveGlowEyesFace(
                 mood = mood,
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize(),
                 gazeX = gazeX,
                 gazeY = gazeY,
                 mouthAmplitude = mouthAmplitude,
@@ -102,10 +57,13 @@ fun ConfigurableAssistantFace(
                 highContrast = highContrast,
                 gesture = gesture,
                 faceCues = faceCues,
+                showShell = false,
             )
-            AssistantFaceKind.ImmersiveGlow -> ImmersiveGlowEyesFace(
+            AssistantFaceKind.ImmersiveHybrid,
+            AssistantFaceKind.ImmersiveTrapezoid,
+            -> ImmersiveHybridEyesFace(
                 mood = mood,
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize(),
                 gazeX = gazeX,
                 gazeY = gazeY,
                 mouthAmplitude = mouthAmplitude,
@@ -113,10 +71,11 @@ fun ConfigurableAssistantFace(
                 highContrast = highContrast,
                 gesture = gesture,
                 faceCues = faceCues,
+                showShell = false,
             )
-            AssistantFaceKind.ImmersiveHybrid -> ImmersiveHybridEyesFace(
+            else -> ImmersiveEyesFace(
                 mood = mood,
-                modifier = Modifier.fillMaxSize(),
+                modifier = modifier.fillMaxSize(),
                 gazeX = gazeX,
                 gazeY = gazeY,
                 mouthAmplitude = mouthAmplitude,
@@ -124,63 +83,102 @@ fun ConfigurableAssistantFace(
                 highContrast = highContrast,
                 gesture = gesture,
                 faceCues = faceCues,
-            )
-            AssistantFaceKind.ImmersiveTrapezoid -> ImmersiveTrapezoidEyesFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
-                gazeX = gazeX,
-                gazeY = gazeY,
-                mouthAmplitude = mouthAmplitude,
-                brandGlow = brandGlow,
-                highContrast = highContrast,
-                gesture = gesture,
-                faceCues = faceCues,
-            )
-            AssistantFaceKind.Eporo -> EporoAssistantFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
-            )
-            AssistantFaceKind.Fusion -> FusionAssistantFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
-                gazeX = gazeX,
-                gazeY = gazeY,
-                mouthAmplitude = mouthAmplitude,
-                brandGlow = brandGlow,
-                highContrast = highContrast,
-                gesture = gesture,
-                faceCues = faceCues,
-            )
-            AssistantFaceKind.FusionGlow -> FusionGlowAssistantFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
-                gazeX = gazeX,
-                gazeY = gazeY,
-                mouthAmplitude = mouthAmplitude,
-                brandGlow = brandGlow,
-                highContrast = highContrast,
-                gesture = gesture,
-                faceCues = faceCues,
-            )
-            AssistantFaceKind.FusionEyes -> FusionEyesAssistantFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
-                gazeX = gazeX,
-                gazeY = gazeY,
-                mouthAmplitude = mouthAmplitude,
-                brandGlow = brandGlow,
-                highContrast = highContrast,
-                gesture = gesture,
-                faceCues = faceCues,
-            )
-            AssistantFaceKind.Droid -> DroidAssistantFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
-            )
-            AssistantFaceKind.Glyph -> AssistantFace(
-                mood = mood,
-                modifier = Modifier.fillMaxSize(),
+                showShell = false,
             )
         }
+        return
+    }
+
+    when (resolved) {
+        AssistantFaceKind.None -> Unit
+        AssistantFaceKind.ImmersiveEyes -> ImmersiveEyesFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.ImmersiveGlow -> ImmersiveGlowEyesFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.ImmersiveHybrid -> ImmersiveHybridEyesFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.ImmersiveTrapezoid -> ImmersiveTrapezoidEyesFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.Eporo -> EporoAssistantFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+        )
+        AssistantFaceKind.Fusion -> FusionAssistantFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.FusionGlow -> FusionGlowAssistantFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.FusionEyes -> FusionEyesAssistantFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+            gazeX = gazeX,
+            gazeY = gazeY,
+            mouthAmplitude = mouthAmplitude,
+            brandGlow = brandGlow,
+            highContrast = highContrast,
+            gesture = gesture,
+            faceCues = faceCues,
+        )
+        AssistantFaceKind.Droid -> DroidAssistantFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+        )
+        AssistantFaceKind.Glyph -> AssistantFace(
+            mood = mood,
+            modifier = modifier.fillMaxSize(),
+        )
     }
 }

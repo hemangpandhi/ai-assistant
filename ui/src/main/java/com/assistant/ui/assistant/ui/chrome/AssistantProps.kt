@@ -20,7 +20,8 @@ private val PropSoft = Color(0xFFE8ECFF)
 private val PropAccent = Color(0xFFB39DDB)
 
 /**
- * Floating mood props — thought cloud, scan glass, and friends.
+ * Floating mood props — scan glass, book, sparkles, and friends.
+ * Thinking uses the island status circle instead of a cloud prop.
  * [visibility] 0..1 fades/scales the active prop in seamlessly.
  */
 internal fun DrawScope.drawMoodProp(
@@ -35,15 +36,7 @@ internal fun DrawScope.drawMoodProp(
     when (mood) {
         AssistantMood.Thinking,
         AssistantMood.Concentration,
-        -> drawThoughtCloud(
-            anchor = Offset(center.x + shell * 0.42f, center.y - shell * 0.48f + bob),
-            cloudSize = shell * 0.38f * (0.85f + 0.15f * visibility),
-            life = life,
-            alpha = visibility,
-            fill = PropSoft,
-            stroke = PropWhite,
-            dot = PropAccent,
-        )
+        -> Unit // Island status circle owns thinking; no floating cloud prop.
         AssistantMood.Searching -> drawScanGlass(
             anchor = Offset(center.x + shell * 0.48f, center.y - shell * 0.28f + bob),
             size = shell * 0.34f * (0.85f + 0.15f * visibility),

@@ -46,7 +46,7 @@ internal object AssistantOverlayTokens {
     val IslandListeningWidth = 192.dp
     val IslandListeningHeight = 103.dp
     /** Expanded pill grows with text up to this fraction of stage width, then transcript autoscrolls. */
-    val IslandExpandedWidthFraction = 0.60f
+    val IslandExpandedWidthFraction = 0.50f
     val IslandExpandedWidthMin = 192.dp
     /** Expanded island — a touch taller than idle for breathing room; still widens for text. */
     val IslandExpandedHeight = 120.dp

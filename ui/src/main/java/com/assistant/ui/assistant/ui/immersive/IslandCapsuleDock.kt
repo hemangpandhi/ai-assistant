@@ -48,7 +48,7 @@ fun resolveIslandSizeClass(mood: AssistantMood, hasTranscript: Boolean): IslandS
 
 /**
  * Gemini-style width estimate for short single-line transcripts: face slot + text + pads,
- * clamped to [minWidth, maxWidth]. [maxWidth] is the stage cap (60% of available width);
+ * clamped to [minWidth, maxWidth]. [maxWidth] is the stage cap (50% of available width);
  * longer lines stop widening there and [LiveInputText] autoscrolls inside the text slot.
  *
  * When [hasStatusCue] is true the face slot widens for eyes + near-capsule-height badge.
@@ -106,7 +106,7 @@ fun IslandCapsuleDock(
     val transition = updateTransition(targetState = sizeClass, label = "island_size")
 
     BoxWithConstraints(modifier = modifier) {
-        // Grow with text up to 60% of available stage width; overflow autoscrolls in-slot.
+        // Grow with text up to 50% of available stage width; overflow autoscrolls in-slot.
         val expandedCap = (maxWidth * AssistantOverlayTokens.IslandExpandedWidthFraction)
             .coerceAtLeast(AssistantOverlayTokens.IslandExpandedWidthMin)
             .coerceAtMost(maxWidth)

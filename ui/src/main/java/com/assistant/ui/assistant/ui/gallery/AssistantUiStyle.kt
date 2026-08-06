@@ -85,6 +85,6 @@ enum class AssistantUiStyle(
     ),
     WeatherSink(
         title = "Weather sink",
-        blurb = "Eye↔weather icon swap · thinking cloud · Fusion eyes",
+        blurb = "Eye↔weather icon swap · Fusion eyes",
     ),
 }

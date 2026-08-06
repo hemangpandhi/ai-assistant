@@ -144,6 +144,43 @@ internal fun DrawScope.drawIslandEyeCueBadge(
     tint: Color,
     life: Float,
 ) {
+    drawIslandStatusCircle(center = center, radius = radius)
+    // Icon sits inside the plate with a little inset (not larger than the circle).
+    drawAnimatedFaceCueIcon(
+        painter = painter,
+        center = center,
+        side = radius.coerceAtLeast(1f) * 1.15f,
+        tint = tint,
+        life = life,
+        phaseOffset = 0.45f,
+    )
+}
+
+/**
+ * Island status circle for Thinking: same plate as cue badges, with bouncing dots.
+ */
+internal fun DrawScope.drawIslandThinkingBadge(
+    center: Offset,
+    radius: Float,
+    life: Float,
+) {
+    val r = radius.coerceAtLeast(1f)
+    drawIslandStatusCircle(center = center, radius = r)
+    val dot = Color(0xFFB39DDB)
+    val gap = r * 0.36f
+    val y = center.y
+    for (i in 0..2) {
+        val bounce = sin(life * 2.2f + i * 0.9f).toFloat() * r * 0.12f
+        val pulse = 0.75f + 0.25f * ((sin(life * 2.4f + i * 1.1f) + 1f) * 0.5f).toFloat()
+        drawCircle(
+            color = dot.copy(alpha = 0.92f),
+            radius = r * 0.11f * pulse,
+            center = Offset(center.x - gap + i * gap, y + bounce),
+        )
+    }
+}
+
+private fun DrawScope.drawIslandStatusCircle(center: Offset, radius: Float) {
     val r = radius.coerceAtLeast(1f)
     drawCircle(
         color = AssistantOverlayTokens.IslandFill,
@@ -155,14 +192,5 @@ internal fun DrawScope.drawIslandEyeCueBadge(
         radius = r,
         center = center,
         style = Stroke(width = (r * 0.06f).coerceIn(1.5f, 3.5f)),
-    )
-    // Icon sits inside the plate with a little inset (not larger than the circle).
-    drawAnimatedFaceCueIcon(
-        painter = painter,
-        center = center,
-        side = r * 1.15f,
-        tint = tint,
-        life = life,
-        phaseOffset = 0.45f,
     )
 }

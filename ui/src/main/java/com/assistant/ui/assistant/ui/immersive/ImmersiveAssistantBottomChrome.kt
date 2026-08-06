@@ -108,7 +108,10 @@ fun ImmersiveAssistantBottomChrome(
             mood = mood,
             hasTranscript = hasTranscript,
             transcriptCharCount = transcript.length,
-            hasStatusCue = faceCues?.leftEye != null || faceCues?.rightEye != null,
+            hasStatusCue = mood == AssistantMood.Thinking ||
+                mood == AssistantMood.Concentration ||
+                faceCues?.leftEye != null ||
+                faceCues?.rightEye != null,
             contentAlpha = dockAlpha,
             glowBreath = glowBreath,
             modifier = Modifier
