@@ -12,8 +12,8 @@ object ToolCallParser {
     fun extractToolCalls(llmOutput: String): List<ParsedToolCall> {
         val calls = mutableListOf<ParsedToolCall>()
         
-        // 1. XML Tag Format: <TOOL>toolName(args)</TOOL>
-        val xmlRegex = Regex("(?i)<TOOL>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:</TOOL>|</TOOL|$)", RegexOption.DOT_MATCHES_ALL)
+        // 1. XML Tag Format: <TOOL>toolName(args)</TOOL> (also supports <TOOLCALL> and <TOOL_CALL>)
+        val xmlRegex = Regex("(?i)<(?:TOOL|TOOL_CALL|TOOLCALL)>\\s*([a-zA-Z0-9_]+)(?:\\((.*?)\\))?\\s*(?:</(?:TOOL|TOOL_CALL|TOOLCALL)>|</(?:TOOL|TOOL_CALL|TOOLCALL)|$)", RegexOption.DOT_MATCHES_ALL)
         for (match in xmlRegex.findAll(llmOutput)) {
             val fullTag = match.value
             val toolName = match.groups[1]?.value?.trim() ?: continue
@@ -81,10 +81,14 @@ object ToolCallParser {
             val potentialTag = cleaned.substring(finalLastTagIndex).uppercase()
             if (potentialTag.startsWith("<T") || potentialTag.startsWith("</T") || 
                 "<TOOL".startsWith(potentialTag) || "</TOOL".startsWith(potentialTag) ||
-                "<TOOL_CALL".startsWith(potentialTag) || "</TOOL_CALL".startsWith(potentialTag)) {
+                "<TOOL_CALL".startsWith(potentialTag) || "</TOOL_CALL".startsWith(potentialTag) ||
+                "<TOOLCALL".startsWith(potentialTag) || "</TOOLCALL".startsWith(potentialTag)) {
                 cleaned = cleaned.substring(0, finalLastTagIndex)
             }
         }
+        
+        // Final safety sweep: forcibly remove any dangling tool tags
+        cleaned = cleaned.replace(Regex("(?i)</?(?:TOOL|TOOL_CALL|TOOLCALL)>"), "")
         
         return cleaned.trim()
     }
