@@ -19,7 +19,8 @@ class ToolRegistry(
         /** Tools the model may need at any moment, regardless of the current utterance. */
         val CORE_HANDLER_KEYS = setOf(
             "stopMusic", "playMusic", "pauseMusic", "nextTrack",
-            "increaseTemperature", "decreaseTemperature", "setSeatHeater"
+            "increaseTemperature", "decreaseTemperature", "setSeatHeater",
+            "searchNearby", "search"
         )
 
         private val SPEAKABLE_SHORT_ALIASES = setOf("play", "pause")
