@@ -489,7 +489,7 @@
       ]
     },
     {
-      "prompt_string": "<TOOL>pauseMusic()</TOOL>",
+      "prompt_string": "To stop or pause the music, you MUST output exactly <TOOL>pauseMusic()</TOOL>.",
       "handler_key": "pauseMusic",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
@@ -500,7 +500,7 @@
       ]
     },
     {
-      "prompt_string": "<TOOL>nextTrack()</TOOL>",
+      "prompt_string": "To play the next track or skip, you MUST output exactly <TOOL>nextTrack()</TOOL>.",
       "handler_key": "nextTrack",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [
@@ -511,7 +511,7 @@
       ]
     },
     {
-      "prompt_string": "<TOOL>prevTrack()</TOOL>",
+      "prompt_string": "To play the previous track or go back, you MUST output exactly <TOOL>prevTrack()</TOOL>.",
       "handler_key": "prevTrack",
       "handler_type": "CUSTOM_KOTLIN",
       "keywords": [

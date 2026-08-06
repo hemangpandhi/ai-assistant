@@ -496,8 +496,16 @@ object ToolManager {
                                 }
                             }
                         }
+                        
+                        if (!mediaSearchSuccess) {
+                            val playIntent = Intent(android.provider.MediaStore.INTENT_ACTION_MEDIA_PLAY_FROM_SEARCH)
+                            playIntent.putExtra(android.provider.MediaStore.EXTRA_MEDIA_FOCUS, "vnd.android.cursor.item/*")
+                            playIntent.putExtra(android.app.SearchManager.QUERY, query)
+                            playIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                            if (intentHandler != null) intentHandler(playIntent) else context.startActivity(playIntent)
+                        }
                     } catch (e: Exception) {
-                        Log.e(TAG, "MediaBrowserService connection failed", e)
+                        Log.e(TAG, "Media connection failed", e)
                     }
 
                     if (mediaSearchSuccess) {

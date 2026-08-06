@@ -226,8 +226,6 @@ class WakeWordService : Service() {
             Log.d("WakeWord", "Vosk heard: $hypothesis")
         }
         val isMatch = lowerHypothesis.contains(wakeWord) || 
-                      lowerHypothesis.contains("hey nissan") ||
-                      lowerHypothesis.contains("nissan") ||
                       lowerHypothesis.contains("hey nice") ||
                       lowerHypothesis.contains("hey me") ||
                       lowerHypothesis.contains("hey listen") ||
