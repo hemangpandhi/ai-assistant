@@ -895,6 +895,20 @@ class LocalLLMActivity : AppCompatActivity() {
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
 
+        // Cabin TTS Engine Selector
+        val spinnerTtsEngine = dialogView.findViewById<Spinner>(R.id.spinnerTtsEngine)
+        val ttsEngineLabels = listOf("Sherpa-ONNX (Offline)", "Android System TTS")
+        val ttsEngineValues = listOf(
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_ENGINE_SHERPA,
+            com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_ENGINE_ANDROID
+        )
+        val ttsEngineAdapter = ArrayAdapter(this, android.R.layout.simple_spinner_item, ttsEngineLabels)
+        ttsEngineAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerTtsEngine.adapter = ttsEngineAdapter
+        
+        val currentTtsEngine = com.tcs.vehicleassistant.core.AssistantConfig.resolvedTtsEngine(this)
+        spinnerTtsEngine.setSelection(ttsEngineValues.indexOf(currentTtsEngine).coerceAtLeast(0))
+
         // Cabin Piper / Sherpa TTS
         val spinnerTtsVoice = dialogView.findViewById<Spinner>(R.id.spinnerTtsVoice)
         val etTtsSpeakerId = dialogView.findViewById<android.widget.EditText>(R.id.etTtsSpeakerId)
@@ -994,6 +1008,17 @@ class LocalLLMActivity : AppCompatActivity() {
                     putString(
                         com.tcs.vehicleassistant.core.AssistantConfig.Prefs.STT_ENGINE,
                         sttEngineValues[spinnerSttEngine.selectedItemPosition]
+                    )
+
+                    // Save Cabin TTS Engine
+                    val spinnerTtsEngine = dialogView.findViewById<Spinner>(R.id.spinnerTtsEngine)
+                    val ttsEngineValues = listOf(
+                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_ENGINE_SHERPA,
+                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_ENGINE_ANDROID
+                    )
+                    putString(
+                        com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_ENGINE,
+                        ttsEngineValues[spinnerTtsEngine.selectedItemPosition]
                     )
 
                     putString(com.tcs.vehicleassistant.core.AssistantConfig.Prefs.TTS_VOICE_ID, chosenVoice.id)

@@ -49,8 +49,8 @@ internal object AssistantOverlayTokens {
     val IslandExpandedWidthFraction = 0.50f
     val IslandExpandedWidthMin = 192.dp
     /** Expanded island — a touch taller than idle for breathing room; still widens for text. */
-    val IslandExpandedHeight = 120.dp
-    val IslandExpandedHeightWithText = 120.dp
+    val IslandExpandedHeight = 64.dp
+    val IslandExpandedHeightWithText = 64.dp
     val IslandBottomInset = 28.dp
     val IslandFrameStroke = 2.5.dp
     val IslandStatusGap = 10.dp

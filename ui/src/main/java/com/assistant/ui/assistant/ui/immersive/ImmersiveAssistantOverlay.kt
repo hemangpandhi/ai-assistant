@@ -147,6 +147,7 @@ fun ImmersiveAssistantOverlay(
     onPresentationChanged: (AssistantPresentation) -> Unit = {},
     @Suppress("UNUSED_PARAMETER")
     onBubbleBoundsInRoot: ((left: Int, top: Int, right: Int, bottom: Int) -> Unit)? = null,
+    isPrewarm: Boolean = false,
 ) {
     val context = LocalContext.current
     val host = AssistantRuntime.requireHost()
@@ -424,21 +425,19 @@ fun ImmersiveAssistantOverlay(
         AssistantUiLatency.mark("rich effects enabled")
     }
 
+    var hasPlayedEntryChime by remember { mutableStateOf(false) }
+
     // Enter by summon origin; exit reverses the same reveal.
     // Keys: visible + session only — do not restart when origin is assigned in the same summon.
-    LaunchedEffect(visible, session) {
+    LaunchedEffect(visible, session, isPrewarm) {
         if (visible) {
             hasPresented = true
             if (immersiveEnteredSession != session) {
                 immersiveEnteredSession = session
+                hasPlayedEntryChime = false
                 transcriptAlpha.snapTo(0f)
                 overlayReveal.snapTo(0f)
                 faceAlpha.snapTo(1f)
-                // Start chime on first frame — do not wait for enter anim (was ~420–560ms late).
-                launch {
-                    withFrameNanos { }
-                    wake.play()
-                }
                 if (cardPlacement) {
                     runImmersiveCardEnter(
                         backdropAlpha = backdropAlpha,
@@ -468,9 +467,19 @@ fun ImmersiveAssistantOverlay(
                     effectsSpec = effectsDefault,
                 )
             }
+            if (!isPrewarm && !hasPlayedEntryChime) {
+                hasPlayedEntryChime = true
+                launch {
+                    withFrameNanos { }
+                    wake.play()
+                }
+            }
         } else if (hasPresented) {
             richEffects = false
-            wake.playDismiss()
+            if (hasPlayedEntryChime) {
+                wake.playDismiss()
+                hasPlayedEntryChime = false
+            }
             runImmersiveExit(
                 backdropAlpha = backdropAlpha,
                 faceRise = faceRise,

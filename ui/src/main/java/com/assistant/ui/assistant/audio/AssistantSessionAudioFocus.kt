@@ -89,7 +89,7 @@ class AssistantSessionAudioFocus(
                         runCatching { audioManager.abandonAudioFocusRequest(prior) }
                     }
                     val attributes = AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_ASSISTANT)
+                        .setUsage(AudioAttributes.USAGE_MEDIA)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                         .build()
                     focusRequest = AudioFocusRequest.Builder(

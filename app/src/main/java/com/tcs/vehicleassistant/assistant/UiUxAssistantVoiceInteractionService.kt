@@ -62,8 +62,24 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
-            if (intent.action == AssistantConfig.WakeWordAction.DETECTED_BROADCAST) {
-                triggerSession(context)
+            when (intent.action) {
+                AssistantConfig.WakeWordAction.DETECTED_BROADCAST -> {
+                    triggerSession(context)
+                }
+                AssistantConfig.WakeWordAction.PREWARM_BROADCAST -> {
+                    instance?.showSession(
+                        Bundle().apply { putBoolean("is_prewarm", true) },
+                        0 // Do NOT pass SHOW_WITH_ASSIST to avoid triggering the system assist sound early
+                    )
+                }
+                AssistantConfig.WakeWordAction.CANCEL_PREWARM_BROADCAST -> {
+                    // Send an empty bundle with is_cancel_prewarm to instruct the session to hide itself.
+                    // This avoids killing a real session if it happened to start in the meantime.
+                    instance?.showSession(
+                        Bundle().apply { putBoolean("is_cancel_prewarm", true) },
+                        0
+                    )
+                }
             }
         }
     }
@@ -72,7 +88,11 @@ class UiUxAssistantVoiceInteractionService : VoiceInteractionService() {
         super.onCreate()
         instance = this
         AssistantUiProfile.install(this)
-        val filter = IntentFilter(AssistantConfig.WakeWordAction.DETECTED_BROADCAST)
+        val filter = IntentFilter().apply {
+            addAction(AssistantConfig.WakeWordAction.DETECTED_BROADCAST)
+            addAction(AssistantConfig.WakeWordAction.PREWARM_BROADCAST)
+            addAction(AssistantConfig.WakeWordAction.CANCEL_PREWARM_BROADCAST)
+        }
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             registerReceiver(receiver, filter, Context.RECEIVER_NOT_EXPORTED)
         } else {

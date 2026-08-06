@@ -39,7 +39,6 @@ object ToolFaceCues {
      */
     fun music(icon: AssistantFaceCueIcon = AssistantFaceCueIcon.Music): AssistantFaceCues =
         AssistantFaceCues(
-            leftEye = icon,
             leftAccent = icon,
             rightAccent = icon,
         )
@@ -61,7 +60,6 @@ object ToolFaceCues {
     fun climate(
         icon: AssistantFaceCueIcon = AssistantFaceCueIcon.Thermostat,
     ): AssistantFaceCues = AssistantFaceCues(
-        leftEye = icon,
         mouth = icon,
         leftAccent = AssistantFaceCueIcon.Ac,
         rightAccent = AssistantFaceCueIcon.Heat,

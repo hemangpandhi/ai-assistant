@@ -182,11 +182,11 @@ object LLMManager {
         force: Boolean = false,
         backendChoice: String = AssistantConfig.Backend.AUTO,
         callback: InitCallback? = null
-    ) {
+    ) = withContext(Dispatchers.IO) {
         initMutex.withLock {
             if (!force && LiteRtEngineHost.isPresent() && EngineStatusStore.currentModelPath == modelPath) {
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
-                return
+                return@withContext
             }
 
             try {
@@ -204,7 +204,7 @@ object LLMManager {
                         val busy = Exception("Model is still generating — refusing forced re-init")
                         Log.e(TAG, busy.message!!)
                         withContext(Dispatchers.Main) { callback?.onError(busy) }
-                        return
+                        return@withContext
                     }
                 }
 

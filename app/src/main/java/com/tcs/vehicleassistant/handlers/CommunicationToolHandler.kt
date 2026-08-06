@@ -7,7 +7,7 @@ import android.net.Uri
 class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
 
     private fun resolvePhoneNumber(context: Context, contact: String): String {
-        val normalized = contact.lowercase().trim()
+        val normalized = contact.lowercase().trim().removePrefix("my ").trim()
         val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
         val mechName = prefs.getString("mechanic_name", "Mechanic") ?: "Mechanic"
         val mechNum = prefs.getString("mechanic_number", "1-800-555-0199") ?: "1-800-555-0199"
@@ -41,7 +41,17 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
     override suspend fun execute(context: Context, toolCall: String, args: String, intentHandler: ((Intent) -> Unit)?): ToolExecutionResult {
         return when (handlerKey) {
             "call", "callContact" -> {
-                val contact = toolCall.substringAfter("(").substringBefore(")").trim().replace("\"", "")
+                val textArgs = toolCall.substringAfter("(").substringBeforeLast(")").trim()
+                val contact = if (textArgs.startsWith("{")) {
+                    try {
+                        val jsonObj = org.json.JSONObject(textArgs)
+                        jsonObj.optString("NUMBER", jsonObj.optString("NAME", jsonObj.optString("contact", "Unknown")))
+                    } catch (e: Exception) {
+                        "Unknown"
+                    }
+                } else {
+                    textArgs.replace("\"", "")
+                }
                 val phoneNumber = resolvePhoneNumber(context, contact)
 
                 val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${Uri.encode(phoneNumber)}"))
@@ -83,10 +93,23 @@ class CommunicationToolHandler(override val handlerKey: String) : ToolHandler {
                 }
             }
             "sendText" -> {
-                val textArgs = toolCall.substringAfter("(").substringBeforeLast(")")
-                val parts = textArgs.split(",", limit = 2)
-                val contact = parts.getOrNull(0)?.trim()?.replace("\"", "") ?: "Unknown"
-                val message = parts.getOrNull(1)?.trim()?.replace("\"", "") ?: ""
+                val textArgs = toolCall.substringAfter("(").substringBeforeLast(")").trim()
+                var contact: String
+                var message: String
+                if (textArgs.startsWith("{")) {
+                    try {
+                        val jsonObj = org.json.JSONObject(textArgs)
+                        contact = jsonObj.optString("NAME", jsonObj.optString("contact", "Unknown"))
+                        message = jsonObj.optString("MSG", jsonObj.optString("message", ""))
+                    } catch (e: Exception) {
+                        contact = "Unknown"
+                        message = ""
+                    }
+                } else {
+                    val parts = textArgs.split(",", limit = 2)
+                    contact = parts.getOrNull(0)?.trim()?.replace("\"", "") ?: "Unknown"
+                    message = parts.getOrNull(1)?.trim()?.replace("\"", "") ?: ""
+                }
 
                 val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("smsto:5550199"))
                 intent.putExtra("sms_body", message)

@@ -4,7 +4,11 @@ import android.content.Context
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.util.Log
+import java.util.Locale
+import java.util.UUID
 import com.k2fsa.sherpa.onnx.OfflineTts
 import com.k2fsa.sherpa.onnx.OfflineTtsConfig
 import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
@@ -46,6 +50,7 @@ class AndroidAudioManager(
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private var offlineTts: OfflineTts? = null
+    private var androidTts: TextToSpeech? = null
     @Volatile private var ttsSpeakerId: Int = 0
     @Volatile private var ttsSpeed: Float = 1.0f
     @Volatile private var loadedVoiceId: String = TtsVoiceCatalog.BUNDLED_AMY_ID
@@ -149,10 +154,43 @@ class AndroidAudioManager(
         return tts
     }
 
+    private fun buildAndroidTts() {
+        if (androidTts != null) return
+        androidTts = TextToSpeech(context.applicationContext) { status ->
+            if (status == TextToSpeech.SUCCESS) {
+                val lang = androidTts!!.setLanguage(Locale.getDefault())
+                if (lang == TextToSpeech.LANG_MISSING_DATA || lang == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    androidTts!!.language = Locale.US
+                }
+                
+                androidTts!!.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                    override fun onStart(id: String?) {
+                        mainScope.launch {
+                            id?.let { onTtsStart?.invoke(it) }
+                        }
+                    }
+                    override fun onDone(id: String?) {
+                        mainScope.launch {
+                            id?.let { onTtsDone?.invoke(it) }
+                        }
+                    }
+                    override fun onError(id: String?) {
+                        mainScope.launch {
+                            id?.let { onTtsError?.invoke(it) }
+                        }
+                    }
+                })
+            } else {
+                androidTts = null
+            }
+        }
+    }
+
     override fun initialize(onSuccess: () -> Unit, onError: () -> Unit) {
         try {
             readVoicePrefs()
             offlineTts = buildOfflineTts()
+            buildAndroidTts()
             prewarmEar()
             onSuccess()
         } catch (e: Exception) {
@@ -161,6 +199,7 @@ class AndroidAudioManager(
                 val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
                 prefs.edit().putString(AssistantConfig.Prefs.TTS_VOICE_ID, TtsVoiceCatalog.BUNDLED_AMY_ID).apply()
                 offlineTts = buildOfflineTts()
+                buildAndroidTts()
                 prewarmEar()
                 onSuccess()
             } catch (fallback: Exception) {
@@ -181,6 +220,7 @@ class AndroidAudioManager(
             offlineTts = null
             try {
                 offlineTts = buildOfflineTts()
+                buildAndroidTts()
                 Log.i(TAG, "Reloaded TTS voice=$loadedVoiceId sid=$ttsSpeakerId speed=$ttsSpeed")
             } catch (e: Exception) {
                 Log.e(TAG, "TTS reload failed; restoring Amy", e)
@@ -188,6 +228,7 @@ class AndroidAudioManager(
                     val prefs = context.getSharedPreferences(AssistantConfig.PREFS_NAME, Context.MODE_PRIVATE)
                     prefs.edit().putString(AssistantConfig.Prefs.TTS_VOICE_ID, TtsVoiceCatalog.BUNDLED_AMY_ID).apply()
                     offlineTts = buildOfflineTts()
+                    buildAndroidTts()
                 } catch (fallback: Exception) {
                     Log.e(TAG, "TTS Amy fallback failed", fallback)
                     offlineTts = null
@@ -212,6 +253,24 @@ class AndroidAudioManager(
     }
 
     override fun speak(text: String, utteranceId: String) {
+        val engine = AssistantConfig.resolvedTtsEngine(context)
+        if (engine == AssistantConfig.Prefs.TTS_ENGINE_ANDROID && androidTts != null) {
+            ttsChannel.trySend {
+                requestFocusAndMaxVolume()
+                try {
+                    if (!isActive) return@trySend
+                    // Pass utteranceId so the UtteranceProgressListener triggers onTtsStart/Done correctly
+                    androidTts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+                } catch (e: Exception) {
+                    if (isActive) {
+                        withContext(Dispatchers.Main) { onTtsError?.invoke(utteranceId) }
+                    }
+                    abandonFocus()
+                }
+            }
+            return
+        }
+
         ttsChannel.trySend {
             requestFocusAndMaxVolume()
             try {
@@ -234,7 +293,7 @@ class AndroidAudioManager(
                             AudioFormat.ENCODING_PCM_16BIT,
                         )
                         val audioAttributes = android.media.AudioAttributes.Builder()
-                            .setUsage(android.media.AudioAttributes.USAGE_ASSISTANT)
+                            .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
                             .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SPEECH)
                             .build()
                         val audioFormat = android.media.AudioFormat.Builder()
@@ -330,6 +389,7 @@ class AndroidAudioManager(
         releaseSpeechDrainWaiters()
         ttsChannel = Channel(Channel.UNLIMITED)
         try {
+            androidTts?.stop()
             globalAudioTrack?.pause()
             globalAudioTrack?.flush()
         } catch (e: Exception) {
@@ -409,6 +469,8 @@ class AndroidAudioManager(
         ttsScope.cancel()
         mainScope.cancel()
         try {
+            androidTts?.shutdown()
+            androidTts = null
             globalAudioTrack?.pause()
             globalAudioTrack?.flush()
             globalAudioTrack?.release()

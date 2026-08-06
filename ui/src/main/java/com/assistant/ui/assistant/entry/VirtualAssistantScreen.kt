@@ -78,6 +78,7 @@ fun VirtualAssistantOverlay(
     enableTts: Boolean = true,
     onPresentationChanged: (AssistantPresentation) -> Unit = {},
     onBubbleBoundsInRoot: ((left: Int, top: Int, right: Int, bottom: Int) -> Unit)? = null,
+    isPrewarm: Boolean = false,
 ) {
     ImmersiveAssistantOverlay(
         onDismiss = onDismiss,
@@ -90,6 +91,7 @@ fun VirtualAssistantOverlay(
         enableTts = enableTts,
         onPresentationChanged = onPresentationChanged,
         onBubbleBoundsInRoot = onBubbleBoundsInRoot,
+        isPrewarm = isPrewarm,
     )
 }
 

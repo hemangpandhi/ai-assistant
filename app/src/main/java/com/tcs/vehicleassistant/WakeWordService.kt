@@ -117,8 +117,11 @@ class WakeWordService : Service() {
     private var recognizerGrammarKey: String? = null
     private var kwsSpotter: com.k2fsa.sherpa.onnx.KeywordSpotter? = null
     private var kwsStream: com.k2fsa.sherpa.onnx.OnlineStream? = null
+    private var openWakeWordEngine: com.rementia.openwakeword.lib.WakeWordEngine? = null
 
     private var restartJob: Job? = null
+    private var prewarmTimeoutJob: Job? = null
+    private var isPrewarmed = false
 
     /** Elapsed realtime after which a match is allowed again. */
     @Volatile
@@ -292,6 +295,37 @@ class WakeWordService : Service() {
             }
         }
 
+        if (openWakeWordEngine == null) {
+            try {
+                val owwModelName = configuredWord.replace(" ", "_") + ".onnx"
+                val owwModels = listOf(
+                    com.rementia.openwakeword.lib.model.WakeWordModel(
+                        name = configuredWord,
+                        modelPath = owwModelName,
+                        threshold = 0.5f
+                    )
+                )
+                openWakeWordEngine = com.rementia.openwakeword.lib.WakeWordEngine(
+                    context = applicationContext,
+                    models = owwModels,
+                    detectionMode = com.rementia.openwakeword.lib.model.DetectionMode.SINGLE_BEST,
+                    detectionCooldownMs = 2000L,
+                    scope = serviceScope
+                )
+                
+                serviceScope.launch {
+                    openWakeWordEngine?.detections?.collect { detection ->
+                        if (matchesWakeWord(detection.model.name, wakeWord)) {
+                            onWakeDetected(detection.model.name)
+                        }
+                    }
+                }
+                Log.i(TAG, "OpenWakeWord engine initialized for $owwModelName")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to init OpenWakeWord: ${e.message}", e)
+            }
+        }
+
         startCustomListening()
     }
 
@@ -315,15 +349,14 @@ class WakeWordService : Service() {
                     }
                     val result = spotter.getResult(stream)
                     if (result.keyword.isNotBlank()) {
+                        matched = true
+                        spotter.reset(stream)
                         val label = WakeWordPhrasePolicy.normalizeKwsKeyword(result.keyword)
                         // Never trust KWS blindly — only allowlisted phrases open the UI.
                         if (matchesWakeWord(label, wakeWord)) {
-                            matched = true
-                            spotter.reset(stream)
                             onWakeDetected(label)
                         } else {
                             Log.d(TAG, "KWS keyword ignored (not allowlisted): '${result.keyword}'")
-                            spotter.reset(stream)
                         }
                     }
                 }
@@ -340,6 +373,12 @@ class WakeWordService : Service() {
                 } else {
                     handleTranscript(recognizer.partialResult)
                 }
+            }
+
+            // OpenWakeWord path: side-by-side
+            if (!matched) {
+                val slice = if (readSize == floatFrame.size) floatFrame else floatFrame.copyOf(readSize)
+                openWakeWordEngine?.feedAudio(slice)
             }
         }
 
@@ -358,6 +397,10 @@ class WakeWordService : Service() {
             com.tcs.vehicleassistant.hardware.SherpaKwsManager.release()
         } catch (_: Exception) {}
         kwsSpotter = null
+        try {
+            openWakeWordEngine?.release()
+        } catch (_: Exception) {}
+        openWakeWordEngine = null
     }
 
     /** Drops in-flight Vosk hypotheses so a later RESTART cannot rematch a prior wake phrase. */
@@ -380,8 +423,42 @@ class WakeWordService : Service() {
 
     private fun handleTranscript(voskJson: String?) {
         val transcript = extractTranscript(voskJson.orEmpty())
-        if (!matchesWakeWord(transcript, wakeWord)) return
-        onWakeDetected(transcript)
+        
+        // Full wake word match check
+        if (matchesWakeWord(transcript, wakeWord)) {
+            onWakeDetected(transcript)
+            return
+        }
+
+        // Speculative Pre-warming check for partial transcripts
+        if (voskJson?.contains("\"partial\"") == true) {
+            val prefixes = listOf("hey", "hi", "hello", "ok", "okay")
+            val words = transcript.split(Regex("\\s+")).filter { it.isNotEmpty() }
+            val startsWithPrefix = words.isNotEmpty() && prefixes.contains(words[0])
+
+            if (startsWithPrefix && !isPrewarmed) {
+                isPrewarmed = true
+                Log.i(TAG, "Speculative pre-warm triggered by partial: '$transcript'")
+                sendBroadcast(Intent(AssistantConfig.WakeWordAction.PREWARM_BROADCAST).setPackage(packageName))
+                
+                // Auto-cancel prewarm if full wake word doesn't complete within 2 seconds
+                prewarmTimeoutJob?.cancel()
+                prewarmTimeoutJob = serviceScope.launch {
+                    delay(2000L)
+                    if (isPrewarmed) {
+                        isPrewarmed = false
+                        Log.i(TAG, "Speculative pre-warm timed out")
+                        sendBroadcast(Intent(AssistantConfig.WakeWordAction.CANCEL_PREWARM_BROADCAST).setPackage(packageName))
+                    }
+                }
+            } else if (!startsWithPrefix && isPrewarmed && transcript.isNotEmpty()) {
+                // If it changed to something else, cancel prewarm
+                isPrewarmed = false
+                prewarmTimeoutJob?.cancel()
+                Log.i(TAG, "Speculative pre-warm cancelled (partial no longer matches prefix): '$transcript'")
+                sendBroadcast(Intent(AssistantConfig.WakeWordAction.CANCEL_PREWARM_BROADCAST).setPackage(packageName))
+            }
+        }
     }
 
     /** Cooldown + broadcast + mic release after a confirmed wake (Vosk match or Sherpa KWS). */
@@ -393,6 +470,9 @@ class WakeWordService : Service() {
         }
 
         Log.i(TAG, "Wake word matched: '$label'")
+        isPrewarmed = false
+        prewarmTimeoutJob?.cancel()
+        
         matchCooldownUntilElapsedMs = now + AssistantConfig.WakeWord.POST_MATCH_COOLDOWN_MS
         sendBroadcast(
             Intent(AssistantConfig.WakeWordAction.DETECTED_BROADCAST).setPackage(packageName)

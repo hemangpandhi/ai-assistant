@@ -122,12 +122,15 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Cabin TTS (Sherpa / Piper)"
+        android:text="Cabin TTS Engine"
         android:textColor="#FFFFFF"
         android:textSize="18sp"
         android:textStyle="bold"
         android:layout_marginTop="16dp"
         android:layout_marginBottom="8dp"/>
+        
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TTS Engine" android:textColor="#DDDDDD" />
+    <Spinner android:id="@+id/spinnerTtsEngine" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="8dp" />
 
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Voice model (bundled + /data/local/tmp/tts)" android:textColor="#DDDDDD" />
     <Spinner android:id="@+id/spinnerTtsVoice" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="4dp"/>

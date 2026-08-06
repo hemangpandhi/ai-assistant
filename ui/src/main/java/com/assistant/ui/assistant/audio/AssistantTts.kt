@@ -150,7 +150,7 @@ private fun speakWithTts(engine: TextToSpeech, text: String): Boolean {
 
 private fun configureTts(engine: TextToSpeech?) {
     if (engine == null) return
-    // USAGE_MEDIA / STREAM_MUSIC — USAGE_ASSISTANT is often silent on AAOS without a car audio patch.
+    // USAGE_MEDIA / STREAM_MUSIC
     try {
         engine.setAudioAttributes(
             AudioAttributes.Builder()
@@ -160,10 +160,9 @@ private fun configureTts(engine: TextToSpeech?) {
         )
     } catch (_: Exception) {
     }
+    
     val lang = engine.setLanguage(Locale.getDefault())
     if (lang == TextToSpeech.LANG_MISSING_DATA || lang == TextToSpeech.LANG_NOT_SUPPORTED) {
         engine.language = Locale.US
     }
-    engine.setSpeechRate(1.0f)
-    engine.setPitch(1.04f)
 }

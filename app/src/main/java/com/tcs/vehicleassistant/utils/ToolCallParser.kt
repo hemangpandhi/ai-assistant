@@ -43,9 +43,13 @@ object ToolCallParser {
                 var args = ""
                 val argumentsObj = jsonObj.optJSONObject("arguments")
                 if (argumentsObj != null) {
-                    val keys = argumentsObj.keys()
-                    if (keys.hasNext()) {
-                        args = argumentsObj.optString(keys.next())
+                    if (argumentsObj.length() == 1) {
+                        val keys = argumentsObj.keys()
+                        if (keys.hasNext()) {
+                            args = argumentsObj.optString(keys.next())
+                        }
+                    } else {
+                        args = argumentsObj.toString()
                     }
                 } else {
                     args = jsonObj.optString("arguments", "")

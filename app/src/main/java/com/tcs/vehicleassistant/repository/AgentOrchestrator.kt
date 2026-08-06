@@ -1088,7 +1088,7 @@ class AgentOrchestrator(
                         val shouldRunAgenticLoop = isAgenticLoopEnabled &&
                             loopCount < AssistantConfig.Llm.MAX_AGENTIC_LOOPS &&
                             confirmationAsks.isEmpty() &&
-                            (hasError || isQueryTool || requiresAgenticLoop || !hasConversationalText)
+                            (hasError || isQueryTool || requiresAgenticLoop)
 
                         if (shouldRunAgenticLoop) {
                             val feedbackString = toolFeedbacks.joinToString("\n")

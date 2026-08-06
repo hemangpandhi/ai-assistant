@@ -32,7 +32,10 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.core.content.ContextCompat
@@ -107,6 +110,15 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
     private var currentUiToken: String = ""
     private var currentLayoutStyle = -1
     private var composeHost: SessionComposeHost? = null
+    /** If true, the session handles its own dismissal logic instead of system defaults. */
+    private var handlesDismiss = false
+
+    /** Holds the pre-warm state to toggle UI visibility instantaneously via Compose alpha. */
+    private var isPrewarmedState = androidx.compose.runtime.mutableStateOf(false)
+
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    // LIFECYCLE
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     /** True between [onShow] and [onHide] — used to dismiss when another system-bar UI opens. */
     private var sessionUiVisible = false
     private var baselineResumedActivity: String? = null
@@ -377,10 +389,11 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
             )
             setContent {
                 AssistantTheme(darkTheme = true) {
+                    val isPrewarm = isPrewarmedState.value
                     VirtualAssistantOverlay(
                         // hide()+finish — some AAOS builds keep the VIS window after hide alone.
                         onDismiss = { dismissForExternalUi("compose-overlay-dismiss") },
-                        modifier = Modifier.fillMaxSize(),
+                        modifier = Modifier.fillMaxSize().alpha(if (isPrewarm) 0f else 1f),
                         awaitHotword = false,
                         // Wait for onShow → notifyImmersiveAssistantSummon(origin).
                         autoPresent = false,
@@ -388,6 +401,7 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
                         enableLiveSpeech = false,
                         // Agent owns TTS via orchestrator audioManager.
                         enableTts = false,
+                        isPrewarm = isPrewarm,
                     )
                 }
             }
@@ -771,8 +785,19 @@ class ComposeAssistantSession(context: Context) : VoiceInteractionSession(contex
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         AssistantDebugLog.d("Session", "onShow args: $args, showFlags: $showFlags")
+        
+        if (args?.getBoolean("is_cancel_prewarm") == true) {
+            AssistantDebugLog.d("Session", "onShow: Cancelling prewarm, hiding session.")
+            isPrewarmedState.value = false
+            runCatching { hide() }
+            return
+        }
+        
+        val isPrewarm = args?.getBoolean("is_prewarm") == true
+        isPrewarmedState.value = isPrewarm
+
         // Assist / system-bar icon while already open → toggle closed (with Compose exit anim).
-        if (sessionUiVisible) {
+        if (sessionUiVisible && !isPrewarm) {
             AssistantDebugLog.d("Session", "onShow while visible — toggle dismiss")
             super.onShow(args, showFlags)
             if (usingComposeUi) {

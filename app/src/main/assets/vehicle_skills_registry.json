@@ -2085,6 +2085,30 @@
       {
         "user": "I'm so excited for this trip",
         "assistant": "<mood>excited</mood> Same here \u2014 this is going to be great!"
+      },
+      {
+        "user": "find a coffee shop and navigate there",
+        "assistant": "<TOOL>searchNearby(coffee shop)</TOOL>"
+      },
+      {
+        "user": "System Observation: Tool execution resulted in:\nLocal cafe, Joe's Coffee\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call.",
+        "assistant": "<TOOL>startNavigationTo(Joe's Coffee)</TOOL>"
+      },
+      {
+        "user": "System Observation: Tool execution resulted in:\nStarting navigation to Joe's Coffee.\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call.",
+        "assistant": "I found Joe's Coffee nearby and I'm starting navigation there now."
+      },
+      {
+        "user": "turn on the AC and play some music",
+        "assistant": "<TOOL>decreaseTemperature(all)</TOOL>"
+      },
+      {
+        "user": "System Observation: Tool execution resulted in:\nCooling the cabin down.\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call.",
+        "assistant": "<TOOL>playMusic()</TOOL>"
+      },
+      {
+        "user": "System Observation: Tool execution resulted in:\nPlaying music for you right now.\nIf the user's request is fully satisfied, respond to the user naturally. If you need to take another action based on this information, output another <TOOL> call.",
+        "assistant": "I'm cooling the cabin down and starting your music."
       }
     ],
     "context_policies": {

@@ -194,6 +194,12 @@ dependencies {
     implementation("com.alphacephei:vosk-android:0.3.75@aar")
     implementation("net.java.dev.jna:jna:5.13.0@aar")
     
+    // OpenWakeWord
+    implementation("com.microsoft.onnxruntime:onnxruntime-android:1.18.0")
+    implementation("org.apache.commons:commons-math3:3.6.1")
+
+
+    
     // CameraX (1.4.2+ ships 16 KB–aligned image_processing_util_jni)
     val cameraxVersion = "1.4.2"
     implementation("androidx.camera:camera-core:$cameraxVersion")

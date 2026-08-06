@@ -46,6 +46,11 @@ object AssistantConfig {
         const val STT_ENGINE_SHERPA = "sherpa"
         const val STT_ENGINE_GOOGLE = "google"
 
+        /** TTS Engine selection: 'sherpa' or 'android' */
+        const val TTS_ENGINE = "tts_engine"
+        const val TTS_ENGINE_SHERPA = "sherpa"
+        const val TTS_ENGINE_ANDROID = "android"
+
         /**
          * When true, final STT text updates the UI / transcript only and does **not**
          * call orchestrator / LLM / tools. Off by default — leaving it on re-arms the
@@ -122,6 +127,15 @@ object AssistantConfig {
 
     fun prefersGoogleStt(context: android.content.Context): Boolean =
         resolvedSttEngine(context) == Prefs.STT_ENGINE_GOOGLE
+
+    fun resolvedTtsEngine(context: android.content.Context): String {
+        val prefs = context.getSharedPreferences(PREFS_NAME, android.content.Context.MODE_PRIVATE)
+        return prefs.getString(Prefs.TTS_ENGINE, Prefs.TTS_ENGINE_SHERPA) ?: Prefs.TTS_ENGINE_SHERPA
+    }
+
+    fun prefersAndroidTts(context: android.content.Context): Boolean =
+        resolvedTtsEngine(context) == Prefs.TTS_ENGINE_ANDROID
+
 
     /**
      * Component for a Google [android.speech.RecognitionService] outside this app.
@@ -381,6 +395,8 @@ object AssistantConfig {
         const val RESTART = "com.tcs.vehicleassistant.action.WAKE_WORD_RESTART"
 
         const val DETECTED_BROADCAST = "com.tcs.vehicleassistant.WAKE_WORD_DETECTED"
+        const val PREWARM_BROADCAST = "com.tcs.vehicleassistant.WAKE_WORD_PREWARM"
+        const val CANCEL_PREWARM_BROADCAST = "com.tcs.vehicleassistant.WAKE_WORD_CANCEL_PREWARM"
 
         /** Action strings accepted from older builds and external launchers. */
         val STOP_ALIASES = setOf("ACTION_STOP", "ACTION_STOP_LISTENING", STOP)

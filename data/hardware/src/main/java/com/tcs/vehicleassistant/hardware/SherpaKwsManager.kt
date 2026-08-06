@@ -1,4 +1,4 @@
-﻿package com.tcs.vehicleassistant.hardware
+package com.tcs.vehicleassistant.hardware
 
 import android.content.Context
 import android.util.Log
@@ -26,18 +26,18 @@ object SherpaKwsManager {
             // back to "hey iris" / etc. before the allowlist gate.
             keywordsFile.writeText(
                 """
-                H EY I R I S : 3.0
-                H I I R I S : 2.5
-                H EH L OW I R I S : 2.5
-                O K I R I S : 2.5
-                H EY C A R : 3.0
-                H I C A R : 2.5
-                H EH L OW C A R : 2.5
-                O K C A R : 2.5
-                H EY S O R A : 3.0
-                H I S O R A : 2.5
-                H EH L OW S O R A : 2.5
-                O K S O R A : 2.5
+                HEY IRIS : 3.0
+                HI IRIS : 2.5
+                HELLO IRIS : 2.5
+                OK IRIS : 2.5
+                HEY CAR : 3.0
+                HI CAR : 2.5
+                HELLO CAR : 2.5
+                OK CAR : 2.5
+                HEY SORA : 3.0
+                HI SORA : 2.5
+                HELLO SORA : 2.5
+                OK SORA : 2.5
                 """.trimIndent()
             )
 
@@ -46,12 +46,17 @@ object SherpaKwsManager {
                 val config = KeywordSpotterConfig(
                     featConfig = FeatureConfig(sampleRate = 16000, featureDim = 80),
                     modelConfig = OnlineModelConfig(
-                        zipformer2Ctc = OnlineZipformer2CtcModelConfig(
-                            model = File(externalDir, "encoder.onnx").absolutePath
+                        transducer = OnlineTransducerModelConfig(
+                            encoder = File(externalDir, "encoder.onnx").absolutePath,
+                            decoder = File(externalDir, "decoder.onnx").absolutePath,
+                            joiner = File(externalDir, "joiner.onnx").absolutePath
                         ),
                         tokens = File(externalDir, "tokens.txt").absolutePath,
                         numThreads = 2,
-                        debug = false
+                        debug = false,
+                        modelType = "zipformer",
+                        modelingUnit = "bpe",
+                        bpeVocab = File(externalDir, "bpe.model").absolutePath
                     ),
                     keywordsFile = keywordsFile.absolutePath
                 )
