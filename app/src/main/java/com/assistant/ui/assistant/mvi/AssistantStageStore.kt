@@ -1,5 +1,6 @@
 package com.assistant.ui.assistant.mvi
 
+import androidx.compose.runtime.Immutable
 import com.assistant.ui.assistant.api.AssistantContextGlyph
 import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.api.AssistantSessionEvent
@@ -15,6 +16,7 @@ import com.assistant.ui.assistant.backend.toUiGesture
  * Presentation-layer MVI for the immersive Compose stage.
  * Pure reduce — no Android / agent dependencies.
  */
+@Immutable
 data class StageState(
     val visible: Boolean = false,
     val session: Int = 0,

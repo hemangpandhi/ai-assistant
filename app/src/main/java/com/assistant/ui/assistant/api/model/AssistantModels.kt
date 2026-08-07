@@ -1,4 +1,7 @@
 package com.assistant.ui.assistant.api
+
+import androidx.compose.runtime.Immutable
+
 /**
  * Backend-facing models for the virtual assistant.
  * No Compose / IVI types — safe for a future standalone assistant app.
@@ -68,6 +71,7 @@ enum class AssistantStartReason {
     Demo,
 }
 
+@Immutable
 data class AssistantCabinContext(
     /** One of: Parked, Driving, Restricted (string to avoid IVI enum coupling). */
     val drivingUx: String = "Parked",
@@ -82,6 +86,7 @@ data class AssistantCabinContext(
 /**
  * One dialogue beat from a scripted or remote backend.
  */
+@Immutable
 data class AssistantBeat(
     val speaker: AssistantSpeaker,
     val text: String,
@@ -92,6 +97,7 @@ data class AssistantBeat(
 )
 
 /** Per-session knobs from the UI host (mic / TTS). */
+@Immutable
 data class AssistantSessionConfig(
     val enableTts: Boolean = false,
     val enableLiveSpeech: Boolean = true,
@@ -101,6 +107,7 @@ data class AssistantSessionConfig(
  * Optional debug chrome labels (model / backend) supplied by the host.
  * Null from [AssistantHost.debugInfo] hides the strip (e.g. release builds).
  */
+@Immutable
 data class AssistantDebugInfo(
     val modelLabel: String,
     val backendLabel: String,

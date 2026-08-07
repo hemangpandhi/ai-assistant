@@ -1,6 +1,5 @@
 package com.assistant.ui.assistant.face
 
-import android.graphics.BlurMaskFilter
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -334,7 +333,7 @@ private fun DrawScope.drawEye(
             val paint = Paint().asFrameworkPaint().apply {
                 isAntiAlias = true
                 color = glow.copy(alpha = 0.45f * open.coerceIn(0.2f, 1f)).toArgb()
-                maskFilter = BlurMaskFilter(radius * 0.9f, BlurMaskFilter.Blur.NORMAL)
+                maskFilter = BlurMaskFilterCache.get(radius * 0.9f)
             }
             canvas.nativeCanvas.drawCircle(center.x, center.y, radius * 1.55f, paint)
         }

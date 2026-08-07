@@ -29,6 +29,13 @@ class VoiceAnimationView @JvmOverloads constructor(
             targetState = value
             transitionProgress = 0f
             field = value
+            // Pause the wave animator during THINKING so XML path does not burn GPU
+            // during LiteRT prefill (same contention class as Compose idle loops).
+            if (value == State.THINKING) {
+                animator?.pause()
+                invalidate()
+                return
+            }
             if (animator?.isPaused == true) {
                 animator?.resume()
             }

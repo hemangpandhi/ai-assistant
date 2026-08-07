@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +51,12 @@ private const val SpeakingMsPerWord = 360
 /** Faster wipe for STT / non-speaking reveals. */
 private const val LiveMsPerWord = 55
 
+/** Quantize reveal progress so AnnotatedString rebuilds ~20×/token instead of every float tick. */
+private const val RevealStyleQuantum = 0.05f
+
+/** Hoisted — compiling Regex on every tokenize call was measurable churn during STT. */
+private val LiveInputTokenRegex = Regex("""\s*\S+""")
+
 /**
  * Tokenize [text] into reveal units for Google Assistant Live–style streaming.
  * Whitespace stays attached to the following word so layout doesn't jump.
@@ -57,7 +64,7 @@ private const val LiveMsPerWord = 55
 internal fun liveInputTokens(text: String): List<String> {
     if (text.isEmpty()) return emptyList()
     val out = ArrayList<String>()
-    val matcher = Regex("""\s*\S+""").findAll(text)
+    val matcher = LiveInputTokenRegex.findAll(text)
     var cursor = 0
     for (match in matcher) {
         if (match.range.first > cursor) {
@@ -92,6 +99,8 @@ internal fun liveInputTokenAlpha(index: Int, reveal: Float): Float {
 /**
  * Tokens that should participate in layout for [reveal] progress.
  * Unrevealed tokens are omitted so centered text does not sit far left.
+ *
+ * Kept for tests / callers; the composable hot path builds AnnotatedString directly.
  */
 internal fun liveInputVisibleTokens(tokens: List<String>, reveal: Float): List<Pair<String, Float>> {
     if (tokens.isEmpty() || reveal <= 0f) return emptyList()
@@ -111,6 +120,49 @@ internal fun liveInputRevealDurationMs(tokenCount: Int, speaking: Boolean): Int 
         (tokenCount * SpeakingMsPerWord).coerceIn(320, 14_000)
     } else {
         (260 + tokenCount * LiveMsPerWord).coerceIn(260, 780)
+    }
+}
+
+private fun quantizeRevealProgress(progress: Float): Float {
+    if (progress <= 0f) return 0f
+    return ((progress / RevealStyleQuantum).toInt() * RevealStyleQuantum)
+}
+
+@Composable
+private fun LiveTrailingBreathMul(enabled: Boolean): Float {
+    if (!enabled) return 1f
+    val breathTransition = rememberInfiniteTransition(label = "live_input_breath")
+    val breath by breathTransition.animateFloat(
+        initialValue = 0.82f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1_400, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "live_trailing_breath",
+    )
+    return breath
+}
+
+private fun buildLiveInputAnnotatedString(
+    tokens: List<String>,
+    progress: Float,
+    color: Color,
+    live: Boolean,
+    trailingMul: Float,
+): AnnotatedString = buildAnnotatedString {
+    for (index in tokens.indices) {
+        var a = liveInputTokenAlpha(index, progress)
+        if (a <= VisibleAlphaFloor) break
+        // Trailing breath only on the last token that will be drawn this frame.
+        val isLastVisible = index == tokens.lastIndex ||
+            liveInputTokenAlpha(index + 1, progress) <= VisibleAlphaFloor
+        if (live && isLastVisible && a > 0.92f) {
+            a *= trailingMul
+        }
+        withStyle(SpanStyle(color = color.copy(alpha = color.alpha * a.coerceIn(0f, 1f)))) {
+            append(tokens[index])
+        }
     }
 }
 
@@ -140,7 +192,7 @@ fun LiveInputText(
     val scrollState = rememberScrollState()
 
     LaunchedEffect(text, speaking, live) {
-        val nextTokens = liveInputTokens(text)
+        val nextTokens = tokens
         val prevTokens = liveInputTokens(committedText)
         val shared = liveInputSharedPrefixCount(prevTokens, nextTokens)
         val target = nextTokens.size.toFloat()
@@ -195,18 +247,7 @@ fun LiveInputText(
         }
     }
 
-    // Always remember the transition (Compose rules); gate with [live] multiplier.
-    val breathTransition = rememberInfiniteTransition(label = "live_input_breath")
-    val breath by breathTransition.animateFloat(
-        initialValue = 0.82f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1_400, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse,
-        ),
-        label = "live_trailing_breath",
-    )
-    val trailingMul = if (live && tokens.isNotEmpty()) breath else 1f
+    val trailingMul = LiveTrailingBreathMul(enabled = live && tokens.isNotEmpty())
 
     if (text.isBlank()) {
         Box(modifier = modifier.height(34.dp))
@@ -214,21 +255,21 @@ fun LiveInputText(
     }
 
     val progress = reveal.value
-    val visible = liveInputVisibleTokens(tokens, progress)
-    val annotated = buildAnnotatedString {
-        visible.forEachIndexed { visibleIndex, (token, tokenAlpha) ->
-            var a = tokenAlpha
-            if (live && visibleIndex == visible.lastIndex && a > 0.92f) {
-                a *= trailingMul
-            }
-            withStyle(SpanStyle(color = color.copy(alpha = color.alpha * a.coerceIn(0f, 1f)))) {
-                append(token)
-            }
-        }
+    // Quantize style rebuilds; full progress still drives scroll.
+    val styleProgress = quantizeRevealProgress(progress)
+    val styleTrailing = if (live) ((trailingMul / RevealStyleQuantum).toInt() * RevealStyleQuantum) else 1f
+    val annotated = remember(tokens, styleProgress, color, live, styleTrailing) {
+        buildLiveInputAnnotatedString(
+            tokens = tokens,
+            progress = styleProgress,
+            color = color,
+            live = live,
+            trailingMul = styleTrailing,
+        )
     }
 
     // Keep the newest revealed words pinned in view as the line grows past the band.
-    LaunchedEffect(annotated, progress, scrollState.maxValue) {
+    LaunchedEffect(progress, scrollState.maxValue) {
         if (scrollState.maxValue > 0) {
             scrollState.scrollTo(scrollState.maxValue)
         }

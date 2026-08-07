@@ -11,6 +11,11 @@ import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
 /**
  * Shared border/dock breath — same timing as [ImmersiveBorderGlow] so the face
  * stage and rim inhale/exhale together.
+ *
+ * When idle motion is off (Thinking / first frame), breath freezes at a soft rest
+ * pose so the rim still reads as present without continuous GPU invalidation.
+ * [speechActive] still drives a speech-paced cycle during Listening/Speaking even
+ * when idle loops are paused — keeps UI quality without spectrum-sweep cost.
  */
 data class ImmersiveGlowBreath(
     /** Raw breath scale (~1 at rest → ~1.65 idle / ~1.85 speech). */
@@ -27,11 +32,12 @@ fun rememberImmersiveGlowBreath(
     speechEnergy: Float = 0f,
 ): ImmersiveGlowBreath {
     val idleMotion = LocalAssistantIdleMotion.current
-    val breathScale = remember { Animatable(1f) }
+    val breathScale = remember { Animatable(1.12f) }
     LaunchedEffect(idleMotion, speechActive) {
         val breathEnabled = idleMotion || speechActive
         if (!breathEnabled) {
-            breathScale.snapTo(1f)
+            // Soft static rest — visible rim without animation ticks.
+            breathScale.snapTo(1.12f)
             return@LaunchedEffect
         }
         val peak = if (speechActive) 1.85f else 1.65f

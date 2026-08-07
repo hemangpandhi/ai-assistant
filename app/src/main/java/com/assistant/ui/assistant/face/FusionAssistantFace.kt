@@ -1,6 +1,5 @@
 package com.assistant.ui.assistant.face
 
-import android.graphics.BlurMaskFilter
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -53,7 +52,6 @@ import kotlin.random.Random
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import com.assistant.ui.assistant.api.AssistantFaceCueIcon
 import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
@@ -298,35 +296,9 @@ fun FusionAssistantFace(
     visorDisplayGlyph: ImageVector? = null,
     visorDisplayAlpha: Float = 0f,
     visorDisplayTint: Color? = null,
-    /** LLM anatomy cues — per-eye / mouth / L-R accents; null slots keep geometry. */
-    faceCues: AssistantFaceCues? = null,
+    /** Ignored — cue icons stripped from hot path for GPU budget. */
+    @Suppress("UNUSED_PARAMETER") faceCues: AssistantFaceCues? = null,
 ) {
-    val cues = faceCues?.takeUnless { it.isEmpty }
-    val leftEyeIcon = cues?.leftEye
-    val rightEyeIcon = cues?.rightEye
-    val mouthIcon = cues?.mouth
-    val leftAccentIcon = cues?.leftAccent
-    val rightAccentIcon = cues?.rightAccent
-    val leftEyePainter = rememberVectorPainter(
-        (leftEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
-    )
-    val rightEyePainter = rememberVectorPainter(
-        (rightEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
-    )
-    val mouthCuePainter = rememberVectorPainter(
-        (mouthIcon ?: AssistantFaceCueIcon.Music).imageVector(),
-    )
-    val leftAccentPainter = rememberVectorPainter(
-        (leftAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
-    )
-    val rightAccentPainter = rememberVectorPainter(
-        (rightAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
-    )
-    val leftEyeTint = leftEyeIcon?.glyphTint(highContrast)
-    val rightEyeTint = rightEyeIcon?.glyphTint(highContrast)
-    val mouthCueTint = mouthIcon?.glyphTint(highContrast)
-    val leftAccentTint = leftAccentIcon?.glyphTint(highContrast)
-    val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val visorPainter = visorDisplayGlyph?.let { rememberVectorPainter(it) }
     val target = mood.toFusionEyePose()
     val shellMorph = remember {
@@ -574,14 +546,8 @@ fun FusionAssistantFace(
                     val right = Offset(w * (0.50f + gap) + gaze, eyeY)
                     val style = eyeStyle.value
                     val glyphA = visorDisplayAlpha.coerceIn(0f, 1f)
-                    // Face cues win over weather-sink dual-eye HUD when present.
-                    val useCueEyes = leftEyeIcon != null || rightEyeIcon != null
-                    // Hard swap: once the glyph appears, eyes are gone (no ring behind icons).
-                    val eyeReveal = when {
-                        useCueEyes -> 1f // per-eye handled below
-                        glyphA > 0.08f -> 0f
-                        else -> 1f
-                    }
+                    // Hard swap: once the weather glyph appears, eyes are gone.
+                    val eyeReveal = if (glyphA > 0.08f) 0f else 1f
 
                     if (blush.value > 0.04f) {
                         val blushA = 0.22f * blush.value
@@ -598,13 +564,12 @@ fun FusionAssistantFace(
                         )
                     }
 
-                    if (eyeReveal > 0.02f || (visorPainter != null && glyphA > 0.02f) || useCueEyes) {
+                    if (eyeReveal > 0.02f || (visorPainter != null && glyphA > 0.02f)) {
                         val faceR = side * 0.42f * pulse
                         val barW = faceR * 0.11f * eyeWidth.value.coerceIn(0.8f, 1.35f)
                         val barH = (faceR * 0.22f * eyeHeight.value.coerceAtMost(1.05f) * open)
                             .coerceAtMost(faceR * 0.26f)
                         val capsuleStyle = style.coerceIn(-0.2f, 0.25f)
-                        val eyeIconSide = faceR * 0.44f
 
                         fun drawGeometricEye(center: Offset, fadedEye: Color) {
                             if (eyeMode == FusionEyeMode.ImmersiveGlow || eyeMode == FusionEyeMode.Immersive) {
@@ -626,31 +591,14 @@ fun FusionAssistantFace(
                             }
                         }
 
-                        if (useCueEyes) {
-                            if (leftEyeIcon != null && leftEyeTint != null) {
-                                drawAnimatedFaceCueIcon(
-                                    leftEyePainter, left, eyeIconSide, leftEyeTint,
-                                    lifePhase, phaseOffset = 0.2f,
-                                )
-                            } else {
-                                drawGeometricEye(left, eyeTint)
-                            }
-                            if (rightEyeIcon != null && rightEyeTint != null) {
-                                drawAnimatedFaceCueIcon(
-                                    rightEyePainter, right, eyeIconSide, rightEyeTint,
-                                    lifePhase, phaseOffset = 1.1f,
-                                )
-                            } else {
-                                drawGeometricEye(right, eyeTint)
-                            }
-                        } else if (eyeReveal > 0.02f) {
+                        if (eyeReveal > 0.02f) {
                             val fadedEye = eyeTint.copy(alpha = eyeTint.alpha * eyeReveal)
                             drawGeometricEye(left, fadedEye)
                             drawGeometricEye(right, fadedEye)
                         }
 
-                        // Weather-sink dual-eye HUD (gallery) — skipped when face cues own eyes.
-                        if (!useCueEyes && visorPainter != null && glyphA > 0.02f) {
+                        // Weather-sink dual-eye HUD (gallery).
+                        if (visorPainter != null && glyphA > 0.02f) {
                             val tint = visorDisplayTint ?: eyeTint
                             val glyphW: Float
                             val glyphH: Float
@@ -682,46 +630,13 @@ fun FusionAssistantFace(
                                 tint = tint,
                             )
                         }
-
-                        // Cheek accents — lower sides of the face (not center, not over eyes).
-                        val cheekSide = faceR * 0.30f
-                        val cheekY = h * 0.60f
-                        if (leftAccentIcon != null && leftAccentTint != null) {
-                            drawAnimatedFaceCueIcon(
-                                leftAccentPainter,
-                                Offset(cx - faceR * 0.42f, cheekY),
-                                cheekSide,
-                                leftAccentTint,
-                                lifePhase,
-                                phaseOffset = 0.6f,
-                            )
-                        }
-                        if (rightAccentIcon != null && rightAccentTint != null) {
-                            drawAnimatedFaceCueIcon(
-                                rightAccentPainter,
-                                Offset(cx + faceR * 0.42f, cheekY),
-                                cheekSide,
-                                rightAccentTint,
-                                lifePhase,
-                                phaseOffset = 2.0f,
-                            )
-                        }
                     }
 
                     val speaking = mouthAmplitude != null ||
                         mood == AssistantMood.Speaking ||
                         mood == AssistantMood.Excited
                     val mouthCenter = Offset(cx, h * 0.66f)
-                    if (mouthIcon != null && mouthCueTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            mouthCuePainter,
-                            mouthCenter,
-                            side * 0.42f * 0.42f,
-                            mouthCueTint,
-                            lifePhase,
-                            phaseOffset = 1.4f,
-                        )
-                    } else if (mouthVisible.value > 0.2f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
+                    if (mouthVisible.value > 0.2f || (mouthAmplitude != null && mouthAmplitude > 0.05f)) {
                         drawFusionMouth(
                             center = mouthCenter,
                             faceR = side * 0.42f,
@@ -829,6 +744,9 @@ private fun DrawScope.drawFusionVisor(visorColor: Color) {
 }
 
 /** EPORO glow eyes — morph ring / arc / dash shapes like Immersive. */
+private val FusionEyeArcPath = Path()
+private val FusionEyeNativeArcPath = android.graphics.Path()
+
 private fun DrawScope.drawFusionEye(
     center: Offset,
     radiusX: Float,
@@ -843,35 +761,32 @@ private fun DrawScope.drawFusionEye(
         style > 0.35f -> {
             // Happy ^ arcs with EPORO bloom.
             val lift = 0.55f + 0.55f * style.coerceIn(0.35f, 1f)
-            val path = Path().apply {
-                moveTo(center.x - rx * 1.75f, center.y + ry * 0.35f)
-                quadraticTo(
+            val path = FusionEyeArcPath
+            path.rewind()
+            path.moveTo(center.x - rx * 1.75f, center.y + ry * 0.35f)
+            path.quadraticTo(
+                center.x,
+                center.y - ry * lift,
+                center.x + rx * 1.75f,
+                center.y + ry * 0.35f,
+            )
+            drawIntoCanvas { canvas ->
+                val fw = Paint().asFrameworkPaint()
+                fw.isAntiAlias = true
+                fw.color = glow.copy(alpha = 0.4f).toArgb()
+                fw.maskFilter = BlurMaskFilterCache.get(rx * 0.85f)
+                fw.strokeWidth = rx * 0.55f
+                fw.strokeCap = android.graphics.Paint.Cap.ROUND
+                fw.style = android.graphics.Paint.Style.STROKE
+                FusionEyeNativeArcPath.rewind()
+                FusionEyeNativeArcPath.moveTo(center.x - rx * 1.75f, center.y + ry * 0.35f)
+                FusionEyeNativeArcPath.quadTo(
                     center.x,
                     center.y - ry * lift,
                     center.x + rx * 1.75f,
                     center.y + ry * 0.35f,
                 )
-            }
-            drawIntoCanvas { canvas ->
-                val fw = Paint().asFrameworkPaint()
-                fw.isAntiAlias = true
-                fw.color = glow.copy(alpha = 0.4f).toArgb()
-                fw.maskFilter = BlurMaskFilter(rx * 0.85f, BlurMaskFilter.Blur.NORMAL)
-                fw.strokeWidth = rx * 0.55f
-                fw.strokeCap = android.graphics.Paint.Cap.ROUND
-                fw.style = android.graphics.Paint.Style.STROKE
-                canvas.nativeCanvas.drawPath(
-                    android.graphics.Path().apply {
-                        moveTo(center.x - rx * 1.75f, center.y + ry * 0.35f)
-                        quadTo(
-                            center.x,
-                            center.y - ry * lift,
-                            center.x + rx * 1.75f,
-                            center.y + ry * 0.35f,
-                        )
-                    },
-                    fw,
-                )
+                canvas.nativeCanvas.drawPath(FusionEyeNativeArcPath, fw)
             }
             drawPath(
                 path,
@@ -889,7 +804,7 @@ private fun DrawScope.drawFusionEye(
                 val paint = Paint().asFrameworkPaint().apply {
                     isAntiAlias = true
                     color = glow.copy(alpha = 0.4f).toArgb()
-                    maskFilter = BlurMaskFilter(dashW * 0.55f, BlurMaskFilter.Blur.NORMAL)
+                    maskFilter = BlurMaskFilterCache.get(dashW * 0.55f)
                 }
                 canvas.nativeCanvas.drawOval(
                     center.x - dashW * 1.35f,
@@ -914,7 +829,7 @@ private fun DrawScope.drawFusionEye(
                     val paint = Paint().asFrameworkPaint().apply {
                         isAntiAlias = true
                         color = glow.copy(alpha = 0.45f * open.coerceIn(0.2f, 1f)).toArgb()
-                        maskFilter = BlurMaskFilter(bloom * 0.9f, BlurMaskFilter.Blur.NORMAL)
+                        maskFilter = BlurMaskFilterCache.get(bloom * 0.9f)
                     }
                     canvas.nativeCanvas.drawOval(
                         center.x - rx * 1.55f,

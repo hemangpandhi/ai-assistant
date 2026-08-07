@@ -1,6 +1,5 @@
 package com.assistant.ui.assistant.face
 
-import android.graphics.BlurMaskFilter
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
@@ -25,6 +24,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Matrix
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -37,7 +37,6 @@ import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.graphics.shapes.Morph
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -47,7 +46,6 @@ import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.random.Random
-import com.assistant.ui.assistant.api.AssistantFaceCueIcon
 import com.assistant.ui.assistant.api.AssistantFaceCues
 import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
@@ -283,7 +281,7 @@ private val PoseSpring = AssistantFaceMotion.PoseSpring
  * @param gesture nod / shake micro-expressions for yes/no
  * @param eyeGlow when non-null, capsule eyes use this EPORO-style purple glow ring
  *   (same shape / blink / morph as Immersive — only the ring tint + bloom change)
- * @param faceCues optional LLM anatomy icons; null slots keep geometric eyes/mouth
+ * @param faceCues ignored — cue icons stripped from the hot path for GPU/TTFT.
  */
 @Composable
 @OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
@@ -297,35 +295,8 @@ fun ImmersiveEyesFace(
     highContrast: Boolean = false,
     gesture: FaceGesture = FaceGesture.None,
     eyeGlow: Color? = null,
-    faceCues: AssistantFaceCues? = null,
+    @Suppress("UNUSED_PARAMETER") faceCues: AssistantFaceCues? = null,
 ) {
-    val cues = faceCues?.takeUnless { it.isEmpty }
-    val leftEyeIcon = cues?.leftEye
-    val rightEyeIcon = cues?.rightEye
-    val mouthIcon = cues?.mouth
-    val leftAccentIcon = cues?.leftAccent
-    val rightAccentIcon = cues?.rightAccent
-    // Always remember painters (Compose hook order); draw only when the slot is set.
-    val leftEyePainter = rememberVectorPainter(
-        (leftEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
-    )
-    val rightEyePainter = rememberVectorPainter(
-        (rightEyeIcon ?: AssistantFaceCueIcon.Search).imageVector(),
-    )
-    val mouthPainter = rememberVectorPainter(
-        (mouthIcon ?: AssistantFaceCueIcon.Music).imageVector(),
-    )
-    val leftAccentPainter = rememberVectorPainter(
-        (leftAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
-    )
-    val rightAccentPainter = rememberVectorPainter(
-        (rightAccentIcon ?: AssistantFaceCueIcon.Sparkle).imageVector(),
-    )
-    val leftEyeTint = leftEyeIcon?.glyphTint(highContrast)
-    val rightEyeTint = rightEyeIcon?.glyphTint(highContrast)
-    val mouthTintCue = mouthIcon?.glyphTint(highContrast)
-    val leftAccentTint = leftAccentIcon?.glyphTint(highContrast)
-    val rightAccentTint = rightAccentIcon?.glyphTint(highContrast)
     val target = mood.toImmersiveEyePose()
     val enableIdleMotion = LocalAssistantIdleMotion.current
     // Fixed SemiCircle shell — glossy layered black face fill.
@@ -514,6 +485,20 @@ fun ImmersiveEyesFace(
         lookX.runMoodGazeScan(mood)
     }
 
+    val shellPath = remember { Path() }
+    val shellMatrix = remember { Matrix() }
+    val eyeArcPath = remember { Path() }
+    val eyeNativeArcPath = remember { android.graphics.Path() }
+    val mouthPath = remember { Path() }
+    val floorShadowStops = remember {
+        arrayOf(
+            0.0f to Color.Black.copy(alpha = 0.30f),
+            0.40f to Color.Black.copy(alpha = 0.14f),
+            0.75f to Color.Black.copy(alpha = 0.04f),
+            1.0f to Color.Transparent,
+        )
+    }
+
     Canvas(modifier = modifier.aspectRatio(1f)) {
         val side = minOf(size.width, size.height)
         val cx = size.width * 0.5f
@@ -536,46 +521,57 @@ fun ImmersiveEyesFace(
         val swayX = idleSway * faceR * 0.02f * motionScale
         val pulse = activityPulse.coerceIn(0f, 1f)
 
-        // Soft pulsing halo behind the character — faint activity cue.
-        val pulseCenter = Offset(cx + swayX * 0.25f, cy + bobY * 0.25f)
-        val pulseA = auraAlphaForContrast(highContrast, 0.08f) * glow *
-            (0.45f + 0.55f * pulse)
-        val pulseR = faceR * (2.15f + 0.22f * pulse)
-        drawCircle(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to brandGlow.copy(alpha = pulseA * 0.16f),
-                    0.45f to brandGlow.copy(alpha = pulseA * 0.06f),
-                    0.80f to brandGlow.copy(alpha = pulseA * 0.02f),
-                    1.0f to Color.Transparent,
+        if (enableIdleMotion) {
+            // Soft pulsing halo behind the character — faint activity cue.
+            val pulseCenter = Offset(cx + swayX * 0.25f, cy + bobY * 0.25f)
+            val pulseA = auraAlphaForContrast(highContrast, 0.08f) * glow *
+                (0.45f + 0.55f * pulse)
+            val pulseR = faceR * (2.15f + 0.22f * pulse)
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to brandGlow.copy(alpha = pulseA * 0.16f),
+                        0.45f to brandGlow.copy(alpha = pulseA * 0.06f),
+                        0.80f to brandGlow.copy(alpha = pulseA * 0.02f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = pulseCenter,
+                    radius = pulseR,
                 ),
-                center = pulseCenter,
                 radius = pulseR,
-            ),
-            radius = pulseR,
-            center = pulseCenter,
-        )
+                center = pulseCenter,
+            )
 
-        // Very light parallax halo — drifts opposite bob/gaze for a soft depth cue.
-        val parallaxX = -lookX.value * faceR * 0.045f - swayX * 0.55f +
-            sin(life * 0.22f).toFloat() * faceR * 0.016f
-        val parallaxY = -bobY * 0.65f - lookY.value * faceR * 0.035f +
-            cos(life * 0.19f).toFloat() * faceR * 0.012f
-        val haloA = auraAlphaForContrast(highContrast, 0.06f) * glow
-        val haloR = faceR * (2.25f + 0.05f * sin(life * 0.5f).toFloat())
-        drawCircle(
-            brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to brandGlow.copy(alpha = haloA * 0.18f),
-                    0.50f to brandGlow.copy(alpha = haloA * 0.05f),
-                    1.0f to Color.Transparent,
+            // Very light parallax halo — drifts opposite bob/gaze for a soft depth cue.
+            val parallaxX = -lookX.value * faceR * 0.045f - swayX * 0.55f +
+                sin(life * 0.22f).toFloat() * faceR * 0.016f
+            val parallaxY = -bobY * 0.65f - lookY.value * faceR * 0.035f +
+                cos(life * 0.19f).toFloat() * faceR * 0.012f
+            val haloA = auraAlphaForContrast(highContrast, 0.06f) * glow
+            val haloR = faceR * (2.25f + 0.05f * sin(life * 0.5f).toFloat())
+            drawCircle(
+                brush = Brush.radialGradient(
+                    colorStops = arrayOf(
+                        0.0f to brandGlow.copy(alpha = haloA * 0.18f),
+                        0.50f to brandGlow.copy(alpha = haloA * 0.05f),
+                        1.0f to Color.Transparent,
+                    ),
+                    center = Offset(cx + parallaxX, cy + parallaxY),
+                    radius = haloR,
                 ),
-                center = Offset(cx + parallaxX, cy + parallaxY),
                 radius = haloR,
-            ),
-            radius = haloR,
-            center = Offset(cx + parallaxX, cy + parallaxY),
-        )
+                center = Offset(cx + parallaxX, cy + parallaxY),
+            )
+        } else {
+            // Static soft aura during Thinking/Listening/Speaking — one cheap circle, no drift.
+            val staticA = auraAlphaForContrast(highContrast, 0.05f) * glow
+            val staticR = faceR * 2.2f
+            drawCircle(
+                color = brandGlow.copy(alpha = staticA * 0.12f),
+                radius = staticR,
+                center = Offset(cx, cy),
+            )
+        }
 
         // Faint floor shadow — flat puddle that barely follows motion so the face feels anchored.
         val floorCx = cx + swayX * 0.3f
@@ -585,12 +581,7 @@ fun ImmersiveEyesFace(
         val floorH = faceR * 0.20f
         drawOval(
             brush = Brush.radialGradient(
-                colorStops = arrayOf(
-                    0.0f to Color.Black.copy(alpha = 0.30f),
-                    0.40f to Color.Black.copy(alpha = 0.14f),
-                    0.75f to Color.Black.copy(alpha = 0.04f),
-                    1.0f to Color.Transparent,
-                ),
+                colorStops = floorShadowStops,
                 center = Offset(floorCx, floorCy),
                 radius = floorW,
             ),
@@ -602,9 +593,12 @@ fun ImmersiveEyesFace(
             // SemiCircle: narrower base diameter, same height (chin clearance unchanged).
             val shellBounds = immersiveMatchedShellBounds(size.width, size.height, breath = breath)
 
+            // One path build shared by glossy fill, rim stroke, and clipPath.
+            expressiveFaceShellPath(shellMorph, shellBounds, shellPath, shellMatrix)
+
             // Glossy black SemiCircle — layered depth (not flat matte).
             drawGlossyBlackFaceShell(
-                morphState = shellMorph,
+                path = shellPath,
                 bounds = shellBounds,
                 base = NomiFaceBlack,
                 rimTint = Color(0xFF8AB4F8),
@@ -612,8 +606,7 @@ fun ImmersiveEyesFace(
             // Hairline pale rim stroke.
             val rimAlpha = auraAlphaForContrast(highContrast, 0.28f) * glow.coerceIn(0.35f, 1f)
             drawExpressiveFaceShell(
-                morphState = shellMorph,
-                bounds = shellBounds,
+                path = shellPath,
                 color = Color(0xFFE8ECF2).copy(alpha = rimAlpha * 0.65f),
                 style = Stroke(width = shellBounds.width * 0.028f, cap = StrokeCap.Round),
             )
@@ -637,12 +630,10 @@ fun ImmersiveEyesFace(
                     mood == AssistantMood.Jubilation
                 val mouthCenter = Offset(cx, cy + faceR * 0.38f)
                 val capsuleStyle = eyeStyle.value.coerceIn(-0.2f, 0.25f)
-                val bloom = if (enableIdleMotion) glowAmount else 0f
-                val eyeIconSide = faceR * 0.40f
+                val bloom = glowAmount
 
-                // All facial features + cues stay inside the shell — never outside / over eyes.
-                val shellClip = expressiveFaceShellPath(shellMorph, shellBounds)
-                clipPath(shellClip) {
+                // Geometric eyes/mouth only — LLM face cues stripped for GPU budget.
+                clipPath(shellPath) {
                     if (blush.value > 0.04f) {
                         val blushA = 0.2f * blush.value
                         val bx = gap * 0.95f
@@ -657,59 +648,21 @@ fun ImmersiveEyesFace(
                             Offset(cx + bx, cy + faceR * 0.22f),
                         )
                     }
-                    if (leftEyeIcon != null && leftEyeTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            leftEyePainter, left, eyeIconSide, leftEyeTint, life, phaseOffset = 0.2f,
-                        )
-                    } else {
-                        drawNomiGlyphEye(
-                            left, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom,
-                        )
-                    }
-                    if (rightEyeIcon != null && rightEyeTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            rightEyePainter, right, eyeIconSide, rightEyeTint, life,
-                            phaseOffset = 1.1f,
-                        )
-                    } else {
-                        drawNomiGlyphEye(
-                            right, barW, barH, capsuleStyle, eyeRing, glowStrength = bloom,
-                        )
-                    }
-
-                    // Cheek accents — lower sides of the face (not center, not over eyes).
-                    val cheekSide = faceR * 0.30f
-                    val cheekY = cy + faceR * 0.22f
-                    if (leftAccentIcon != null && leftAccentTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            leftAccentPainter,
-                            Offset(cx - faceR * 0.42f, cheekY),
-                            cheekSide,
-                            leftAccentTint,
-                            life,
-                            phaseOffset = 0.6f,
-                        )
-                    }
-                    if (rightAccentIcon != null && rightAccentTint != null) {
-                        drawAnimatedFaceCueIcon(
-                            rightAccentPainter,
-                            Offset(cx + faceR * 0.42f, cheekY),
-                            cheekSide,
-                            rightAccentTint,
-                            life,
-                            phaseOffset = 2.0f,
-                        )
-                    }
-                    if (mouthIcon != null && mouthTintCue != null) {
-                        drawAnimatedFaceCueIcon(
-                            mouthPainter,
-                            mouthCenter,
-                            faceR * 0.42f,
-                            mouthTintCue,
-                            life,
-                            phaseOffset = 1.4f,
-                        )
-                    } else if (mouthVisible.value > 0.08f ||
+                    drawNomiGlyphEye(
+                        left, barW, barH, capsuleStyle, eyeRing,
+                        glowStrength = bloom,
+                        allowBlurBloom = enableIdleMotion,
+                        arcPath = eyeArcPath,
+                        nativeArcPath = eyeNativeArcPath,
+                    )
+                    drawNomiGlyphEye(
+                        right, barW, barH, capsuleStyle, eyeRing,
+                        glowStrength = bloom,
+                        allowBlurBloom = enableIdleMotion,
+                        arcPath = eyeArcPath,
+                        nativeArcPath = eyeNativeArcPath,
+                    )
+                    if (mouthVisible.value > 0.08f ||
                         (mouthAmplitude != null && mouthAmplitude > 0.05f)
                     ) {
                         drawNomiGlyphMouth(
@@ -724,6 +677,7 @@ fun ImmersiveEyesFace(
                             color = glyph,
                             speaking = speaking,
                             life = life,
+                            smilePath = mouthPath,
                         )
                     }
                     drawNomiMateDecor(
@@ -733,8 +687,7 @@ fun ImmersiveEyesFace(
                         faceR = faceR,
                         color = glyph,
                         life = life,
-                        skipParticles = leftAccentIcon != null || rightAccentIcon != null ||
-                            mouthIcon != null,
+                        skipParticles = false,
                     )
                 }
             }
@@ -751,6 +704,10 @@ internal fun DrawScope.drawNomiGlyphEye(
     color: Color,
     glowRing: Boolean = false,
     glowStrength: Float = if (glowRing) 1f else 0f,
+    /** BlurMaskFilter is expensive on Adreno — only when idle motion is allowed. */
+    allowBlurBloom: Boolean = true,
+    arcPath: Path = Path(),
+    nativeArcPath: android.graphics.Path = android.graphics.Path(),
 ) {
     val w = width.coerceAtLeast(1.5f)
     // Allow short capsules — do not force taller-than-wide.
@@ -759,39 +716,35 @@ internal fun DrawScope.drawNomiGlyphEye(
     when {
         style > 0.28f -> {
             // Cute ^ happy arcs (icon-pack Nomi)
-            val path = Path().apply {
-                moveTo(center.x - w * 1.85f, center.y + h * 0.25f)
-                quadraticTo(
-                    center.x,
-                    center.y - h * (0.65f + 0.45f * style),
-                    center.x + w * 1.85f,
-                    center.y + h * 0.25f,
-                )
-            }
-            if (gs > 0.02f) {
+            arcPath.rewind()
+            arcPath.moveTo(center.x - w * 1.85f, center.y + h * 0.25f)
+            arcPath.quadraticTo(
+                center.x,
+                center.y - h * (0.65f + 0.45f * style),
+                center.x + w * 1.85f,
+                center.y + h * 0.25f,
+            )
+            if (gs > 0.02f && allowBlurBloom) {
                 drawIntoCanvas { canvas ->
                     val fw = Paint().asFrameworkPaint()
                     fw.isAntiAlias = true
                     fw.color = color.copy(alpha = 0.4f * gs).toArgb()
-                    fw.maskFilter = BlurMaskFilter(w * 1.1f, BlurMaskFilter.Blur.NORMAL)
+                    fw.maskFilter = BlurMaskFilterCache.get(w * 1.1f)
                     fw.strokeWidth = w * 1.45f
                     fw.strokeCap = android.graphics.Paint.Cap.ROUND
                     fw.style = android.graphics.Paint.Style.STROKE
-                    canvas.nativeCanvas.drawPath(
-                        android.graphics.Path().apply {
-                            moveTo(center.x - w * 1.85f, center.y + h * 0.25f)
-                            quadTo(
-                                center.x,
-                                center.y - h * (0.65f + 0.45f * style),
-                                center.x + w * 1.85f,
-                                center.y + h * 0.25f,
-                            )
-                        },
-                        fw,
+                    nativeArcPath.rewind()
+                    nativeArcPath.moveTo(center.x - w * 1.85f, center.y + h * 0.25f)
+                    nativeArcPath.quadTo(
+                        center.x,
+                        center.y - h * (0.65f + 0.45f * style),
+                        center.x + w * 1.85f,
+                        center.y + h * 0.25f,
                     )
+                    canvas.nativeCanvas.drawPath(nativeArcPath, fw)
                 }
             }
-            drawPath(path, color, style = Stroke(width = w * 1.45f, cap = StrokeCap.Round))
+            drawPath(arcPath, color, style = Stroke(width = w * 1.45f, cap = StrokeCap.Round))
         }
         style < -0.25f -> {
             // Soft sleepy dashes — still two distinct eyes, not one bar
@@ -799,19 +752,27 @@ internal fun DrawScope.drawNomiGlyphEye(
             val dashW = w * (1.6f + 0.5f * flatten)
             val dashH = (h * (1f - 0.55f * flatten)).coerceAtLeast(w * 0.95f)
             if (gs > 0.02f) {
-                val bloomArgb = color.copy(alpha = 0.4f * gs).toArgb()
-                drawIntoCanvas { canvas ->
-                    val paint = Paint().asFrameworkPaint().apply {
-                        isAntiAlias = true
-                        this.color = bloomArgb
-                        maskFilter = BlurMaskFilter(dashW * 0.55f, BlurMaskFilter.Blur.NORMAL)
+                if (allowBlurBloom) {
+                    val bloomArgb = color.copy(alpha = 0.4f * gs).toArgb()
+                    drawIntoCanvas { canvas ->
+                        val paint = Paint().asFrameworkPaint().apply {
+                            isAntiAlias = true
+                            this.color = bloomArgb
+                            maskFilter = BlurMaskFilterCache.get(dashW * 0.55f)
+                        }
+                        canvas.nativeCanvas.drawOval(
+                            center.x - dashW * 1.35f,
+                            center.y - dashH * 0.85f,
+                            center.x + dashW * 1.35f,
+                            center.y + dashH * 0.85f,
+                            paint,
+                        )
                     }
-                    canvas.nativeCanvas.drawOval(
-                        center.x - dashW * 1.35f,
-                        center.y - dashH * 0.85f,
-                        center.x + dashW * 1.35f,
-                        center.y + dashH * 0.85f,
-                        paint,
+                } else {
+                    drawOval(
+                        color = color.copy(alpha = 0.22f * gs),
+                        topLeft = Offset(center.x - dashW * 1.2f, center.y - dashH * 0.75f),
+                        size = Size(dashW * 2.4f, dashH * 1.5f),
                     )
                 }
             }
@@ -826,42 +787,33 @@ internal fun DrawScope.drawNomiGlyphEye(
             // Hollow pill-in-pill — Immersive capsule shape; optional EPORO purple bloom.
             val bloomR = maxOf(w, h) * 1.85f
             if (gs > 0.02f) {
-                val bloomArgb = color.copy(alpha = 0.45f * gs).toArgb()
-                drawIntoCanvas { canvas ->
-                    val paint = Paint().asFrameworkPaint().apply {
-                        isAntiAlias = true
-                        this.color = bloomArgb
-                        maskFilter = BlurMaskFilter(bloomR * 0.48f, BlurMaskFilter.Blur.NORMAL)
+                if (allowBlurBloom) {
+                    val bloomArgb = color.copy(alpha = 0.45f * gs).toArgb()
+                    drawIntoCanvas { canvas ->
+                        val paint = Paint().asFrameworkPaint().apply {
+                            isAntiAlias = true
+                            this.color = bloomArgb
+                            maskFilter = BlurMaskFilterCache.get(bloomR * 0.48f)
+                        }
+                        canvas.nativeCanvas.drawOval(
+                            center.x - w * 1.55f,
+                            center.y - h * 1.55f,
+                            center.x + w * 1.55f,
+                            center.y + h * 1.55f,
+                            paint,
+                        )
                     }
-                    canvas.nativeCanvas.drawOval(
-                        center.x - w * 1.55f,
-                        center.y - h * 1.55f,
-                        center.x + w * 1.55f,
-                        center.y + h * 1.55f,
-                        paint,
-                    )
                 }
                 drawOval(
-                    brush = Brush.radialGradient(
-                        colors = listOf(color.copy(alpha = 0.35f * gs), Color.Transparent),
-                        center = center,
-                        radius = bloomR,
-                    ),
-                    topLeft = Offset(center.x - bloomR, center.y - bloomR),
-                    size = Size(bloomR * 2f, bloomR * 2f),
+                    color = color.copy(alpha = (if (allowBlurBloom) 0.35f else 0.28f) * gs),
+                    topLeft = Offset(center.x - bloomR * 0.55f, center.y - bloomR * 0.55f),
+                    size = Size(bloomR * 1.1f, bloomR * 1.1f),
                 )
             } else {
                 drawOval(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            color.copy(alpha = 0.16f),
-                            Color.Transparent,
-                        ),
-                        center = center,
-                        radius = bloomR,
-                    ),
-                    topLeft = Offset(center.x - bloomR, center.y - bloomR),
-                    size = Size(bloomR * 2f, bloomR * 2f),
+                    color = color.copy(alpha = 0.12f),
+                    topLeft = Offset(center.x - bloomR * 0.45f, center.y - bloomR * 0.45f),
+                    size = Size(bloomR * 0.9f, bloomR * 0.9f),
                 )
             }
             val strokeW = minOf(w, h) * 0.42f
@@ -995,6 +947,7 @@ private fun DrawScope.drawNomiGlyphMouth(
     color: Color,
     speaking: Boolean,
     life: Float,
+    smilePath: Path = Path(),
 ) {
     val alpha = visible.coerceIn(0f, 1f)
     val halfW = faceR * 0.15f
@@ -1013,11 +966,10 @@ private fun DrawScope.drawNomiGlyphMouth(
             cornerRadius = CornerRadius(w * 0.5f, h * 0.5f),
         )
     } else if (abs(curve) > 0.1f) {
-        val path = Path().apply {
-            val y0 = center.y + wobble
-            moveTo(center.x - halfW, y0)
-            quadraticTo(center.x, y0 + smile, center.x + halfW, y0)
-        }
-        drawPath(path, tint, style = Stroke(width = faceR * 0.034f, cap = StrokeCap.Round))
+        smilePath.rewind()
+        val y0 = center.y + wobble
+        smilePath.moveTo(center.x - halfW, y0)
+        smilePath.quadraticTo(center.x, y0 + smile, center.x + halfW, y0)
+        drawPath(smilePath, tint, style = Stroke(width = faceR * 0.034f, cap = StrokeCap.Round))
     }
 }

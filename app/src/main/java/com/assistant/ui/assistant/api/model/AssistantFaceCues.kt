@@ -1,5 +1,7 @@
 package com.assistant.ui.assistant.api
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Structured face anatomy cues — LLM-owned, same role as affective mood.
  *
@@ -7,6 +9,7 @@ package com.assistant.ui.assistant.api
  * Non-null eye / mouth **fully replaces** that geometric shape at the same place
  * (not necessarily the exact capsule size). Accents sit on the cheeks (below eyes).
  */
+@Immutable
 data class AssistantFaceCues(
     val leftEye: AssistantFaceCueIcon? = null,
     val rightEye: AssistantFaceCueIcon? = null,

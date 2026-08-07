@@ -18,7 +18,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -120,6 +119,8 @@ fun VoiceWaveform(
     val speed = remember { Animatable(target.speed) }
     val thickness = remember { Animatable(target.thickness) }
     val bloom = remember { Animatable(target.bloom) }
+    val layerPaths = remember { Array(WaveLayers.size) { Path() } }
+    val spinePath = remember { Path() }
 
     LaunchedEffect(mood) {
         launch { amplitude.animateTo(target.amplitude, WaveSpring) }
@@ -149,6 +150,8 @@ fun VoiceWaveform(
             amplitude = amplitude.value,
             thickness = thickness.value,
             bloom = bloom.value,
+            layerPaths = layerPaths,
+            spinePath = spinePath,
         )
     }
 }
@@ -158,35 +161,36 @@ private fun DrawScope.drawSiriWaveform(
     amplitude: Float,
     thickness: Float,
     bloom: Float,
+    layerPaths: Array<Path>,
+    spinePath: Path,
 ) {
     if (size.width <= 0f || size.height <= 0f) return
     val midY = size.height * 0.5f
     val maxAmp = size.height * 0.42f * amplitude
     val steps = 96
+    val center = Offset(size.width * 0.5f, midY)
+    val bloomR = size.width * 0.42f
 
-    // Soft cool bloom behind the ribbons
+    // Soft cool bloom — solid layered circles avoid per-frame Brush allocation.
     if (bloom > 0.05f) {
         drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(
-                    Color(0xFF40C4FF).copy(alpha = 0.22f * bloom),
-                    AssistantTokens.Accent.copy(alpha = 0.12f * bloom),
-                    Color.Transparent,
-                ),
-                center = Offset(size.width * 0.5f, midY),
-                radius = size.width * 0.42f,
-            ),
-            radius = size.width * 0.42f,
-            center = Offset(size.width * 0.5f, midY),
+            color = Color(0xFF40C4FF).copy(alpha = 0.22f * bloom),
+            radius = bloomR,
+            center = center,
+        )
+        drawCircle(
+            color = AssistantTokens.Accent.copy(alpha = 0.12f * bloom),
+            radius = bloomR * 0.72f,
+            center = center,
         )
     }
 
     // Colored organic ribbons (filled lobes above/below center)
     WaveLayers.forEachIndexed { index, layer ->
-        val path = Path()
+        val path = layerPaths[index]
+        path.rewind()
         val layerAmp = maxAmp * layer.ampScale
         val layerPhase = phase * layer.freq + index * 0.7f
-        path.moveTo(0f, midY)
         for (i in 0..steps) {
             val t = i / steps.toFloat()
             val x = size.width * t
@@ -212,16 +216,16 @@ private fun DrawScope.drawSiriWaveform(
     }
 
     // Bright center spine
-    val spine = Path()
+    spinePath.rewind()
     for (i in 0..steps) {
         val t = i / steps.toFloat()
         val x = size.width * t
         val envelope = sin(t * PI).toFloat()
         val y = midY + maxAmp * 0.08f * envelope * sin(t * 8f + phase * 1.4f).toFloat()
-        if (i == 0) spine.moveTo(x, y) else spine.lineTo(x, y)
+        if (i == 0) spinePath.moveTo(x, y) else spinePath.lineTo(x, y)
     }
     drawPath(
-        spine,
+        spinePath,
         Color.White.copy(alpha = 0.85f),
         style = Stroke(
             width = (2.5f * thickness).coerceAtLeast(1.5f),

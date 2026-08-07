@@ -17,6 +17,10 @@ import kotlin.math.sin
 private val DecorWhite = Color(0xFFF5F7FA)
 private val BlushPink = Color(0xFFFF9BB0)
 
+/** Scratch paths reused on the Compose draw thread (UI thread only). */
+private val HeartPathScratch = Path()
+private val CrownPathScratch = Path()
+
 internal enum class NomiHandPose {
     None,
     Cheeks,
@@ -256,21 +260,21 @@ private fun DrawScope.drawNomiPaw(c: Offset, s: Float, color: Color, tilt: Float
 }
 
 private fun DrawScope.drawNomiHeart(c: Offset, s: Float, color: Color) {
-    val path = Path().apply {
-        val top = c.y - s * 0.15f
-        moveTo(c.x, c.y + s * 0.55f)
-        cubicTo(
-            c.x - s * 1.1f, c.y + s * 0.1f,
-            c.x - s * 0.95f, top - s * 0.55f,
-            c.x, top,
-        )
-        cubicTo(
-            c.x + s * 0.95f, top - s * 0.55f,
-            c.x + s * 1.1f, c.y + s * 0.1f,
-            c.x, c.y + s * 0.55f,
-        )
-        close()
-    }
+    val path = HeartPathScratch
+    path.rewind()
+    val top = c.y - s * 0.15f
+    path.moveTo(c.x, c.y + s * 0.55f)
+    path.cubicTo(
+        c.x - s * 1.1f, c.y + s * 0.1f,
+        c.x - s * 0.95f, top - s * 0.55f,
+        c.x, top,
+    )
+    path.cubicTo(
+        c.x + s * 0.95f, top - s * 0.55f,
+        c.x + s * 1.1f, c.y + s * 0.1f,
+        c.x, c.y + s * 0.55f,
+    )
+    path.close()
     drawPath(path, color)
 }
 
@@ -297,16 +301,16 @@ private fun DrawScope.drawNomiZzz(anchor: Offset, faceR: Float, color: Color, li
 }
 
 private fun DrawScope.drawNomiCrown(c: Offset, s: Float, color: Color) {
-    val path = Path().apply {
-        moveTo(c.x - s, c.y + s * 0.35f)
-        lineTo(c.x - s * 0.85f, c.y - s * 0.55f)
-        lineTo(c.x - s * 0.35f, c.y + s * 0.05f)
-        lineTo(c.x, c.y - s * 0.7f)
-        lineTo(c.x + s * 0.35f, c.y + s * 0.05f)
-        lineTo(c.x + s * 0.85f, c.y - s * 0.55f)
-        lineTo(c.x + s, c.y + s * 0.35f)
-        close()
-    }
+    val path = CrownPathScratch
+    path.rewind()
+    path.moveTo(c.x - s, c.y + s * 0.35f)
+    path.lineTo(c.x - s * 0.85f, c.y - s * 0.55f)
+    path.lineTo(c.x - s * 0.35f, c.y + s * 0.05f)
+    path.lineTo(c.x, c.y - s * 0.7f)
+    path.lineTo(c.x + s * 0.35f, c.y + s * 0.05f)
+    path.lineTo(c.x + s * 0.85f, c.y - s * 0.55f)
+    path.lineTo(c.x + s, c.y + s * 0.35f)
+    path.close()
     drawPath(path, color)
 }
 

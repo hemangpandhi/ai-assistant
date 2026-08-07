@@ -38,6 +38,8 @@ import com.tcs.vehicleassistant.assistant.AssistantUiProfile
 import com.tcs.vehicleassistant.assistant.session.SessionComposeHost
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 import java.util.Locale
@@ -63,6 +65,10 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var composeHost: SessionComposeHost? = null
     private var usingComposeUi = false
     private var currentUiToken: String = ""
+
+    /** Session-scoped jobs — cancelled in [onDestroy] so work cannot outlive the session. */
+    private val sessionJob = SupervisorJob()
+    private val sessionScope = CoroutineScope(sessionJob + Dispatchers.Main.immediate)
 
     private var lastResponseBuilder = java.lang.StringBuilder()
     companion object {
@@ -107,11 +113,13 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             }
 
             override fun onDone(utteranceId: String?) {
+                if (!sessionVisible) return
                 if (utteranceId != null && utteranceId.startsWith("SENTENCE_")) {
                     LatencyLogger.log("AssistantSession", "TTS Synthesis Done for $utteranceId")
                     currentHighlightStart = -1
                     currentHighlightEnd = -1
-                    CoroutineScope(Dispatchers.Main).launch {
+                    sessionScope.launch {
+                        if (!sessionVisible) return@launch
                         val spannable = responseText.text as? android.text.Spannable
                         if (spannable != null) {
                             val oldSpans = spannable.getSpans(0, spannable.length, android.text.style.BackgroundColorSpan::class.java)
@@ -119,18 +127,22 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         }
                     }
                 }
-                CoroutineScope(Dispatchers.Main).launch {
+                sessionScope.launch {
+                    if (!sessionVisible) return@launch
                     if (utteranceId == "QUESTION_FINAL") {
                         kotlinx.coroutines.delay(500)
+                        if (!sessionVisible) return@launch
                         startVoiceCapture()
                     } else if (utteranceId == "STATEMENT_FINAL_TOOL") {
                         for (job in currentPendingTools) {
                             try { job.await() } catch (e: Exception) {}
                         }
                         kotlinx.coroutines.delay(50)
+                        if (!sessionVisible) return@launch
                         finish()
                     } else if (utteranceId == "STATEMENT_FINAL") {
                         kotlinx.coroutines.delay(50)
+                        if (!sessionVisible) return@launch
                         finish()
                     }
                 }
@@ -142,12 +154,25 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         })
     }
 
+    /** False after [onHide] until next [onShow] — guards late TTS / mic callbacks. */
+    @Volatile
+    private var sessionVisible = false
+
     private var currentLayoutStyle = -1
     private var speechRecognizerIntent: Intent? = null
     private var unloadJob: kotlinx.coroutines.Job? = null
 
     override fun onHide() {
         super.onHide()
+        sessionVisible = false
+        typewriterJob?.cancel()
+        typewriterJob = null
+        timeoutJob?.cancel()
+        timeoutJob = null
+        dotAnimatorJob?.cancel()
+        dotAnimatorJob = null
+        runCatching { tts?.stop() }
+        runCatching { tts?.setOnUtteranceProgressListener(null) }
         if (usingComposeUi) {
             notifyImmersiveAssistantDismiss()
             runCatching { AssistantUiBootstrap.backend.stopSession() }
@@ -163,7 +188,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         context.startService(restartIntent)
         
         unloadJob?.cancel()
-        unloadJob = CoroutineScope(Dispatchers.Main).launch {
+        unloadJob = sessionScope.launch {
             kotlinx.coroutines.delay(600_000) // Increased to 10 minutes to reduce TTFT initialization latency
             LLMManager.unload()
         }
@@ -449,7 +474,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                 emitUiMood(AssistantMoodId.Idle)
                 emitUiTranscript(errorMsg, AssistantSpeaker.System)
                 
-                CoroutineScope(Dispatchers.Main).launch {
+                sessionScope.launch {
                     kotlinx.coroutines.delay(2000)
                     if (statusText.text.toString() == errorMsg) {
                         statusText.text = ""
@@ -487,6 +512,8 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
 
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
+        sessionVisible = true
+        setupTtsListener()
         
         unloadJob?.cancel()
         
@@ -525,7 +552,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             btnOpenApp.visibility = View.GONE
             inputControls.visibility = View.GONE
             
-            CoroutineScope(Dispatchers.Main).launch {
+            sessionScope.launch {
                 // Wait for prewarm to finish if it's currently running
                 while (LLMManager.isPrewarming) {
                     kotlinx.coroutines.delay(500)
@@ -541,7 +568,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         
                         // Automatically start listening if invoked via voice match/hotword
                         if ((showFlags and SHOW_WITH_ASSIST != 0) || args?.getBoolean("auto_trigger_mic") == true) {
-                            CoroutineScope(Dispatchers.Main).launch {
+                            sessionScope.launch {
                                 kotlinx.coroutines.delay(1000) // Wait for WakeWordService to release the mic
                                 startVoiceCapture()
                             }
@@ -568,7 +595,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             
             // Automatically start listening if invoked via voice match/hotword
             if ((showFlags and SHOW_WITH_ASSIST != 0) || args?.getBoolean("auto_trigger_mic") == true) {
-                CoroutineScope(Dispatchers.Main).launch {
+                sessionScope.launch {
                     kotlinx.coroutines.delay(1000) // Wait for WakeWordService to release the mic
                     startVoiceCapture()
                 }
@@ -579,17 +606,21 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private var timeoutJob: kotlinx.coroutines.Job? = null
 
     private fun startThinkingAnimation() {
-        CoroutineScope(Dispatchers.Main).launch {
+        sessionScope.launch {
             statusText.visibility = View.VISIBLE
             startDotAnimation("")
-            voiceAnimation.state = VoiceAnimationView.State.THINKING
+            // Compose immersive owns Thinking visuals — skip the XML wave animator
+            // so it does not keep a ValueAnimator ticking during LiteRT prefill.
+            if (!usingComposeUi) {
+                voiceAnimation.state = VoiceAnimationView.State.THINKING
+            }
             emitUiMood(AssistantMoodId.Thinking)
             emitUiMouth(null)
         }
     }
 
     private fun stopThinkingAnimation() {
-        CoroutineScope(Dispatchers.Main).launch {
+        sessionScope.launch {
             voiceAnimation.state = VoiceAnimationView.State.IDLE
             stopDotAnimation()
             emitUiMood(AssistantMoodId.Idle)
@@ -637,7 +668,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
         btnSend.isEnabled = false
         isQueryProcessed = false
         
-        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        sessionScope.launch {
             processQuery(query, retryCount)
         }
     }
@@ -645,7 +676,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     private suspend fun processQuery(query: String, retryCount: Int, loopCount: Int = 0, isAgenticObservation: Boolean = false, previousExecutedTools: Set<String> = emptySet()) {
         // Timeout watchdog
         timeoutJob?.cancel()
-        timeoutJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+        timeoutJob = sessionScope.launch {
             kotlinx.coroutines.delay(180000) // 3 minutes max (First-time GPU Shader Compilation / CPU Fallback)
             if (!isQueryProcessed) {
                 statusText.text = "Timeout - Restarting Model..."
@@ -753,7 +784,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 LatencyLogger.log("AssistantSession", "Time to First Token (TTFT): ${ttft}ms")
                             }
                             
-                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                            sessionScope.launch {
                                 if (isQueryProcessed) return@launch
                                 voiceAnimation.state = VoiceAnimationView.State.SPEAKING
                                 emitUiMood(AssistantMoodId.Speaking)
@@ -829,7 +860,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         lastResponseBuilder.append(confirmMsg)
                                         isHallucinating = true // Force stop further output processing
                                     } else {
-                                        val job = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).async { kotlinx.coroutines.withTimeoutOrNull(10000L) {
+                                        val job = sessionScope.async(Dispatchers.IO) { kotlinx.coroutines.withTimeoutOrNull(10000L) {
                                             executeToolCall(toolCall) } ?: "System Error: Tool execution timed out."
                                         }
                                         currentPendingTools.add(job)
@@ -858,22 +889,29 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             // Typewriter Coroutine Buffer
                             if (typewriterJob == null || typewriterJob?.isActive != true) {
-                                typewriterJob = CoroutineScope(Dispatchers.Main).launch {
-                                    while (isActive && currentDisplayLength < targetDisplayMessage.length) {
-                                        val step = 1
-                                        val dynamicDelay = typingSpeedMs
-                                        
-                                        currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
-                                        val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
-                                        
+                                typewriterJob = sessionScope.launch {
+                                    // Compose: larger steps + ~40ms cadence to cut recomposition flood;
+                                    // XML stubs keep the snappy 5ms path.
+                                    val step = if (usingComposeUi) 4 else 1
+                                    val dynamicDelay = if (usingComposeUi) 40L else typingSpeedMs
+                                    while (isActive && sessionVisible &&
+                                        currentDisplayLength < targetDisplayMessage.length
+                                    ) {
+                                        currentDisplayLength = Math.min(
+                                            currentDisplayLength + step,
+                                            targetDisplayMessage.length,
+                                        )
+                                        val currentSubstring =
+                                            targetDisplayMessage.substring(0, currentDisplayLength)
+
                                         responseText.text = parseMarkdown(currentSubstring)
                                         emitUiTranscript(currentSubstring, AssistantSpeaker.Assistant)
-                                        
+
                                         // Auto-scroll to bottom as text streams
                                         svResponse?.post {
                                             svResponse?.fullScroll(View.FOCUS_DOWN)
                                         }
-                                        
+
                                         kotlinx.coroutines.delay(dynamicDelay)
                                     }
                                 }
@@ -923,7 +961,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                         
                         LatencyLogger.log("AssistantSession", "Total Generation Time: ${totalTimeMs}ms (TTFT: ${ttftMs}ms, TPS: ${String.format("%.2f", tps)})")
                         
-                        CoroutineScope(Dispatchers.Main).launch {
+                        sessionScope.launch {
                             timeoutJob?.cancel()
                             
                             if (currentPendingTools.isNotEmpty()) {
@@ -985,12 +1023,18 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             
                             targetDisplayMessage = finalMsg
                             if (typewriterJob == null || typewriterJob?.isActive != true) {
-                                typewriterJob = CoroutineScope(Dispatchers.Main).launch {
-                                    while (isActive && currentDisplayLength < targetDisplayMessage.length) {
-                                        val step = 1
-                                        val dynamicDelay = typingSpeedMs
-                                        currentDisplayLength = Math.min(currentDisplayLength + step, targetDisplayMessage.length)
-                                        val currentSubstring = targetDisplayMessage.substring(0, currentDisplayLength)
+                                typewriterJob = sessionScope.launch {
+                                    val step = if (usingComposeUi) 4 else 1
+                                    val dynamicDelay = if (usingComposeUi) 40L else typingSpeedMs
+                                    while (isActive && sessionVisible &&
+                                        currentDisplayLength < targetDisplayMessage.length
+                                    ) {
+                                        currentDisplayLength = Math.min(
+                                            currentDisplayLength + step,
+                                            targetDisplayMessage.length,
+                                        )
+                                        val currentSubstring =
+                                            targetDisplayMessage.substring(0, currentDisplayLength)
                                         responseText.text = parseMarkdown(currentSubstring)
                                         emitUiTranscript(currentSubstring, AssistantSpeaker.Assistant)
                                         svResponse?.post { svResponse?.fullScroll(View.FOCUS_DOWN) }
@@ -1032,7 +1076,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                 if (isQuestion) {
                                     startVoiceCapture()
                                 } else if (toolFeedbacks.isNotEmpty() || currentPendingTools.isNotEmpty()) {
-                                    CoroutineScope(Dispatchers.Main).launch {
+                                    sessionScope.launch {
                                         for (job in currentPendingTools) {
                                             try { job.await() } catch (e: Exception) {}
                                         }
@@ -1041,7 +1085,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                                         finish()
                                     }
                                 } else {
-                                    CoroutineScope(Dispatchers.Main).launch {
+                                    sessionScope.launch {
                                         typewriterJob?.join()
                                         kotlinx.coroutines.delay(2000)
                                         finish()
@@ -1052,7 +1096,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
 
                     override fun onError(throwable: Throwable) {
-                        CoroutineScope(Dispatchers.Main).launch {
+                        sessionScope.launch {
                             timeoutJob?.cancel()
                             android.util.Log.e("AssistantSession", "LLM Error", throwable)
                             
@@ -1075,7 +1119,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             
         try {
             if (LocalLLMActivity.isCloudModelActive) {
-                CoroutineScope(Dispatchers.IO).launch {
+                sessionScope.launch(Dispatchers.IO) {
                     var systemPrompt = LLMManager.getSystemPrompt(context, interceptedQuery)
                     systemPrompt += "\n\n[Current State: ${VehicleManager.getLLMContextString(context)}]"
                     
@@ -1086,7 +1130,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                     }
                 }
             } else {
-                CoroutineScope(Dispatchers.IO).launch {
+                sessionScope.launch(Dispatchers.IO) {
                     try {
                         LLMManager.conversation!!.sendMessageAsync(
                             Contents.of(Content.Text(finalPrompt)),
@@ -1094,7 +1138,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
                             emptyMap()
                         )
                     } catch (e: Exception) {
-                        CoroutineScope(Dispatchers.Main).launch {
+                        sessionScope.launch {
                             statusText.text = "Error"
                             stopThinkingAnimation()
                             responseText.text = "Failed to communicate with NPU."
@@ -1117,7 +1161,7 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
             statusText.text = ""
             return
         }
-        dotAnimatorJob = CoroutineScope(Dispatchers.Main).launch {
+        dotAnimatorJob = sessionScope.launch {
             var dotCount = 0
             while (isActive) {
                 val dots = ".".repeat(dotCount)
@@ -1154,8 +1198,20 @@ class AssistantSession(context: Context) : VoiceInteractionSession(context), Tex
     }
 
     override fun onDestroy() {
-        tts?.stop()
+        sessionVisible = false
+        composeHost?.destroy()
+        composeHost = null
+        typewriterJob?.cancel()
+        timeoutJob?.cancel()
+        sessionJob.cancel()
+        runCatching { tts?.stop() }
+        runCatching { tts?.setOnUtteranceProgressListener(null) }
+        runCatching {
+            tts?.shutdown()
+            tts = null
+        }
         speechRecognizer?.destroy()
+        speechRecognizer = null
         dotAnimatorJob?.cancel()
         
         val restartIntent = Intent(context, WakeWordService::class.java)

@@ -171,19 +171,30 @@ internal fun DrawScope.drawExpressiveFaceShell(
 internal fun expressiveFaceShellPath(
     morphState: ExpressiveShellMorphState,
     bounds: Rect,
+): Path = expressiveFaceShellPath(morphState, bounds, Path(), Matrix())
+
+/**
+ * Rebuilds the shell morph into [into], reusing [transformMatrix] to avoid per-frame
+ * Path / Matrix allocations in animation loops.
+ */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+internal fun expressiveFaceShellPath(
+    morphState: ExpressiveShellMorphState,
+    bounds: Rect,
+    into: Path,
+    transformMatrix: Matrix,
 ): Path {
-    if (bounds.width <= 0f || bounds.height <= 0f) return Path()
-    return Path().apply {
-        addPath(morphState.morph.toPath(morphState.progress))
-        transform(
-            Matrix().apply {
-                values[Matrix.ScaleX] = bounds.width
-                values[Matrix.ScaleY] = bounds.height
-                values[Matrix.TranslateX] = bounds.left
-                values[Matrix.TranslateY] = bounds.top
-            },
-        )
-    }
+    into.rewind()
+    if (bounds.width <= 0f || bounds.height <= 0f) return into
+    // Material3 toPath writes the unit morph into [into] (clears first).
+    morphState.morph.toPath(morphState.progress, into)
+    transformMatrix.reset()
+    transformMatrix.values[Matrix.ScaleX] = bounds.width
+    transformMatrix.values[Matrix.ScaleY] = bounds.height
+    transformMatrix.values[Matrix.TranslateX] = bounds.left
+    transformMatrix.values[Matrix.TranslateY] = bounds.top
+    into.transform(transformMatrix)
+    return into
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
@@ -198,6 +209,24 @@ private inline fun DrawScope.drawExpressiveFaceShellPath(
     draw(expressiveFaceShellPath(morphState, bounds))
 }
 
+/** Draw a pre-built shell path (shared across glossy layers + clip). */
+internal fun DrawScope.drawExpressiveFaceShell(
+    path: Path,
+    color: Color,
+    style: DrawStyle = Fill,
+) {
+    drawPath(path = path, color = color, style = style)
+}
+
+/** Brush fill for a pre-built shell path. */
+internal fun DrawScope.drawExpressiveFaceShell(
+    path: Path,
+    brush: Brush,
+    style: DrawStyle = Fill,
+) {
+    drawPath(path = path, brush = brush, style = style)
+}
+
 /**
  * Layered black-glass face fill — replaces flat matte black with readable depth:
  * lifted crown, bright specular, cool rim whisper, soft chin shade.
@@ -205,6 +234,24 @@ private inline fun DrawScope.drawExpressiveFaceShellPath(
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun DrawScope.drawGlossyBlackFaceShell(
     morphState: ExpressiveShellMorphState,
+    bounds: Rect,
+    base: Color = Color(0xFF050508),
+    rimTint: Color = Color(0xFF8AB4F8),
+) {
+    if (bounds.width <= 0f || bounds.height <= 0f) return
+    drawGlossyBlackFaceShell(
+        path = expressiveFaceShellPath(morphState, bounds),
+        bounds = bounds,
+        base = base,
+        rimTint = rimTint,
+    )
+}
+
+/**
+ * Glossy black fill using a pre-built [path] (shared with rim stroke / clipPath).
+ */
+internal fun DrawScope.drawGlossyBlackFaceShell(
+    path: Path,
     bounds: Rect,
     base: Color = Color(0xFF050508),
     rimTint: Color = Color(0xFF8AB4F8),
@@ -228,8 +275,7 @@ internal fun DrawScope.drawGlossyBlackFaceShell(
 
     // 1) Base volume — clearly lifted crown → deep chin (visible on AAOS screens).
     drawExpressiveFaceShell(
-        morphState = morphState,
-        bounds = bounds,
+        path = path,
         brush = Brush.verticalGradient(
             colorStops = arrayOf(
                 0.00f to Color(0xFF2A2E38),
@@ -244,8 +290,7 @@ internal fun DrawScope.drawGlossyBlackFaceShell(
     )
     // 2) Specular gloss — soft top-left glass highlight.
     drawExpressiveFaceShell(
-        morphState = morphState,
-        bounds = bounds,
+        path = path,
         brush = Brush.radialGradient(
             colorStops = arrayOf(
                 0.00f to Color.White.copy(alpha = 0.28f),
@@ -259,8 +304,7 @@ internal fun DrawScope.drawGlossyBlackFaceShell(
     )
     // 3) Crown streak — thin elongated specular.
     drawExpressiveFaceShell(
-        morphState = morphState,
-        bounds = bounds,
+        path = path,
         brush = Brush.radialGradient(
             colorStops = arrayOf(
                 0.00f to Color.White.copy(alpha = 0.22f),
@@ -273,8 +317,7 @@ internal fun DrawScope.drawGlossyBlackFaceShell(
     )
     // 4) Cool rim whisper — blends with the outer border glow blue.
     drawExpressiveFaceShell(
-        morphState = morphState,
-        bounds = bounds,
+        path = path,
         brush = Brush.radialGradient(
             colorStops = arrayOf(
                 0.00f to rimTint.copy(alpha = 0.18f),
@@ -287,8 +330,7 @@ internal fun DrawScope.drawGlossyBlackFaceShell(
     )
     // 5) Soft chin shade only — don't crush the crown gloss.
     drawExpressiveFaceShell(
-        morphState = morphState,
-        bounds = bounds,
+        path = path,
         brush = Brush.verticalGradient(
             colorStops = arrayOf(
                 0.00f to Color.Transparent,

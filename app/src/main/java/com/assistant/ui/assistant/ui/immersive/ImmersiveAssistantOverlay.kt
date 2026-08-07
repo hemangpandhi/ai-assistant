@@ -95,6 +95,7 @@ import com.assistant.ui.assistant.face.AssistantMood
 import com.assistant.ui.assistant.ui.chrome.AssistantPresentation
 import com.assistant.ui.assistant.audio.AssistantSpeechEvent
 import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
+import com.assistant.ui.assistant.ui.theme.yieldsGpuForInference
 import com.assistant.ui.assistant.dialogue.DialogueBeat
 import com.assistant.ui.assistant.dialogue.DialogueSpeaker
 import com.assistant.ui.assistant.ui.chrome.FaceGesture
@@ -470,7 +471,12 @@ fun ImmersiveAssistantOverlay(
         if (showOverlay) {
             // Fullscreen: icon emerge / hotword wipe. Cards: no whole-stage transform —
             // the card itself slides from its edge via [ImmersiveAssistantCardChrome].
-                CompositionLocalProvider(LocalAssistantIdleMotion provides richEffects) {
+                CompositionLocalProvider(
+                    // Idle Canvas loops only when richEffects are on AND the model
+                    // is not in a GPU-critical mood (Thinking / Listening / Speaking…).
+                    // Speech-driven breath still runs via speechActive in rememberImmersiveGlowBreath.
+                    LocalAssistantIdleMotion provides (richEffects && !mood.yieldsGpuForInference()),
+                ) {
                     // Shared breath so border rim + face dock inhale together.
                     val speechActive = mood == AssistantMood.Listening ||
                         mood == AssistantMood.Speaking ||
@@ -693,32 +699,64 @@ fun ImmersiveBackdrop(
     val fadeStart = AssistantOverlayTokens.BackdropFadeStart
     val mid = AssistantOverlayTokens.BackdropMid
     val bottomAlpha = AssistantOverlayTokens.BackdropBottomAlpha
-    Canvas(modifier = modifier.fillMaxSize()) {
-        drawRect(
-            brush = Brush.verticalGradient(
-                colorStops = arrayOf(
-                    0.00f to Color.Transparent,
-                    fadeStart to Color.Transparent,
-                    mid to Color(0xFF05060A).copy(alpha = 0.38f),
-                    0.90f to Color(0xFF05060A).copy(alpha = bottomAlpha * 0.82f),
-                    1.00f to Color(0xFF05060A).copy(alpha = bottomAlpha),
-                ),
+    // Static stops — remember once so Canvas draw does not allocate arrayOf / Color.copy.
+    val veilBrush = remember(fadeStart, mid, bottomAlpha) {
+        Brush.verticalGradient(
+            colorStops = arrayOf(
+                0.00f to Color.Transparent,
+                fadeStart to Color.Transparent,
+                mid to Color(0xFF05060A).copy(alpha = 0.38f),
+                0.90f to Color(0xFF05060A).copy(alpha = bottomAlpha * 0.82f),
+                1.00f to Color(0xFF05060A).copy(alpha = bottomAlpha),
             ),
         )
-
+    }
+    val bloomBrush = remember(fadeStart, mid) {
+        val bloom = AssistantOverlayTokens.BackdropRichBloomAlpha
+        Brush.verticalGradient(
+            colorStops = arrayOf(
+                0.00f to Color.Transparent,
+                fadeStart to Color.Transparent,
+                mid to AssistantTokens.PanelGlowSoft.copy(alpha = bloom * 0.35f),
+                1.00f to AssistantTokens.PanelGlowSoft.copy(alpha = bloom),
+            ),
+        )
+    }
+    Canvas(modifier = modifier.fillMaxSize()) {
+        drawRect(brush = veilBrush)
         if (rich) {
-            val bloom = AssistantOverlayTokens.BackdropRichBloomAlpha
-            drawRect(
-                brush = Brush.verticalGradient(
-                    colorStops = arrayOf(
-                        0.00f to Color.Transparent,
-                        fadeStart to Color.Transparent,
-                        mid to AssistantTokens.PanelGlowSoft.copy(alpha = bloom * 0.35f),
-                        1.00f to AssistantTokens.PanelGlowSoft.copy(alpha = bloom),
-                    ),
-                ),
-            )
+            drawRect(brush = bloomBrush)
         }
+    }
+}
+
+/**
+ * Reuses native SweepGradient / LinearGradient / ComposeShader across frames.
+ * Rebuild only when size, thickness, or edge fade alphas change — not every draw.
+ */
+private class BorderGlowShaderCache {
+    val fadeAlphas = IntArray(6)
+    var lastW = -1f
+    var lastH = -1f
+    var lastThickness = -1f
+    var lastEdgePacked = -1
+    var lastSpectrum: IntArray? = null
+    var sweep: SweepGradient? = null
+    val fades = arrayOfNulls<LinearGradient>(4)
+    val composed = arrayOfNulls<ComposeShader>(4)
+
+    /** @return true when fade alpha values changed and fade/composed shaders must rebuild. */
+    fun updateFadeAlphas(edgeHi: Int, edgeMid: Int, edgeLo: Int): Boolean {
+        val packed = (edgeHi shl 16) or (edgeMid shl 8) or edgeLo
+        if (packed == lastEdgePacked) return false
+        lastEdgePacked = packed
+        fadeAlphas[0] = (edgeHi shl 24) or 0x00FFFFFF
+        fadeAlphas[1] = (edgeMid shl 24) or 0x00FFFFFF
+        fadeAlphas[2] = (edgeLo shl 24) or 0x00FFFFFF
+        fadeAlphas[3] = 0x0CFFFFFF
+        fadeAlphas[4] = 0x03FFFFFF
+        fadeAlphas[5] = 0x00FFFFFF
+        return true
     }
 }
 
@@ -774,6 +812,7 @@ fun ImmersiveBorderGlow(
     }
     val paint = remember { Paint().asFrameworkPaint().apply { isAntiAlias = true } }
     val shaderMatrix = remember { Matrix() }
+    val shaderCache = remember { BorderGlowShaderCache() }
     val angle = sweepAngle.value
     val breath = breathState.scale
     val progress = revealProgress.coerceIn(0f, 1f)
@@ -802,17 +841,12 @@ fun ImmersiveBorderGlow(
         floatArrayOf(0.00f, 0.14f, 0.28f, 0.42f, 0.57f, 0.71f, 0.86f, 1.00f)
     }
     // Edge opacity also breathes — kept soft so the rim never reads as a hard frame.
-    val edgeHi = (0x52 + (0x28 * inhale).toInt()).coerceIn(0, 0xFF)
-    val edgeMid = (0x30 + (0x1C * inhale).toInt()).coerceIn(0, 0xFF)
-    val edgeLo = (0x14 + (0x12 * inhale).toInt()).coerceIn(0, 0xFF)
-    val fadeAlphas = intArrayOf(
-        (edgeHi shl 24) or 0x00FFFFFF,
-        (edgeMid shl 24) or 0x00FFFFFF,
-        (edgeLo shl 24) or 0x00FFFFFF,
-        0x0CFFFFFF,
-        0x03FFFFFF,
-        0x00FFFFFF,
-    )
+    // Quantize inhale so fade alpha IntArray / LinearGradients are not rebuilt every float tick.
+    val inhaleQ = ((inhale * 8f).toInt() / 8f)
+    val edgeHi = (0x52 + (0x28 * inhaleQ).toInt()).coerceIn(0, 0xFF)
+    val edgeMid = (0x30 + (0x1C * inhaleQ).toInt()).coerceIn(0, 0xFF)
+    val edgeLo = (0x14 + (0x12 * inhaleQ).toInt()).coerceIn(0, 0xFF)
+    val fadeAlphasChanged = shaderCache.updateFadeAlphas(edgeHi, edgeMid, edgeLo)
     val fadeStops = remember {
         floatArrayOf(0.00f, 0.12f, 0.30f, 0.55f, 0.80f, 1.00f)
     }
@@ -829,45 +863,75 @@ fun ImmersiveBorderGlow(
         val w = size.width
         val h = size.height
         // Explicit bloom — rest ~40dp, idle inhale ~66dp, speech inhale ~74dp.
-        val thickness = AssistantOverlayTokens.BorderThickness.toPx() * breath
+        // Quantize thickness so breath ticks do not rebuild LinearGradient/ComposeShader.
+        val thickness = AssistantOverlayTokens.BorderThickness.toPx() *
+            ((breath * 10f).toInt() / 10f)
         val cx = w * 0.5f
         val cy = h * 0.5f
 
-        fun drawEdge(
-            left: Float,
-            top: Float,
-            right: Float,
-            bottom: Float,
-            ax0: Float,
-            ay0: Float,
-            ax1: Float,
-            ay1: Float,
-        ) {
-            val sweep = SweepGradient(cx, cy, spectrum, colorStops)
-            shaderMatrix.reset()
-            // Android sweep starts at 3 o'clock; -90° puts the first stop at the top.
-            shaderMatrix.postRotate(angle - 90f, cx, cy)
-            sweep.setLocalMatrix(shaderMatrix)
-            val fade = LinearGradient(
-                ax0, ay0, ax1, ay1,
-                fadeAlphas,
-                fadeStops,
-                Shader.TileMode.CLAMP,
+        val sizeChanged = w != shaderCache.lastW || h != shaderCache.lastH
+        val thicknessChanged = thickness != shaderCache.lastThickness
+        val spectrumChanged = shaderCache.lastSpectrum !== spectrum
+        if (sizeChanged || spectrumChanged || shaderCache.sweep == null) {
+            shaderCache.lastW = w
+            shaderCache.lastH = h
+            shaderCache.lastSpectrum = spectrum
+            shaderCache.sweep = SweepGradient(cx, cy, spectrum, colorStops)
+        }
+        val rebuildFades =
+            sizeChanged || thicknessChanged || fadeAlphasChanged || spectrumChanged
+        if (thicknessChanged) {
+            shaderCache.lastThickness = thickness
+        }
+        if (rebuildFades) {
+            // Top / bottom / left / right inward fades.
+            shaderCache.fades[0] = LinearGradient(
+                0f, 0f, 0f, thickness,
+                shaderCache.fadeAlphas, fadeStops, Shader.TileMode.CLAMP,
             )
-            paint.shader = ComposeShader(sweep, fade, PorterDuff.Mode.DST_IN)
+            shaderCache.fades[1] = LinearGradient(
+                0f, h, 0f, h - thickness,
+                shaderCache.fadeAlphas, fadeStops, Shader.TileMode.CLAMP,
+            )
+            shaderCache.fades[2] = LinearGradient(
+                0f, 0f, thickness, 0f,
+                shaderCache.fadeAlphas, fadeStops, Shader.TileMode.CLAMP,
+            )
+            shaderCache.fades[3] = LinearGradient(
+                w, 0f, w - thickness, 0f,
+                shaderCache.fadeAlphas, fadeStops, Shader.TileMode.CLAMP,
+            )
+            val sweep = shaderCache.sweep!!
+            for (i in 0..3) {
+                shaderCache.composed[i] = ComposeShader(
+                    sweep,
+                    shaderCache.fades[i]!!,
+                    PorterDuff.Mode.DST_IN,
+                )
+            }
+        }
+
+        val sweep = shaderCache.sweep!!
+        shaderMatrix.reset()
+        // Android sweep starts at 3 o'clock; -90° puts the first stop at the top.
+        shaderMatrix.postRotate(angle - 90f, cx, cy)
+        sweep.setLocalMatrix(shaderMatrix)
+
+        fun drawEdge(edgeIndex: Int, left: Float, top: Float, right: Float, bottom: Float) {
+            paint.shader = shaderCache.composed[edgeIndex]
             drawIntoCanvas { canvas ->
                 canvas.nativeCanvas.drawRect(left, top, right, bottom, paint)
             }
         }
 
         // Top — fades downward (inward).
-        drawEdge(0f, 0f, w, thickness, 0f, 0f, 0f, thickness)
+        drawEdge(0, 0f, 0f, w, thickness)
         // Bottom — fades upward (inward).
-        drawEdge(0f, h - thickness, w, h, 0f, h, 0f, h - thickness)
+        drawEdge(1, 0f, h - thickness, w, h)
         // Left — fades rightward (inward).
-        drawEdge(0f, 0f, thickness, h, 0f, 0f, thickness, 0f)
+        drawEdge(2, 0f, 0f, thickness, h)
         // Right — fades leftward (inward).
-        drawEdge(w - thickness, 0f, w, h, w, 0f, w - thickness, 0f)
+        drawEdge(3, w - thickness, 0f, w, h)
     }
 }
 
@@ -888,6 +952,26 @@ fun ImmersiveBottomEdgeGlow(
     val alpha = (progress * glowBreath.fade).coerceIn(0f, 1f)
     // Brighten slightly on inhale so the bar feels alive with the rim.
     val coreBoost = 0.85f + inhale * 0.15f
+    val spectrum = remember {
+        listOf(
+            Color(0xFF4285F4), // blue
+            Color(0xFF9B72CB), // violet
+            Color(0xFFD96570), // rose
+            Color(0xFFF4B400), // amber
+            Color(0xFF34A853), // green
+            Color(0xFF4285F4), // loop
+        )
+    }
+    val coreBrush = remember(spectrum) { Brush.horizontalGradient(colors = spectrum) }
+    val bloomStops = remember(spectrum) {
+        arrayOf(
+            0.00f to Color.Transparent,
+            0.45f to spectrum[1].copy(alpha = 0.18f),
+            0.75f to spectrum[0].copy(alpha = 0.42f),
+            1.00f to spectrum[0].copy(alpha = 0.70f),
+        )
+    }
+    val bloomBrushCache = remember { BottomEdgeBloomBrushCache() }
 
     Canvas(
         modifier = modifier
@@ -897,40 +981,43 @@ fun ImmersiveBottomEdgeGlow(
     ) {
         val w = size.width
         val h = size.height
-        val coreH = AssistantOverlayTokens.BottomEdgeCoreDp.toPx() * breath
-        val bloomH = AssistantOverlayTokens.BottomEdgeBloomDp.toPx() * breath
-        val spectrum = listOf(
-            Color(0xFF4285F4), // blue
-            Color(0xFF9B72CB), // violet
-            Color(0xFFD96570), // rose
-            Color(0xFFF4B400), // amber
-            Color(0xFF34A853), // green
-            Color(0xFF4285F4), // loop
-        )
+        val coreH = AssistantOverlayTokens.BottomEdgeCoreDp.toPx() * ((breath * 10f).toInt() / 10f)
+        val bloomH = AssistantOverlayTokens.BottomEdgeBloomDp.toPx() * ((breath * 10f).toInt() / 10f)
 
         // Soft upward bloom — sharp near the edge, dissolves into the stage.
         drawRect(
-            brush = Brush.verticalGradient(
-                colorStops = arrayOf(
-                    0.00f to Color.Transparent,
-                    0.45f to spectrum[1].copy(alpha = 0.18f * coreBoost),
-                    0.75f to spectrum[0].copy(alpha = 0.42f * coreBoost),
-                    1.00f to spectrum[0].copy(alpha = 0.70f * coreBoost),
-                ),
-                startY = h - bloomH,
-                endY = h,
-            ),
+            brush = bloomBrushCache.brush(h, bloomH, bloomStops),
             topLeft = Offset(0f, h - bloomH),
             size = Size(w, bloomH),
+            alpha = coreBoost,
         )
 
         // Crisp core line.
         drawRect(
-            brush = Brush.horizontalGradient(colors = spectrum),
+            brush = coreBrush,
             topLeft = Offset(0f, h - coreH),
             size = Size(w, coreH),
             alpha = coreBoost,
         )
+    }
+}
+
+/** Rebuilds the bottom-edge bloom brush only when height / bloom height change. */
+private class BottomEdgeBloomBrushCache {
+    private var lastH = -1f
+    private var lastBloomH = -1f
+    private var cached: Brush? = null
+
+    fun brush(h: Float, bloomH: Float, stops: Array<Pair<Float, Color>>): Brush {
+        val existing = cached
+        if (existing != null && lastH == h && lastBloomH == bloomH) return existing
+        lastH = h
+        lastBloomH = bloomH
+        return Brush.verticalGradient(
+            colorStops = stops,
+            startY = h - bloomH,
+            endY = h,
+        ).also { cached = it }
     }
 }
 

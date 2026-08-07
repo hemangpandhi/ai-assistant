@@ -1,6 +1,7 @@
 package com.assistant.ui.assistant.ui.chrome
 
 import com.assistant.ui.assistant.face.AssistantMood
+import com.assistant.ui.assistant.ui.theme.LocalAssistantIdleMotion
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -32,22 +33,16 @@ import kotlin.math.sin
 
 /**
  * Thinking cloud that animates in/out at the top-right of a face (or stage).
+ *
+ * When [LocalAssistantIdleMotion] is false (Thinking / TTFT), the cloud stays
+ * visible but static — no infinite Canvas invalidation competing for GPU.
  */
 @Composable
 fun ThinkingCloudOverlay(
     visible: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val life = rememberInfiniteTransition(label = "think_cloud_life")
-    val phase by life.animateFloat(
-        initialValue = 0f,
-        targetValue = (Math.PI * 2).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(2_800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "think_cloud_phase",
-    )
+    val idleMotion = LocalAssistantIdleMotion.current
 
     AnimatedVisibility(
         visible = visible,
@@ -74,16 +69,48 @@ fun ThinkingCloudOverlay(
             ),
         modifier = modifier,
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val side = minOf(size.width, size.height)
-            val bob = sin(phase.toDouble()).toFloat() * side * 0.04f
-            val anchor = Offset(size.width * 0.58f, size.height * 0.42f + bob)
-            drawThoughtCloud(
-                anchor = anchor,
-                cloudSize = side * 0.72f,
-                life = phase,
-            )
+        if (idleMotion) {
+            ThinkingCloudAnimatedCanvas()
+        } else {
+            ThinkingCloudStaticCanvas()
         }
+    }
+}
+
+@Composable
+private fun ThinkingCloudAnimatedCanvas() {
+    val life = rememberInfiniteTransition(label = "think_cloud_life")
+    val phase by life.animateFloat(
+        initialValue = 0f,
+        targetValue = (Math.PI * 2).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(2_800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "think_cloud_phase",
+    )
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val side = minOf(size.width, size.height)
+        val bob = sin(phase.toDouble()).toFloat() * side * 0.04f
+        val anchor = Offset(size.width * 0.58f, size.height * 0.42f + bob)
+        drawThoughtCloud(
+            anchor = anchor,
+            cloudSize = side * 0.72f,
+            life = phase,
+        )
+    }
+}
+
+@Composable
+private fun ThinkingCloudStaticCanvas() {
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val side = minOf(size.width, size.height)
+        val anchor = Offset(size.width * 0.58f, size.height * 0.42f)
+        drawThoughtCloud(
+            anchor = anchor,
+            cloudSize = side * 0.72f,
+            life = 0f,
+        )
     }
 }
 
