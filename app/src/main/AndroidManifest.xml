@@ -98,6 +98,26 @@
         <service android:name=".WakeWordService"
                  android:foregroundServiceType="microphone"
                  android:exported="true" />
+
+        <!-- Compose Immersive Hybrid face selection (UI only; ADB optional) -->
+        <receiver
+            android:name="com.assistant.ui.assistant.face.AssistantFaceReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.assistant.ui.action.SET_ASSISTANT_FACE" />
+                <action android:name="com.assistant.ui.action.GET_ASSISTANT_FACE" />
+            </intent-filter>
+        </receiver>
+
+        <!-- Compose vs legacy XML voice plate (UI only; ADB optional) -->
+        <receiver
+            android:name=".assistant.AssistantUiProfileReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.tcs.vehicleassistant.action.SET_ASSISTANT_UI" />
+                <action android:name="com.tcs.vehicleassistant.action.GET_ASSISTANT_UI" />
+            </intent-filter>
+        </receiver>
     </application>
 
 </manifest>

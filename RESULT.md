@@ -29,3 +29,5 @@ This is an incredibly impressive metric for a 2B parameter model running via CPU
 
 ### Recommendations for Future Optimization
 1. **NPU Delegation:** While 622ms is excellent, ensuring the `.litertlm` model is explicitly built with `TfLite` operators supported by the Tensor G2 TPU would offload compute from the CPU, further reducing power consumption and potentially dropping TTFT into the `200ms` range.
+
+<!-- connectivity check: push test from local environment -->
